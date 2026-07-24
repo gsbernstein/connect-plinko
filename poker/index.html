@@ -8,17 +8,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0B0A14;
-    --panel:#171426;
-    --panel-2:#1F1B33;
-    --peg:#8B7FFF;
-    --felt:#1a4d3e;
-    --felt-bright:#2d8a6e;
-    --ink:#F1EEFB;
-    --ink-dim:#726C8C;
+    --bg:#0a120e;
+    --panel:#2c1a0c;
+    --panel-2:#3d2512;
+    --peg:#d4af6a;
+    --felt:#0d4a34;
+    --felt-dark:#083324;
+    --felt-bright:#1f7a58;
+    --wood:#6b4226;
+    --wood-light:#8b5a2b;
+    --wood-dark:#2a1808;
+    --rail:#5c3a1e;
+    --ink:#F5F0E6;
+    --ink-dim:#A89878;
     --heart:#FF4D6D;
     --diamond:#FF8A5B;
-    --spade:#C8C2E8;
+    --spade:#E8E2D0;
     --club:#7EC8A3;
   }
   *{box-sizing:border-box;}
@@ -26,7 +31,8 @@
     margin:0;
     min-height:100%;
     background:
-      radial-gradient(circle at 50% 0%, #1c1832 0%, var(--bg) 55%);
+      radial-gradient(ellipse at 50% 18%, #1a3d2c 0%, var(--bg) 52%),
+      radial-gradient(circle at 80% 90%, #1a1208 0%, transparent 40%);
     color:var(--ink);
     font-family:'IBM Plex Mono', monospace;
     display:flex;
@@ -48,7 +54,7 @@
     letter-spacing:-0.02em;
     margin:0;
     text-align:center;
-    background:linear-gradient(90deg,var(--heart),var(--peg) 50%,var(--club));
+    background:linear-gradient(90deg,var(--wood-light),var(--peg) 45%,var(--felt-bright));
     -webkit-background-clip:text;
     background-clip:text;
     color:transparent;
@@ -72,27 +78,29 @@
     display:flex;
     align-items:center;
     gap:8px;
-    background:var(--panel);
-    border:1px solid #2a2545;
+    background:linear-gradient(160deg,var(--panel-2),var(--wood-dark));
+    border:1px solid var(--wood);
     border-radius:10px;
     padding:8px 14px;
     font-size:13px;
     flex:none;
     white-space:nowrap;
     color:var(--felt-bright);
+    box-shadow:inset 0 1px 0 rgba(255,220,160,0.12);
   }
-  .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor;}
+  .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor, inset 0 1px 0 rgba(255,220,160,0.12);}
   .score b{color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:18px;}
   .next-card{
     display:flex;
     align-items:center;
     gap:10px;
-    background:var(--panel);
-    border:1px solid #2a2545;
+    background:linear-gradient(160deg,var(--panel-2),var(--wood-dark));
+    border:1px solid var(--wood);
     border-radius:10px;
     padding:6px 12px 6px 8px;
     font-size:12px;
     color:var(--ink-dim);
+    box-shadow:inset 0 1px 0 rgba(255,220,160,0.12);
   }
   .next-card canvas{
     width:36px;
@@ -111,19 +119,20 @@
     gap:6px;
   }
   .colbtn{
-    background:var(--panel-2);
-    border:1px solid #2a2545;
-    color:var(--ink-dim);
+    background:linear-gradient(180deg,var(--wood-light),var(--rail));
+    border:1px solid var(--wood-dark);
+    color:var(--ink);
     border-radius:8px 8px 4px 4px;
     padding:9px 0;
     cursor:pointer;
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:15px;
-    transition:transform .08s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
+    box-shadow:inset 0 1px 0 rgba(255,220,160,0.22), 0 2px 0 var(--wood-dark);
+    transition:transform .08s ease, background .15s ease, color .15s ease, box-shadow .15s ease, filter .15s ease;
   }
   .colbtn:hover:not(:disabled){
-    background:#2a2450;
+    filter:brightness(1.12);
     color:var(--ink);
     transform:translateY(-2px);
   }
@@ -133,17 +142,34 @@
   .board-frame{
     position:relative;
     width:100%;
-    background:var(--panel);
-    border:1px solid #2a2545;
+    background:
+      linear-gradient(145deg, #9a6434 0%, var(--wood-light) 18%, var(--rail) 48%, var(--wood-dark) 100%);
+    border:2px solid var(--wood-dark);
+    border-radius:22px;
+    padding:14px;
+    box-shadow:
+      0 24px 50px -18px rgba(0,0,0,0.75),
+      inset 0 2px 0 rgba(255,220,160,0.28),
+      inset 0 -4px 10px rgba(0,0,0,0.45),
+      inset 0 0 0 1px rgba(0,0,0,0.35);
+  }
+  .board-frame::before{
+    content:'';
+    position:absolute;
+    inset:7px;
     border-radius:16px;
-    padding:10px;
-    box-shadow:0 20px 50px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02);
+    pointer-events:none;
+    box-shadow:
+      inset 0 0 0 3px var(--wood-dark),
+      inset 0 0 0 5px rgba(154,100,52,0.55);
+    z-index:1;
   }
   canvas#board{
     display:block;
     width:100%;
     height:auto;
-    border-radius:10px;
+    border-radius:12px;
+    box-shadow:inset 0 0 40px rgba(0,0,0,0.35);
   }
   .banner{
     position:absolute;
@@ -153,10 +179,11 @@
     justify-content:center;
     flex-direction:column;
     gap:14px;
-    background:rgba(11,10,20,0.82);
+    background:rgba(8,20,14,0.84);
     backdrop-filter:blur(2px);
-    border-radius:16px;
+    border-radius:22px;
     text-align:center;
+    z-index:2;
   }
   .banner.show{display:flex;}
   .banner h2{
@@ -168,12 +195,13 @@
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
-    background:var(--peg);
-    color:#100c22;
+    background:linear-gradient(180deg,var(--peg),#b8924a);
+    color:#1a1208;
     border:none;
     padding:10px 22px;
     border-radius:999px;
     cursor:pointer;
+    box-shadow:0 2px 0 #5c3a1e;
   }
   .footer-row{
     display:flex;
@@ -187,7 +215,7 @@
   .reset{
     background:transparent;
     color:var(--ink-dim);
-    border:1px solid #2a2545;
+    border:1px solid var(--wood);
     border-radius:8px;
     padding:6px 12px;
     font-family:'IBM Plex Mono',monospace;
@@ -195,7 +223,7 @@
     cursor:pointer;
     flex:none;
   }
-  .reset:hover{color:var(--ink);border-color:#463d7a;}
+  .reset:hover{color:var(--ink);border-color:var(--peg);}
   .game-switch{
     display:flex;
     justify-content:center;
@@ -207,20 +235,20 @@
     color:var(--ink-dim);
     text-decoration:none;
     font-size:12px;
-    border:1px solid #2a2545;
+    border:1px solid var(--wood);
     border-radius:999px;
     padding:5px 12px;
     transition:color .15s ease, border-color .15s ease, background .15s ease;
   }
   .game-switch a:hover{
     color:var(--ink);
-    border-color:#463d7a;
-    background:rgba(139,127,255,0.08);
+    border-color:var(--peg);
+    background:rgba(212,175,106,0.1);
   }
   .game-switch a.current{
     color:var(--ink);
     border-color:var(--peg);
-    background:rgba(139,127,255,0.12);
+    background:rgba(212,175,106,0.16);
   }
 </style>
 </head>
@@ -271,9 +299,13 @@
   const nextCtx = nextPreview.getContext('2d');
 
   const PEG = getCSS('--peg');
-  const PANEL = getCSS('--panel');
-  const PANEL2 = getCSS('--panel-2');
-  const BG = getCSS('--bg');
+  const FELT = getCSS('--felt');
+  const FELT_DARK = getCSS('--felt-dark');
+  const FELT_BRIGHT = getCSS('--felt-bright');
+  const WOOD = getCSS('--wood');
+  const WOOD_LIGHT = getCSS('--wood-light');
+  const WOOD_DARK = getCSS('--wood-dark');
+  const RAIL = getCSS('--rail');
   const HEART = getCSS('--heart');
   const DIAMOND = getCSS('--diamond');
   const SPADE = getCSS('--spade');
@@ -294,7 +326,7 @@
   // ---- cards ----
   const SUITS = ['♠','♥','♦','♣'];
   const SUIT_COLOR = {'♠':SPADE,'♥':HEART,'♦':DIAMOND,'♣':CLUB};
-  const SUIT_INK = {'♠':'#1a1630','♥':'#5a1020','♦':'#5a2810','♣':'#0e2a22'};
+  const SUIT_INK = {'♠':'#1a1208','♥':'#5a1020','♦':'#5a2810','♣':'#0e2a22'};
   const RANKS = [1,2,3,4,5,6,7,8,9,10,11,12,13];
   function rankLabel(r){
     if(r===1) return 'A';
@@ -1623,16 +1655,72 @@
     drawCardFace(ctx, b.x, b.y, b.card, b.angle||0, 32, true, 0);
   }
 
+  function fillFelt(target, x, y, w, h){
+    const grad = target.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, FELT_BRIGHT);
+    grad.addColorStop(0.45, FELT);
+    grad.addColorStop(1, FELT_DARK);
+    target.fillStyle = grad;
+    target.fillRect(x, y, w, h);
+
+    // Soft nap / wear so the surface reads as cloth, not flat paint.
+    target.save();
+    target.globalAlpha = 0.045;
+    target.fillStyle = '#ffffff';
+    for(let i = 0; i < 90; i++){
+      const px = x + ((i * 97) % w);
+      const py = y + ((i * 53) % h);
+      target.fillRect(px, py, 2 + (i % 3), 1);
+    }
+    target.globalAlpha = 0.06;
+    target.strokeStyle = '#000000';
+    target.lineWidth = 1;
+    for(let gy = y + 18; gy < y + h; gy += 28){
+      target.beginPath();
+      target.moveTo(x, gy);
+      target.bezierCurveTo(x + w * 0.35, gy - 6, x + w * 0.65, gy + 6, x + w, gy);
+      target.stroke();
+    }
+    target.restore();
+  }
+
+  function fillWoodPlate(target, x, y, w, h){
+    const grad = target.createLinearGradient(x, y, x + w, y + h);
+    grad.addColorStop(0, WOOD_LIGHT);
+    grad.addColorStop(0.35, RAIL);
+    grad.addColorStop(0.7, WOOD);
+    grad.addColorStop(1, WOOD_DARK);
+    target.fillStyle = grad;
+    target.fillRect(x, y, w, h);
+
+    target.save();
+    target.globalAlpha = 0.12;
+    for(let i = 0; i < 14; i++){
+      const gx = x + (i + 0.5) * (w / 14);
+      const g = target.createLinearGradient(gx - 4, y, gx + 4, y);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(0.5, i % 2 ? 'rgba(0,0,0,0.55)' : 'rgba(255,220,160,0.35)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      target.fillStyle = g;
+      target.fillRect(gx - 3, y, 6, h);
+    }
+    target.restore();
+  }
+
   function draw(){
     ctx.clearRect(0,0,W,H);
 
-    const grad = ctx.createLinearGradient(0,0,0,PEG_ZONE);
-    grad.addColorStop(0, '#1a1630');
-    grad.addColorStop(1, PANEL2);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0,0,W,PEG_ZONE);
+    fillFelt(ctx, 0, 0, W, PEG_ZONE);
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    // Thin wood lip separating the drop zone from the card grid.
+    const lipGrad = ctx.createLinearGradient(0, PEG_ZONE - 10, 0, PEG_ZONE);
+    lipGrad.addColorStop(0, 'rgba(42,24,8,0)');
+    lipGrad.addColorStop(0.55, RAIL);
+    lipGrad.addColorStop(1, WOOD_DARK);
+    ctx.fillStyle = lipGrad;
+    ctx.fillRect(0, PEG_ZONE - 10, W, 10);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
     for(let c=1;c<COLS;c++){
       ctx.beginPath();
       ctx.moveTo(c*CELL,0);
@@ -1643,7 +1731,11 @@
     for(const p of pegs){
       ctx.beginPath();
       ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle = p.hit ? '#ffffff' : PEG;
+      const pegGrad = ctx.createRadialGradient(p.x - 1, p.y - 1, 0, p.x, p.y, p.r);
+      pegGrad.addColorStop(0, p.hit ? '#fff8e8' : '#f0d78c');
+      pegGrad.addColorStop(0.55, p.hit ? '#ffffff' : PEG);
+      pegGrad.addColorStop(1, p.hit ? PEG : '#8a6a30');
+      ctx.fillStyle = pegGrad;
       ctx.shadowColor = PEG;
       ctx.shadowBlur = p.hit ? 18 : 6;
       ctx.fill();
@@ -1700,8 +1792,7 @@
       if(b.phase!=='grid' && b.y < PEG_ZONE) drawBall(b);
     }
 
-    ctx.fillStyle = BG;
-    ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
+    fillFelt(ctx, 0, PEG_ZONE, W, H - PEG_ZONE);
 
     const flashElapsed = resolvePhase==='flash' ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS) : 0;
     for(let c=0;c<COLS;c++){
@@ -1723,8 +1814,7 @@
     }
 
     plateCtx.clearRect(0,PEG_ZONE,W,H-PEG_ZONE);
-    plateCtx.fillStyle = PANEL;
-    plateCtx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
+    fillWoodPlate(plateCtx, 0, PEG_ZONE, W, H - PEG_ZONE);
     plateCtx.globalCompositeOperation = 'destination-out';
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
@@ -1742,12 +1832,12 @@
         plateCtx.beginPath();
         plateCtx.arc(cx,cy,HOLE_R,0,Math.PI*2);
         plateCtx.lineWidth = 4;
-        plateCtx.strokeStyle = 'rgba(0,0,0,0.55)';
+        plateCtx.strokeStyle = 'rgba(20,10,0,0.65)';
         plateCtx.stroke();
         plateCtx.beginPath();
         plateCtx.arc(cx,cy,HOLE_R-2.5,0,Math.PI*2);
         plateCtx.lineWidth = 1.5;
-        plateCtx.strokeStyle = 'rgba(255,255,255,0.07)';
+        plateCtx.strokeStyle = 'rgba(255,220,160,0.16)';
         plateCtx.stroke();
       }
     }
