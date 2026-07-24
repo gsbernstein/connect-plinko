@@ -954,7 +954,7 @@
       <button type="button" class="rail-tab desktop-hide is-active" data-panel="table" aria-selected="true">
         <span class="rail-tab-label">Table</span>
       </button>
-      <button type="button" class="rail-tab" data-panel="upgrades" aria-selected="false">
+      <button type="button" class="rail-tab" data-panel="upgrades" aria-selected="false" hidden>
         <span class="rail-tab-label">Upgrades</span>
         <span class="rail-tab-badge" id="badgeUpgrades" hidden>0</span>
       </button>
@@ -966,7 +966,7 @@
         <span class="rail-tab-label">Achieves</span>
         <span class="rail-tab-badge" id="badgeAchievements" hidden>0</span>
       </button>
-      <button type="button" class="rail-tab" data-panel="vip" aria-selected="false">
+      <button type="button" class="rail-tab" data-panel="vip" aria-selected="false" hidden>
         <span class="rail-tab-label">VIP</span>
         <span class="rail-tab-badge" id="badgeVip" hidden>0</span>
       </button>
@@ -1706,6 +1706,23 @@
     return questSlotCap() > 0;
   }
 
+  function upgradesTabUnlocked(){
+    return (stats.hands || 0) > 0;
+  }
+
+  function vipTabUnlocked(){
+    // Cash Out / VIP Lounge opens at run Lv 8; stays once you've ever reached it.
+    return runLevel >= MIN_CASH_OUT_LEVEL
+      || prestigeCount > 0
+      || (stats.maxRunLevel || 1) >= MIN_CASH_OUT_LEVEL;
+  }
+
+  function defaultShopPanel(){
+    if(upgradesTabUnlocked()) return 'upgrades';
+    if(vipTabUnlocked()) return 'vip';
+    return 'achievements';
+  }
+
   function maxQuestRarityIndex(){
     // Quest Ink Lv0 = common only; Lv4 = legendary.
     return Math.max(0, Math.min(QUEST_RARITIES.length - 1, prestigeLevel('questInk')));
@@ -2192,7 +2209,7 @@
       if(bonus.label && !parts.length) parts.push(bonus.label);
     }
     if(lvl === MIN_CASH_OUT_LEVEL){
-      parts.push('Cash Out ready');
+      parts.push('VIP Lounge unlocked');
     }
     // Slot i unlocks at run level i+1 (first slot at Lv 2).
     if(lvl >= 2 && lvl <= MAX_QUEST_SLOTS + 1){
@@ -4332,8 +4349,12 @@
   const stageEl = document.getElementById('panelTable');
   const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
   const railPanels = Array.from(document.querySelectorAll('.rail-panel'));
+  const upgradesTabEl = document.querySelector('.rail-tab[data-panel="upgrades"]');
   const questsTabEl = document.querySelector('.rail-tab[data-panel="quests"]');
+  const vipTabEl = document.querySelector('.rail-tab[data-panel="vip"]');
+  const upgradesPanelEl = document.getElementById('panelUpgrades');
   const questsPanelEl = document.getElementById('panelQuests');
+  const vipPanelEl = document.getElementById('panelVip');
   const desktopMq = window.matchMedia('(min-width:1000px)');
   const tabBadges = {
     upgrades: document.getElementById('badgeUpgrades'),
@@ -4367,19 +4388,34 @@
     el.textContent = n > 99 ? '99+' : String(n);
   }
 
-  function updateQuestTabAvailability(){
-    const unlocked = questsTabUnlocked();
-    if(questsTabEl) questsTabEl.hidden = !unlocked;
-    if(!unlocked && activeRailPanel === 'quests'){
-      setRailPanel(isDesktopLayout() ? 'upgrades' : 'table');
+  function panelTabUnlocked(panel){
+    if(panel === 'upgrades') return upgradesTabUnlocked();
+    if(panel === 'quests') return questsTabUnlocked();
+    if(panel === 'vip') return vipTabUnlocked();
+    return true;
+  }
+
+  function updateRailTabAvailability(){
+    if(upgradesTabEl) upgradesTabEl.hidden = !upgradesTabUnlocked();
+    if(questsTabEl) questsTabEl.hidden = !questsTabUnlocked();
+    if(vipTabEl) vipTabEl.hidden = !vipTabUnlocked();
+    if(upgradesPanelEl && !upgradesTabUnlocked()) upgradesPanelEl.classList.remove('is-active');
+    if(questsPanelEl && !questsTabUnlocked()) questsPanelEl.classList.remove('is-active');
+    if(vipPanelEl && !vipTabUnlocked()) vipPanelEl.classList.remove('is-active');
+    if(!panelTabUnlocked(activeRailPanel)){
+      setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
     }
-    if(questsPanelEl && !unlocked) questsPanelEl.classList.remove('is-active');
+  }
+
+  // Back-compat name used by quest UI refresh.
+  function updateQuestTabAvailability(){
+    updateRailTabAvailability();
   }
 
   function setRailPanel(panel){
     if(!panel) return;
-    if(panel === 'quests' && !questsTabUnlocked()) return;
-    if(panel === 'table' && isDesktopLayout()) panel = 'upgrades';
+    if(!panelTabUnlocked(panel)) return;
+    if(panel === 'table' && isDesktopLayout()) panel = defaultShopPanel();
     const known = panel === 'table' || railPanels.some(p => p.dataset.panel === panel);
     if(!known) return;
     activeRailPanel = panel;
@@ -4405,7 +4441,7 @@
     tab.addEventListener('click', ()=>setRailPanel(tab.dataset.panel));
   }
   desktopMq.addEventListener('change', ()=>{
-    if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel('upgrades');
+    if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
     else setRailPanel(activeRailPanel);
   });
 
@@ -4557,6 +4593,7 @@
     // Keep buyable upgrades up top; sink completed ones.
     for(const btn of active.concat(maxedList)) upgradesEl.appendChild(btn);
     setTabBadge('upgrades', affordableCount);
+    updateRailTabAvailability();
   }
 
   function updatePrestigeUI(){
@@ -4609,6 +4646,7 @@
       for(const btn of active.concat(maxedList)) prestigeUpgradesEl.appendChild(btn);
     }
     setTabBadge('vip', vipReady);
+    updateRailTabAvailability();
   }
 
   function makeUpgradeButton(def, onBuy, prestige){
@@ -5027,7 +5065,8 @@
   updateContractsUI();
   updateSuitBombUI();
   refreshButtons();
-  setRailPanel(isDesktopLayout() ? 'upgrades' : 'table');
+  updateRailTabAvailability();
+  setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
   draw();
   requestAnimationFrame(idleSpin);
   window.addEventListener('beforeunload', persistSave);
