@@ -3322,8 +3322,6 @@
     };
     chipFlyRaf = requestAnimationFrame(step);
   }
-  // Temporary test hook for headless screenshots (removed after capture).
-  window.__spawnChipFly = spawnChipFly;
 
   function awardChips(amount, origin){
     amount = Math.floor(amount);
@@ -4827,6 +4825,30 @@
     }
   }
 
+  // Floor clear wipes the bottom row — spit chips from each cleared seat,
+  // not a single mid-board fountain.
+  function spawnFloorChipFlies(groups, totalPts){
+    totalPts = Math.floor(totalPts);
+    if(totalPts <= 0) return;
+    const cells = [];
+    for(const g of groups){
+      if(!g.floorClear || !g.cells) continue;
+      for(const cell of g.cells) cells.push(cell);
+    }
+    if(!cells.length){
+      spawnChipFly(W/2, PEG_ZONE + (ROWS-1)*CELL + CELL/2, totalPts);
+      return;
+    }
+    const base = Math.floor(totalPts / cells.length);
+    let rem = totalPts - base * cells.length;
+    for(const [c, r] of cells){
+      const share = base + (rem > 0 ? 1 : 0);
+      if(rem > 0) rem--;
+      if(share <= 0) continue;
+      spawnChipFly(c*CELL + CELL/2, PEG_ZONE + r*CELL + CELL/2, share);
+    }
+  }
+
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
     const mult = scoreMultiplier();
@@ -5216,13 +5238,22 @@
             spawnHandChipFlies(currentGroups, chainMult);
           } else {
             const floorPts = floorClearPayout();
-            const floorY = PEG_ZONE + (ROWS-1)*CELL + CELL/2;
-            if(floorPts > 0) awardChips(floorPts, { x: W/2, y: floorY });
+            const floorCells = currentGroups.flatMap(g => g.floorClear ? g.cells : []);
+            const floorY = floorCells.length
+              ? PEG_ZONE + floorCells.reduce((s, cell)=>s+cell[1], 0)/floorCells.length*CELL + CELL/2
+              : PEG_ZONE + (ROWS-1)*CELL + CELL/2;
+            const floorX = floorCells.length
+              ? floorCells.reduce((s, cell)=>s+cell[0], 0)/floorCells.length*CELL + CELL/2
+              : W/2;
+            if(floorPts > 0){
+              awardChips(floorPts);
+              spawnFloorChipFlies(currentGroups, floorPts);
+            }
             clearTimeout(shopUiTimer);
             flushScoreUI();
             updateShopUI();
             pushPopup({
-              x: W/2,
+              x: floorX,
               y: floorY,
               text: floorPts > 0 ? ('FLOOR CLEAR +' + floorPts) : 'FLOOR CLEAR!',
               color: floorPts > 0 ? (getCSS('--felt-bright') || '#2d8a6e') : '#ffffff',
