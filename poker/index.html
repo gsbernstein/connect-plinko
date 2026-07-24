@@ -63,7 +63,7 @@
   .hud{
     width:100%;
     display:flex;
-    flex-wrap:nowrap;
+    flex-wrap:wrap;
     justify-content:space-between;
     align-items:center;
     gap:8px;
@@ -222,19 +222,137 @@
     border-color:var(--peg);
     background:rgba(139,127,255,0.12);
   }
+  .shop{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .shop-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .shop-head h2{
+    margin:0;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .shop-meta{
+    color:var(--ink-dim);
+    font-size:12px;
+  }
+  .shop-meta b{color:var(--felt-bright);font-weight:600;}
+  .upgrades{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  @media (min-width:560px){
+    .upgrades{grid-template-columns:1fr 1fr;}
+  }
+  .upgrade{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+    text-align:left;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:12px;
+    padding:12px 14px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono',monospace;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease, transform .08s ease;
+  }
+  .upgrade:hover:not(:disabled){
+    border-color:#463d7a;
+    background:var(--panel-2);
+    transform:translateY(-1px);
+  }
+  .upgrade:disabled{
+    opacity:0.55;
+    cursor:not-allowed;
+  }
+  .upgrade.affordable{
+    border-color:rgba(46,138,110,0.55);
+    box-shadow:0 0 0 1px rgba(46,138,110,0.15);
+  }
+  .upgrade.maxed{
+    opacity:0.75;
+    border-color:#3a3558;
+  }
+  .upgrade-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+  }
+  .upgrade-name{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:14px;
+  }
+  .upgrade-lvl{
+    color:var(--ink-dim);
+    font-size:11px;
+    white-space:nowrap;
+  }
+  .upgrade-desc{
+    color:var(--ink-dim);
+    font-size:11px;
+    line-height:1.35;
+    margin:0;
+  }
+  .upgrade-effect{
+    color:var(--felt-bright);
+    font-size:11px;
+  }
+  .upgrade-cost{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .upgrade-cost.too-much{color:var(--heart);}
+  .upgrade-cost.max{color:var(--ink-dim);font-weight:500;}
+  .idle-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:10px;
+    padding:8px 12px;
+    font-size:12px;
+    color:var(--ink-dim);
+    white-space:nowrap;
+  }
+  .idle-pill b{
+    color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+  }
+  .idle-pill.on{color:var(--felt-bright);border-color:rgba(46,138,110,0.4);}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Plinko Poker</h1>
-  <div class="tagline">Drop spinning cards through the pegs. Land a poker hand in a line and it explodes — full board? the bottom row blows out automatically.</div>
+  <div class="tagline">Drop cards, cash hands, and spend chips on upgrades that deal for you — an idle plinko poker table.</div>
   <div class="game-switch">
     <a href="../">Classic</a>
     <a class="current" href="./" aria-current="page">Poker</a>
   </div>
 
   <div class="hud">
-    <div class="score active" id="scoreBox">Score&nbsp;<b id="scoreVal">0</b></div>
+    <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
+    <div class="idle-pill" id="autoStatus">Auto&nbsp;<b id="autoStatusVal">off</b></div>
     <div class="next-card">
       <canvas id="nextPreview" width="72" height="72"></canvas>
       <div>Next&nbsp;<b id="nextLabel">—</b></div>
@@ -251,9 +369,17 @@
     </div>
   </div>
 
+  <section class="shop" aria-label="Upgrades">
+    <div class="shop-head">
+      <h2>Upgrades</h2>
+      <div class="shop-meta">Lifetime earned&nbsp;<b id="lifetimeVal">0</b></div>
+    </div>
+    <div class="upgrades" id="upgrades"></div>
+  </section>
+
   <div class="footer-row">
-    <span class="hint">Dotted guides show near hands · board full? bottom row blows out</span>
-    <button class="reset" id="resetScores">Reset score</button>
+    <span class="hint">Buy Auto Dealer to idle · dotted guides show near hands</span>
+    <button class="reset" id="resetScores">Reset progress</button>
   </div>
 </div>
 
@@ -398,6 +524,7 @@
   // grid[col][row] = 0 | {suit, rank, angle}
   let grid, colHeights, gameOver;
   let score = 0;
+  let lifetime = 0;
   let nextCard = null;
 
   // Per-column stack of occupants, bottom-to-top: {type:'piece', card, angle}
@@ -405,6 +532,246 @@
   // clear/gravity pass shift an in-flight ball's target row along with
   // everything else.
   let stack;
+
+  // ---- idle upgrades ----
+  const SAVE_KEY = 'plinkoPokerIdle_v1';
+  const MAX_IN_FLIGHT = 14;
+  const UPGRADE_DEFS = [
+    {
+      id: 'autoDealer',
+      name: 'Auto Dealer',
+      desc: 'Automatically drop cards. Higher levels deal faster.',
+      baseCost: 15,
+      costScale: 1.55,
+      maxLevel: 30
+    },
+    {
+      id: 'multiDeal',
+      name: 'Multi Deal',
+      desc: 'Drop extra cards each auto tick.',
+      baseCost: 80,
+      costScale: 2.05,
+      maxLevel: 8
+    },
+    {
+      id: 'bigBlind',
+      name: 'Big Blind',
+      desc: '+25% chips from every scored hand.',
+      baseCost: 25,
+      costScale: 1.65,
+      maxLevel: 40
+    },
+    {
+      id: 'hotStreak',
+      name: 'Hot Streak',
+      desc: '+1 effective chain multiplier per level.',
+      baseCost: 120,
+      costScale: 2.0,
+      maxLevel: 10
+    },
+    {
+      id: 'cardSense',
+      name: 'Card Sense',
+      desc: 'Auto-drops aim toward near-miss columns.',
+      baseCost: 200,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'feltGrease',
+      name: 'Felt Grease',
+      desc: 'Balls fall and settle faster.',
+      baseCost: 50,
+      costScale: 1.8,
+      maxLevel: 12
+    }
+  ];
+
+  let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
+  let lastAutoDropAt = 0;
+  let saveTimer = 0;
+
+  function upgradeLevel(id){ return upgrades[id] || 0; }
+
+  function upgradeCost(def){
+    const lvl = upgradeLevel(def.id);
+    if(lvl >= def.maxLevel) return Infinity;
+    return Math.floor(def.baseCost * Math.pow(def.costScale, lvl));
+  }
+
+  function autoDropIntervalMs(){
+    const lvl = upgradeLevel('autoDealer');
+    if(lvl <= 0) return Infinity;
+    return Math.max(320, Math.floor(3800 * Math.pow(0.84, lvl - 1)));
+  }
+
+  function autoDropCount(){
+    return 1 + upgradeLevel('multiDeal');
+  }
+
+  function scoreMultiplier(){
+    return 1 + 0.25 * upgradeLevel('bigBlind');
+  }
+
+  function chainBonus(){
+    return upgradeLevel('hotStreak');
+  }
+
+  function physicsSpeed(){
+    return 1 + 0.22 * upgradeLevel('feltGrease');
+  }
+
+  function formatNum(n){
+    if(!Number.isFinite(n)) return '—';
+    if(n < 1000) return String(Math.floor(n));
+    if(n < 10000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k';
+    if(n < 1e6) return Math.floor(n/1000) + 'k';
+    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
+    return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
+  }
+
+  function formatInterval(ms){
+    if(!Number.isFinite(ms)) return 'off';
+    if(ms >= 1000) return (ms/1000).toFixed(ms >= 2500 ? 1 : 2).replace(/\.0$/,'') + 's';
+    return Math.round(ms) + 'ms';
+  }
+
+  function upgradeEffectText(def){
+    const lvl = upgradeLevel(def.id);
+    switch(def.id){
+      case 'autoDealer':
+        return lvl ? ('Every ' + formatInterval(autoDropIntervalMs())) : 'Manual only';
+      case 'multiDeal':
+        return (1 + lvl) + ' card' + (1+lvl === 1 ? '' : 's') + '/tick';
+      case 'bigBlind':
+        return '×' + scoreMultiplier().toFixed(2).replace(/\.00$/,'');
+      case 'hotStreak':
+        return lvl ? ('+' + lvl + ' chain') : 'No bonus';
+      case 'cardSense':
+        return lvl ? 'Aiming near hands' : 'Random columns';
+      case 'feltGrease':
+        return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
+      default:
+        return '';
+    }
+  }
+
+  function persistSave(){
+    try{
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        score, lifetime, upgrades, v: 1
+      }));
+    }catch(_){ /* private mode / quota */ }
+  }
+
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persistSave, 200);
+  }
+
+  function loadSave(){
+    try{
+      const raw = localStorage.getItem(SAVE_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || typeof data !== 'object') return;
+      if(typeof data.score === 'number' && data.score >= 0) score = Math.floor(data.score);
+      if(typeof data.lifetime === 'number' && data.lifetime >= 0) lifetime = Math.floor(data.lifetime);
+      if(data.upgrades && typeof data.upgrades === 'object'){
+        for(const def of UPGRADE_DEFS){
+          const v = data.upgrades[def.id];
+          if(typeof v === 'number' && v >= 0){
+            upgrades[def.id] = Math.min(def.maxLevel, Math.floor(v));
+          }
+        }
+      }
+    }catch(_){ /* corrupt save */ }
+  }
+
+  function resetProgress(){
+    score = 0;
+    lifetime = 0;
+    upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
+    lastAutoDropAt = 0;
+    persistSave();
+    updateScoreUI();
+    updateShopUI();
+    updateAutoStatus();
+  }
+
+  function buyUpgrade(id){
+    const def = UPGRADE_DEFS.find(u => u.id === id);
+    if(!def) return;
+    const lvl = upgradeLevel(id);
+    if(lvl >= def.maxLevel) return;
+    const cost = upgradeCost(def);
+    if(score < cost) return;
+    score -= cost;
+    upgrades[id] = lvl + 1;
+    scheduleSave();
+    updateScoreUI();
+    updateShopUI();
+    updateAutoStatus();
+  }
+
+  function columnReservations(){
+    const reserved = Array(COLS).fill(0);
+    for(const b of balls){
+      if(b.targetCol != null) reserved[b.targetCol]++;
+      else if(b.phase === 'peg' && b.autoCol != null) reserved[b.autoCol]++;
+    }
+    return reserved;
+  }
+
+  function pickAutoColumn(reserved){
+    const open = [];
+    for(let c=0;c<COLS;c++){
+      if(colHeights[c] + reserved[c] < ROWS) open.push(c);
+    }
+    if(!open.length) return -1;
+    if(!upgradeLevel('cardSense')){
+      return open[(Math.random()*open.length)|0];
+    }
+    // Prefer columns that sit on a near-miss empty cell, then any open col.
+    const hints = findNearMisses();
+    const scores = Object.fromEntries(open.map(c => [c, Math.random()*0.3]));
+    for(const h of hints){
+      for(const [c, r] of h.cells){
+        if(grid[c][r]) continue;
+        const nextRow = colHeights[c] + reserved[c];
+        if(nextRow !== r) continue;
+        if(scores[c] === undefined) continue;
+        scores[c] += 2 + (h.priority || 0) * 0.15;
+      }
+    }
+    let best = open[0], bestScore = -1;
+    for(const c of open){
+      if(scores[c] > bestScore){ bestScore = scores[c]; best = c; }
+    }
+    return best;
+  }
+
+  function tryAutoDrop(now){
+    const interval = autoDropIntervalMs();
+    if(!Number.isFinite(interval)) return;
+    if(gameOver) return;
+    if(now - lastAutoDropAt < interval) return;
+    if(balls.length >= MAX_IN_FLIGHT) return;
+    if(colHeights.every(h => h >= ROWS)) return;
+
+    const count = Math.min(autoDropCount(), MAX_IN_FLIGHT - balls.length);
+    const reserved = columnReservations();
+    let dropped = 0;
+    for(let i=0;i<count;i++){
+      if(balls.length >= MAX_IN_FLIGHT) break;
+      const col = pickAutoColumn(reserved);
+      if(col < 0) break;
+      dropAt(col*CELL + CELL/2, {autoCol: col});
+      reserved[col]++;
+      dropped++;
+    }
+    if(dropped > 0) lastAutoDropAt = now;
+  }
 
   function freshState(){
     grid = Array.from({length:COLS}, ()=>Array(ROWS).fill(0));
@@ -420,6 +787,7 @@
     flashCells = null;
     particles = [];
     popups = [];
+    lastAutoDropAt = performance.now();
     shoe = makeDeck().concat(makeDeck());
     nextCard = dealCard();
     updateNextUI();
@@ -654,10 +1022,10 @@
 
   function dropInColumn(col){
     if(inputBlocked()) return;
-    dropAt(col*CELL + CELL/2);
+    dropAt(col*CELL + CELL/2, {autoCol: col});
   }
 
-  function dropAt(x){
+  function dropAt(x, opts){
     if(gameOver) return;
     if(colHeights.every(h=>h>=ROWS)) return;
     if(!nextCard) nextCard = dealCard();
@@ -672,6 +1040,7 @@
       radius: BALL_RADIUS,
       phase: 'peg',
       targetCol: null,
+      autoCol: opts && opts.autoCol != null ? opts.autoCol : null,
       row: null,
       card,
       angle: Math.random()*Math.PI*2,
@@ -940,15 +1309,22 @@
   }
 
   function tick(){
-    const gravity = 0.42;
+    const now = performance.now();
+    tryAutoDrop(now);
+
+    const speed = physicsSpeed();
+    const gravity = 0.42 * Math.min(speed, 3.2);
+    const steps = Math.max(1, Math.min(3, Math.round(speed)));
     for(const p of pegs){ if(p.hit) p.hit--; }
     for(const path of bumperPaths){ if(path.hit) path.hit--; }
 
-    for(const ball of balls){
-      stepBall(ball, gravity);
+    for(let s=0;s<steps;s++){
+      for(const ball of balls){
+        stepBall(ball, gravity / steps);
+      }
+      resolveBallCollisions();
+      forceSeatStuckGridBalls();
     }
-    resolveBallCollisions();
-    forceSeatStuckGridBalls();
     stepParticles();
 
     const landed = balls.filter(b=>b.landed);
@@ -964,7 +1340,7 @@
 
     draw();
 
-    if(balls.length>0 || particles.length>0){
+    if(balls.length>0 || particles.length>0 || Number.isFinite(autoDropIntervalMs())){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -1250,14 +1626,15 @@
     return pts * chainMultiplier;
   }
 
-  function spawnPopups(groups){
+  function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
+    const mult = scoreMultiplier();
     for(const g of groups){
       const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
       const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
       const x = avgC*CELL+CELL/2;
       const y = PEG_ZONE + avgR*CELL + CELL/2;
-      const pts = g.points * chainStep;
+      const pts = Math.floor(g.points * chainMult * mult);
       popups.push({
         x, y,
         text: g.name + ' +' + pts,
@@ -1266,16 +1643,16 @@
         duration:1100
       });
     }
-    if(chainStep>1){
+    if(chainMult>1){
       popups.push({
         x:W/2, y:PEG_ZONE*0.4,
-        text:'CHAIN ×'+chainStep+'!',
+        text:'CHAIN ×'+chainMult+'!',
         color:'#ffffff', t0:now, duration:1200, big:true
       });
     }
     if(groups.length>1){
       popups.push({
-        x:W/2, y:PEG_ZONE*0.4 + (chainStep>1?34:0),
+        x:W/2, y:PEG_ZONE*0.4 + (chainMult>1?34:0),
         text:'COMBO ×'+groups.length,
         color: PEG, t0:now, duration:1200
       });
@@ -1499,16 +1876,23 @@
 
   function resolveTick(){
     const now = performance.now();
+    const speed = Math.min(physicsSpeed(), 2.8);
+    const flashMs = FLASH_MS / speed;
+    const explodeMs = EXPLODE_MS / speed;
     if(resolving){
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
-        if(elapsed >= FLASH_MS){
+        if(elapsed >= flashMs){
           const isFloorClear = currentGroups.some(g => g.floorClear);
           if(!isFloorClear){
-            const pts = scoreGroups(currentGroups, chainStep);
+            const chainMult = Math.max(1, chainStep + chainBonus());
+            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
             score += pts;
+            lifetime += pts;
+            scheduleSave();
             updateScoreUI();
-            spawnPopups(currentGroups);
+            updateShopUI();
+            spawnPopups(currentGroups, pts, chainMult);
           } else {
             popups.push({
               x: W/2,
@@ -1526,7 +1910,7 @@
           resolvePhaseStart = now;
         }
       } else if(resolvePhase==='explode'){
-        if(elapsed >= EXPLODE_MS){
+        if(elapsed >= explodeMs){
           for(const b of balls) b.cascadeBall = false;
           finishResolveOrChain();
         }
@@ -1536,6 +1920,8 @@
     const popupsAlive = popups.some(p => performance.now()-p.t0 < p.duration);
     if(resolving || popupsAlive){
       requestAnimationFrame(resolveTick);
+    } else if(Number.isFinite(autoDropIntervalMs())){
+      startLoop();
     }
   }
 
@@ -1820,12 +2206,81 @@
 
   // ---- UI wiring ----
   const scoreValEl = document.getElementById('scoreVal');
+  const lifetimeValEl = document.getElementById('lifetimeVal');
+  const autoStatusEl = document.getElementById('autoStatus');
+  const autoStatusValEl = document.getElementById('autoStatusVal');
+  const upgradesEl = document.getElementById('upgrades');
   const nextLabel = document.getElementById('nextLabel');
   const banner = document.getElementById('banner');
   const bannerText = document.getElementById('bannerText');
+  const upgradeButtons = {};
 
   function updateScoreUI(){
-    scoreValEl.textContent = score;
+    scoreValEl.textContent = formatNum(score);
+    if(lifetimeValEl) lifetimeValEl.textContent = formatNum(lifetime);
+  }
+
+  function updateAutoStatus(){
+    const interval = autoDropIntervalMs();
+    const on = Number.isFinite(interval);
+    autoStatusEl.classList.toggle('on', on);
+    if(!on){
+      autoStatusValEl.textContent = 'off';
+      return;
+    }
+    const n = autoDropCount();
+    autoStatusValEl.textContent = formatInterval(interval) + (n > 1 ? ' ×' + n : '');
+    startLoop();
+  }
+
+  function updateShopUI(){
+    for(const def of UPGRADE_DEFS){
+      const btn = upgradeButtons[def.id];
+      if(!btn) continue;
+      const lvl = upgradeLevel(def.id);
+      const maxed = lvl >= def.maxLevel;
+      const cost = upgradeCost(def);
+      const canAfford = !maxed && score >= cost;
+      btn.disabled = maxed || !canAfford;
+      btn.classList.toggle('affordable', canAfford);
+      btn.classList.toggle('maxed', maxed);
+      btn.querySelector('.upgrade-lvl').textContent = maxed
+        ? 'MAX'
+        : ('Lv ' + lvl + '/' + def.maxLevel);
+      btn.querySelector('.upgrade-effect').textContent = upgradeEffectText(def);
+      const costEl = btn.querySelector('.upgrade-cost');
+      if(maxed){
+        costEl.textContent = 'Maxed';
+        costEl.className = 'upgrade-cost max';
+      } else {
+        costEl.textContent = formatNum(cost) + ' chips';
+        costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
+      }
+    }
+  }
+
+  function buildShop(){
+    upgradesEl.innerHTML = '';
+    for(const def of UPGRADE_DEFS){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'upgrade';
+      btn.dataset.id = def.id;
+      btn.innerHTML =
+        '<div class="upgrade-top">' +
+          '<span class="upgrade-name"></span>' +
+          '<span class="upgrade-lvl"></span>' +
+        '</div>' +
+        '<p class="upgrade-desc"></p>' +
+        '<div class="upgrade-effect"></div>' +
+        '<div class="upgrade-cost"></div>';
+      btn.querySelector('.upgrade-name').textContent = def.name;
+      btn.querySelector('.upgrade-desc').textContent = def.desc;
+      btn.addEventListener('click', ()=>buyUpgrade(def.id));
+      upgradesEl.appendChild(btn);
+      upgradeButtons[def.id] = btn;
+    }
+    updateShopUI();
   }
 
   function updateNextUI(){
@@ -1846,8 +2301,11 @@
     draw();
   });
   document.getElementById('resetScores').addEventListener('click', ()=>{
-    score = 0;
-    updateScoreUI();
+    if(!confirm('Reset chips, upgrades, and the board?')) return;
+    resetProgress();
+    freshState();
+    refreshButtons();
+    draw();
   });
 
   function canvasPos(evt){
@@ -1895,17 +2353,30 @@
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
 
-  // Keep the aim preview gently spinning even when idle
+  // Keep the aim preview gently spinning even when idle, and
+  // wake the physics loop whenever the auto-dealer is armed.
   function idleSpin(){
-    if(!looping && !resolving) draw();
+    const now = performance.now();
+    if(!looping && !resolving){
+      tryAutoDrop(now);
+      if(balls.length || particles.length || Number.isFinite(autoDropIntervalMs())){
+        startLoop();
+      }
+      draw();
+    }
     requestAnimationFrame(idleSpin);
   }
 
+  loadSave();
+  buildShop();
   freshState();
   updateScoreUI();
+  updateAutoStatus();
+  updateShopUI();
   refreshButtons();
   draw();
   requestAnimationFrame(idleSpin);
+  window.addEventListener('beforeunload', persistSave);
 })();
 </script>
 </body>
