@@ -435,6 +435,26 @@
     border-color:#3a3558;
   }
   .quest.achievement .quest-kind{color:#F0D78C;}
+  .quest.rarity-common{border-color:#3a3558;}
+  .quest.rarity-uncommon{border-color:rgba(126,200,163,0.55);}
+  .quest.rarity-rare{border-color:rgba(110,168,255,0.55);}
+  .quest.rarity-epic{border-color:rgba(192,132,252,0.55);}
+  .quest.rarity-legendary{
+    border-color:rgba(230,195,92,0.65);
+    box-shadow:0 0 0 1px rgba(230,195,92,0.12);
+  }
+  .quest.rarity-uncommon .quest-kind{color:#7EC8A3;}
+  .quest.rarity-rare .quest-kind{color:#6EA8FF;}
+  .quest.rarity-epic .quest-kind{color:#C084FC;}
+  .quest.rarity-legendary .quest-kind{color:#E6C35C;}
+  .quest.quest-locked{
+    cursor:default;
+    opacity:0.55;
+    border-style:dashed;
+  }
+  .quest.quest-locked:hover{transform:none; background:var(--panel);}
+  .rail-tab[hidden]{display:none !important;}
+  .rail-tabs.quests-locked{grid-template-columns:repeat(3, minmax(0, 1fr));}
   .quest-top{
     display:flex;
     justify-content:space-between;
@@ -909,7 +929,7 @@
         <section class="rail-panel contracts" id="panelQuests" data-panel="quests" aria-label="Quests">
           <div class="contracts-head">
             <h2>Quests</h2>
-            <div class="contracts-meta"><b id="questReadyVal">0</b> ready to claim</div>
+            <div class="contracts-meta"><span id="questSlotsMeta">0 / 5 slots</span> · <b id="questReadyVal">0</b> ready</div>
           </div>
           <div class="quests" id="quests"></div>
         </section>
@@ -941,7 +961,7 @@
           <span class="rail-tab-label">Upgrades</span>
           <span class="rail-tab-badge" id="badgeUpgrades" hidden>0</span>
         </button>
-        <button type="button" class="rail-tab" data-panel="quests" aria-selected="false">
+        <button type="button" class="rail-tab" data-panel="quests" aria-selected="false" hidden>
           <span class="rail-tab-label">Quests</span>
           <span class="rail-tab-badge" id="badgeQuests" hidden>0</span>
         </button>
@@ -958,7 +978,7 @@
   </div>
 
   <div class="footer-row">
-    <span class="hint">Tabs: Upgrades · Quests · Achievements · VIP Lounge</span>
+    <span class="hint">Tabs: Upgrades · Quests (from Lv 2) · Achievements · VIP Lounge</span>
     <button class="reset" id="resetScores">Reset progress</button>
   </div>
 </div>
@@ -1128,7 +1148,7 @@
 
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
-  const SAVE_VERSION = 4;
+  const SAVE_VERSION = 5;
   const MAX_IN_FLIGHT = 14;
   const MAX_CASCADE_BALLS = 42;
   const MAX_POPUPS = 36;
@@ -1283,7 +1303,7 @@
     40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' }
   };
 
-  // Contracts: run quests (reset on Cash Out) + permanent achievements.
+  // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
   // reward.chips → spendable chips (not XP); reward.comps → permanent VIP comps;
   // reward.runComps → Cash Out credit; reward.prestige / reward.upgrade as level bonuses.
   const HAND_STAT = {
@@ -1296,49 +1316,103 @@
     'THREE OF A KIND': 'threeKinds',
     'TWO PAIR': 'twoPairs'
   };
-  const CONTRACT_DEFS = [
+  const RUN_HAND_STAT = {
+    'ROYAL FLUSH': 'runRoyalFlushes',
+    'STRAIGHT FLUSH': 'runStraightFlushes',
+    'FOUR OF A KIND': 'runFourKinds',
+    'FULL HOUSE': 'runFullHouses',
+    'FLUSH': 'runFlushes',
+    'STRAIGHT': 'runStraights',
+    'THREE OF A KIND': 'runThreeKinds',
+    'TWO PAIR': 'runTwoPairs'
+  };
+  const MAX_QUEST_SLOTS = 5;
+  const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+  const QUEST_RARITY = {
+    common:    { label: 'Common',    weight: 52, targetMult: 1,   rewardMult: 1,   color: '#9aa3b5' },
+    uncommon:  { label: 'Uncommon',  weight: 28, targetMult: 1.5, rewardMult: 1.7, color: '#7EC8A3' },
+    rare:      { label: 'Rare',      weight: 14, targetMult: 2.2, rewardMult: 2.6, color: '#6EA8FF' },
+    epic:      { label: 'Epic',      weight: 5,  targetMult: 3.2, rewardMult: 4,   color: '#C084FC' },
+    legendary: { label: 'Legendary', weight: 1,  targetMult: 4.5, rewardMult: 6.5, color: '#E6C35C' }
+  };
+  // Templates for rolled run quests. {n} in desc is replaced with the scaled target.
+  const QUEST_TEMPLATES = [
     {
-      id: 'q_hands_5', kind: 'quest', name: 'Ante Up',
-      desc: 'Score 5 poker hands this table.',
-      stat: 'runHands', target: 5, unlockAt: 1,
-      reward: { chips: 50 }
+      id: 'hands', name: 'Ante Up',
+      desc: 'Score {n} poker hands this table.',
+      stat: 'runHands', baseTarget: 6, reward: { chips: 55 }
     },
     {
-      id: 'q_drops_40', kind: 'quest', name: 'Busy Dealer',
-      desc: 'Drop 40 cards this table.',
-      stat: 'runCardsDropped', target: 40, unlockAt: 2,
-      reward: { chips: 80 }
+      id: 'drops', name: 'Busy Dealer',
+      desc: 'Drop {n} cards this table.',
+      stat: 'runCardsDropped', baseTarget: 35, reward: { chips: 70 }
     },
     {
-      id: 'q_hands_20', kind: 'quest', name: 'Session Grind',
-      desc: 'Score 20 hands this table.',
-      stat: 'runHands', target: 20, unlockAt: 3,
-      reward: { chips: 200, runComps: 1 }
+      id: 'twoPair', name: 'Pocket Pairs',
+      desc: 'Score {n} Two Pair hands this table.',
+      stat: 'runTwoPairs', baseTarget: 2, reward: { chips: 80 }
     },
     {
-      id: 'q_chain', kind: 'quest', name: 'On a Heater',
-      desc: 'Clear a chained hand (×2+) this table.',
-      stat: 'runChainClears', target: 1, unlockAt: 4,
-      reward: { chips: 150 }
+      id: 'trips', name: 'Set Mining',
+      desc: 'Score {n} Three of a Kind hands this table.',
+      stat: 'runThreeKinds', baseTarget: 2, reward: { chips: 110 }
     },
     {
-      id: 'q_floor', kind: 'quest', name: 'Sweep the Felt',
-      desc: 'Trigger a floor clear this table.',
-      stat: 'runFloorClears', target: 1, unlockAt: 5,
-      reward: { chips: 250, runComps: 1 }
+      id: 'chain', name: 'On a Heater',
+      desc: 'Clear {n} chained hands (×2+) this table.',
+      stat: 'runChainClears', baseTarget: 1, minRarity: 'uncommon',
+      reward: { chips: 140 }
     },
     {
-      id: 'q_combo', kind: 'quest', name: 'Two-Way Pot',
-      desc: 'Clear two hands in one resolve this table.',
-      stat: 'runMultiClears', target: 1, unlockAt: 6,
+      id: 'floor', name: 'Sweep the Felt',
+      desc: 'Trigger {n} floor clear(s) this table.',
+      stat: 'runFloorClears', baseTarget: 1, minRarity: 'uncommon',
+      reward: { chips: 180, runComps: 1 }
+    },
+    {
+      id: 'multi', name: 'Two-Way Pot',
+      desc: 'Clear {n} multi-hand resolve(s) this table.',
+      stat: 'runMultiClears', baseTarget: 1, minRarity: 'uncommon',
+      reward: { chips: 160 }
+    },
+    {
+      id: 'flush', name: 'Painted Pot',
+      desc: 'Score {n} Flush(es) this table.',
+      stat: 'runFlushes', baseTarget: 1, minRarity: 'rare',
+      reward: { chips: 220, runComps: 1 }
+    },
+    {
+      id: 'straight', name: 'Connector Run',
+      desc: 'Score {n} Straight(s) this table.',
+      stat: 'runStraights', baseTarget: 1, minRarity: 'rare',
       reward: { chips: 220 }
     },
     {
-      id: 'q_purge', kind: 'quest', name: 'Clean House',
-      desc: 'Cast Suit Purge this table.',
-      stat: 'runSuitPurges', target: 1, unlockAt: 11,
-      reward: { chips: 400, runComps: 1 }
+      id: 'boat', name: 'Full Steam',
+      desc: 'Score {n} Full House(s) this table.',
+      stat: 'runFullHouses', baseTarget: 1, minRarity: 'epic',
+      reward: { chips: 320, comps: 1 }
     },
+    {
+      id: 'quads', name: 'Quad Hunt',
+      desc: 'Score {n} Four of a Kind(s) this table.',
+      stat: 'runFourKinds', baseTarget: 1, minRarity: 'epic',
+      reward: { chips: 400, comps: 1 }
+    },
+    {
+      id: 'purge', name: 'Clean House',
+      desc: 'Cast Suit Purge {n} time(s) this table.',
+      stat: 'runSuitPurges', baseTarget: 1, minRarity: 'rare', unlockAt: 11,
+      reward: { chips: 300, runComps: 1 }
+    },
+    {
+      id: 'grind', name: 'Session Grind',
+      desc: 'Score {n} poker hands this table.',
+      stat: 'runHands', baseTarget: 18, minRarity: 'uncommon',
+      reward: { chips: 200, runComps: 1 }
+    }
+  ];
+  const ACHIEVEMENT_DEFS = [
     {
       id: 'a_first_hand', kind: 'achievement', name: 'First Pot',
       desc: 'Score your first poker hand.',
@@ -1436,6 +1510,8 @@
       reward: { comps: 2 }
     }
   ];
+  // Back-compat alias used by a few load paths.
+  const CONTRACT_DEFS = ACHIEVEMENT_DEFS;
 
   // Permanent VIP perks bought with comps from Cash Out.
   const PRESTIGE_DEFS = [
@@ -1488,6 +1564,14 @@
       maxLevel: 10
     },
     {
+      id: 'questInk',
+      name: 'Quest Ink',
+      desc: 'Unlock higher-rarity table quests. Lv1 Uncommon → Lv4 Legendary.',
+      baseCost: 2,
+      costScale: 2.15,
+      maxLevel: 4
+    },
+    {
       id: 'pitBoss',
       name: 'Pit Boss',
       desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick.',
@@ -1512,14 +1596,18 @@
   let lastHoldDropAt = 0;
   let levelToastTimer = 0;
   let questUiTimer = 0;
-  let questClaimed = Object.create(null); // id -> true
+  let questClaimed = Object.create(null); // achievement id -> true
+  let activeQuests = []; // rolled run quests in slots
+  let questUidSeq = 1;
   const EMPTY_STATS = {
     hands: 0, royalFlushes: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
-    runCardsDropped: 0, runMultiClears: 0
+    runCardsDropped: 0, runMultiClears: 0,
+    runFlushes: 0, runStraights: 0, runFullHouses: 0, runFourKinds: 0,
+    runThreeKinds: 0, runTwoPairs: 0, runRoyalFlushes: 0, runStraightFlushes: 0
   };
   let stats = Object.assign({}, EMPTY_STATS);
 
@@ -1595,30 +1683,53 @@
     return pendingComps() > 0;
   }
 
-  function questProgress(def){
+  function questSlotCap(){
+    // One slot per run level above 1, capped at 5. Tab stays locked at Lv 1.
+    return Math.min(MAX_QUEST_SLOTS, Math.max(0, runLevel - 1));
+  }
+
+  function questsTabUnlocked(){
+    return questSlotCap() > 0;
+  }
+
+  function maxQuestRarityIndex(){
+    // Quest Ink Lv0 = common only; Lv4 = legendary.
+    return Math.max(0, Math.min(QUEST_RARITIES.length - 1, prestigeLevel('questInk')));
+  }
+
+  function achievementProgress(def){
     return Math.min(def.target, stats[def.stat] || 0);
   }
 
-  function questComplete(def){
-    return questProgress(def) >= def.target;
+  function achievementComplete(def){
+    return achievementProgress(def) >= def.target;
   }
 
-  function questIsClaimed(def){
+  function achievementIsClaimed(def){
     return !!questClaimed[def.id];
   }
 
-  function questRevealed(def){
-    if(questIsClaimed(def) || questComplete(def)) return true;
-    if(def.secret) return questProgress(def) > 0;
-    return runLevel >= (def.unlockAt || 1);
+  function achievementRevealed(def){
+    if(achievementIsClaimed(def) || achievementComplete(def)) return true;
+    if(def.secret) return achievementProgress(def) > 0;
+    return runLevel >= (def.unlockAt || 1) || (stats.maxRunLevel || 1) >= (def.unlockAt || 1);
   }
 
-  function questCanClaim(def){
-    return questRevealed(def) && questComplete(def) && !questIsClaimed(def);
+  function achievementCanClaim(def){
+    return achievementRevealed(def) && achievementComplete(def) && !achievementIsClaimed(def);
   }
 
-  function contractRewardText(def){
-    const r = def.reward || {};
+  function activeQuestProgress(q){
+    const cur = stats[q.stat] || 0;
+    return Math.min(q.target, Math.max(0, cur - (q.baseline || 0)));
+  }
+
+  function activeQuestComplete(q){
+    return activeQuestProgress(q) >= q.target;
+  }
+
+  function contractRewardText(reward){
+    const r = reward || {};
     const parts = [];
     if(r.chips) parts.push('+' + formatNum(r.chips) + ' chips');
     if(r.comps) parts.push('+' + r.comps + ' VIP comps');
@@ -1634,8 +1745,8 @@
     return parts.length ? parts.join(' · ') : 'Reward';
   }
 
-  function applyContractReward(def){
-    const r = def.reward || {};
+  function applyContractReward(reward){
+    const r = reward || {};
     if(r.chips) score += r.chips;
     if(r.comps) comps += r.comps;
     if(r.runComps) runCompCredit += r.runComps;
@@ -1656,23 +1767,122 @@
     }
   }
 
-  function claimContract(id){
-    const def = CONTRACT_DEFS.find(c => c.id === id);
-    if(!def || !questCanClaim(def)) return false;
-    questClaimed[def.id] = true;
-    applyContractReward(def);
-    scheduleSave();
+  function scaleQuestReward(base, rarity){
+    const mult = (QUEST_RARITY[rarity] || QUEST_RARITY.common).rewardMult;
+    const out = {};
+    if(base.chips) out.chips = Math.max(1, Math.floor(base.chips * mult));
+    if(base.comps) out.comps = Math.max(1, Math.round(base.comps * Math.max(1, mult * 0.65)));
+    if(base.runComps){
+      const rc = Math.round(base.runComps * Math.max(1, mult * 0.55));
+      if(rc > 0) out.runComps = rc;
+    }
+    if(base.prestige) out.prestige = base.prestige;
+    if(base.upgrade) out.upgrade = base.upgrade;
+    // Higher rarities always bank a little Cash Out credit.
+    if(!out.runComps && (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary')){
+      out.runComps = rarity === 'legendary' ? 2 : 1;
+    }
+    return out;
+  }
+
+  function pickQuestRarity(){
+    const maxIdx = maxQuestRarityIndex();
+    let total = 0;
+    const pool = [];
+    for(let i = 0; i <= maxIdx; i++){
+      const id = QUEST_RARITIES[i];
+      const w = QUEST_RARITY[id].weight;
+      pool.push({ id, w });
+      total += w;
+    }
+    let roll = Math.random() * total;
+    for(const entry of pool){
+      roll -= entry.w;
+      if(roll <= 0) return entry.id;
+    }
+    return pool[0].id;
+  }
+
+  function templateAllowed(tmpl, rarity){
+    if((tmpl.unlockAt || 1) > runLevel) return false;
+    const min = tmpl.minRarity || 'common';
+    const minIdx = QUEST_RARITIES.indexOf(min);
+    const rarityIdx = QUEST_RARITIES.indexOf(rarity);
+    if(rarityIdx < minIdx) return false;
+    if(maxQuestRarityIndex() < minIdx) return false;
+    return true;
+  }
+
+  function rollQuest(avoidTemplateIds){
+    avoidTemplateIds = avoidTemplateIds || new Set(activeQuests.map(q => q.templateId));
+    let rarity = pickQuestRarity();
+    let candidates = QUEST_TEMPLATES.filter(t => templateAllowed(t, rarity));
+    if(!candidates.length){
+      // Fall back down the rarity ladder until something fits.
+      for(let i = QUEST_RARITIES.indexOf(rarity); i >= 0; i--){
+        rarity = QUEST_RARITIES[i];
+        candidates = QUEST_TEMPLATES.filter(t => templateAllowed(t, rarity));
+        if(candidates.length) break;
+      }
+    }
+    if(!candidates.length) candidates = QUEST_TEMPLATES.filter(t => templateAllowed(t, 'common'));
+    if(!candidates.length) candidates = QUEST_TEMPLATES.slice();
+    let pool = candidates.filter(t => !avoidTemplateIds.has(t.id));
+    if(!pool.length) pool = candidates;
+    const tmpl = pool[(Math.random() * pool.length) | 0];
+    const meta = QUEST_RARITY[rarity] || QUEST_RARITY.common;
+    const target = Math.max(1, Math.round(tmpl.baseTarget * meta.targetMult));
+    const reward = scaleQuestReward(tmpl.reward || {}, rarity);
+    return {
+      uid: 'aq_' + (questUidSeq++),
+      templateId: tmpl.id,
+      rarity,
+      name: tmpl.name,
+      desc: tmpl.desc.replace(/\{n\}/g, formatNum(target)),
+      stat: tmpl.stat,
+      target,
+      baseline: stats[tmpl.stat] || 0,
+      reward
+    };
+  }
+
+  function syncQuestSlots(){
+    const cap = questSlotCap();
+    if(activeQuests.length > cap) activeQuests.length = cap;
+    const used = new Set(activeQuests.map(q => q.templateId));
+    while(activeQuests.length < cap){
+      const q = rollQuest(used);
+      used.add(q.templateId);
+      activeQuests.push(q);
+    }
+  }
+
+  function refreshQuestUiAndSave(){
+    persistSave();
     updateScoreUI();
     updateShopUI();
     updatePrestigeUI();
     updateContractsUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+  }
+
+  function claimActiveQuest(uid){
+    const idx = activeQuests.findIndex(q => q.uid === uid);
+    if(idx < 0) return false;
+    const q = activeQuests[idx];
+    if(!activeQuestComplete(q)) return false;
+    applyContractReward(q.reward);
+    const used = new Set(
+      activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
+    );
+    activeQuests[idx] = rollQuest(used);
+    refreshQuestUiAndSave();
     pushPopup({
       x: W / 2,
       y: PEG_ZONE * 0.38,
-      text: 'CONTRACT · ' + def.name,
-      color: def.kind === 'achievement' ? '#F0D78C' : '#7EC8A3',
+      text: 'QUEST · ' + q.name,
+      color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
       t0: performance.now(),
       duration: 1400,
       big: true
@@ -1681,16 +1891,47 @@
     return true;
   }
 
-  function resetRunQuestClaims(){
-    for(const def of CONTRACT_DEFS){
-      if(def.kind === 'quest') delete questClaimed[def.id];
-    }
+  function claimAchievement(id){
+    const def = ACHIEVEMENT_DEFS.find(c => c.id === id);
+    if(!def || !achievementCanClaim(def)) return false;
+    questClaimed[def.id] = true;
+    applyContractReward(def.reward);
+    refreshQuestUiAndSave();
+    pushPopup({
+      x: W / 2,
+      y: PEG_ZONE * 0.38,
+      text: 'ACHIEVE · ' + def.name,
+      color: '#F0D78C',
+      t0: performance.now(),
+      duration: 1400,
+      big: true
+    });
+    if(!resolving && !looping) startLoop();
+    return true;
+  }
+
+  function claimContract(id){
+    if(String(id).indexOf('aq_') === 0) return claimActiveQuest(id);
+    return claimAchievement(id);
+  }
+
+  function resetRunQuests(){
+    // Prestige clears run quests only — achievements / questClaimed stay.
+    activeQuests = [];
     stats.runHands = 0;
     stats.runFloorClears = 0;
     stats.runSuitPurges = 0;
     stats.runChainClears = 0;
     stats.runCardsDropped = 0;
     stats.runMultiClears = 0;
+    stats.runFlushes = 0;
+    stats.runStraights = 0;
+    stats.runFullHouses = 0;
+    stats.runFourKinds = 0;
+    stats.runThreeKinds = 0;
+    stats.runTwoPairs = 0;
+    stats.runRoyalFlushes = 0;
+    stats.runStraightFlushes = 0;
   }
 
   function bumpStat(key, n){
@@ -1717,6 +1958,8 @@
     for(const g of groups){
       const key = HAND_STAT[g.name];
       if(key) bumpStat(key, 1);
+      const runKey = RUN_HAND_STAT[g.name];
+      if(runKey) bumpStat(runKey, 1);
     }
   }
 
@@ -1935,6 +2178,10 @@
     if(lvl === MIN_CASH_OUT_LEVEL){
       parts.push('Cash Out ready');
     }
+    // Slot i unlocks at run level i+1 (first slot at Lv 2).
+    if(lvl >= 2 && lvl <= MAX_QUEST_SLOTS + 1){
+      parts.push(lvl === 2 ? 'Quests unlocked' : 'Quest slot +1');
+    }
     if(!silent) showLevelUpToast(lvl, parts);
   }
 
@@ -1953,6 +2200,7 @@
       grantLevelReward(runLevel, opts);
     }
     if(runLevel > (stats.maxRunLevel || 1)) stats.maxRunLevel = runLevel;
+    syncQuestSlots();
     scheduleContractsUI();
     return true;
   }
@@ -2080,6 +2328,11 @@
         return lvl ? ('+' + freeAutoDealerLevels() + ' Auto Dealer') : 'No free levels';
       case 'pinPrivilege':
         return lvl ? ('+' + freePinTipLevels() + ' Pin Tip') : 'No free levels';
+      case 'questInk':{
+        const rar = QUEST_RARITIES[maxQuestRarityIndex()] || 'common';
+        const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
+        return lvl ? ('Up to ' + label) : 'Common quests only';
+      }
       case 'pitBoss':
         return lvl ? ('Auto-buys ×' + lvl + ' / tick') : 'Manual buys only';
       default:
@@ -2116,6 +2369,8 @@
         runCompCredit,
         stats,
         questClaimed,
+        activeQuests,
+        questUidSeq,
         suitBombCdLeft: cdLeft,
         v: SAVE_VERSION
       }));
@@ -2172,10 +2427,40 @@
       if(runLevel > (stats.maxRunLevel || 1)) stats.maxRunLevel = runLevel;
       if(data.questClaimed && typeof data.questClaimed === 'object'){
         questClaimed = Object.create(null);
-        for(const def of CONTRACT_DEFS){
+        for(const def of ACHIEVEMENT_DEFS){
           if(data.questClaimed[def.id]) questClaimed[def.id] = true;
         }
       }
+      if(typeof data.questUidSeq === 'number' && data.questUidSeq > 0){
+        questUidSeq = Math.floor(data.questUidSeq);
+      }
+      activeQuests = [];
+      if(Array.isArray(data.activeQuests)){
+        for(const raw of data.activeQuests){
+          if(!raw || typeof raw !== 'object') continue;
+          const tmpl = QUEST_TEMPLATES.find(t => t.id === raw.templateId);
+          if(!tmpl) continue;
+          const rarity = QUEST_RARITIES.includes(raw.rarity) ? raw.rarity : 'common';
+          const target = Math.max(1, Math.floor(raw.target || tmpl.baseTarget));
+          activeQuests.push({
+            uid: typeof raw.uid === 'string' ? raw.uid : ('aq_' + (questUidSeq++)),
+            templateId: tmpl.id,
+            rarity,
+            name: tmpl.name,
+            desc: typeof raw.desc === 'string'
+              ? raw.desc
+              : tmpl.desc.replace(/\{n\}/g, formatNum(target)),
+            stat: tmpl.stat,
+            target,
+            baseline: Math.max(0, Math.floor(raw.baseline || 0)),
+            reward: raw.reward && typeof raw.reward === 'object'
+              ? raw.reward
+              : scaleQuestReward(tmpl.reward || {}, rarity)
+          });
+        }
+      }
+      // Migrate older static-quest saves / fill missing slots for current run level.
+      syncQuestSlots();
       if(typeof data.suitBombCdLeft === 'number' && data.suitBombCdLeft > 0){
         suitBombReadyAt = performance.now() + data.suitBombCdLeft;
       } else {
@@ -2195,6 +2480,8 @@
     prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
     stats = Object.assign({}, EMPTY_STATS);
     questClaimed = Object.create(null);
+    activeQuests = [];
+    questUidSeq = 1;
     lastAutoDropAt = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
@@ -2215,7 +2502,7 @@
     prestigeCount += 1;
     bumpStat('cashOuts', 1);
     applyRunStartBonuses();
-    resetRunQuestClaims();
+    resetRunQuests();
     // Allow unlock flashes again on the next table.
     seenUnlockFlash.clear();
     for(const def of UPGRADE_DEFS){
@@ -4033,9 +4320,13 @@
   const questsEl = document.getElementById('quests');
   const achievementsEl = document.getElementById('achievements');
   const questReadyValEl = document.getElementById('questReadyVal');
+  const questSlotsMetaEl = document.getElementById('questSlotsMeta');
   const achieveReadyValEl = document.getElementById('achieveReadyVal');
+  const railTabsEl = document.querySelector('.rail-tabs');
   const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
   const railPanels = Array.from(document.querySelectorAll('.rail-panel'));
+  const questsTabEl = document.querySelector('.rail-tab[data-panel="quests"]');
+  const questsPanelEl = document.getElementById('panelQuests');
   const tabBadges = {
     upgrades: document.getElementById('badgeUpgrades'),
     quests: document.getElementById('badgeQuests'),
@@ -4064,8 +4355,17 @@
     el.textContent = n > 99 ? '99+' : String(n);
   }
 
+  function updateQuestTabAvailability(){
+    const unlocked = questsTabUnlocked();
+    if(questsTabEl) questsTabEl.hidden = !unlocked;
+    if(railTabsEl) railTabsEl.classList.toggle('quests-locked', !unlocked);
+    if(!unlocked && activeRailPanel === 'quests') setRailPanel('upgrades');
+    if(questsPanelEl && !unlocked) questsPanelEl.classList.remove('is-active');
+  }
+
   function setRailPanel(panel){
     if(!panel || !railPanels.some(p => p.dataset.panel === panel)) return;
+    if(panel === 'quests' && !questsTabUnlocked()) return;
     activeRailPanel = panel;
     for(const p of railPanels){
       const on = p.dataset.panel === panel;
@@ -4263,39 +4563,106 @@
     return btn;
   }
 
-  function updateContractsUI(){
-    if(!questsEl && !achievementsEl) return;
+  function makeQuestCardShell(){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quest';
+    btn.innerHTML =
+      '<div class="quest-top">' +
+        '<span class="quest-name"></span>' +
+        '<span class="quest-kind"></span>' +
+      '</div>' +
+      '<p class="quest-desc"></p>' +
+      '<div class="quest-reward"></div>' +
+      '<div class="quest-progress-row">' +
+        '<span class="quest-prog"></span>' +
+        '<span class="quest-action">In progress</span>' +
+      '</div>' +
+      '<div class="quest-bar" aria-hidden="true"><span></span></div>';
+    return btn;
+  }
+
+  function updateQuestsUI(){
+    updateQuestTabAvailability();
+    if(!questsEl) return;
+    const cap = questSlotCap();
     let questReady = 0;
+    questsEl.innerHTML = '';
+    // Active rolled quests first (claimable sorted to top).
+    const ordered = activeQuests.slice().sort((a, b)=>{
+      const ac = activeQuestComplete(a) ? 0 : 1;
+      const bc = activeQuestComplete(b) ? 0 : 1;
+      return ac - bc;
+    });
+    for(const q of ordered){
+      const progress = activeQuestProgress(q);
+      const complete = progress >= q.target;
+      const meta = QUEST_RARITY[q.rarity] || QUEST_RARITY.common;
+      if(complete) questReady++;
+      const btn = makeQuestCardShell();
+      btn.dataset.id = q.uid;
+      btn.classList.add('rarity-' + q.rarity);
+      btn.classList.toggle('claimable', complete);
+      btn.disabled = !complete;
+      btn.querySelector('.quest-name').textContent = q.name;
+      btn.querySelector('.quest-kind').textContent = meta.label;
+      btn.querySelector('.quest-desc').textContent = q.desc;
+      btn.querySelector('.quest-reward').textContent = contractRewardText(q.reward);
+      const fill = btn.querySelector('.quest-bar > span');
+      if(fill) fill.style.width = Math.min(100, (progress / q.target) * 100) + '%';
+      btn.querySelector('.quest-prog').innerHTML =
+        '<b>' + formatNum(progress) + '</b> / ' + formatNum(q.target);
+      btn.querySelector('.quest-action').textContent = complete ? 'Claim · replace' : 'In progress';
+      btn.addEventListener('click', ()=>claimActiveQuest(q.uid));
+      questsEl.appendChild(btn);
+    }
+    // Locked slot placeholders until all 5 are opened this run.
+    for(let i = cap; i < MAX_QUEST_SLOTS; i++){
+      const unlockLvl = i + 2;
+      const btn = makeQuestCardShell();
+      btn.classList.add('quest-locked');
+      btn.disabled = true;
+      btn.querySelector('.quest-name').textContent = 'Locked slot';
+      btn.querySelector('.quest-kind').textContent = 'Lv ' + unlockLvl;
+      btn.querySelector('.quest-desc').textContent =
+        'Reach run level ' + unlockLvl + ' to open this quest slot.';
+      btn.querySelector('.quest-reward').textContent = '—';
+      btn.querySelector('.quest-prog').textContent = '0 / 1';
+      btn.querySelector('.quest-action').textContent = 'Locked';
+      questsEl.appendChild(btn);
+    }
+    if(questReadyValEl) questReadyValEl.textContent = String(questReady);
+    if(questSlotsMetaEl){
+      questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
+    }
+    setTabBadge('quests', questReady);
+  }
+
+  function updateAchievementsUI(){
+    if(!achievementsEl) return;
     let achieveReady = 0;
-    const questClaimable = [];
-    const questActive = [];
-    const questDone = [];
-    const achieveClaimable = [];
-    const achieveActive = [];
-    const achieveDone = [];
-    for(const def of CONTRACT_DEFS){
+    const claimable = [];
+    const active = [];
+    const done = [];
+    for(const def of ACHIEVEMENT_DEFS){
       const btn = contractButtons[def.id];
       if(!btn) continue;
-      const revealed = questRevealed(def);
+      const revealed = achievementRevealed(def);
       btn.hidden = !revealed;
       if(!revealed) continue;
-      const progress = questProgress(def);
+      const progress = achievementProgress(def);
       const complete = progress >= def.target;
-      const claimed = questIsClaimed(def);
+      const claimed = achievementIsClaimed(def);
       const canClaim = complete && !claimed;
       const stillSecret = !!(def.secret && !complete && !claimed);
-      const isAchieve = def.kind === 'achievement';
-      if(canClaim){
-        if(isAchieve) achieveReady++;
-        else questReady++;
-      }
+      if(canClaim) achieveReady++;
       btn.disabled = !canClaim;
       btn.classList.toggle('claimable', canClaim);
       btn.classList.toggle('claimed', claimed);
-      btn.classList.toggle('achievement', isAchieve);
+      btn.classList.add('achievement');
       btn.querySelector('.quest-name').textContent = stillSecret ? '???' : def.name;
       btn.querySelector('.quest-desc').textContent = stillSecret
-        ? 'Hidden contract — keep playing.'
+        ? 'Hidden achievement — keep playing.'
         : def.desc;
       const fill = btn.querySelector('.quest-bar > span');
       if(fill){
@@ -4311,68 +4678,48 @@
       if(actionEl){
         actionEl.textContent = claimed
           ? 'Claimed'
-          : (canClaim ? 'Claim reward' : (complete ? 'Complete' : 'In progress'));
+          : (canClaim ? 'Claim reward' : 'In progress');
       }
-      const claimable = isAchieve ? achieveClaimable : questClaimable;
-      const active = isAchieve ? achieveActive : questActive;
-      const done = isAchieve ? achieveDone : questDone;
       if(canClaim) claimable.push(btn);
       else if(claimed) done.push(btn);
       else active.push(btn);
     }
-    if(questReadyValEl) questReadyValEl.textContent = String(questReady);
     if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
-    setTabBadge('quests', questReady);
     setTabBadge('achievements', achieveReady);
-    if(questsEl){
-      for(const btn of questClaimable.concat(questActive, questDone)) questsEl.appendChild(btn);
-    }
-    if(achievementsEl){
-      for(const btn of achieveClaimable.concat(achieveActive, achieveDone)){
-        achievementsEl.appendChild(btn);
-      }
-    }
+    for(const btn of claimable.concat(active, done)) achievementsEl.appendChild(btn);
   }
 
-  function makeContractButton(def){
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'quest' + (def.kind === 'achievement' ? ' achievement' : '');
+  function updateContractsUI(){
+    updateQuestsUI();
+    updateAchievementsUI();
+  }
+
+  function makeAchievementButton(def){
+    const btn = makeQuestCardShell();
+    btn.classList.add('achievement');
     btn.dataset.id = def.id;
-    btn.innerHTML =
-      '<div class="quest-top">' +
-        '<span class="quest-name"></span>' +
-        '<span class="quest-kind"></span>' +
-      '</div>' +
-      '<p class="quest-desc"></p>' +
-      '<div class="quest-reward"></div>' +
-      '<div class="quest-progress-row">' +
-        '<span class="quest-prog"></span>' +
-        '<span class="quest-action">In progress</span>' +
-      '</div>' +
-      '<div class="quest-bar" aria-hidden="true"><span></span></div>';
-    btn.querySelector('.quest-name').textContent = def.secret && !questComplete(def) && !questIsClaimed(def)
-      ? '???'
-      : def.name;
-    btn.querySelector('.quest-kind').textContent = def.kind === 'achievement' ? 'Achievement' : 'Quest';
-    btn.querySelector('.quest-desc').textContent = def.secret && !questComplete(def) && !questIsClaimed(def)
-      ? 'Hidden contract — keep playing.'
+    btn.querySelector('.quest-name').textContent = def.secret ? '???' : def.name;
+    btn.querySelector('.quest-kind').textContent = 'Achievement';
+    btn.querySelector('.quest-desc').textContent = def.secret
+      ? 'Hidden achievement — keep playing.'
       : def.desc;
-    btn.querySelector('.quest-reward').textContent = contractRewardText(def);
-    btn.addEventListener('click', ()=>claimContract(def.id));
+    btn.querySelector('.quest-reward').textContent = contractRewardText(def.reward);
+    btn.addEventListener('click', ()=>claimAchievement(def.id));
     return btn;
   }
 
   function buildContracts(){
     if(questsEl) questsEl.innerHTML = '';
     if(achievementsEl) achievementsEl.innerHTML = '';
-    for(const def of CONTRACT_DEFS){
-      const btn = makeContractButton(def);
-      const parent = def.kind === 'achievement' ? achievementsEl : questsEl;
-      if(parent) parent.appendChild(btn);
+    for(const key of Object.keys(contractButtons)) delete contractButtons[key];
+    for(const def of ACHIEVEMENT_DEFS){
+      const btn = makeAchievementButton(def);
+      if(achievementsEl) achievementsEl.appendChild(btn);
       contractButtons[def.id] = btn;
     }
+    syncQuestSlots();
     updateContractsUI();
+    persistSave();
   }
 
   function buildShop(){
