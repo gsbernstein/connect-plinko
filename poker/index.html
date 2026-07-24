@@ -2666,6 +2666,8 @@
   }
 
   function updateShopUI(){
+    const active = [];
+    const maxedList = [];
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
@@ -2692,7 +2694,10 @@
         costEl.textContent = formatNum(cost) + ' chips';
         costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
       }
+      (maxed ? maxedList : active).push(btn);
     }
+    // Keep buyable upgrades up top; sink completed ones.
+    for(const btn of active.concat(maxedList)) upgradesEl.appendChild(btn);
   }
 
   function buildShop(){
