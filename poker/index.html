@@ -878,7 +878,16 @@
     color:var(--ink-dim);
     font-variant-numeric:tabular-nums;
     box-sizing:border-box;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease, transform .08s ease;
   }
+  .level-pill:hover,
+  .level-pill:focus-visible{
+    border-color:rgba(230,195,92,0.45);
+    background:var(--panel-2);
+    outline:none;
+  }
+  .level-pill:active{transform:translateY(1px);}
   .level-pill-top{
     display:flex;
     justify-content:space-between;
@@ -946,6 +955,172 @@
   .level-toast.show{
     opacity:1;
     transform:translateX(-50%) translateY(0);
+  }
+  .level-modal{
+    position:fixed;
+    inset:0;
+    z-index:85;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .22s ease;
+  }
+  .level-modal.show{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .level-modal-backdrop{
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(ellipse at 50% 30%, rgba(230,195,92,0.12), transparent 45%),
+      rgba(4,3,10,0.82);
+    backdrop-filter:blur(6px);
+  }
+  .level-modal-card{
+    position:relative;
+    width:min(420px, 100%);
+    max-height:min(78dvh, 640px);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    overflow:hidden;
+    background:linear-gradient(165deg, #221c36 0%, var(--panel) 55%, #12101c 100%);
+    border:1px solid rgba(230,195,92,0.28);
+    border-radius:16px;
+    padding:22px 20px 16px;
+    box-shadow:0 24px 60px rgba(0,0,0,0.55);
+    transform:translateY(10px) scale(0.98);
+    transition:transform .22s ease;
+  }
+  .level-modal.show .level-modal-card{
+    transform:translateY(0) scale(1);
+  }
+  .level-modal-close{
+    position:absolute;
+    top:10px;
+    right:10px;
+    z-index:1;
+    width:36px;
+    height:36px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    border:1px solid transparent;
+    border-radius:10px;
+    cursor:pointer;
+    background:transparent;
+    color:var(--ink-dim);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:22px;
+    font-weight:700;
+    line-height:1;
+    transition:color .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .level-modal-close:hover,
+  .level-modal-close:focus-visible{
+    color:var(--ink);
+    border-color:rgba(230,195,92,0.35);
+    background:rgba(255,255,255,0.04);
+    outline:none;
+  }
+  .level-modal-head{
+    flex:0 0 auto;
+    padding-right:36px;
+  }
+  .level-modal-eyebrow{
+    margin:0 0 4px;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:#F0D78C;
+  }
+  .level-modal-title{
+    margin:0 0 6px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:26px;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .level-modal-meta{
+    margin:0 0 14px;
+    font-size:12px;
+    color:var(--ink-dim);
+    font-variant-numeric:tabular-nums;
+  }
+  .level-modal-meta b{color:var(--ink); font-weight:600;}
+  .level-modal-section{
+    margin:0 0 12px;
+    padding:12px 12px 10px;
+    border-radius:12px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.06);
+  }
+  .level-modal-section.next{
+    flex:0 0 auto;
+  }
+  .level-modal-section.sofar{
+    flex:1 1 auto;
+    min-height:0;
+    margin-bottom:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .level-modal-section h3{
+    margin:0 0 8px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;
+    font-weight:700;
+    color:#F0D78C;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    flex:0 0 auto;
+  }
+  .level-modal-section.next h3{color:#7EC8A3;}
+  .level-modal-sofar-scroll{
+    flex:1 1 auto;
+    min-height:0;
+    overflow:auto;
+    overscroll-behavior:contain;
+  }
+  .level-modal-list{
+    margin:0;
+    padding:0;
+    list-style:none;
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+  }
+  .level-modal-list li{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:8px 10px;
+    align-items:baseline;
+    font-size:12px;
+    line-height:1.35;
+    color:var(--ink);
+  }
+  .level-modal-list .lvl-tag{
+    flex:0 0 auto;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:11px;
+    color:#F0D78C;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .level-modal-section.next .lvl-tag{color:#7EC8A3;}
+  .level-modal-list .lvl-parts{color:var(--ink-dim);}
+  .level-modal-empty{
+    margin:0;
+    font-size:12px;
+    color:var(--ink-dim);
+    line-height:1.4;
   }
   .upgrade.just-unlocked{
     animation: unlockPulse .7s ease;
@@ -1315,7 +1490,8 @@
   <section class="stage is-active" id="panelTable" data-panel="table" aria-label="Table">
     <div class="hud">
       <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
-      <div class="level-pill" id="levelBox" title="Run level — based on chips earned this table">
+      <div class="level-pill" id="levelBox" role="button" tabindex="0"
+           title="Run level — click for unlocks" aria-label="Run level — show unlocks">
         <div class="level-pill-top">
           <span>Level&nbsp;<b id="runLevelVal">1</b></span>
           <span id="runLevelXp">0 / 18</span>
@@ -1441,6 +1617,30 @@
       </button>
     </nav>
   </aside>
+
+  <div class="level-modal" id="levelModal" role="dialog" aria-modal="true" aria-labelledby="levelModalTitle" hidden>
+    <div class="level-modal-backdrop" id="levelModalBackdrop" aria-hidden="true"></div>
+    <div class="level-modal-card" id="levelModalCard">
+      <button type="button" class="level-modal-close" id="levelModalClose" aria-label="Close">×</button>
+      <div class="level-modal-head">
+        <p class="level-modal-eyebrow">Run progress</p>
+        <h2 class="level-modal-title" id="levelModalTitle">Level 1</h2>
+        <p class="level-modal-meta" id="levelModalMeta">0 / 18 chips earned</p>
+      </div>
+      <section class="level-modal-section next" aria-labelledby="levelModalNextHeading">
+        <h3 id="levelModalNextHeading">Next unlock</h3>
+        <ul class="level-modal-list" id="levelModalNext"></ul>
+        <p class="level-modal-empty" id="levelModalNextEmpty" hidden>Max level — every unlock is yours.</p>
+      </section>
+      <section class="level-modal-section sofar" aria-labelledby="levelModalSoFarHeading">
+        <h3 id="levelModalSoFarHeading">So far</h3>
+        <div class="level-modal-sofar-scroll" id="levelModalSoFarScroll">
+          <ul class="level-modal-list" id="levelModalSoFar"></ul>
+          <p class="level-modal-empty" id="levelModalSoFarEmpty" hidden>No unlocks yet — keep dealing to level up.</p>
+        </div>
+      </section>
+    </div>
+  </div>
 
   <div class="cashout-modal" id="cashoutModal" role="dialog" aria-modal="true" aria-labelledby="cashoutModalTitle" hidden>
     <div class="cashout-modal-backdrop" id="cashoutModalBackdrop" aria-hidden="true">
@@ -2785,12 +2985,16 @@
     }
   }
 
-  function grantLevelReward(lvl, opts){
+  // Describe rewards for a run level without applying them.
+  // firstTimeAtLevel: shop/VIP/quest first reveals only fire the first time you hit that level.
+  function describeLevelRewardParts(lvl, opts){
     opts = opts || {};
-    const silent = !!opts.silent;
+    const firstTimeAtLevel = opts.firstTimeAtLevel != null
+      ? !!opts.firstTimeAtLevel
+      : ((stats.maxRunLevel || 1) < lvl);
+    // When previewing future levels, assume VIP/upgrade grants land even if already maxed.
+    const preview = !!opts.preview;
     const parts = [];
-    // maxRunLevel updates after the level-up loop, so "prior" is still the peak.
-    const firstTimeAtLevel = (stats.maxRunLevel || 1) < lvl;
     for(const def of UPGRADE_DEFS){
       if((def.unlockAt || 1) === lvl && firstTimeAtLevel){
         parts.push('Unlocked ' + def.name);
@@ -2799,34 +3003,24 @@
     const bonus = LEVEL_BONUSES[lvl];
     if(bonus){
       if(bonus.comps){
-        runCompCredit += bonus.comps;
         parts.push('+' + bonus.comps + ' Cash Out comp' + (bonus.comps === 1 ? '' : 's'));
       }
       if(bonus.chips){
-        score += bonus.chips;
-        // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
         parts.push('+' + formatNum(bonus.chips) + ' chips');
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
         if(uDef){
-          const beforeEff = upgradeLevel(uDef.id);
-          const gained = addPurchasedLevels(uDef.id, bonus.upgrade.n || 1);
-          if(gained > 0){
-            parts.push('+' + gained + ' ' + uDef.name);
-            if(uDef.id === 'highCut' || uDef.id === 'suitCut') reshapeShoe();
-            if(uDef.id === 'suitBomb' && beforeEff === 0){
-              suitBombReadyAt = performance.now();
-            }
+          const n = bonus.upgrade.n || 1;
+          if(preview || upgradeLevel(uDef.id) < uDef.maxLevel){
+            parts.push('+' + n + ' ' + uDef.name);
           }
         }
       }
       if(bonus.prestige){
         const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
         if(pDef){
-          const before = prestigeLevel(pDef.id);
-          if(before < pDef.maxLevel){
-            prestigeUpgrades[pDef.id] = before + 1;
+          if(preview || prestigeLevel(pDef.id) < pDef.maxLevel){
             parts.push('VIP +1 ' + pDef.name);
           }
         }
@@ -2844,7 +3038,69 @@
         parts.push('Quest slot +1');
       }
     }
+    return parts;
+  }
+
+  function grantLevelReward(lvl, opts){
+    opts = opts || {};
+    const silent = !!opts.silent;
+    // maxRunLevel updates after the level-up loop, so "prior" is still the peak.
+    const firstTimeAtLevel = (stats.maxRunLevel || 1) < lvl;
+    const parts = describeLevelRewardParts(lvl, { firstTimeAtLevel });
+    const bonus = LEVEL_BONUSES[lvl];
+    if(bonus){
+      if(bonus.comps) runCompCredit += bonus.comps;
+      if(bonus.chips){
+        score += bonus.chips;
+        // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
+      }
+      if(bonus.upgrade){
+        const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
+        if(uDef){
+          const beforeEff = upgradeLevel(uDef.id);
+          const gained = addPurchasedLevels(uDef.id, bonus.upgrade.n || 1);
+          if(gained > 0){
+            if(uDef.id === 'highCut' || uDef.id === 'suitCut') reshapeShoe();
+            if(uDef.id === 'suitBomb' && beforeEff === 0){
+              suitBombReadyAt = performance.now();
+            }
+          }
+        }
+      }
+      if(bonus.prestige){
+        const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
+        if(pDef){
+          const before = prestigeLevel(pDef.id);
+          if(before < pDef.maxLevel){
+            prestigeUpgrades[pDef.id] = before + 1;
+          }
+        }
+      }
+    }
     if(!silent) showLevelUpToast(lvl, parts);
+  }
+
+  function earnedLevelEntries(uptoLevel){
+    const entries = [];
+    // Newest first so the latest unlocks sit at the top of So far.
+    for(let lvl = uptoLevel; lvl >= 2; lvl--){
+      const parts = describeLevelRewardParts(lvl, {
+        firstTimeAtLevel: true,
+        preview: true
+      });
+      if(parts.length) entries.push({ lvl, parts });
+    }
+    return entries;
+  }
+
+  function nextLevelUnlockEntry(fromLevel){
+    const peak = highestRunLevelReached();
+    for(let lvl = fromLevel + 1; lvl <= MAX_RUN_LEVEL; lvl++){
+      const firstTimeAtLevel = peak < lvl;
+      const parts = describeLevelRewardParts(lvl, { firstTimeAtLevel, preview: true });
+      if(parts.length) return { lvl, parts };
+    }
+    return null;
   }
 
   function syncRunLevel(opts){
@@ -5229,6 +5485,127 @@
     else setRailPanel(activeRailPanel);
   });
 
+  const levelBoxEl = document.getElementById('levelBox');
+  const levelModal = document.getElementById('levelModal');
+  const levelModalCard = document.getElementById('levelModalCard');
+  const levelModalBackdrop = document.getElementById('levelModalBackdrop');
+  const levelModalClose = document.getElementById('levelModalClose');
+  const levelModalTitle = document.getElementById('levelModalTitle');
+  const levelModalMeta = document.getElementById('levelModalMeta');
+  const levelModalSoFar = document.getElementById('levelModalSoFar');
+  const levelModalSoFarScroll = document.getElementById('levelModalSoFarScroll');
+  const levelModalSoFarEmpty = document.getElementById('levelModalSoFarEmpty');
+  const levelModalNext = document.getElementById('levelModalNext');
+  const levelModalNextEmpty = document.getElementById('levelModalNextEmpty');
+  const levelModalNextHeading = document.getElementById('levelModalNextHeading');
+  let levelModalSignature = '';
+
+  function levelModalOpen(){
+    return !!(levelModal && !levelModal.hidden);
+  }
+
+  function fillLevelRewardList(listEl, entries){
+    if(!listEl) return;
+    listEl.textContent = '';
+    for(const entry of entries){
+      const li = document.createElement('li');
+      const tag = document.createElement('span');
+      tag.className = 'lvl-tag';
+      tag.textContent = 'Lv ' + entry.lvl;
+      const parts = document.createElement('span');
+      parts.className = 'lvl-parts';
+      parts.textContent = entry.parts.join(' · ');
+      li.appendChild(tag);
+      li.appendChild(parts);
+      listEl.appendChild(li);
+    }
+  }
+
+  function populateLevelModal(){
+    if(!levelModal) return;
+    const nextXp = runLevel >= MAX_RUN_LEVEL
+      ? null
+      : lifetimeForLevel(runLevel + 1);
+    const earned = earnedLevelEntries(runLevel);
+    const nextUnlock = nextLevelUnlockEntry(runLevel);
+    const needToLevel = (nextXp == null) ? 0 : Math.max(0, nextXp - lifetime);
+    const needToUnlock = nextUnlock
+      ? Math.max(0, lifetimeForLevel(nextUnlock.lvl) - lifetime)
+      : 0;
+    // Lists only rebuild on level/unlock changes; chip counts always refresh.
+    const listSignature = [
+      runLevel,
+      nextUnlock ? nextUnlock.lvl + ':' + nextUnlock.parts.join('·') : 'max',
+      earned.map(e => e.lvl + ':' + e.parts.join('·')).join(';')
+    ].join('|');
+    const listsChanged = listSignature !== levelModalSignature;
+    if(listsChanged) levelModalSignature = listSignature;
+
+    if(levelModalTitle) levelModalTitle.textContent = 'Level ' + runLevel;
+    if(levelModalMeta){
+      if(runLevel >= MAX_RUN_LEVEL){
+        levelModalMeta.innerHTML = '<b>MAX</b> · ' + formatNum(lifetime) + ' chips earned this table';
+      } else {
+        levelModalMeta.innerHTML =
+          '<b>' + formatNum(lifetime) + ' / ' + formatNum(nextXp) + '</b> chips'
+          + (needToLevel > 0 ? ' · ' + formatNum(needToLevel) + ' to next level' : '');
+      }
+    }
+
+    if(listsChanged){
+      fillLevelRewardList(levelModalSoFar, earned);
+      if(levelModalSoFar) levelModalSoFar.hidden = !earned.length;
+      if(levelModalSoFarEmpty) levelModalSoFarEmpty.hidden = !!earned.length;
+
+      if(nextUnlock){
+        fillLevelRewardList(levelModalNext, [nextUnlock]);
+        if(levelModalNext) levelModalNext.hidden = false;
+        if(levelModalNextEmpty) levelModalNextEmpty.hidden = true;
+      } else {
+        fillLevelRewardList(levelModalNext, []);
+        if(levelModalNext) levelModalNext.hidden = true;
+        if(levelModalNextEmpty){
+          levelModalNextEmpty.hidden = false;
+          levelModalNextEmpty.textContent = runLevel >= MAX_RUN_LEVEL
+            ? 'Max level — every unlock is yours.'
+            : 'No more unlocks ahead — keep climbing for bragging rights.';
+        }
+      }
+      // Newest unlocks are at the top — jump back so a level-up is visible.
+      if(levelModalSoFarScroll) levelModalSoFarScroll.scrollTop = 0;
+    }
+
+    if(levelModalNextHeading){
+      if(nextUnlock && needToUnlock > 0){
+        levelModalNextHeading.textContent = 'Next unlock · ' + formatNum(needToUnlock) + ' chips';
+      } else {
+        levelModalNextHeading.textContent = 'Next unlock';
+      }
+    }
+  }
+
+  function closeLevelModal(){
+    if(!levelModal || levelModal.hidden) return;
+    levelModal.classList.remove('show');
+    levelModal.hidden = true;
+    levelModalSignature = '';
+  }
+
+  function openLevelModal(){
+    if(!levelModal) return;
+    if(cashoutModal && !cashoutModal.hidden) return;
+    levelModalSignature = '';
+    populateLevelModal();
+    if(levelModalSoFarScroll) levelModalSoFarScroll.scrollTop = 0;
+    if(levelModalCard) levelModalCard.scrollTop = 0;
+    levelModal.hidden = false;
+    requestAnimationFrame(()=>{
+      levelModal.classList.add('show');
+      if(levelModalSoFarScroll) levelModalSoFarScroll.scrollTop = 0;
+    });
+    if(levelModalClose) levelModalClose.focus({ preventScroll: true });
+  }
+
   function updateLevelUI(){
     if(runLevelValEl) runLevelValEl.textContent = String(runLevel);
     if(shopLevelValEl) shopLevelValEl.textContent = String(runLevel);
@@ -5247,7 +5624,23 @@
         ? 'MAX'
         : (formatNum(lifetime) + ' / ' + formatNum(next));
     }
+    if(levelModalOpen()) populateLevelModal();
   }
+
+  if(levelBoxEl){
+    levelBoxEl.addEventListener('click', (e)=>{
+      e.preventDefault();
+      openLevelModal();
+    });
+    levelBoxEl.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        openLevelModal();
+      }
+    });
+  }
+  if(levelModalClose) levelModalClose.addEventListener('click', closeLevelModal);
+  if(levelModalBackdrop) levelModalBackdrop.addEventListener('click', closeLevelModal);
 
   function updateCompsHud(){
     if(compsHudValEl) compsHudValEl.textContent = formatNum(comps);
@@ -5953,6 +6346,7 @@
     if(gain <= 0 || !cashoutModal || cashoutModalBusy) return;
     // Block re-entry while open or mid enter/leave transition.
     if(!cashoutModal.hidden) return;
+    closeLevelModal();
     cashoutModalBusy = false;
     if(cashoutModalConfirm) cashoutModalConfirm.disabled = false;
     if(cashoutModalLevel) cashoutModalLevel.textContent = 'Lv ' + runLevel;
@@ -6020,14 +6414,22 @@
   });
   if(cashoutModalConfirm) cashoutModalConfirm.addEventListener('click', confirmCashOutModal);
   document.addEventListener('keydown', (e)=>{
-    if(!cashoutModal || cashoutModal.hidden || !cashoutModal.classList.contains('show')) return;
-    if(e.key === 'Escape'){
-      if(cashoutModalBusy) return;
-      e.preventDefault();
-      closeCashOutModal();
-    } else if(e.key === 'Enter'){
-      e.preventDefault();
-      confirmCashOutModal();
+    if(cashoutModal && !cashoutModal.hidden && cashoutModal.classList.contains('show')){
+      if(e.key === 'Escape'){
+        if(cashoutModalBusy) return;
+        e.preventDefault();
+        closeCashOutModal();
+      } else if(e.key === 'Enter'){
+        e.preventDefault();
+        confirmCashOutModal();
+      }
+      return;
+    }
+    if(levelModal && !levelModal.hidden && levelModal.classList.contains('show')){
+      if(e.key === 'Escape' || e.key === 'Enter'){
+        e.preventDefault();
+        closeLevelModal();
+      }
     }
   });
   document.getElementById('resetScores').addEventListener('click', ()=>{
