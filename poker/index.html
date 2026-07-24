@@ -5,7 +5,7 @@
 <title>Plinko Poker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0B0A14;
@@ -4926,6 +4926,68 @@
   }
 
   // ---- drawing ----
+  // Chip ranks use Fraunces (clearer serifs). Queens are path-drawn: Space
+  // Grotesk's Q tick drops straight under the bowl and reads as O when spun.
+  function drawChipGlyphs(target, card, radius, opts){
+    opts = opts || {};
+    const color = opts.suitColor || SUIT_COLOR[card.suit];
+    const rankFill = opts.rankFill || '#FFF6D6';
+    const suitFill = opts.suitFill || color;
+    target.textAlign = 'center';
+    target.textBaseline = 'middle';
+    const rankSize = Math.max(9, Math.round(radius * 0.72));
+    const suitSize = Math.max(9, Math.round(radius * 0.64));
+    const strokeW = Math.max(1.5, radius * 0.08);
+    const rankY = -radius * 0.22;
+    function stampGlyph(text, y, fill, font){
+      target.font = font;
+      target.lineJoin = 'round';
+      target.miterLimit = 2;
+      target.lineWidth = strokeW;
+      target.strokeStyle = 'rgba(8,6,16,0.85)';
+      target.strokeText(text, 0, y);
+      target.fillStyle = fill;
+      target.fillText(text, 0, y);
+    }
+    function stampQueen(y, fill, size){
+      // Bowl + long SE diagonal tick (never a bottom-center nub).
+      const rr = size * 0.34;
+      const thick = Math.max(2.2, size * 0.145);
+      const tick = size * 0.42;
+      function strokeQ(style, width){
+        target.strokeStyle = style;
+        target.lineWidth = width;
+        target.lineCap = 'round';
+        target.lineJoin = 'round';
+        target.beginPath();
+        target.arc(0, y, rr, 0, Math.PI * 2);
+        target.stroke();
+        target.beginPath();
+        target.moveTo(rr * 0.18, y + rr * 0.18);
+        target.lineTo(rr * 0.18 + tick * 0.62, y + rr * 0.18 + tick * 0.78);
+        target.stroke();
+      }
+      strokeQ('rgba(8,6,16,0.85)', thick + strokeW * 1.15);
+      strokeQ(fill, thick);
+    }
+    if(card.rank === 12){
+      stampQueen(rankY, rankFill, rankSize);
+    } else {
+      stampGlyph(
+        rankLabel(card.rank),
+        rankY,
+        rankFill,
+        `700 ${rankSize}px Fraunces, Georgia, serif`
+      );
+    }
+    stampGlyph(
+      card.suit,
+      radius * 0.34,
+      suitFill,
+      `bold ${suitSize}px 'Space Grotesk', sans-serif`
+    );
+  }
+
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
     const color = SUIT_COLOR[card.suit];
     ensureChipTextures();
@@ -4949,35 +5011,7 @@
       target.fill();
     }
     target.shadowBlur = 0;
-
-    // Bold outlined rank + suit — larger and higher-contrast on the felt.
-    target.textAlign = 'center';
-    target.textBaseline = 'middle';
-    const rankSize = Math.max(9, Math.round(radius * 0.72));
-    const suitSize = Math.max(9, Math.round(radius * 0.64));
-    const strokeW = Math.max(1.5, radius * 0.08);
-    function stampGlyph(text, y, fill, font){
-      target.font = font;
-      target.lineJoin = 'round';
-      target.miterLimit = 2;
-      target.lineWidth = strokeW;
-      target.strokeStyle = 'rgba(8,6,16,0.85)';
-      target.strokeText(text, 0, y);
-      target.fillStyle = fill;
-      target.fillText(text, 0, y);
-    }
-    stampGlyph(
-      rankLabel(card.rank),
-      -radius * 0.22,
-      '#FFF6D6',
-      `bold ${rankSize}px 'Space Grotesk', sans-serif`
-    );
-    stampGlyph(
-      card.suit,
-      radius * 0.34,
-      color,
-      `bold ${suitSize}px 'Space Grotesk', sans-serif`
-    );
+    drawChipGlyphs(target, card, radius);
 
     if(highlight){
       target.beginPath();
@@ -5028,19 +5062,10 @@
       ctx.stroke();
     }
     ctx.rotate(card.angle || 0);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 2.4;
-    ctx.strokeStyle = 'rgba(8,6,16,0.8)';
-    ctx.font = "bold 22px 'Space Grotesk', sans-serif";
-    ctx.strokeText(rankLabel(card.rank), 0, -7);
-    ctx.fillStyle = '#1a1408';
-    ctx.fillText(rankLabel(card.rank), 0, -7);
-    ctx.font = "bold 20px 'Space Grotesk', sans-serif";
-    ctx.strokeText(card.suit, 0, 13);
-    ctx.fillStyle = juiceTier === 'huge' ? '#8A6A28' : color;
-    ctx.fillText(card.suit, 0, 13);
+    drawChipGlyphs(ctx, card, r * 0.92, {
+      rankFill: '#1a1408',
+      suitFill: juiceTier === 'huge' ? '#8A6A28' : color
+    });
     ctx.restore();
   }
 
