@@ -21,7 +21,7 @@ Same plinko physics, but pucks are spinning playing cards. Line up a poker hand 
 
 Progression layers:
 1. **Chips** — spend on table upgrades (Auto Dealer, Big Blind, Pin Tip, …). Many upgrades stay hidden until unlocked.
-2. **Run level** — rises automatically from chips *earned* this table. Levels unlock shop items and grant rewards (comp credit, free upgrade bumps, even VIP perk levels). Resets when you Cash Out.
+2. **Run level** — rises automatically from chips *earned* this table. Levels unlock shop items and grant rewards (comp credit, free upgrade bumps, even VIP perk levels). Click the level pill to see what you’ve earned and what’s next. Resets when you Cash Out.
 3. **Quests & achievements** — **Quests** stay locked until run Lv 2, then each level-up opens another slot (max 5). Claiming a quest rolls a replacement. Cash Out clears the quest board (achievements stay). Rarity starts at Common; VIP **Quest Ink** unlocks Uncommon → Legendary.
 4. **VIP / prestige** — from run level 8, **Cash Out** banks your level comps for permanent perks. **Hold Deal** is a VIP perk (hold-to-drop, always available). **Quick Deal** / **Pin Privilege** add bonus Auto Dealer / Pin Tip levels without raising those upgrades’ buy costs (gold on the progress bar; still capped at the skill max). Also: House Edge, Seed Stack, Rack Discount, Comp Card, Quest Ink, Pit Boss. Hard reset wipes VIP and achievements too.
 
