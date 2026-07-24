@@ -3154,7 +3154,7 @@
 
   const chipFxLayer = document.getElementById('chipFxLayer');
   const scoreBoxEl = document.getElementById('scoreBox');
-  const MAX_FLYING_CHIPS = 48;
+  const MAX_FLYING_CHIPS = 80;
   let flyingChips = [];
   let chipFlyRaf = 0;
   let scorePulseTimer = 0;
@@ -3185,10 +3185,10 @@
     if(amount <= 1) return 1;
     if(amount <= 4) return 2;
     if(amount <= 12) return 3;
-    if(amount <= 30) return 4;
-    if(amount <= 80) return 6;
-    if(amount <= 200) return 8;
-    return 10;
+    if(amount <= 30) return 5;
+    if(amount <= 80) return 8;
+    if(amount <= 200) return 12;
+    return 16;
   }
 
   function pulseScoreBox(){
@@ -3217,13 +3217,20 @@
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  function spawnChipFly(cx, cy, amount){
+  function spawnChipFly(cx, cy, amount, opts){
     if(!chipFxLayer || !scoreBoxEl) return;
+    opts = opts || {};
     amount = Math.floor(amount);
-    if(amount <= 0) return;
+    if(amount <= 0 && !opts.count && !opts.minCount) return;
     const budget = Math.max(0, MAX_FLYING_CHIPS - flyingChips.length);
     if(budget <= 0) return;
-    const count = Math.min(chipFlyCountForAmount(amount), budget);
+    let count = Number.isFinite(opts.count)
+      ? Math.floor(opts.count)
+      : chipFlyCountForAmount(Math.max(1, amount));
+    if(opts.minCount) count = Math.max(count, Math.floor(opts.minCount));
+    if(opts.burst && opts.burst > 1) count = Math.ceil(count * opts.burst);
+    count = Math.min(count, budget, opts.maxCount || 28);
+    if(count <= 0) return;
     const origin = canvasToStagePoint(cx, cy);
     const target = scoreBoxTarget();
     const now = performance.now();
@@ -3232,7 +3239,7 @@
       el.className = 'fly-chip';
       const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.35;
       const pop = 16 + Math.random() * 38;
-      const delay = i * 28 + Math.random() * 30;
+      const delay = i * 18 + Math.random() * 24;
       const duration = 620 + Math.random() * 220;
       const popX = origin.x + Math.cos(ang) * pop;
       const popY = origin.y + Math.sin(ang) * pop;
@@ -4816,17 +4823,23 @@
   function spawnHandChipFlies(groups, chainMult){
     const mult = scoreMultiplier();
     for(const g of groups){
-      const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
-      const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
-      const x = avgC*CELL+CELL/2;
-      const y = PEG_ZONE + avgR*CELL + CELL/2;
       const pts = Math.floor(g.points * chainMult * mult);
-      if(pts > 0) spawnChipFly(x, y, pts);
+      if(pts <= 0 || !g.cells || !g.cells.length) continue;
+      // Poker scores are small integers — juice the burst by hand strength
+      // and spit chips from every cleared seat so clears feel rewarding.
+      const perSeat = Math.min(8, 3 + Math.floor(g.points / 2) + (chainMult > 1 ? 1 : 0));
+      for(const [c, r] of g.cells){
+        spawnChipFly(
+          c*CELL + CELL/2,
+          PEG_ZONE + r*CELL + CELL/2,
+          pts,
+          { minCount: perSeat, burst: 1.35, maxCount: 10 }
+        );
+      }
     }
   }
 
-  // Floor clear wipes the bottom row — spit chips from each cleared seat,
-  // not a single mid-board fountain.
+  // Floor clear wipes the bottom row — spit a fat burst from each seat.
   function spawnFloorChipFlies(groups, totalPts){
     totalPts = Math.floor(totalPts);
     if(totalPts <= 0) return;
@@ -4836,16 +4849,21 @@
       for(const cell of g.cells) cells.push(cell);
     }
     if(!cells.length){
-      spawnChipFly(W/2, PEG_ZONE + (ROWS-1)*CELL + CELL/2, totalPts);
+      spawnChipFly(W/2, PEG_ZONE + (ROWS-1)*CELL + CELL/2, totalPts, {
+        minCount: 14, burst: 1.5, maxCount: 22
+      });
       return;
     }
-    const base = Math.floor(totalPts / cells.length);
-    let rem = totalPts - base * cells.length;
+    // Don't dilate the visual by splitting payout across seats — each wiped
+    // hole should throw a real handful of chips.
+    const perSeat = Math.min(10, Math.max(5, Math.ceil(chipFlyCountForAmount(totalPts) / 2)));
     for(const [c, r] of cells){
-      const share = base + (rem > 0 ? 1 : 0);
-      if(rem > 0) rem--;
-      if(share <= 0) continue;
-      spawnChipFly(c*CELL + CELL/2, PEG_ZONE + r*CELL + CELL/2, share);
+      spawnChipFly(
+        c*CELL + CELL/2,
+        PEG_ZONE + r*CELL + CELL/2,
+        totalPts,
+        { minCount: perSeat, burst: 1.25, maxCount: 10 }
+      );
     }
   }
 
