@@ -249,16 +249,40 @@
     width:100%;
     display:flex;
     flex-direction:column;
-    gap:18px;
+    gap:0;
     min-width:0;
+    background:rgba(23,20,38,0.55);
+    border:1px solid #2a2545;
+    border-radius:16px;
+    overflow:hidden;
   }
-  .shop, .prestige, .contracts, .rail-col{
+  .rail-body{
     width:100%;
     display:flex;
+    flex-direction:column;
+    gap:0;
+    min-width:0;
+    min-height:0;
+    flex:1 1 auto;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:14px 12px 12px;
+    scrollbar-gutter:stable;
+  }
+  .rail-body::-webkit-scrollbar{width:8px;}
+  .rail-body::-webkit-scrollbar-track{background:transparent;}
+  .rail-body::-webkit-scrollbar-thumb{
+    background:#3a3558;
+    border-radius:999px;
+  }
+  .rail-panel{
+    width:100%;
+    display:none;
     flex-direction:column;
     gap:10px;
     min-width:0;
   }
+  .rail-panel.is-active{display:flex;}
   .shop-head, .prestige-head, .contracts-head{
     display:flex;
     justify-content:space-between;
@@ -275,6 +299,7 @@
   }
   .prestige-head h2{color:#F0D78C;}
   .contracts-head h2{color:#7EC8A3;}
+  .achievements-panel .contracts-head h2{color:#F0D78C;}
   .shop-meta, .prestige-meta, .contracts-meta{
     color:var(--ink-dim);
     font-size:12px;
@@ -282,16 +307,81 @@
   .shop-meta b{color:var(--felt-bright);font-weight:600;}
   .prestige-meta b{color:#F0D78C;font-weight:600;}
   .contracts-meta b{color:#7EC8A3;font-weight:600;}
+  .achievements-panel .contracts-meta b{color:#F0D78C;}
   .upgrades, .quests{
     display:grid;
     grid-template-columns:1fr;
     gap:8px;
     align-content:start;
   }
+  .rail-tabs{
+    flex:0 0 auto;
+    display:grid;
+    grid-template-columns:repeat(4, minmax(0, 1fr));
+    gap:4px;
+    padding:8px;
+    border-top:1px solid #2a2545;
+    background:rgba(11,10,20,0.92);
+  }
+  .rail-tab{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    min-height:44px;
+    padding:8px 4px 6px;
+    border:1px solid transparent;
+    border-radius:10px;
+    background:transparent;
+    color:var(--ink-dim);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.01em;
+    cursor:pointer;
+    transition:color .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .rail-tab:hover{
+    color:var(--ink);
+    background:rgba(255,255,255,0.04);
+  }
+  .rail-tab.is-active{
+    color:var(--ink);
+    background:var(--panel-2);
+    border-color:#3a3558;
+  }
+  .rail-tab[data-panel="upgrades"].is-active{border-color:rgba(46,138,110,0.45); color:var(--felt-bright);}
+  .rail-tab[data-panel="quests"].is-active{border-color:rgba(126,200,163,0.45); color:#7EC8A3;}
+  .rail-tab[data-panel="achievements"].is-active{border-color:rgba(240,215,140,0.45); color:#F0D78C;}
+  .rail-tab[data-panel="vip"].is-active{border-color:rgba(230,195,92,0.5); color:#E6C35C;}
+  .rail-tab-badge{
+    position:absolute;
+    top:2px;
+    right:2px;
+    min-width:16px;
+    height:16px;
+    padding:0 4px;
+    border-radius:999px;
+    background:var(--felt-bright);
+    color:#04140f;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    font-weight:600;
+    line-height:16px;
+    text-align:center;
+  }
+  .rail-tab[data-panel="achievements"] .rail-tab-badge,
+  .rail-tab[data-panel="vip"] .rail-tab-badge{
+    background:#E6C35C;
+    color:#1a1408;
+  }
+  .rail-tab-badge[hidden]{display:none !important;}
   @media (min-width:560px) and (max-width:999px){
     .upgrades{grid-template-columns:1fr 1fr;}
   }
-  /* Board + upgrade rail. VIP stacks under upgrades until there's room. */
+  /* Board + tabbed rail */
   @media (min-width:1000px){
     .wrap{max-width:1040px;}
     .play-row{
@@ -309,49 +399,8 @@
       position:sticky;
       top:16px;
       max-height:calc(100vh - 32px);
-      overflow-x:hidden;
-      overflow-y:auto;
-      padding-right:10px;
-      scrollbar-gutter:stable;
-      gap:16px;
-    }
-    .rails::-webkit-scrollbar{width:8px;}
-    .rails::-webkit-scrollbar-track{background:transparent;}
-    .rails::-webkit-scrollbar-thumb{
-      background:#3a3558;
-      border-radius:999px;
     }
     .upgrades{grid-template-columns:1fr;}
-  }
-  /* Board | (Upgrades+Contracts) | VIP — when wide enough. */
-  @media (min-width:1320px){
-    .wrap{max-width:1360px;}
-    .rails{
-      flex:0 0 640px;
-      width:640px;
-      flex-direction:row;
-      align-items:stretch;
-      gap:18px;
-      overflow:hidden;
-      padding-right:0;
-      scrollbar-gutter:auto;
-    }
-    .rail-col, .prestige{
-      flex:1 1 0;
-      width:auto;
-      min-width:0;
-      max-height:100%;
-      overflow-x:hidden;
-      overflow-y:auto;
-      padding-right:10px;
-      scrollbar-gutter:stable;
-    }
-    .rail-col::-webkit-scrollbar, .prestige::-webkit-scrollbar{width:8px;}
-    .rail-col::-webkit-scrollbar-track, .prestige::-webkit-scrollbar-track{background:transparent;}
-    .rail-col::-webkit-scrollbar-thumb, .prestige::-webkit-scrollbar-thumb{
-      background:#3a3558;
-      border-radius:999px;
-    }
   }
   .quest{
     position:relative;
@@ -848,8 +897,8 @@
     </div>
 
     <aside class="rails" aria-label="Shop">
-      <div class="rail-col">
-        <section class="shop" aria-label="Upgrades">
+      <div class="rail-body" id="railBody">
+        <section class="rail-panel shop is-active" id="panelUpgrades" data-panel="upgrades" aria-label="Upgrades">
           <div class="shop-head">
             <h2>Upgrades</h2>
             <div class="shop-meta">Run&nbsp;<b id="lifetimeVal">0</b> chips · Lv <b id="shopLevelVal">1</b></div>
@@ -857,32 +906,59 @@
           <div class="upgrades" id="upgrades"></div>
         </section>
 
-        <section class="contracts" id="contractsPanel" aria-label="Contracts">
+        <section class="rail-panel contracts" id="panelQuests" data-panel="quests" aria-label="Quests">
           <div class="contracts-head">
-            <h2>Contracts</h2>
+            <h2>Quests</h2>
             <div class="contracts-meta"><b id="questReadyVal">0</b> ready to claim</div>
           </div>
           <div class="quests" id="quests"></div>
         </section>
+
+        <section class="rail-panel contracts achievements-panel" id="panelAchievements" data-panel="achievements" aria-label="Achievements">
+          <div class="contracts-head">
+            <h2>Achievements</h2>
+            <div class="contracts-meta"><b id="achieveReadyVal">0</b> ready to claim</div>
+          </div>
+          <div class="quests" id="achievements"></div>
+        </section>
+
+        <section class="rail-panel prestige" id="panelVip" data-panel="vip" aria-label="VIP Lounge">
+          <div class="prestige-head">
+            <h2>VIP Lounge</h2>
+            <div class="prestige-meta">Tables cashed&nbsp;<b id="prestigeCountVal">0</b></div>
+          </div>
+          <div class="cashout" id="cashoutBox">
+            <p>Cash out banks level comps, then resets the table run (chips, upgrades, run level). VIP perks stay.</p>
+            <button type="button" class="cashout-btn" id="cashOutBtn">Cash Out</button>
+            <div class="cashout-req" id="cashoutReq">Reach run level 8 to cash out</div>
+          </div>
+          <div class="upgrades" id="prestigeUpgrades"></div>
+        </section>
       </div>
 
-      <section class="prestige" id="prestigePanel" aria-label="VIP Lounge">
-        <div class="prestige-head">
-          <h2>VIP Lounge</h2>
-          <div class="prestige-meta">Tables cashed&nbsp;<b id="prestigeCountVal">0</b></div>
-        </div>
-        <div class="cashout" id="cashoutBox">
-          <p>Cash out banks level comps, then resets the table run (chips, upgrades, run level). VIP perks stay.</p>
-          <button type="button" class="cashout-btn" id="cashOutBtn">Cash Out</button>
-          <div class="cashout-req" id="cashoutReq">Reach run level 8 to cash out</div>
-        </div>
-        <div class="upgrades" id="prestigeUpgrades"></div>
-      </section>
+      <nav class="rail-tabs" aria-label="Shop sections">
+        <button type="button" class="rail-tab is-active" data-panel="upgrades" aria-selected="true">
+          <span class="rail-tab-label">Upgrades</span>
+          <span class="rail-tab-badge" id="badgeUpgrades" hidden>0</span>
+        </button>
+        <button type="button" class="rail-tab" data-panel="quests" aria-selected="false">
+          <span class="rail-tab-label">Quests</span>
+          <span class="rail-tab-badge" id="badgeQuests" hidden>0</span>
+        </button>
+        <button type="button" class="rail-tab" data-panel="achievements" aria-selected="false">
+          <span class="rail-tab-label">Achieves</span>
+          <span class="rail-tab-badge" id="badgeAchievements" hidden>0</span>
+        </button>
+        <button type="button" class="rail-tab" data-panel="vip" aria-selected="false">
+          <span class="rail-tab-label">VIP</span>
+          <span class="rail-tab-badge" id="badgeVip" hidden>0</span>
+        </button>
+      </nav>
     </aside>
   </div>
 
   <div class="footer-row">
-    <span class="hint">Level up to unlock upgrades · clear Contracts · cash out comps in the VIP Lounge</span>
+    <span class="hint">Tabs: Upgrades · Quests · Achievements · VIP Lounge</span>
     <button class="reset" id="resetScores">Reset progress</button>
   </div>
 </div>
@@ -3955,7 +4031,18 @@
   const upgradesEl = document.getElementById('upgrades');
   const prestigeUpgradesEl = document.getElementById('prestigeUpgrades');
   const questsEl = document.getElementById('quests');
+  const achievementsEl = document.getElementById('achievements');
   const questReadyValEl = document.getElementById('questReadyVal');
+  const achieveReadyValEl = document.getElementById('achieveReadyVal');
+  const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
+  const railPanels = Array.from(document.querySelectorAll('.rail-panel'));
+  const tabBadges = {
+    upgrades: document.getElementById('badgeUpgrades'),
+    quests: document.getElementById('badgeQuests'),
+    achievements: document.getElementById('badgeAchievements'),
+    vip: document.getElementById('badgeVip')
+  };
+  let activeRailPanel = 'upgrades';
   const nextLabel = document.getElementById('nextLabel');
   const banner = document.getElementById('banner');
   const bannerText = document.getElementById('bannerText');
@@ -3963,6 +4050,37 @@
   const prestigeButtons = {};
   const contractButtons = {};
   const seenUnlockFlash = new Set();
+
+  function setTabBadge(panel, count){
+    const el = tabBadges[panel];
+    if(!el) return;
+    const n = Math.max(0, count | 0);
+    if(n <= 0){
+      el.hidden = true;
+      el.textContent = '0';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = n > 99 ? '99+' : String(n);
+  }
+
+  function setRailPanel(panel){
+    if(!panel || !railPanels.some(p => p.dataset.panel === panel)) return;
+    activeRailPanel = panel;
+    for(const p of railPanels){
+      const on = p.dataset.panel === panel;
+      p.classList.toggle('is-active', on);
+    }
+    for(const tab of railTabs){
+      const on = tab.dataset.panel === panel;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+  }
+
+  for(const tab of railTabs){
+    tab.addEventListener('click', ()=>setRailPanel(tab.dataset.panel));
+  }
 
   function updateLevelUI(){
     if(runLevelValEl) runLevelValEl.textContent = String(runLevel);
@@ -4035,6 +4153,7 @@
   function updateShopUI(){
     const active = [];
     const maxedList = [];
+    let affordableCount = 0;
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
@@ -4044,6 +4163,7 @@
       const locked = def.id === 'autoSuitBomb' && !suitBombUnlocked();
       const cost = upgradeCost(def);
       const canAfford = revealed && !maxed && !locked && score >= cost;
+      if(canAfford) affordableCount++;
       // Always refresh state — including locked cards — so Cash Out can't leave
       // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
       fillUpgradeButton(
@@ -4068,6 +4188,7 @@
     }
     // Keep buyable upgrades up top; sink completed ones.
     for(const btn of active.concat(maxedList)) upgradesEl.appendChild(btn);
+    setTabBadge('upgrades', affordableCount);
   }
 
   function updatePrestigeUI(){
@@ -4097,25 +4218,29 @@
       }
     }
 
-    if(!prestigeUpgradesEl) return;
-    const active = [];
-    const maxedList = [];
-    for(const def of PRESTIGE_DEFS){
-      const btn = prestigeButtons[def.id];
-      if(!btn) continue;
-      const lvl = prestigeLevel(def.id);
-      const maxed = lvl >= def.maxLevel;
-      const cost = prestigeUpgradeCost(def);
-      const canAfford = !maxed && comps >= cost;
-      fillUpgradeButton(
-        btn, def, lvl, maxed, false, cost, canAfford,
-        prestigeEffectText(def),
-        '',
-        'comps'
-      );
-      (maxed ? maxedList : active).push(btn);
+    let vipReady = ready ? 1 : 0;
+    if(prestigeUpgradesEl){
+      const active = [];
+      const maxedList = [];
+      for(const def of PRESTIGE_DEFS){
+        const btn = prestigeButtons[def.id];
+        if(!btn) continue;
+        const lvl = prestigeLevel(def.id);
+        const maxed = lvl >= def.maxLevel;
+        const cost = prestigeUpgradeCost(def);
+        const canAfford = !maxed && comps >= cost;
+        if(canAfford) vipReady++;
+        fillUpgradeButton(
+          btn, def, lvl, maxed, false, cost, canAfford,
+          prestigeEffectText(def),
+          '',
+          'comps'
+        );
+        (maxed ? maxedList : active).push(btn);
+      }
+      for(const btn of active.concat(maxedList)) prestigeUpgradesEl.appendChild(btn);
     }
-    for(const btn of active.concat(maxedList)) prestigeUpgradesEl.appendChild(btn);
+    setTabBadge('vip', vipReady);
   }
 
   function makeUpgradeButton(def, onBuy, prestige){
@@ -4139,11 +4264,15 @@
   }
 
   function updateContractsUI(){
-    if(!questsEl) return;
-    let readyCount = 0;
-    const claimable = [];
-    const active = [];
-    const done = [];
+    if(!questsEl && !achievementsEl) return;
+    let questReady = 0;
+    let achieveReady = 0;
+    const questClaimable = [];
+    const questActive = [];
+    const questDone = [];
+    const achieveClaimable = [];
+    const achieveActive = [];
+    const achieveDone = [];
     for(const def of CONTRACT_DEFS){
       const btn = contractButtons[def.id];
       if(!btn) continue;
@@ -4155,11 +4284,15 @@
       const claimed = questIsClaimed(def);
       const canClaim = complete && !claimed;
       const stillSecret = !!(def.secret && !complete && !claimed);
-      if(canClaim) readyCount++;
+      const isAchieve = def.kind === 'achievement';
+      if(canClaim){
+        if(isAchieve) achieveReady++;
+        else questReady++;
+      }
       btn.disabled = !canClaim;
       btn.classList.toggle('claimable', canClaim);
       btn.classList.toggle('claimed', claimed);
-      btn.classList.toggle('achievement', def.kind === 'achievement');
+      btn.classList.toggle('achievement', isAchieve);
       btn.querySelector('.quest-name').textContent = stillSecret ? '???' : def.name;
       btn.querySelector('.quest-desc').textContent = stillSecret
         ? 'Hidden contract — keep playing.'
@@ -4180,12 +4313,25 @@
           ? 'Claimed'
           : (canClaim ? 'Claim reward' : (complete ? 'Complete' : 'In progress'));
       }
+      const claimable = isAchieve ? achieveClaimable : questClaimable;
+      const active = isAchieve ? achieveActive : questActive;
+      const done = isAchieve ? achieveDone : questDone;
       if(canClaim) claimable.push(btn);
       else if(claimed) done.push(btn);
       else active.push(btn);
     }
-    if(questReadyValEl) questReadyValEl.textContent = String(readyCount);
-    for(const btn of claimable.concat(active, done)) questsEl.appendChild(btn);
+    if(questReadyValEl) questReadyValEl.textContent = String(questReady);
+    if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
+    setTabBadge('quests', questReady);
+    setTabBadge('achievements', achieveReady);
+    if(questsEl){
+      for(const btn of questClaimable.concat(questActive, questDone)) questsEl.appendChild(btn);
+    }
+    if(achievementsEl){
+      for(const btn of achieveClaimable.concat(achieveActive, achieveDone)){
+        achievementsEl.appendChild(btn);
+      }
+    }
   }
 
   function makeContractButton(def){
@@ -4218,11 +4364,12 @@
   }
 
   function buildContracts(){
-    if(!questsEl) return;
-    questsEl.innerHTML = '';
+    if(questsEl) questsEl.innerHTML = '';
+    if(achievementsEl) achievementsEl.innerHTML = '';
     for(const def of CONTRACT_DEFS){
       const btn = makeContractButton(def);
-      questsEl.appendChild(btn);
+      const parent = def.kind === 'achievement' ? achievementsEl : questsEl;
+      if(parent) parent.appendChild(btn);
       contractButtons[def.id] = btn;
     }
     updateContractsUI();
