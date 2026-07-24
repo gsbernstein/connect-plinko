@@ -547,14 +547,28 @@
     height:3px;
     background:rgba(255,255,255,0.06);
     pointer-events:none;
+    overflow:hidden;
   }
+  .upgrade-progress-bonus,
+  .upgrade-progress-bought,
   .upgrade-progress > span{
-    display:block;
-    height:100%;
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
     width:0%;
-    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
     transition:width .2s ease;
   }
+  .upgrade-progress-bonus{
+    z-index:0;
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+  }
+  .upgrade-progress-bought,
+  .upgrade-progress > span{
+    z-index:1;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+  }
+  .upgrade.maxed .upgrade-progress-bought,
   .upgrade.maxed .upgrade-progress > span{
     background:linear-gradient(90deg, #463d7a, var(--peg));
   }
@@ -862,6 +876,7 @@
     border-color:rgba(230,195,92,0.55);
     box-shadow:0 0 0 1px rgba(230,195,92,0.12);
   }
+  .upgrade.prestige-upgrade .upgrade-progress-bought,
   .upgrade.prestige-upgrade .upgrade-progress > span{
     background:linear-gradient(90deg, #8a6f2a, #E6C35C);
   }
@@ -1148,7 +1163,7 @@
 
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
-  const SAVE_VERSION = 5;
+  const SAVE_VERSION = 6;
   const MAX_IN_FLIGHT = 14;
   const MAX_CASCADE_BALLS = 42;
   const MAX_POPUPS = 36;
@@ -1175,15 +1190,6 @@
       baseCost: 80,
       costScale: 2.05,
       maxLevel: 8,
-      unlockAt: 3
-    },
-    {
-      id: 'holdDeal',
-      name: 'Hold Deal',
-      desc: 'Hold on the board or a column to keep dropping cards. Higher levels deal faster.',
-      baseCost: 40,
-      costScale: 1.65,
-      maxLevel: 12,
       unlockAt: 2
     },
     {
@@ -1297,7 +1303,7 @@
     15: { comps: 2, prestige: 'seedStack', label: '+2 comps · VIP +1 Seed Stack' },
     18: { comps: 2, upgrade: { id: 'bigBlind', n: 1 }, label: '+2 comps · +1 Big Blind' },
     20: { comps: 3, prestige: 'houseEdge', label: '+3 comps · VIP +1 House Edge' },
-    25: { comps: 4, upgrade: { id: 'holdDeal', n: 1 }, label: '+4 comps · +1 Hold Deal' },
+    25: { comps: 4, prestige: 'holdDeal', label: '+4 comps · VIP +1 Hold Deal' },
     30: { comps: 5, prestige: 'rackDiscount', label: '+5 comps · VIP +1 Rack Discount' },
     35: { comps: 6, prestige: 'compCard', label: '+6 comps · VIP +1 Comp Card' },
     40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' }
@@ -1548,9 +1554,17 @@
       maxLevel: 8
     },
     {
+      id: 'holdDeal',
+      name: 'Hold Deal',
+      desc: 'Hold on the board or a column to keep dropping cards. Always available. Higher levels deal faster.',
+      baseCost: 2,
+      costScale: 1.85,
+      maxLevel: 12
+    },
+    {
       id: 'quickDeal',
       name: 'Quick Deal',
-      desc: 'Each new table starts with free Auto Dealer levels.',
+      desc: '+1 Auto Dealer level permanently (does not raise Auto Dealer’s buy cost). Capped at Auto Dealer max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -1558,7 +1572,7 @@
     {
       id: 'pinPrivilege',
       name: 'Pin Privilege',
-      desc: 'Each new table starts with free Pin Tip levels.',
+      desc: '+1 Pin Tip level permanently (does not raise Pin Tip’s buy cost). Capped at Pin Tip max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -1611,8 +1625,43 @@
   };
   let stats = Object.assign({}, EMPTY_STATS);
 
-  function upgradeLevel(id){ return upgrades[id] || 0; }
+  function purchasedLevel(id){ return upgrades[id] || 0; }
   function prestigeLevel(id){ return prestigeUpgrades[id] || 0; }
+
+  // Permanent VIP bonus levels for a table skill (do not affect buy cost).
+  function prestigeBonusLevels(id){
+    if(id === 'autoDealer') return prestigeLevel('quickDeal');
+    if(id === 'pinPayout') return prestigeLevel('pinPrivilege');
+    return 0;
+  }
+
+  function upgradeMaxLevel(id){
+    const def = UPGRADE_DEFS.find(u => u.id === id);
+    return def ? def.maxLevel : 0;
+  }
+
+  // Effective skill level = purchased + prestige bonus, capped at max.
+  function upgradeLevel(id){
+    const max = upgradeMaxLevel(id);
+    if(!max) return purchasedLevel(id);
+    return Math.min(max, purchasedLevel(id) + prestigeBonusLevels(id));
+  }
+
+  // How many chip-bought levels can still fit under the max with current VIP bonus.
+  function maxPurchasableLevel(id){
+    const max = upgradeMaxLevel(id);
+    return Math.max(0, max - prestigeBonusLevels(id));
+  }
+
+  // Add purchased levels (rewards / buys). Returns how many were actually added.
+  function addPurchasedLevels(id, n){
+    n = Math.floor(n || 0);
+    if(n <= 0) return 0;
+    const before = purchasedLevel(id);
+    const next = Math.min(maxPurchasableLevel(id), before + n);
+    upgrades[id] = next;
+    return next - before;
+  }
 
   function prestigeChipMult(){
     return 1 + 0.2 * prestigeLevel('houseEdge');
@@ -1628,20 +1677,6 @@
     if(!lvl) return 0;
     // 50 → ~1.5k by mid levels, scales into the tens of thousands.
     return Math.floor(50 * lvl * Math.pow(1.35, lvl - 1));
-  }
-
-  function freeAutoDealerLevels(){
-    return Math.min(
-      UPGRADE_DEFS.find(u => u.id === 'autoDealer').maxLevel,
-      prestigeLevel('quickDeal')
-    );
-  }
-
-  function freePinTipLevels(){
-    return Math.min(
-      UPGRADE_DEFS.find(u => u.id === 'pinPayout').maxLevel,
-      prestigeLevel('pinPrivilege')
-    );
   }
 
   // Lifetime chips earned this run required to stand at `lvl`.
@@ -1759,10 +1794,12 @@
     if(r.upgrade){
       const uDef = UPGRADE_DEFS.find(u => u.id === r.upgrade.id);
       if(uDef){
-        const before = upgradeLevel(uDef.id);
-        upgrades[uDef.id] = Math.min(uDef.maxLevel, before + (r.upgrade.n || 1));
+        const beforeEff = upgradeLevel(uDef.id);
+        addPurchasedLevels(uDef.id, r.upgrade.n || 1);
         if(uDef.id === 'highCut' || uDef.id === 'suitCut') reshapeShoe();
-        if(uDef.id === 'suitBomb' && before === 0) suitBombReadyAt = performance.now();
+        if(uDef.id === 'suitBomb' && beforeEff === 0 && upgradeLevel(uDef.id) > 0){
+          suitBombReadyAt = performance.now();
+        }
       }
     }
   }
@@ -1984,9 +2021,10 @@
   }
 
   function upgradeCost(def){
-    const lvl = upgradeLevel(def.id);
-    if(lvl >= def.maxLevel) return Infinity;
-    return Math.floor(def.baseCost * Math.pow(def.costScale, lvl) * upgradeCostMult());
+    // Cost tracks purchased levels only — prestige bonus levels are free power.
+    if(upgradeLevel(def.id) >= def.maxLevel) return Infinity;
+    const bought = purchasedLevel(def.id);
+    return Math.floor(def.baseCost * Math.pow(def.costScale, bought) * upgradeCostMult());
   }
 
   function prestigeUpgradeCost(def){
@@ -2010,11 +2048,11 @@
   }
 
   function holdDealUnlocked(){
-    return upgradeLevel('holdDeal') > 0;
+    return prestigeLevel('holdDeal') > 0;
   }
 
   function holdDropIntervalMs(){
-    const lvl = upgradeLevel('holdDeal');
+    const lvl = prestigeLevel('holdDeal');
     if(lvl <= 0) return Infinity;
     // ~400ms at Lv1, under 150ms by Lv6, floors at 70ms.
     return Math.max(70, Math.floor(400 * Math.pow(0.82, lvl - 1)));
@@ -2151,13 +2189,12 @@
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
         if(uDef){
-          const add = bonus.upgrade.n || 1;
-          const before = upgradeLevel(uDef.id);
-          upgrades[uDef.id] = Math.min(uDef.maxLevel, before + add);
-          if(upgrades[uDef.id] > before){
-            parts.push('+' + (upgrades[uDef.id] - before) + ' ' + uDef.name);
+          const beforeEff = upgradeLevel(uDef.id);
+          const gained = addPurchasedLevels(uDef.id, bonus.upgrade.n || 1);
+          if(gained > 0){
+            parts.push('+' + gained + ' ' + uDef.name);
             if(uDef.id === 'highCut' || uDef.id === 'suitCut') reshapeShoe();
-            if(uDef.id === 'suitBomb' && before === 0){
+            if(uDef.id === 'suitBomb' && beforeEff === 0){
               suitBombReadyAt = performance.now();
             }
           }
@@ -2268,10 +2305,6 @@
         return lvl ? ('Every ' + formatInterval(autoDropIntervalMs())) : 'Manual only';
       case 'multiDeal':
         return (1 + lvl) + ' card' + (1+lvl === 1 ? '' : 's') + '/tick';
-      case 'holdDeal':
-        return lvl
-          ? ('Hold every ' + formatInterval(holdDropIntervalMs()))
-          : 'Click to drop';
       case 'bigBlind':
         return '×' + tableScoreMultiplier().toFixed(2).replace(/\.00$/,'');
       case 'hotStreak':
@@ -2324,10 +2357,18 @@
           : 'Full price';
       case 'compCard':
         return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
+      case 'holdDeal':
+        return lvl
+          ? ('Hold every ' + formatInterval(holdDropIntervalMs()))
+          : 'Click to drop';
       case 'quickDeal':
-        return lvl ? ('+' + freeAutoDealerLevels() + ' Auto Dealer') : 'No free levels';
+        return lvl
+          ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
+          : 'No Auto Dealer bonus';
       case 'pinPrivilege':
-        return lvl ? ('+' + freePinTipLevels() + ' Pin Tip') : 'No free levels';
+        return lvl
+          ? ('+' + lvl + ' Pin Tip · now Lv ' + upgradeLevel('pinPayout'))
+          : 'No Pin Tip bonus';
       case 'questInk':{
         const rar = QUEST_RARITIES[maxQuestRarityIndex()] || 'common';
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
@@ -2342,10 +2383,6 @@
 
   function applyRunStartBonuses(){
     upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
-    const autoFree = freeAutoDealerLevels();
-    const pinFree = freePinTipLevels();
-    if(autoFree) upgrades.autoDealer = autoFree;
-    if(pinFree) upgrades.pinPayout = pinFree;
     score = startingChips();
     lifetime = 0;
     runLevel = 1;
@@ -2409,6 +2446,18 @@
             prestigeUpgrades[def.id] = Math.min(def.maxLevel, Math.floor(v));
           }
         }
+      }
+      // Migrate retired table Hold Deal into the VIP Hold Deal perk.
+      if(data.upgrades && typeof data.upgrades.holdDeal === 'number' && data.upgrades.holdDeal > 0){
+        const migrated = Math.min(
+          PRESTIGE_DEFS.find(u => u.id === 'holdDeal').maxLevel,
+          Math.floor(data.upgrades.holdDeal)
+        );
+        if(migrated > prestigeLevel('holdDeal')) prestigeUpgrades.holdDeal = migrated;
+      }
+      // Purchased levels can't push effective skill past max once VIP bonus applies.
+      for(const def of UPGRADE_DEFS){
+        upgrades[def.id] = Math.min(purchasedLevel(def.id), maxPurchasableLevel(def.id));
       }
       runLevel = runLevelFromLifetime(lifetime);
       if(typeof data.runCompCredit === 'number' && data.runCompCredit >= 0){
@@ -2533,15 +2582,19 @@
     if(!def) return false;
     if(!upgradeUnlocked(id)) return false;
     if(id === 'autoSuitBomb' && !suitBombUnlocked()) return false;
-    const lvl = upgradeLevel(id);
-    if(lvl >= def.maxLevel) return false;
+    if(upgradeLevel(id) >= def.maxLevel) return false;
+    if(purchasedLevel(id) >= maxPurchasableLevel(id)) return false;
     const cost = upgradeCost(def);
     if(score < cost) return false;
+    const beforeEff = upgradeLevel(id);
     score -= cost;
-    upgrades[id] = lvl + 1;
+    if(!addPurchasedLevels(id, 1)){
+      score += cost;
+      return false;
+    }
     bumpStat('upgradesBought', 1);
     if(id === 'highCut' || id === 'suitCut') reshapeShoe();
-    if(id === 'suitBomb' && lvl === 0){
+    if(id === 'suitBomb' && beforeEff === 0){
       suitBombReadyAt = performance.now();
     }
     return true;
@@ -2608,12 +2661,17 @@
     if(comps < cost) return;
     comps -= cost;
     prestigeUpgrades[id] = lvl + 1;
+    // VIP skill bonuses may cap purchasable room — clamp bought levels.
+    for(const uDef of UPGRADE_DEFS){
+      upgrades[uDef.id] = Math.min(purchasedLevel(uDef.id), maxPurchasableLevel(uDef.id));
+    }
     scheduleSave();
     updateScoreUI();
     updateShopUI();
     updatePrestigeUI();
     updateAutoStatus();
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
+    if(id === 'holdDeal' && !resolving && !looping) startLoop();
   }
 
   function columnReservations(){
@@ -4424,28 +4482,44 @@
     startLoop();
   }
 
-  function fillUpgradeButton(btn, def, lvl, maxed, locked, cost, canAfford, effect, costLabel, unit){
+  function fillUpgradeButton(btn, def, opts){
+    opts = opts || {};
+    const bought = opts.bought != null ? opts.bought : (opts.lvl || 0);
+    const bonus = opts.bonus || 0;
+    const effective = Math.min(def.maxLevel, bought + bonus);
+    const maxed = !!opts.maxed || effective >= def.maxLevel;
+    const locked = !!opts.locked;
+    const canAfford = !!opts.canAfford;
     btn.disabled = maxed || locked || !canAfford;
     btn.classList.toggle('affordable', canAfford);
     btn.classList.toggle('maxed', maxed);
-    btn.querySelector('.upgrade-lvl').textContent = maxed
-      ? 'MAX'
-      : ('Lv ' + lvl + '/' + def.maxLevel);
-    const fill = btn.querySelector('.upgrade-progress > span');
-    if(fill){
-      const pct = def.maxLevel <= 0 ? 0 : Math.min(100, (lvl / def.maxLevel) * 100);
-      fill.style.width = pct + '%';
+    btn.classList.toggle('has-bonus', bonus > 0);
+    const lvlEl = btn.querySelector('.upgrade-lvl');
+    if(lvlEl){
+      if(maxed) lvlEl.textContent = 'MAX';
+      else if(bonus > 0) lvlEl.textContent = 'Lv ' + bought + '+' + bonus + '/' + def.maxLevel;
+      else lvlEl.textContent = 'Lv ' + effective + '/' + def.maxLevel;
     }
-    btn.querySelector('.upgrade-effect').textContent = effect;
+    const bonusFill = btn.querySelector('.upgrade-progress-bonus');
+    const boughtFill = btn.querySelector('.upgrade-progress-bought');
+    if(def.maxLevel > 0){
+      if(bonusFill){
+        bonusFill.style.width = Math.min(100, (effective / def.maxLevel) * 100) + '%';
+      }
+      if(boughtFill){
+        boughtFill.style.width = Math.min(100, (bought / def.maxLevel) * 100) + '%';
+      }
+    }
+    btn.querySelector('.upgrade-effect').textContent = opts.effect || '';
     const costEl = btn.querySelector('.upgrade-cost');
     if(maxed){
       costEl.textContent = 'Maxed';
       costEl.className = 'upgrade-cost max';
     } else if(locked){
-      costEl.textContent = costLabel;
+      costEl.textContent = opts.costLabel || '';
       costEl.className = 'upgrade-cost max';
     } else {
-      costEl.textContent = formatNum(cost) + ' ' + unit;
+      costEl.textContent = formatNum(opts.cost) + ' ' + (opts.unit || 'chips');
       costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
     }
   }
@@ -4458,6 +4532,8 @@
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
       const revealed = upgradeUnlocked(def.id);
+      const bought = purchasedLevel(def.id);
+      const bonus = prestigeBonusLevels(def.id);
       const lvl = upgradeLevel(def.id);
       const maxed = lvl >= def.maxLevel;
       const locked = def.id === 'autoSuitBomb' && !suitBombUnlocked();
@@ -4466,12 +4542,12 @@
       if(canAfford) affordableCount++;
       // Always refresh state — including locked cards — so Cash Out can't leave
       // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
-      fillUpgradeButton(
-        btn, def, lvl, maxed, locked || !revealed, cost, canAfford,
-        upgradeEffectText(def),
-        revealed ? 'Needs Suit Purge' : ('Unlocks at Lv ' + (def.unlockAt || 1)),
-        'chips'
-      );
+      fillUpgradeButton(btn, def, {
+        bought, bonus, maxed, locked: locked || !revealed, cost, canAfford,
+        effect: upgradeEffectText(def),
+        costLabel: revealed ? 'Needs Suit Purge' : ('Unlocks at Lv ' + (def.unlockAt || 1)),
+        unit: 'chips'
+      });
       btn.hidden = !revealed;
       if(!revealed){
         btn.classList.remove('affordable', 'maxed', 'just-unlocked');
@@ -4530,12 +4606,12 @@
         const cost = prestigeUpgradeCost(def);
         const canAfford = !maxed && comps >= cost;
         if(canAfford) vipReady++;
-        fillUpgradeButton(
-          btn, def, lvl, maxed, false, cost, canAfford,
-          prestigeEffectText(def),
-          '',
-          'comps'
-        );
+        fillUpgradeButton(btn, def, {
+          bought: lvl, bonus: 0, maxed, locked: false, cost, canAfford,
+          effect: prestigeEffectText(def),
+          costLabel: '',
+          unit: 'comps'
+        });
         (maxed ? maxedList : active).push(btn);
       }
       for(const btn of active.concat(maxedList)) prestigeUpgradesEl.appendChild(btn);
@@ -4556,7 +4632,10 @@
       '<p class="upgrade-desc"></p>' +
       '<div class="upgrade-effect"></div>' +
       '<div class="upgrade-cost"></div>' +
-      '<div class="upgrade-progress" aria-hidden="true"><span></span></div>';
+      '<div class="upgrade-progress" aria-hidden="true">' +
+        '<span class="upgrade-progress-bonus"></span>' +
+        '<span class="upgrade-progress-bought"></span>' +
+      '</div>';
     btn.querySelector('.upgrade-name').textContent = def.name;
     btn.querySelector('.upgrade-desc').textContent = def.desc;
     btn.addEventListener('click', ()=>onBuy(def.id));
