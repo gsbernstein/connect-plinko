@@ -454,11 +454,10 @@
   let popups = [];           // floating score/chain text
   const FLASH_MS = 480, EXPLODE_MS = 280;
 
-  // Cascade wait ignores pucks dropped during this same resolve epoch so
-  // placement never holds up clears. Older free-drops are still waited on
-  // by a later cascade (they can still change the board).
+  // Only pucks blasted by the clear itself hold up the cascade wait —
+  // unrelated in-flight drops keep moving and resolve on their own land.
   function cascadePendingBalls(){
-    return balls.filter(b => !(b.freeDrop && b.dropEpoch === resolveEpoch));
+    return balls.filter(b => b.cascadeBall);
   }
 
   function refreshButtons(){
@@ -750,14 +749,14 @@
     ball.vx *= nearSeat ? 0.9 : 0.98;
 
     // The reserved stack slot is authoritative: rest on that cell's floor.
-    // (Circle-vs-settled-piece collision used to fight this seat and leave
-    // two pucks oscillating mid-hole, which also blocked the resolve wait.)
+    // Commit as soon as we reach the seat (one soft bounce if arriving hot)
+    // so matches can resolve without waiting for a long settle wiggle.
     if(ball.y >= landingY){
       ball.y = landingY;
-      if(ball.vy > 0) ball.vy = -ball.vy*0.28;
-      ball.vx *= 0.65;
-      if((Math.abs(ball.vy) < 1.5 && Math.abs(ball.vx) < 1.1 && Math.abs(ball.x-targetX) < 10)
-         || ball.gridAge > GRID_SETTLE_FRAMES*0.55){
+      if(ball.vy > 4){
+        ball.vy = -ball.vy*0.22;
+        ball.vx *= 0.55;
+      } else {
         seatBall(ball);
       }
     }
@@ -986,7 +985,8 @@
       player,
       frameSafety: 0,
       trail: [],
-      stackEntry: null
+      stackEntry: null,
+      cascadeBall: true // holds up resolve wait until this one reseats
     };
     balls.push(ball);
   }
