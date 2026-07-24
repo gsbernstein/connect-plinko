@@ -24,57 +24,37 @@
   *{box-sizing:border-box;}
   html,body{
     margin:0;
-    min-height:100%;
+    width:100%;
+    height:100%;
+    overflow:hidden;
     background:
       radial-gradient(circle at 50% 0%, #1c1832 0%, var(--bg) 55%);
     color:var(--ink);
     font-family:'IBM Plex Mono', monospace;
-    display:flex;
-    justify-content:center;
-    padding:28px 14px 48px;
   }
-  .wrap{
+  .app{
     width:100%;
-    max-width:660px;
+    height:100%;
+    height:100dvh;
     display:flex;
     flex-direction:column;
-    align-items:center;
-    gap:16px;
-  }
-  .play-row{
-    width:100%;
-    display:flex;
-    flex-direction:column;
-    align-items:stretch;
-    gap:16px;
+    min-height:0;
+    overflow:hidden;
   }
   .stage{
     width:100%;
-    display:flex;
+    display:none;
     flex-direction:column;
     align-items:stretch;
-    gap:16px;
+    gap:10px;
     min-width:0;
+    min-height:0;
+    flex:1 1 auto;
+    padding:10px 10px 0;
+    overflow:hidden;
   }
-  h1{
-    font-family:'Space Grotesk', sans-serif;
-    font-weight:700;
-    font-size:clamp(28px,6vw,40px);
-    letter-spacing:-0.02em;
-    margin:0;
-    text-align:center;
-    background:linear-gradient(90deg,var(--heart),var(--peg) 50%,var(--club));
-    -webkit-background-clip:text;
-    background-clip:text;
-    color:transparent;
-  }
-  .tagline{
-    margin:-10px 0 4px;
-    color:var(--ink-dim);
-    font-size:13px;
-    letter-spacing:0.04em;
-    text-align:center;
-  }
+  .app.mode-table .stage,
+  .stage.is-active{display:flex;}
   .hud{
     width:100%;
     display:flex;
@@ -82,6 +62,7 @@
     justify-content:space-between;
     align-items:center;
     gap:8px;
+    flex:0 0 auto;
   }
   .score{
     display:flex;
@@ -97,7 +78,15 @@
     color:var(--felt-bright);
   }
   .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor;}
-  .score b{color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:18px;}
+  .score b{
+    color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:18px;
+    font-variant-numeric:tabular-nums;
+    display:inline-block;
+    min-width:4ch;
+    text-align:right;
+  }
   .next-card{
     display:flex;
     align-items:center;
@@ -120,44 +109,28 @@
     font-family:'Space Grotesk',sans-serif;
     font-size:14px;
   }
-  .cols{
-    display:grid;
-    width:100%;
-    gap:6px;
-  }
-  .colbtn{
-    background:var(--panel-2);
-    border:1px solid #2a2545;
-    color:var(--ink-dim);
-    border-radius:8px 8px 4px 4px;
-    padding:9px 0;
-    cursor:pointer;
-    font-family:'Space Grotesk',sans-serif;
-    font-weight:700;
-    font-size:15px;
-    transition:transform .08s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
-  }
-  .colbtn:hover:not(:disabled){
-    background:#2a2450;
-    color:var(--ink);
-    transform:translateY(-2px);
-  }
-  .colbtn:disabled{opacity:0.25;cursor:not-allowed;}
-  .colbtn.full:not(:disabled){opacity:0.45;}
-  .colbtn.full:not(:disabled)::after{content:' ↝';}
   .board-frame{
     position:relative;
     width:100%;
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:16px;
-    padding:10px;
+    padding:8px;
     box-shadow:0 20px 50px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02);
+    overflow:hidden;
   }
   canvas#board{
     display:block;
-    width:100%;
+    width:auto;
     height:auto;
+    max-width:100%;
+    max-height:100%;
+    aspect-ratio:630 / 860;
     border-radius:10px;
   }
   .banner{
@@ -190,129 +163,203 @@
     border-radius:999px;
     cursor:pointer;
   }
-  .footer-row{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    width:100%;
-    margin-top:-4px;
-    gap:12px;
-  }
-  .hint{color:var(--ink-dim);font-size:12px;}
   .reset{
     background:transparent;
     color:var(--ink-dim);
     border:1px solid #2a2545;
-    border-radius:8px;
-    padding:6px 12px;
+    border-radius:10px;
+    padding:12px 14px;
     font-family:'IBM Plex Mono',monospace;
-    font-size:12px;
+    font-size:13px;
     cursor:pointer;
-    flex:none;
+    text-align:left;
   }
-  .reset:hover{color:var(--ink);border-color:#463d7a;}
-  .game-switch{
-    display:flex;
-    justify-content:center;
-    gap:8px;
-    width:100%;
-    margin-top:-4px;
-  }
-  .game-switch a{
+  .reset:hover{color:var(--ink);border-color:#463d7a;background:var(--panel-2);}
+  .settings-copy{
+    margin:0;
     color:var(--ink-dim);
-    text-decoration:none;
     font-size:12px;
-    border:1px solid #2a2545;
-    border-radius:999px;
-    padding:5px 12px;
-    transition:color .15s ease, border-color .15s ease, background .15s ease;
+    line-height:1.45;
   }
-  .game-switch a:hover{
-    color:var(--ink);
-    border-color:#463d7a;
-    background:rgba(139,127,255,0.08);
-  }
-  .game-switch a.current{
-    color:var(--ink);
-    border-color:var(--peg);
-    background:rgba(139,127,255,0.12);
-  }
-  .shop{
+  .rails{
     width:100%;
     display:flex;
+    flex-direction:column;
+    gap:0;
+    min-width:0;
+    min-height:0;
+    flex:1 1 auto;
+    background:rgba(23,20,38,0.72);
+    border:none;
+    border-radius:0;
+    overflow:hidden;
+  }
+  .app.mode-table .rails{
+    flex:0 0 auto;
+  }
+  .app.mode-table .rail-body{
+    display:none;
+  }
+  .rail-body{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    gap:0;
+    min-width:0;
+    min-height:0;
+    flex:1 1 auto;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:14px 12px 12px;
+    scrollbar-gutter:stable;
+  }
+  .rail-body::-webkit-scrollbar{width:8px;}
+  .rail-body::-webkit-scrollbar-track{background:transparent;}
+  .rail-body::-webkit-scrollbar-thumb{
+    background:#3a3558;
+    border-radius:999px;
+  }
+  .rail-panel{
+    width:100%;
+    display:none;
     flex-direction:column;
     gap:10px;
     min-width:0;
   }
-  .shop-head{
+  .rail-panel.is-active{display:flex;}
+  .shop-head, .prestige-head, .contracts-head{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:12px;
     flex-wrap:wrap;
   }
-  .shop-head h2{
+  .shop-head h2, .prestige-head h2, .contracts-head h2{
     margin:0;
     font-family:'Space Grotesk',sans-serif;
     font-size:18px;
     font-weight:700;
     letter-spacing:-0.01em;
   }
-  .shop-meta{
+  .prestige-head h2{color:#F0D78C;}
+  .contracts-head h2{color:#7EC8A3;}
+  .achievements-panel .contracts-head h2{color:#F0D78C;}
+  .shop-meta, .prestige-meta, .contracts-meta{
     color:var(--ink-dim);
     font-size:12px;
   }
   .shop-meta b{color:var(--felt-bright);font-weight:600;}
-  .upgrades{
+  .prestige-meta b{color:#F0D78C;font-weight:600;}
+  .contracts-meta b{color:#7EC8A3;font-weight:600;}
+  .achievements-panel .contracts-meta b{color:#F0D78C;}
+  .upgrades, .quests{
     display:grid;
     grid-template-columns:1fr;
     gap:8px;
+    align-content:start;
   }
-  @media (min-width:560px){
-    .upgrades{grid-template-columns:1fr 1fr;}
+  .rail-tabs{
+    flex:0 0 auto;
+    display:flex;
+    gap:4px;
+    padding:8px;
+    padding-bottom:max(8px, env(safe-area-inset-bottom));
+    border-top:1px solid #2a2545;
+    background:rgba(11,10,20,0.96);
   }
-  /* Board (~660) + shop rail (~320) + gap — side-by-side when it fits. */
+  .rail-tab{
+    position:relative;
+    display:flex;
+    flex:1 1 0;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    min-width:0;
+    min-height:48px;
+    padding:8px 2px 6px;
+    border:1px solid transparent;
+    border-radius:10px;
+    background:transparent;
+    color:var(--ink-dim);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.01em;
+    cursor:pointer;
+    transition:color .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .rail-tab:hover{
+    color:var(--ink);
+    background:rgba(255,255,255,0.04);
+  }
+  .rail-tab.is-active{
+    color:var(--ink);
+    background:var(--panel-2);
+    border-color:#3a3558;
+  }
+  .rail-tab[data-panel="table"].is-active{border-color:rgba(139,127,255,0.5); color:var(--peg);}
+  .rail-tab[data-panel="upgrades"].is-active{border-color:rgba(46,138,110,0.45); color:var(--felt-bright);}
+  .rail-tab[data-panel="quests"].is-active{border-color:rgba(126,200,163,0.45); color:#7EC8A3;}
+  .rail-tab[data-panel="achievements"].is-active{border-color:rgba(240,215,140,0.45); color:#F0D78C;}
+  .rail-tab[data-panel="vip"].is-active{border-color:rgba(230,195,92,0.5); color:#E6C35C;}
+  .rail-tab[data-panel="settings"].is-active{border-color:#3a3558; color:var(--ink);}
+  .rail-tab-badge{
+    position:absolute;
+    top:2px;
+    right:2px;
+    min-width:16px;
+    height:16px;
+    padding:0 4px;
+    border-radius:999px;
+    background:var(--felt-bright);
+    color:#04140f;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    font-weight:600;
+    line-height:16px;
+    text-align:center;
+  }
+  .rail-tab[data-panel="achievements"] .rail-tab-badge,
+  .rail-tab[data-panel="vip"] .rail-tab-badge{
+    background:#E6C35C;
+    color:#1a1408;
+  }
+  .rail-tab-badge[hidden]{display:none !important;}
+  .rail-tab[hidden]{display:none !important;}
+  .rail-tab.desktop-hide{display:flex;}
+  /* Desktop: board + sidebar side by side, full viewport height */
   @media (min-width:1000px){
-    .wrap{max-width:1040px;}
-    .play-row{
+    .app{
       flex-direction:row;
-      align-items:flex-start;
-      gap:18px;
+      max-width:1100px;
+      margin:0 auto;
     }
-    .stage{
-      flex:1 1 660px;
-      max-width:660px;
+    .stage,
+    .app.mode-table .stage,
+    .stage.is-active{
+      display:flex !important;
+      flex:1 1 0;
+      max-width:none;
+      padding:12px 8px 12px 12px;
     }
-    .shop{
-      flex:0 0 320px;
-      width:320px;
-      position:sticky;
-      top:16px;
-      max-height:calc(100vh - 32px);
-      overflow:hidden;
-      padding-right:0;
+    .rails,
+    .app.mode-table .rails{
+      flex:0 0 340px;
+      width:340px;
+      border-left:1px solid #2a2545;
+      background:rgba(23,20,38,0.85);
     }
-    .upgrades{
-      grid-template-columns:1fr;
-      flex:1 1 auto;
-      min-height:0;
-      overflow-x:hidden;
-      overflow-y:auto;
-      padding-right:10px;
-      scrollbar-gutter:stable;
+    .app.mode-table .rail-body{
+      display:flex;
     }
-    .upgrades::-webkit-scrollbar{width:8px;}
-    .upgrades::-webkit-scrollbar-track{background:transparent;}
-    .upgrades::-webkit-scrollbar-thumb{
-      background:#3a3558;
-      border-radius:999px;
-    }
+    .rail-tab.desktop-hide{display:none !important;}
+    .upgrades{grid-template-columns:1fr;}
   }
-  .upgrade{
+  .quest{
     position:relative;
     display:flex;
     flex-direction:column;
-    align-items:stretch;
     gap:6px;
     text-align:left;
     background:var(--panel);
@@ -323,8 +370,127 @@
     font-family:'IBM Plex Mono',monospace;
     cursor:pointer;
     overflow:hidden;
+    min-height:min-content;
+    flex-shrink:0;
     transition:border-color .15s ease, background .15s ease, transform .08s ease;
   }
+  .quest:hover:not(:disabled){
+    border-color:#2d8a6e;
+    background:var(--panel-2);
+    transform:translateY(-1px);
+  }
+  .quest:disabled{cursor:default;}
+  .quest.claimable{
+    border-color:rgba(46,138,110,0.65);
+    box-shadow:0 0 0 1px rgba(46,138,110,0.18);
+  }
+  .quest.claimed{
+    opacity:0.62;
+    border-color:#3a3558;
+  }
+  .quest.achievement .quest-kind{color:#F0D78C;}
+  .quest.rarity-common{border-color:#3a3558;}
+  .quest.rarity-uncommon{border-color:rgba(126,200,163,0.55);}
+  .quest.rarity-rare{border-color:rgba(110,168,255,0.55);}
+  .quest.rarity-epic{border-color:rgba(192,132,252,0.55);}
+  .quest.rarity-legendary{
+    border-color:rgba(230,195,92,0.65);
+    box-shadow:0 0 0 1px rgba(230,195,92,0.12);
+  }
+  .quest.rarity-uncommon .quest-kind{color:#7EC8A3;}
+  .quest.rarity-rare .quest-kind{color:#6EA8FF;}
+  .quest.rarity-epic .quest-kind{color:#C084FC;}
+  .quest.rarity-legendary .quest-kind{color:#E6C35C;}
+  .quest.quest-locked{
+    cursor:default;
+    opacity:0.55;
+    border-style:dashed;
+  }
+  .quest.quest-locked:hover{transform:none; background:var(--panel);}
+  .quest-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+  }
+  .quest-name{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:14px;
+  }
+  .quest-kind{
+    color:#7EC8A3;
+    font-size:10px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .quest-desc{
+    margin:0;
+    color:var(--ink-dim);
+    font-size:11px;
+    line-height:1.35;
+  }
+  .quest-reward{
+    color:var(--felt-bright);
+    font-size:11px;
+  }
+  .quest-progress-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+    font-size:11px;
+    color:var(--ink-dim);
+  }
+  .quest-progress-row b{color:var(--ink);font-weight:600;}
+  .quest-bar{
+    height:3px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    overflow:hidden;
+  }
+  .quest-bar > span{
+    display:block;
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+    transition:width .2s ease;
+  }
+  .quest.achievement .quest-bar > span{
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+  }
+  .quest-action{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .quest.claimable .quest-action{color:var(--felt-bright);}
+  .quest.claimed .quest-action{color:var(--ink-dim);font-weight:500;}
+  .upgrade{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+    text-align:left;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:12px;
+    /* Extra bottom padding so cost clears the absolute progress bar. */
+    padding:12px 14px 16px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono',monospace;
+    cursor:pointer;
+    overflow:hidden;
+    /* overflow:hidden zeroes grid/flex min-size — keep cards content-sized. */
+    min-height:min-content;
+    flex-shrink:0;
+    transition:border-color .15s ease, background .15s ease, transform .08s ease;
+  }
+  /* Author display:flex otherwise overrides the hidden attribute after Cash Out. */
+  .upgrade[hidden], .quest[hidden]{display:none !important;}
   .upgrade-progress{
     position:absolute;
     left:0;
@@ -332,23 +498,39 @@
     bottom:0;
     height:3px;
     background:rgba(255,255,255,0.06);
+    pointer-events:none;
+    overflow:hidden;
   }
+  .upgrade-progress-bonus,
+  .upgrade-progress-bought,
   .upgrade-progress > span{
-    display:block;
-    height:100%;
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
     width:0%;
-    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
     transition:width .2s ease;
   }
+  .upgrade-progress-bonus{
+    z-index:0;
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+  }
+  .upgrade-progress-bought,
+  .upgrade-progress > span{
+    z-index:1;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+  }
+  .upgrade.maxed .upgrade-progress-bought,
   .upgrade.maxed .upgrade-progress > span{
     background:linear-gradient(90deg, #463d7a, var(--peg));
   }
-  .upgrade:hover:not(:disabled){
+  .upgrade:hover:not(.is-disabled):not(.buy-blocked){
     border-color:#463d7a;
     background:var(--panel-2);
     transform:translateY(-1px);
   }
-  .upgrade:disabled{
+  .upgrade:disabled,
+  .upgrade.is-disabled{
     opacity:0.55;
     cursor:not-allowed;
   }
@@ -360,16 +542,60 @@
     opacity:0.75;
     border-color:#3a3558;
   }
+  .upgrade.buy-blocked{
+    cursor:default;
+  }
+  .upgrade.buy-blocked:hover{
+    transform:none;
+  }
   .upgrade-top{
     display:flex;
     justify-content:space-between;
-    align-items:baseline;
+    align-items:center;
     gap:8px;
   }
   .upgrade-name{
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
+  }
+  .upgrade-top-right{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .upgrade-toggle{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:11px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    border-radius:999px;
+    padding:3px 9px;
+    border:1px solid rgba(46,138,110,0.55);
+    background:rgba(46,138,110,0.18);
+    color:var(--felt-bright);
+    cursor:pointer;
+    line-height:1.2;
+  }
+  .upgrade-toggle:hover{
+    filter:brightness(1.08);
+  }
+  .upgrade-toggle.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.04);
+    color:var(--ink-dim);
+  }
+  .upgrade.prestige-upgrade .upgrade-toggle{
+    border-color:rgba(230,195,92,0.55);
+    background:rgba(230,195,92,0.16);
+    color:#F0D78C;
+  }
+  .upgrade.prestige-upgrade .upgrade-toggle.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.04);
+    color:var(--ink-dim);
   }
   .upgrade-lvl{
     color:var(--ink-dim);
@@ -387,24 +613,38 @@
     font-size:11px;
   }
   .upgrade-cost{
+    flex-shrink:0;
+    position:relative;
+    z-index:1;
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:13px;
+    line-height:1.3;
     color:var(--ink);
   }
   .upgrade-cost.too-much{color:var(--heart);}
   .upgrade-cost.max{color:var(--ink-dim);font-weight:500;}
   .idle-pill{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
+    display:none;
+    flex-direction:column;
+    gap:4px;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
-    padding:8px 12px;
+    padding:7px 12px 8px;
     font-size:12px;
     color:var(--ink-dim);
     white-space:nowrap;
+    flex:0 0 auto;
+    min-width:108px;
+  }
+  .idle-pill:not([hidden]){display:flex;}
+  .idle-pill[hidden]{display:none !important;}
+  .idle-pill-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
   }
   .idle-pill b{
     color:var(--ink);
@@ -412,8 +652,23 @@
     font-size:14px;
   }
   .idle-pill.on{color:var(--felt-bright);border-color:rgba(46,138,110,0.4);}
+  .idle-bar{
+    height:3px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    overflow:hidden;
+  }
+  .idle-bar > span{
+    display:block;
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+    transition:width .08s linear;
+  }
+  .level-toast{flex:0 0 auto;}
   .suit-bomb{
     width:100%;
+    flex:0 0 auto;
     display:none;
     flex-direction:column;
     gap:8px;
@@ -485,59 +740,610 @@
   .suit-btn[data-suit="♦"]{color:var(--diamond);}
   .suit-btn[data-suit="♠"]{color:var(--spade);}
   .suit-btn[data-suit="♣"]{color:var(--club);}
+  .comps-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    flex:none;
+    background:var(--panel);
+    border:1px solid rgba(230,195,92,0.35);
+    border-radius:10px;
+    padding:8px 12px;
+    font-size:12px;
+    color:#C9A84A;
+    white-space:nowrap;
+  }
+  .comps-pill[hidden]{display:none !important;}
+  .comps-pill b{
+    color:#F0D78C;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+    font-variant-numeric:tabular-nums;
+    display:inline-block;
+    min-width:2ch;
+    text-align:right;
+  }
+  .level-pill{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    /* Fixed size so XP/level digit changes don't reflow the HUD/board. */
+    flex:0 0 158px;
+    width:158px;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:10px;
+    padding:7px 12px 8px;
+    font-size:11px;
+    color:var(--ink-dim);
+    font-variant-numeric:tabular-nums;
+    box-sizing:border-box;
+  }
+  .level-pill-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+    min-width:0;
+  }
+  .level-pill-top > span:first-child{
+    flex:0 0 auto;
+    white-space:nowrap;
+  }
+  .level-pill b{
+    color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+    font-variant-numeric:tabular-nums;
+  }
+  #runLevelVal{
+    display:inline-block;
+    min-width:2ch;
+    text-align:right;
+  }
+  #runLevelXp{
+    flex:1 1 auto;
+    min-width:0;
+    text-align:right;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums;
+  }
+  .level-bar{
+    height:4px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    overflow:hidden;
+  }
+  .level-bar > span{
+    display:block;
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+    transition:width .25s ease;
+  }
+  .level-toast{
+    position:fixed;
+    left:50%;
+    top:18px;
+    transform:translateX(-50%) translateY(-12px);
+    z-index:40;
+    max-width:min(520px, calc(100vw - 28px));
+    padding:10px 16px;
+    border-radius:12px;
+    background:rgba(23,20,38,0.94);
+    border:1px solid rgba(230,195,92,0.45);
+    color:#F0D78C;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    text-align:center;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+  }
+  .level-toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+  .upgrade.just-unlocked{
+    animation: unlockPulse .7s ease;
+  }
+  @keyframes unlockPulse{
+    0%{ box-shadow:0 0 0 0 rgba(230,195,92,0.55); }
+    100%{ box-shadow:0 0 0 0 transparent; }
+  }
+  .cashout{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    background:linear-gradient(160deg, rgba(230,195,92,0.08), rgba(23,20,38,0.9));
+    border:1px solid rgba(230,195,92,0.28);
+    border-radius:12px;
+    padding:12px 14px;
+  }
+  .cashout p{
+    margin:0;
+    color:var(--ink-dim);
+    font-size:11px;
+    line-height:1.4;
+  }
+  .cashout-btn{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    border:none;
+    border-radius:10px;
+    padding:10px 14px;
+    cursor:pointer;
+    background:linear-gradient(180deg, #E6C35C, #C9A84A);
+    color:#1a1408;
+    transition:transform .08s ease, filter .15s ease, opacity .15s ease;
+  }
+  .cashout-btn:hover:not(:disabled){
+    filter:brightness(1.06);
+    transform:translateY(-1px);
+  }
+  .cashout-btn:disabled{
+    opacity:0.45;
+    cursor:not-allowed;
+    filter:grayscale(0.35);
+  }
+  .cashout-req{
+    font-size:11px;
+    color:var(--ink-dim);
+  }
+  .cashout-req.ready{color:#F0D78C;}
+  .upgrade.prestige-upgrade.affordable{
+    border-color:rgba(230,195,92,0.55);
+    box-shadow:0 0 0 1px rgba(230,195,92,0.12);
+  }
+  .upgrade.prestige-upgrade .upgrade-progress-bought,
+  .upgrade.prestige-upgrade .upgrade-progress > span{
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+  }
+  .upgrade.prestige-upgrade .upgrade-effect{color:#F0D78C;}
+  .cashout-modal{
+    position:fixed;
+    inset:0;
+    z-index:90;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .32s ease;
+  }
+  .cashout-modal.show{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .cashout-modal.leaving{
+    opacity:0;
+    transition:opacity .22s ease;
+  }
+  .cashout-modal-backdrop{
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(ellipse at 50% 38%, rgba(230,195,92,0.22), transparent 42%),
+      radial-gradient(ellipse at 50% 100%, rgba(26,77,62,0.35), transparent 50%),
+      rgba(4,3,10,0.88);
+    backdrop-filter:blur(8px);
+    overflow:hidden;
+  }
+  .cashout-modal-spark{
+    position:absolute;
+    width:3px;
+    height:3px;
+    border-radius:50%;
+    background:#F0D78C;
+    box-shadow:0 0 10px 2px rgba(240,215,140,0.55);
+    opacity:0;
+    animation:cashoutSpark 2.8s ease-in-out infinite;
+  }
+  .cashout-modal-spark:nth-child(1){ left:12%; top:22%; animation-delay:0s; }
+  .cashout-modal-spark:nth-child(2){ left:78%; top:18%; animation-delay:.4s; }
+  .cashout-modal-spark:nth-child(3){ left:22%; top:70%; animation-delay:.9s; }
+  .cashout-modal-spark:nth-child(4){ left:86%; top:62%; animation-delay:1.3s; }
+  .cashout-modal-spark:nth-child(5){ left:50%; top:12%; animation-delay:.7s; }
+  .cashout-modal-spark:nth-child(6){ left:64%; top:78%; animation-delay:1.7s; }
+  @keyframes cashoutSpark{
+    0%, 100%{ opacity:0; transform:scale(0.4) translateY(6px); }
+    40%, 60%{ opacity:0.9; transform:scale(1) translateY(0); }
+  }
+  .cashout-modal-card{
+    position:relative;
+    width:min(440px, 100%);
+    padding:34px 28px 24px;
+    border-radius:22px;
+    background:
+      linear-gradient(180deg, rgba(230,195,92,0.14), transparent 28%),
+      linear-gradient(165deg, #2a2214 0%, #161220 48%, #0e0c16 100%);
+    border:1px solid rgba(230,195,92,0.5);
+    box-shadow:
+      0 0 0 1px rgba(255,230,150,0.08) inset,
+      0 1px 0 rgba(255,240,180,0.12) inset,
+      0 36px 90px -24px rgba(0,0,0,0.85),
+      0 0 80px -12px rgba(230,195,92,0.28);
+    transform:translateY(28px) scale(0.92);
+    opacity:0;
+    transition:transform .45s cubic-bezier(.16,1,.3,1), opacity .35s ease;
+    overflow:hidden;
+  }
+  .cashout-modal.show .cashout-modal-card{
+    transform:translateY(0) scale(1);
+    opacity:1;
+  }
+  .cashout-modal.leaving .cashout-modal-card{
+    transform:translateY(-10px) scale(1.03);
+    opacity:0;
+    transition:transform .22s ease, opacity .2s ease;
+  }
+  .cashout-modal-card::before{
+    content:'';
+    position:absolute;
+    left:-45%;
+    top:-70%;
+    width:190%;
+    height:90%;
+    background:linear-gradient(115deg, transparent 38%, rgba(255,236,170,0.14), transparent 60%);
+    animation:cashoutSheen 3s ease-in-out infinite;
+    pointer-events:none;
+  }
+  .cashout-modal-card::after{
+    content:'♠  ♥  ♦  ♣';
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:10px;
+    text-align:center;
+    font-size:11px;
+    letter-spacing:0.55em;
+    color:rgba(230,195,92,0.22);
+    pointer-events:none;
+  }
+  @keyframes cashoutSheen{
+    0%, 100%{ transform:translateX(-10%) rotate(10deg); opacity:0.3; }
+    50%{ transform:translateX(10%) rotate(10deg); opacity:0.75; }
+  }
+  .cashout-modal-seal{
+    position:relative;
+    width:72px;
+    height:72px;
+    margin:0 auto 14px;
+    border-radius:50%;
+    background:
+      radial-gradient(circle at 35% 30%, #FFF3C4, #E6C35C 42%, #A8862F 78%, #6e5418 100%);
+    box-shadow:
+      0 0 0 3px rgba(18,14,10,0.85),
+      0 0 0 5px rgba(230,195,92,0.55),
+      0 12px 28px -8px rgba(230,195,92,0.55),
+      0 0 40px rgba(230,195,92,0.25);
+    display:grid;
+    place-items:center;
+    animation:cashoutSealIn .55s cubic-bezier(.16,1,.3,1) both;
+  }
+  .cashout-modal-seal::before{
+    content:'';
+    position:absolute;
+    inset:7px;
+    border-radius:50%;
+    border:1.5px dashed rgba(26,20,8,0.35);
+  }
+  .cashout-modal-seal span{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:0.08em;
+    color:#1a1408;
+    text-transform:uppercase;
+    line-height:1;
+  }
+  @keyframes cashoutSealIn{
+    0%{ transform:scale(0.4) rotate(-18deg); opacity:0; }
+    100%{ transform:scale(1) rotate(0); opacity:1; }
+  }
+  .cashout-modal-eyebrow{
+    margin:0 0 6px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:#C9A84A;
+    text-align:center;
+  }
+  .cashout-modal-title{
+    margin:0;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:clamp(30px, 6.5vw, 40px);
+    letter-spacing:-0.035em;
+    text-align:center;
+    background:linear-gradient(180deg, #FFF8D6, #E6C35C 50%, #B8922F);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .cashout-modal-payout{
+    position:relative;
+    margin:20px 0 0;
+    padding:16px 12px 14px;
+    text-align:center;
+    border-radius:16px;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(230,195,92,0.16), transparent 70%),
+      rgba(0,0,0,0.22);
+    border:1px solid rgba(230,195,92,0.22);
+  }
+  .cashout-modal-payout-label{
+    display:block;
+    font-size:11px;
+    color:var(--ink-dim);
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+  }
+  .cashout-modal-payout-value{
+    display:block;
+    margin-top:6px;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:clamp(40px, 9vw, 56px);
+    line-height:1;
+    color:#F0D78C;
+    font-variant-numeric:tabular-nums;
+    text-shadow:0 0 36px rgba(230,195,92,0.45);
+    animation:cashoutPulse 1.8s ease-in-out infinite;
+  }
+  .cashout-modal-payout-value span{
+    font-size:0.38em;
+    letter-spacing:0.12em;
+    margin-left:8px;
+    color:#C9A84A;
+    vertical-align:middle;
+  }
+  @keyframes cashoutPulse{
+    0%, 100%{ text-shadow:0 0 28px rgba(230,195,92,0.3); }
+    50%{ text-shadow:0 0 42px rgba(230,195,92,0.65); }
+  }
+  .cashout-modal-meta{
+    margin:12px 0 0;
+    text-align:center;
+    font-size:13px;
+    color:var(--ink-dim);
+  }
+  .cashout-modal-meta b{color:var(--ink); font-weight:600;}
+  .cashout-modal-split{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin:22px 0 24px;
+    padding:0 2px;
+  }
+  .cashout-modal-chip h3{
+    margin:0 0 6px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+  }
+  .cashout-modal-chip.reset h3{color:#FF8A5B;}
+  .cashout-modal-chip.keep h3{color:#7EC8A3;}
+  .cashout-modal-chip p{
+    margin:0;
+    font-size:11px;
+    line-height:1.45;
+    color:var(--ink-dim);
+  }
+  .cashout-modal-actions{
+    display:grid;
+    grid-template-columns:1fr 1.2fr;
+    gap:10px;
+    position:relative;
+    z-index:1;
+  }
+  .cashout-modal-cancel,
+  .cashout-modal-confirm{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    border-radius:12px;
+    padding:13px 14px;
+    cursor:pointer;
+    border:1px solid transparent;
+    transition:transform .08s ease, filter .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .cashout-modal-cancel{
+    background:transparent;
+    border-color:#3a3558;
+    color:var(--ink-dim);
+  }
+  .cashout-modal-cancel:hover{
+    color:var(--ink);
+    border-color:#5a5478;
+    background:rgba(255,255,255,0.03);
+  }
+  .cashout-modal-confirm{
+    background:linear-gradient(180deg, #FFF0B0, #E6C35C 45%, #B8922F);
+    color:#1a1408;
+    box-shadow:
+      0 0 0 1px rgba(255,240,180,0.25) inset,
+      0 12px 32px -10px rgba(230,195,92,0.75);
+    animation:cashoutConfirmGlow 2.2s ease-in-out infinite;
+  }
+  .cashout-modal-confirm:hover{
+    filter:brightness(1.06);
+    transform:translateY(-1px);
+  }
+  .cashout-modal-confirm:active,
+  .cashout-modal-cancel:active{transform:translateY(0);}
+  .cashout-modal-confirm:disabled{
+    opacity:0.55;
+    cursor:wait;
+    animation:none;
+  }
+  @keyframes cashoutConfirmGlow{
+    0%, 100%{ box-shadow:0 0 0 1px rgba(255,240,180,0.2) inset, 0 12px 28px -12px rgba(230,195,92,0.55); }
+    50%{ box-shadow:0 0 0 1px rgba(255,240,180,0.35) inset, 0 14px 36px -8px rgba(230,195,92,0.9); }
+  }
+  @media (max-width:420px){
+    .cashout-modal-actions{grid-template-columns:1fr;}
+    .cashout-modal-card{padding:28px 18px 20px;}
+    .cashout-modal-card::after{letter-spacing:0.35em;}
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Plinko Poker</h1>
-  <div class="tagline">Drop cards, cash hands, and spend chips on upgrades that deal for you — an idle plinko poker table.</div>
-  <div class="game-switch">
-    <a href="../">Classic</a>
-    <a class="current" href="./" aria-current="page">Poker</a>
-  </div>
-
-  <div class="play-row">
-    <div class="stage">
-      <div class="hud">
-        <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
-        <div class="idle-pill" id="autoStatus">Auto&nbsp;<b id="autoStatusVal">off</b></div>
-        <div class="next-card">
-          <canvas id="nextPreview" width="72" height="72"></canvas>
-          <div>Next&nbsp;<b id="nextLabel">—</b></div>
+<div class="app mode-table" id="app">
+  <section class="stage is-active" id="panelTable" data-panel="table" aria-label="Table">
+    <div class="hud">
+      <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
+      <div class="level-pill" id="levelBox" title="Run level — based on chips earned this table">
+        <div class="level-pill-top">
+          <span>Level&nbsp;<b id="runLevelVal">1</b></span>
+          <span id="runLevelXp">0 / 18</span>
         </div>
+        <div class="level-bar" aria-hidden="true"><span id="runLevelFill"></span></div>
       </div>
-
-      <div class="suit-bomb" id="suitBombBar" aria-label="Suit Purge">
-        <div class="suit-bomb-head">
-          <b>Suit Purge</b>
-          <span id="suitBombStatus">ready</span>
-        </div>
-        <div class="suit-bomb-btns" id="suitBombBtns"></div>
+      <div class="comps-pill" id="compsBox" title="VIP comps — permanent currency from Cash Out" hidden>Comps&nbsp;<b id="compsHudVal">0</b></div>
+      <div class="idle-pill" id="autoStatus" hidden>
+        <div class="idle-pill-top">Auto&nbsp;<b id="autoStatusVal">—</b></div>
+        <div class="idle-bar" aria-hidden="true"><span id="autoStatusFill"></span></div>
       </div>
-
-      <div class="cols" id="cols"></div>
-
-      <div class="board-frame">
-        <canvas id="board" width="630" height="860"></canvas>
-        <div class="banner" id="banner">
-          <h2 id="bannerText">Nice hand!</h2>
-          <button id="playAgain">Play again</button>
-        </div>
+      <div class="next-card">
+        <canvas id="nextPreview" width="72" height="72"></canvas>
+        <div>Next&nbsp;<b id="nextLabel">—</b></div>
       </div>
     </div>
+    <div class="level-toast" id="levelToast" role="status" aria-live="polite"></div>
 
-    <section class="shop" aria-label="Upgrades">
-      <div class="shop-head">
-        <h2>Upgrades</h2>
-        <div class="shop-meta">Lifetime earned&nbsp;<b id="lifetimeVal">0</b></div>
+    <div class="suit-bomb" id="suitBombBar" aria-label="Suit Purge">
+      <div class="suit-bomb-head">
+        <b>Suit Purge</b>
+        <span id="suitBombStatus">ready</span>
       </div>
-      <div class="upgrades" id="upgrades"></div>
-    </section>
-  </div>
+      <div class="suit-bomb-btns" id="suitBombBtns"></div>
+    </div>
 
-  <div class="footer-row">
-    <span class="hint">Buy Auto Dealer to idle · dotted guides show near hands</span>
-    <button class="reset" id="resetScores">Reset progress</button>
+    <div class="board-frame">
+      <canvas id="board" width="630" height="860"></canvas>
+      <div class="banner" id="banner">
+        <h2 id="bannerText">Nice hand!</h2>
+        <button id="playAgain">Play again</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="rails" aria-label="Shop">
+    <div class="rail-body" id="railBody">
+      <section class="rail-panel shop" id="panelUpgrades" data-panel="upgrades" aria-label="Upgrades">
+        <div class="shop-head">
+          <h2>Upgrades</h2>
+          <div class="shop-meta">Run&nbsp;<b id="lifetimeVal">0</b> chips · Lv <b id="shopLevelVal">1</b></div>
+        </div>
+        <div class="upgrades" id="upgrades"></div>
+      </section>
+
+      <section class="rail-panel contracts" id="panelQuests" data-panel="quests" aria-label="Quests">
+        <div class="contracts-head">
+          <h2>Quests</h2>
+          <div class="contracts-meta"><span id="questSlotsMeta">0 / 5 slots</span> · <b id="questReadyVal">0</b> ready</div>
+        </div>
+        <div class="quests" id="quests"></div>
+      </section>
+
+      <section class="rail-panel contracts achievements-panel" id="panelAchievements" data-panel="achievements" aria-label="Achievements">
+        <div class="contracts-head">
+          <h2>Achievements</h2>
+          <div class="contracts-meta"><b id="achieveReadyVal">0</b> ready to claim</div>
+        </div>
+        <div class="quests" id="achievements"></div>
+      </section>
+
+      <section class="rail-panel prestige" id="panelVip" data-panel="vip" aria-label="VIP Lounge">
+        <div class="prestige-head">
+          <h2>VIP Lounge</h2>
+          <div class="prestige-meta">Tables cashed&nbsp;<b id="prestigeCountVal">0</b></div>
+        </div>
+        <div class="cashout" id="cashoutBox">
+          <p>Cash out banks level comps, then resets the table run (chips, upgrades, run level). VIP perks stay.</p>
+          <button type="button" class="cashout-btn" id="cashOutBtn">Cash Out</button>
+          <div class="cashout-req" id="cashoutReq">Reach run level 8 to cash out</div>
+        </div>
+        <div class="upgrades" id="prestigeUpgrades"></div>
+      </section>
+
+      <section class="rail-panel" id="panelSettings" data-panel="settings" aria-label="Settings">
+        <div class="shop-head">
+          <h2>Settings</h2>
+        </div>
+        <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
+        <button type="button" class="reset" id="resetScores">Reset all progress</button>
+      </section>
+    </div>
+
+    <nav class="rail-tabs" aria-label="Sections">
+      <button type="button" class="rail-tab desktop-hide is-active" data-panel="table" aria-selected="true">
+        <span class="rail-tab-label">Table</span>
+      </button>
+      <button type="button" class="rail-tab" data-panel="upgrades" aria-selected="false" hidden>
+        <span class="rail-tab-label">Upgrades</span>
+        <span class="rail-tab-badge" id="badgeUpgrades" hidden>0</span>
+      </button>
+      <button type="button" class="rail-tab" data-panel="quests" aria-selected="false" hidden>
+        <span class="rail-tab-label">Quests</span>
+        <span class="rail-tab-badge" id="badgeQuests" hidden>0</span>
+      </button>
+      <button type="button" class="rail-tab" data-panel="achievements" aria-selected="false">
+        <span class="rail-tab-label">Achieves</span>
+        <span class="rail-tab-badge" id="badgeAchievements" hidden>0</span>
+      </button>
+      <button type="button" class="rail-tab" data-panel="vip" aria-selected="false" hidden>
+        <span class="rail-tab-label">VIP</span>
+        <span class="rail-tab-badge" id="badgeVip" hidden>0</span>
+      </button>
+      <button type="button" class="rail-tab" data-panel="settings" aria-selected="false">
+        <span class="rail-tab-label">Settings</span>
+      </button>
+    </nav>
+  </aside>
+
+  <div class="cashout-modal" id="cashoutModal" role="dialog" aria-modal="true" aria-labelledby="cashoutModalTitle" hidden>
+    <div class="cashout-modal-backdrop" id="cashoutModalBackdrop" aria-hidden="true">
+      <span class="cashout-modal-spark"></span>
+      <span class="cashout-modal-spark"></span>
+      <span class="cashout-modal-spark"></span>
+      <span class="cashout-modal-spark"></span>
+      <span class="cashout-modal-spark"></span>
+      <span class="cashout-modal-spark"></span>
+    </div>
+    <div class="cashout-modal-card">
+      <div class="cashout-modal-seal" aria-hidden="true"><span>VIP</span></div>
+      <p class="cashout-modal-eyebrow">Pit Boss Approval</p>
+      <h2 class="cashout-modal-title" id="cashoutModalTitle">Cash Out</h2>
+      <div class="cashout-modal-payout">
+        <span class="cashout-modal-payout-label">Banking</span>
+        <div class="cashout-modal-payout-value" id="cashoutModalGain">0<span>comps</span></div>
+      </div>
+      <p class="cashout-modal-meta">Run <b id="cashoutModalLevel">Lv 1</b> · Table <b id="cashoutModalTables">#1</b></p>
+      <div class="cashout-modal-split">
+        <div class="cashout-modal-chip reset">
+          <h3>Walk away</h3>
+          <p>Chips, table upgrades, run level, and open quests reset.</p>
+        </div>
+        <div class="cashout-modal-chip keep">
+          <h3>In the vault</h3>
+          <p>VIP comps, permanent perks, and achievements stay.</p>
+        </div>
+      </div>
+      <div class="cashout-modal-actions">
+        <button type="button" class="cashout-modal-cancel" id="cashoutModalCancel">Stay at the table</button>
+        <button type="button" class="cashout-modal-confirm" id="cashoutModalConfirm">Collect comps</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -706,18 +1512,27 @@
 
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
+  const SAVE_VERSION = 7;
   const MAX_IN_FLIGHT = 14;
   const MAX_CASCADE_BALLS = 42;
   const MAX_POPUPS = 36;
   const MAX_PARTICLES = 180;
+  const MAX_RUN_LEVEL = 40;
+  // Cash Out unlocks once this run level is reached; comps come from level rewards.
+  const MIN_CASH_OUT_LEVEL = 8;
+  // Shop order = array order. unlockAt = run level required to first reveal.
+  // Once revealed (via maxRunLevel), upgrades stay visible across Cash Out.
+  // Flow: deal → score → passives → feel/aim → shoe → suit tools.
   const UPGRADE_DEFS = [
     {
       id: 'autoDealer',
       name: 'Auto Dealer',
-      desc: 'Automatically drop cards. Higher levels deal faster.',
+      desc: 'Automatically drop cards. Higher levels deal faster. Toggle On/Off anytime.',
       baseCost: 15,
       costScale: 1.55,
-      maxLevel: 30
+      maxLevel: 30,
+      unlockAt: 1,
+      toggleable: true
     },
     {
       id: 'multiDeal',
@@ -725,7 +1540,8 @@
       desc: 'Drop extra cards each auto tick.',
       baseCost: 80,
       costScale: 2.05,
-      maxLevel: 8
+      maxLevel: 8,
+      unlockAt: 2
     },
     {
       id: 'bigBlind',
@@ -733,7 +1549,8 @@
       desc: '+25% chips from every scored hand.',
       baseCost: 25,
       costScale: 1.65,
-      maxLevel: 40
+      maxLevel: 40,
+      unlockAt: 1
     },
     {
       id: 'hotStreak',
@@ -741,7 +1558,8 @@
       desc: '+1 effective chain multiplier per level.',
       baseCost: 120,
       costScale: 2.0,
-      maxLevel: 10
+      maxLevel: 10,
+      unlockAt: 4
     },
     {
       id: 'bumperPayout',
@@ -749,7 +1567,8 @@
       desc: 'Earn chips whenever a card hits a bumper arch.',
       baseCost: 50,
       costScale: 1.7,
-      maxLevel: 25
+      maxLevel: 25,
+      unlockAt: 5
     },
     {
       id: 'pinPayout',
@@ -757,7 +1576,8 @@
       desc: 'Earn chips whenever a card bounces off a peg.',
       baseCost: 120,
       costScale: 1.8,
-      maxLevel: 25
+      maxLevel: 25,
+      unlockAt: 6
     },
     {
       id: 'floorPayout',
@@ -765,47 +1585,8 @@
       desc: 'Earn chips when a full-board floor clear fires.',
       baseCost: 90,
       costScale: 1.8,
-      maxLevel: 20
-    },
-    {
-      id: 'highCut',
-      name: 'High Cut',
-      desc: 'Remove the lowest ranks from the shoe. Aces always stay.',
-      baseCost: 100,
-      costScale: 1.9,
-      maxLevel: 8
-    },
-    {
-      id: 'suitBomb',
-      name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait.',
-      baseCost: 400,
-      costScale: 1.85,
-      maxLevel: 12
-    },
-    {
-      id: 'suitCut',
-      name: 'Suit Exile',
-      desc: 'Ban a suit from the shoe each level. Stops at two suits left.',
-      baseCost: 6000,
-      costScale: 3.5,
-      maxLevel: 2
-    },
-    {
-      id: 'autoSuitBomb',
-      name: 'Auto Purge',
-      desc: 'Automatically cast Suit Purge on the most crowded suit when charged.',
-      baseCost: 1800,
-      costScale: 1,
-      maxLevel: 1
-    },
-    {
-      id: 'cardSense',
-      name: 'Card Sense',
-      desc: 'Auto-drops aim toward near-miss columns.',
-      baseCost: 200,
-      costScale: 1,
-      maxLevel: 1
+      maxLevel: 20,
+      unlockAt: 7
     },
     {
       id: 'feltGrease',
@@ -813,37 +1594,940 @@
       desc: 'Balls fall and settle faster.',
       baseCost: 50,
       costScale: 1.8,
+      maxLevel: 12,
+      unlockAt: 8
+    },
+    {
+      id: 'cardSense',
+      name: 'Card Sense',
+      desc: 'Auto-drops aim toward near-miss columns.',
+      baseCost: 200,
+      costScale: 1,
+      maxLevel: 1,
+      unlockAt: 9
+    },
+    {
+      id: 'highCut',
+      name: 'High Cut',
+      desc: 'Remove the lowest ranks from the shoe. Aces always stay.',
+      baseCost: 100,
+      costScale: 1.9,
+      maxLevel: 8,
+      unlockAt: 10
+    },
+    {
+      id: 'suitBomb',
+      name: 'Suit Purge',
+      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait.',
+      baseCost: 400,
+      costScale: 1.85,
+      maxLevel: 12,
+      unlockAt: 11
+    },
+    {
+      id: 'autoSuitBomb',
+      name: 'Auto Purge',
+      desc: 'Automatically cast Suit Purge on the most crowded suit when charged. Toggle On/Off anytime.',
+      baseCost: 1800,
+      costScale: 1,
+      maxLevel: 1,
+      unlockAt: 13,
+      toggleable: true
+    },
+    {
+      id: 'suitCut',
+      name: 'Suit Exile',
+      desc: 'Ban a suit from the shoe each level. Stops at two suits left.',
+      baseCost: 6000,
+      costScale: 3.5,
+      maxLevel: 2,
+      unlockAt: 15
+    }
+  ];
+
+  // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
+  // comps = Cash Out credit for this run (spent only when cashing out).
+  const LEVEL_BONUSES = {
+    5:  { comps: 1, chips: 40, label: '+1 Cash Out comp · +40 chips' },
+    8:  { comps: 1, label: '+1 Cash Out comp · Cash Out unlocked' },
+    10: { comps: 1, upgrade: { id: 'autoDealer', n: 1 }, label: '+1 Cash Out comp · +1 Auto Dealer' },
+    12: { comps: 2, label: '+2 Cash Out comps' },
+    15: { comps: 2, prestige: 'seedStack', label: '+2 comps · VIP +1 Seed Stack' },
+    18: { comps: 2, upgrade: { id: 'bigBlind', n: 1 }, label: '+2 comps · +1 Big Blind' },
+    20: { comps: 3, prestige: 'houseEdge', label: '+3 comps · VIP +1 House Edge' },
+    25: { comps: 4, prestige: 'holdDeal', label: '+4 comps · VIP +1 Hold Deal' },
+    30: { comps: 5, prestige: 'rackDiscount', label: '+5 comps · VIP +1 Rack Discount' },
+    35: { comps: 6, prestige: 'compCard', label: '+6 comps · VIP +1 Comp Card' },
+    40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' }
+  };
+
+  // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
+  // reward.chips → spendable chips (not XP); reward.comps → permanent VIP comps;
+  // reward.runComps → Cash Out credit; reward.prestige / reward.upgrade as level bonuses.
+  const HAND_STAT = {
+    'ROYAL FLUSH': 'royalFlushes',
+    'STRAIGHT FLUSH': 'straightFlushes',
+    'FOUR OF A KIND': 'fourKinds',
+    'FULL HOUSE': 'fullHouses',
+    'FLUSH': 'flushes',
+    'STRAIGHT': 'straights',
+    'THREE OF A KIND': 'threeKinds',
+    'TWO PAIR': 'twoPairs'
+  };
+  const RUN_HAND_STAT = {
+    'ROYAL FLUSH': 'runRoyalFlushes',
+    'STRAIGHT FLUSH': 'runStraightFlushes',
+    'FOUR OF A KIND': 'runFourKinds',
+    'FULL HOUSE': 'runFullHouses',
+    'FLUSH': 'runFlushes',
+    'STRAIGHT': 'runStraights',
+    'THREE OF A KIND': 'runThreeKinds',
+    'TWO PAIR': 'runTwoPairs'
+  };
+  const MAX_QUEST_SLOTS = 5;
+  const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+  const QUEST_RARITY = {
+    common:    { label: 'Common',    weight: 52, targetMult: 1,   rewardMult: 1,   color: '#9aa3b5' },
+    uncommon:  { label: 'Uncommon',  weight: 28, targetMult: 1.5, rewardMult: 1.7, color: '#7EC8A3' },
+    rare:      { label: 'Rare',      weight: 14, targetMult: 2.2, rewardMult: 2.6, color: '#6EA8FF' },
+    epic:      { label: 'Epic',      weight: 5,  targetMult: 3.2, rewardMult: 4,   color: '#C084FC' },
+    legendary: { label: 'Legendary', weight: 1,  targetMult: 4.5, rewardMult: 6.5, color: '#E6C35C' }
+  };
+  // Templates for rolled run quests. {n} in desc is replaced with the scaled target.
+  const QUEST_TEMPLATES = [
+    {
+      id: 'hands', name: 'Ante Up',
+      desc: 'Score {n} poker hands.',
+      stat: 'runHands', baseTarget: 6, reward: { chips: 55 }
+    },
+    {
+      id: 'drops', name: 'Busy Dealer',
+      desc: 'Drop {n} cards.',
+      stat: 'runCardsDropped', baseTarget: 35, reward: { chips: 70 }
+    },
+    {
+      id: 'twoPair', name: 'Pocket Pairs',
+      desc: 'Score {n} Two Pair hands.',
+      stat: 'runTwoPairs', baseTarget: 2, reward: { chips: 80 }
+    },
+    {
+      id: 'trips', name: 'Set Mining',
+      desc: 'Score {n} Three of a Kind hands.',
+      stat: 'runThreeKinds', baseTarget: 2, reward: { chips: 110 }
+    },
+    {
+      id: 'chain', name: 'On a Heater',
+      desc: 'Clear {n} chained hands (×2+).',
+      stat: 'runChainClears', baseTarget: 1, minRarity: 'uncommon',
+      reward: { chips: 140 }
+    },
+    {
+      id: 'floor', name: 'Sweep the Felt',
+      desc: 'Trigger {n} floor clear(s).',
+      stat: 'runFloorClears', baseTarget: 1, minRarity: 'uncommon',
+      reward: { chips: 180, runComps: 1 }
+    },
+    {
+      id: 'multi', name: 'Two-Way Pot',
+      desc: 'Clear {n} multi-hand resolve(s).',
+      stat: 'runMultiClears', baseTarget: 1, minRarity: 'uncommon',
+      reward: { chips: 160 }
+    },
+    {
+      id: 'flush', name: 'Painted Pot',
+      desc: 'Score {n} Flush(es).',
+      stat: 'runFlushes', baseTarget: 1, minRarity: 'rare',
+      reward: { chips: 220, runComps: 1 }
+    },
+    {
+      id: 'straight', name: 'Connector Run',
+      desc: 'Score {n} Straight(s).',
+      stat: 'runStraights', baseTarget: 1, minRarity: 'rare',
+      reward: { chips: 220 }
+    },
+    {
+      id: 'boat', name: 'Full Steam',
+      desc: 'Score {n} Full House(s).',
+      stat: 'runFullHouses', baseTarget: 1, minRarity: 'epic',
+      reward: { chips: 320, comps: 1 }
+    },
+    {
+      id: 'quads', name: 'Quad Hunt',
+      desc: 'Score {n} Four of a Kind(s).',
+      stat: 'runFourKinds', baseTarget: 1, minRarity: 'epic',
+      reward: { chips: 400, comps: 1 }
+    },
+    {
+      id: 'purge', name: 'Clean House',
+      desc: 'Cast Suit Purge {n} time(s).',
+      stat: 'runSuitPurges', baseTarget: 1, minRarity: 'rare', unlockAt: 11,
+      reward: { chips: 300, runComps: 1 }
+    },
+    {
+      id: 'grind', name: 'Session Grind',
+      desc: 'Score {n} poker hands.',
+      stat: 'runHands', baseTarget: 18, minRarity: 'uncommon',
+      reward: { chips: 200, runComps: 1 }
+    }
+  ];
+  const ACHIEVEMENT_DEFS = [
+    {
+      id: 'a_first_hand', kind: 'achievement', name: 'First Pot',
+      desc: 'Score your first poker hand.',
+      stat: 'hands', target: 1, unlockAt: 1,
+      reward: { chips: 25 }
+    },
+    {
+      id: 'a_hands_50', kind: 'achievement', name: 'Table Regular',
+      desc: 'Score 50 hands lifetime.',
+      stat: 'hands', target: 50, unlockAt: 1,
+      reward: { comps: 1 }
+    },
+    {
+      id: 'a_hands_250', kind: 'achievement', name: 'Felt Veteran',
+      desc: 'Score 250 hands lifetime.',
+      stat: 'hands', target: 250, unlockAt: 1,
+      reward: { comps: 3 }
+    },
+    {
+      id: 'a_flush', kind: 'achievement', name: 'Suited Up',
+      desc: 'Score a Flush.',
+      stat: 'flushes', target: 1, unlockAt: 1,
+      reward: { chips: 120, runComps: 1 }
+    },
+    {
+      id: 'a_straight', kind: 'achievement', name: 'In Order',
+      desc: 'Score a Straight.',
+      stat: 'straights', target: 1, unlockAt: 1,
+      reward: { chips: 120 }
+    },
+    {
+      id: 'a_fullhouse', kind: 'achievement', name: 'Full Boat',
+      desc: 'Score a Full House.',
+      stat: 'fullHouses', target: 1, unlockAt: 1,
+      reward: { chips: 200, comps: 1 }
+    },
+    {
+      id: 'a_quads', kind: 'achievement', name: 'Quad Squad',
+      desc: 'Score Four of a Kind.',
+      stat: 'fourKinds', target: 1, unlockAt: 1,
+      reward: { comps: 2 }
+    },
+    {
+      id: 'a_sf', kind: 'achievement', name: 'Painted Straight',
+      desc: 'Score a Straight Flush.',
+      stat: 'straightFlushes', target: 1, secret: true,
+      reward: { comps: 3 }
+    },
+    {
+      id: 'a_royal', kind: 'achievement', name: 'Crown Jewel',
+      desc: 'Score a Royal Flush.',
+      stat: 'royalFlushes', target: 1, secret: true,
+      reward: { comps: 5, prestige: 'houseEdge' }
+    },
+    {
+      id: 'a_combo', kind: 'achievement', name: 'Double Down',
+      desc: 'Clear two hands in one resolve.',
+      stat: 'multiHandClears', target: 1, unlockAt: 1,
+      reward: { chips: 150 }
+    },
+    {
+      id: 'a_floor_10', kind: 'achievement', name: 'Janitor',
+      desc: 'Trigger 10 floor clears lifetime.',
+      stat: 'floorClears', target: 10, unlockAt: 1,
+      reward: { comps: 2 }
+    },
+    {
+      id: 'a_cashout_1', kind: 'achievement', name: 'First Buy-In',
+      desc: 'Cash Out once.',
+      stat: 'cashOuts', target: 1, unlockAt: 1,
+      reward: { comps: 1 }
+    },
+    {
+      id: 'a_cashout_5', kind: 'achievement', name: 'High Roller',
+      desc: 'Cash Out 5 times.',
+      stat: 'cashOuts', target: 5, unlockAt: 1,
+      reward: { comps: 3, prestige: 'compCard' }
+    },
+    {
+      id: 'a_level_20', kind: 'achievement', name: 'Deep Stack',
+      desc: 'Reach run level 20 in a single table.',
+      stat: 'maxRunLevel', target: 20, unlockAt: 1,
+      reward: { comps: 3 }
+    },
+    {
+      id: 'a_upgrades_20', kind: 'achievement', name: 'Rack Builder',
+      desc: 'Buy 20 table upgrades.',
+      stat: 'upgradesBought', target: 20, unlockAt: 1,
+      reward: { comps: 2 }
+    },
+    {
+      id: 'a_purges_10', kind: 'achievement', name: 'Suit Sanitizer',
+      desc: 'Cast Suit Purge 10 times.',
+      stat: 'suitPurges', target: 10, unlockAt: 11,
+      reward: { comps: 2 }
+    }
+  ];
+  // Back-compat alias used by a few load paths.
+  const CONTRACT_DEFS = ACHIEVEMENT_DEFS;
+
+  // Permanent VIP perks bought with comps from Cash Out.
+  const PRESTIGE_DEFS = [
+    {
+      id: 'houseEdge',
+      name: 'House Edge',
+      desc: 'Permanent chip multiplier on every payout.',
+      baseCost: 1,
+      costScale: 1.65,
+      maxLevel: 25
+    },
+    {
+      id: 'seedStack',
+      name: 'Seed Stack',
+      desc: 'Start each table with a chip stake after Cash Out.',
+      baseCost: 1,
+      costScale: 1.55,
+      maxLevel: 20
+    },
+    {
+      id: 'rackDiscount',
+      name: 'Rack Discount',
+      desc: 'Table upgrades cost less chips.',
+      baseCost: 2,
+      costScale: 1.8,
+      maxLevel: 10
+    },
+    {
+      id: 'compCard',
+      name: 'Comp Card',
+      desc: 'Earn more comps whenever you Cash Out.',
+      baseCost: 3,
+      costScale: 2.0,
+      maxLevel: 8
+    },
+    {
+      id: 'holdDeal',
+      name: 'Hold Deal',
+      desc: 'Hold on the board or a column to keep dropping cards. Always available. Higher levels deal faster.',
+      baseCost: 2,
+      costScale: 1.85,
       maxLevel: 12
+    },
+    {
+      id: 'quickDeal',
+      name: 'Quick Deal',
+      desc: '+1 Auto Dealer level permanently (does not raise Auto Dealer’s buy cost). Capped at Auto Dealer max.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
+      id: 'pinPrivilege',
+      name: 'Pin Privilege',
+      desc: '+1 Pin Tip level permanently (does not raise Pin Tip’s buy cost). Capped at Pin Tip max.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
+      id: 'questInk',
+      name: 'Quest Ink',
+      desc: 'Unlock higher-rarity table quests. Lv1 Uncommon → Lv4 Legendary.',
+      baseCost: 2,
+      costScale: 2.15,
+      maxLevel: 4
+    },
+    {
+      id: 'questDesk',
+      name: 'Quest Desk',
+      desc: 'Automatically claim completed table quests and roll replacements. Toggle On/Off anytime.',
+      baseCost: 5,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'pitBoss',
+      name: 'Pit Boss',
+      desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick. Toggle On/Off anytime.',
+      baseCost: 12,
+      costScale: 2.4,
+      maxLevel: 5,
+      toggleable: true
     }
   ];
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
+  let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
+  // Pause switches for auto systems — ownership stays; automation can be muted.
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'questDesk', 'pitBoss'];
+  let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
+  let comps = 0;
+  let prestigeCount = 0;
+  let runLevel = 1;
+  let runCompCredit = 0; // comps banked by level rewards; paid out on Cash Out
   let lastAutoDropAt = 0;
   let suitBombReadyAt = 0;
   let pendingSuitBomb = null;
   let saveTimer = 0;
+  let holdDropping = false;
+  let holdDropCol = null; // null = aim at aimX; number = fixed column
+  let lastHoldDropAt = 0;
+  let levelToastTimer = 0;
+  let questUiTimer = 0;
+  let questClaimed = Object.create(null); // achievement id -> true
+  let activeQuests = []; // rolled run quests in slots
+  let questUidSeq = 1;
+  const EMPTY_STATS = {
+    hands: 0, royalFlushes: 0, straightFlushes: 0, fourKinds: 0,
+    fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
+    multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
+    cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
+    runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
+    runCardsDropped: 0, runMultiClears: 0,
+    runFlushes: 0, runStraights: 0, runFullHouses: 0, runFourKinds: 0,
+    runThreeKinds: 0, runTwoPairs: 0, runRoyalFlushes: 0, runStraightFlushes: 0
+  };
+  let stats = Object.assign({}, EMPTY_STATS);
 
-  function upgradeLevel(id){ return upgrades[id] || 0; }
+  function purchasedLevel(id){ return upgrades[id] || 0; }
+  function prestigeLevel(id){ return prestigeUpgrades[id] || 0; }
+
+  function isAutoEnabled(id){
+    return autoEnabled[id] !== false;
+  }
+
+  function setAutoEnabled(id, on){
+    if(AUTO_TOGGLE_IDS.indexOf(id) < 0) return;
+    autoEnabled[id] = !!on;
+    scheduleSave();
+    updateShopUI();
+    updatePrestigeUI();
+    updateAutoStatus();
+    updateSuitBombUI(performance.now(), true);
+    if(on && id === 'pitBoss') maybeAutoBuy(performance.now());
+    if(on && id === 'questDesk') maybeAutoClaimQuests(performance.now());
+    if(on && (id === 'autoDealer' || id === 'autoSuitBomb') && !resolving && !looping){
+      startLoop();
+    }
+  }
+
+  // Permanent VIP bonus levels for a table skill (do not affect buy cost).
+  function prestigeBonusLevels(id){
+    if(id === 'autoDealer') return prestigeLevel('quickDeal');
+    if(id === 'pinPayout') return prestigeLevel('pinPrivilege');
+    return 0;
+  }
+
+  function upgradeMaxLevel(id){
+    const def = UPGRADE_DEFS.find(u => u.id === id);
+    return def ? def.maxLevel : 0;
+  }
+
+  // Effective skill level = purchased + prestige bonus, capped at max.
+  function upgradeLevel(id){
+    const max = upgradeMaxLevel(id);
+    if(!max) return purchasedLevel(id);
+    return Math.min(max, purchasedLevel(id) + prestigeBonusLevels(id));
+  }
+
+  // How many chip-bought levels can still fit under the max with current VIP bonus.
+  function maxPurchasableLevel(id){
+    const max = upgradeMaxLevel(id);
+    return Math.max(0, max - prestigeBonusLevels(id));
+  }
+
+  // Add purchased levels (rewards / buys). Returns how many were actually added.
+  function addPurchasedLevels(id, n){
+    n = Math.floor(n || 0);
+    if(n <= 0) return 0;
+    const before = purchasedLevel(id);
+    const next = Math.min(maxPurchasableLevel(id), before + n);
+    upgrades[id] = next;
+    return next - before;
+  }
+
+  function prestigeChipMult(){
+    return 1 + 0.2 * prestigeLevel('houseEdge');
+  }
+
+  function upgradeCostMult(){
+    // Up to 50% off table upgrades.
+    return Math.max(0.5, 1 - 0.05 * prestigeLevel('rackDiscount'));
+  }
+
+  function startingChips(){
+    const lvl = prestigeLevel('seedStack');
+    if(!lvl) return 0;
+    // 50 → ~1.5k by mid levels, scales into the tens of thousands.
+    return Math.floor(50 * lvl * Math.pow(1.35, lvl - 1));
+  }
+
+  // Lifetime chips earned this run required to stand at `lvl`.
+  function lifetimeForLevel(lvl){
+    if(lvl <= 1) return 0;
+    return Math.floor(18 * Math.pow(lvl - 1, 2.45));
+  }
+
+  function runLevelFromLifetime(lt){
+    lt = Math.floor(lt || 0);
+    let lvl = 1;
+    while(lvl < MAX_RUN_LEVEL && lt >= lifetimeForLevel(lvl + 1)) lvl++;
+    return lvl;
+  }
+
+  function recomputeRunCompCredit(lvl){
+    let credit = 0;
+    for(let L = 2; L <= lvl; L++){
+      const bonus = LEVEL_BONUSES[L];
+      if(bonus && bonus.comps) credit += bonus.comps;
+    }
+    return credit;
+  }
+
+  function highestRunLevelReached(){
+    return Math.max(runLevel, stats.maxRunLevel || 1);
+  }
+
+  function upgradeUnlocked(id){
+    const def = UPGRADE_DEFS.find(u => u.id === id);
+    if(!def) return false;
+    // Sticky after first reveal — Cash Out resets run level, not shop discovery.
+    return highestRunLevelReached() >= (def.unlockAt || 1);
+  }
+
+  function pendingComps(){
+    if(runLevel < MIN_CASH_OUT_LEVEL) return 0;
+    if(runCompCredit <= 0) return 0;
+    const bonus = 1 + 0.15 * prestigeLevel('compCard');
+    return Math.max(1, Math.floor(runCompCredit * bonus));
+  }
+
+  function canCashOut(){
+    return pendingComps() > 0;
+  }
+
+  function questSlotCap(){
+    // One slot per run level above 1, capped at 5.
+    return Math.min(MAX_QUEST_SLOTS, Math.max(0, runLevel - 1));
+  }
+
+  function questsTabUnlocked(){
+    // First opens at run Lv 2; stays after Cash Out (slots still gate on this run).
+    return questSlotCap() > 0 || highestRunLevelReached() >= 2;
+  }
+
+  function upgradesTabUnlocked(){
+    // First hand opens the shop; hands persist across Cash Out, wipe on Reset.
+    return (stats.hands || 0) > 0;
+  }
+
+  function vipTabUnlocked(){
+    // Cash Out / VIP Lounge opens at run Lv 8; stays once you've ever reached it.
+    return highestRunLevelReached() >= MIN_CASH_OUT_LEVEL
+      || prestigeCount > 0;
+  }
+
+  function defaultShopPanel(){
+    if(upgradesTabUnlocked()) return 'upgrades';
+    if(vipTabUnlocked()) return 'vip';
+    return 'achievements';
+  }
+
+  function maxQuestRarityIndex(){
+    // Quest Ink Lv0 = common only; Lv4 = legendary.
+    return Math.max(0, Math.min(QUEST_RARITIES.length - 1, prestigeLevel('questInk')));
+  }
+
+  function achievementProgress(def){
+    return Math.min(def.target, stats[def.stat] || 0);
+  }
+
+  function achievementComplete(def){
+    return achievementProgress(def) >= def.target;
+  }
+
+  function achievementIsClaimed(def){
+    return !!questClaimed[def.id];
+  }
+
+  function achievementRevealed(def){
+    if(achievementIsClaimed(def) || achievementComplete(def)) return true;
+    if(def.secret) return achievementProgress(def) > 0;
+    return highestRunLevelReached() >= (def.unlockAt || 1);
+  }
+
+  function achievementCanClaim(def){
+    return achievementRevealed(def) && achievementComplete(def) && !achievementIsClaimed(def);
+  }
+
+  function activeQuestProgress(q){
+    const cur = stats[q.stat] || 0;
+    return Math.min(q.target, Math.max(0, cur - (q.baseline || 0)));
+  }
+
+  function activeQuestComplete(q){
+    return activeQuestProgress(q) >= q.target;
+  }
+
+  function contractRewardText(reward){
+    const r = reward || {};
+    const parts = [];
+    if(r.chips) parts.push('+' + formatNum(r.chips) + ' chips');
+    if(r.comps) parts.push('+' + r.comps + ' VIP comps');
+    if(r.runComps) parts.push('+' + r.runComps + ' Cash Out comps');
+    if(r.prestige){
+      const p = PRESTIGE_DEFS.find(u => u.id === r.prestige);
+      parts.push('VIP +1 ' + (p ? p.name : r.prestige));
+    }
+    if(r.upgrade){
+      const u = UPGRADE_DEFS.find(d => d.id === r.upgrade.id);
+      parts.push('+' + (r.upgrade.n || 1) + ' ' + (u ? u.name : r.upgrade.id));
+    }
+    return parts.length ? parts.join(' · ') : 'Reward';
+  }
+
+  function applyContractReward(reward){
+    const r = reward || {};
+    if(r.chips) score += r.chips;
+    if(r.comps) comps += r.comps;
+    if(r.runComps) runCompCredit += r.runComps;
+    if(r.prestige){
+      const pDef = PRESTIGE_DEFS.find(u => u.id === r.prestige);
+      if(pDef && prestigeLevel(pDef.id) < pDef.maxLevel){
+        prestigeUpgrades[pDef.id] = prestigeLevel(pDef.id) + 1;
+      }
+    }
+    if(r.upgrade){
+      const uDef = UPGRADE_DEFS.find(u => u.id === r.upgrade.id);
+      if(uDef){
+        const beforeEff = upgradeLevel(uDef.id);
+        addPurchasedLevels(uDef.id, r.upgrade.n || 1);
+        if(uDef.id === 'highCut' || uDef.id === 'suitCut') reshapeShoe();
+        if(uDef.id === 'suitBomb' && beforeEff === 0 && upgradeLevel(uDef.id) > 0){
+          suitBombReadyAt = performance.now();
+        }
+      }
+    }
+  }
+
+  function scaleQuestReward(base, rarity){
+    const mult = (QUEST_RARITY[rarity] || QUEST_RARITY.common).rewardMult;
+    const out = {};
+    if(base.chips) out.chips = Math.max(1, Math.floor(base.chips * mult));
+    if(base.comps) out.comps = Math.max(1, Math.round(base.comps * Math.max(1, mult * 0.65)));
+    if(base.runComps){
+      const rc = Math.round(base.runComps * Math.max(1, mult * 0.55));
+      if(rc > 0) out.runComps = rc;
+    }
+    if(base.prestige) out.prestige = base.prestige;
+    if(base.upgrade) out.upgrade = base.upgrade;
+    // Higher rarities always bank a little Cash Out credit.
+    if(!out.runComps && (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary')){
+      out.runComps = rarity === 'legendary' ? 2 : 1;
+    }
+    return out;
+  }
+
+  function pickQuestRarity(){
+    const maxIdx = maxQuestRarityIndex();
+    let total = 0;
+    const pool = [];
+    for(let i = 0; i <= maxIdx; i++){
+      const id = QUEST_RARITIES[i];
+      const w = QUEST_RARITY[id].weight;
+      pool.push({ id, w });
+      total += w;
+    }
+    let roll = Math.random() * total;
+    for(const entry of pool){
+      roll -= entry.w;
+      if(roll <= 0) return entry.id;
+    }
+    return pool[0].id;
+  }
+
+  function templateAllowed(tmpl, rarity){
+    if((tmpl.unlockAt || 1) > runLevel) return false;
+    const min = tmpl.minRarity || 'common';
+    const minIdx = QUEST_RARITIES.indexOf(min);
+    const rarityIdx = QUEST_RARITIES.indexOf(rarity);
+    if(rarityIdx < minIdx) return false;
+    if(maxQuestRarityIndex() < minIdx) return false;
+    return true;
+  }
+
+  function rollQuest(avoidTemplateIds){
+    avoidTemplateIds = avoidTemplateIds || new Set(activeQuests.map(q => q.templateId));
+    let rarity = pickQuestRarity();
+    let candidates = QUEST_TEMPLATES.filter(t => templateAllowed(t, rarity));
+    if(!candidates.length){
+      // Fall back down the rarity ladder until something fits.
+      for(let i = QUEST_RARITIES.indexOf(rarity); i >= 0; i--){
+        rarity = QUEST_RARITIES[i];
+        candidates = QUEST_TEMPLATES.filter(t => templateAllowed(t, rarity));
+        if(candidates.length) break;
+      }
+    }
+    if(!candidates.length) candidates = QUEST_TEMPLATES.filter(t => templateAllowed(t, 'common'));
+    if(!candidates.length) candidates = QUEST_TEMPLATES.slice();
+    let pool = candidates.filter(t => !avoidTemplateIds.has(t.id));
+    if(!pool.length) pool = candidates;
+    const tmpl = pool[(Math.random() * pool.length) | 0];
+    const meta = QUEST_RARITY[rarity] || QUEST_RARITY.common;
+    const target = Math.max(1, Math.round(tmpl.baseTarget * meta.targetMult));
+    const reward = scaleQuestReward(tmpl.reward || {}, rarity);
+    return {
+      uid: 'aq_' + (questUidSeq++),
+      templateId: tmpl.id,
+      rarity,
+      name: tmpl.name,
+      desc: tmpl.desc.replace(/\{n\}/g, formatNum(target)),
+      stat: tmpl.stat,
+      target,
+      baseline: stats[tmpl.stat] || 0,
+      reward
+    };
+  }
+
+  function syncQuestSlots(){
+    const cap = questSlotCap();
+    if(activeQuests.length > cap) activeQuests.length = cap;
+    const used = new Set(activeQuests.map(q => q.templateId));
+    while(activeQuests.length < cap){
+      const q = rollQuest(used);
+      used.add(q.templateId);
+      activeQuests.push(q);
+    }
+  }
+
+  function refreshQuestUiAndSave(){
+    persistSave();
+    updateScoreUI();
+    updateShopUI();
+    updatePrestigeUI();
+    updateContractsUI();
+    updateAutoStatus();
+    updateSuitBombUI(performance.now(), true);
+  }
+
+  function claimActiveQuest(uid, opts){
+    opts = opts || {};
+    const idx = activeQuests.findIndex(q => q.uid === uid);
+    if(idx < 0) return null;
+    const q = activeQuests[idx];
+    if(!activeQuestComplete(q)) return null;
+    applyContractReward(q.reward);
+    const used = new Set(
+      activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
+    );
+    activeQuests[idx] = rollQuest(used);
+    if(!opts.deferUi){
+      refreshQuestUiAndSave();
+      pushPopup({
+        x: W / 2,
+        y: PEG_ZONE * 0.38,
+        text: 'QUEST · ' + q.name,
+        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
+        t0: performance.now(),
+        duration: 1400,
+        big: true
+      });
+      if(!resolving && !looping) startLoop();
+    }
+    return q;
+  }
+
+  function tryAutoClaimQuests(){
+    if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
+    const claimed = [];
+    // Cap passes so a bad roll can never spin forever.
+    for(let guard = 0; guard < MAX_QUEST_SLOTS; guard++){
+      const ready = activeQuests.find(q => activeQuestComplete(q));
+      if(!ready) break;
+      const q = claimActiveQuest(ready.uid, { deferUi: true });
+      if(!q) break;
+      claimed.push(q);
+    }
+    if(!claimed.length) return 0;
+    refreshQuestUiAndSave();
+    if(claimed.length === 1){
+      const q = claimed[0];
+      pushPopup({
+        x: W / 2,
+        y: PEG_ZONE * 0.38,
+        text: 'QUEST · ' + q.name,
+        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
+        t0: performance.now(),
+        duration: 1400,
+        big: true
+      });
+    } else {
+      pushPopup({
+        x: W / 2,
+        y: PEG_ZONE * 0.38,
+        text: 'QUEST DESK · ×' + claimed.length,
+        color: '#F0D78C',
+        t0: performance.now(),
+        duration: 1400,
+        big: true
+      });
+    }
+    if(!resolving && !looping) startLoop();
+    return claimed.length;
+  }
+
+  let lastAutoClaimAt = 0;
+  function maybeAutoClaimQuests(now){
+    if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
+    now = now || performance.now();
+    if(now - lastAutoClaimAt < 180) return 0;
+    if(!activeQuests.some(q => activeQuestComplete(q))) return 0;
+    const n = tryAutoClaimQuests();
+    if(n) lastAutoClaimAt = now;
+    return n;
+  }
+
+  function claimAchievement(id){
+    const def = ACHIEVEMENT_DEFS.find(c => c.id === id);
+    if(!def || !achievementCanClaim(def)) return false;
+    questClaimed[def.id] = true;
+    applyContractReward(def.reward);
+    refreshQuestUiAndSave();
+    pushPopup({
+      x: W / 2,
+      y: PEG_ZONE * 0.38,
+      text: 'ACHIEVE · ' + def.name,
+      color: '#F0D78C',
+      t0: performance.now(),
+      duration: 1400,
+      big: true
+    });
+    if(!resolving && !looping) startLoop();
+    return true;
+  }
+
+  function claimContract(id){
+    if(String(id).indexOf('aq_') === 0) return claimActiveQuest(id);
+    return claimAchievement(id);
+  }
+
+  function resetRunQuests(){
+    // Prestige clears run quests only — achievements / questClaimed stay.
+    activeQuests = [];
+    stats.runHands = 0;
+    stats.runFloorClears = 0;
+    stats.runSuitPurges = 0;
+    stats.runChainClears = 0;
+    stats.runCardsDropped = 0;
+    stats.runMultiClears = 0;
+    stats.runFlushes = 0;
+    stats.runStraights = 0;
+    stats.runFullHouses = 0;
+    stats.runFourKinds = 0;
+    stats.runThreeKinds = 0;
+    stats.runTwoPairs = 0;
+    stats.runRoyalFlushes = 0;
+    stats.runStraightFlushes = 0;
+  }
+
+  function bumpStat(key, n){
+    n = n == null ? 1 : n;
+    if(!n) return;
+    stats[key] = (stats[key] || 0) + n;
+    scheduleContractsUI();
+  }
+
+  function noteHandClear(groups, chainMult){
+    if(!groups || !groups.length) return;
+    if(groups.some(g => g.floorClear || g.suitBomb)) return;
+    const n = groups.length;
+    bumpStat('hands', n);
+    bumpStat('runHands', n);
+    if(n > 1){
+      bumpStat('multiHandClears', 1);
+      bumpStat('runMultiClears', 1);
+    }
+    if(chainMult > 1){
+      bumpStat('chainClears', 1);
+      bumpStat('runChainClears', 1);
+    }
+    for(const g of groups){
+      const key = HAND_STAT[g.name];
+      if(key) bumpStat(key, 1);
+      const runKey = RUN_HAND_STAT[g.name];
+      if(runKey) bumpStat(runKey, 1);
+    }
+  }
+
+  function noteFloorClear(){
+    bumpStat('floorClears', 1);
+    bumpStat('runFloorClears', 1);
+  }
+
+  function noteSuitPurge(){
+    bumpStat('suitPurges', 1);
+    bumpStat('runSuitPurges', 1);
+  }
+
+  function noteCardDropped(){
+    bumpStat('cardsDropped', 1);
+    bumpStat('runCardsDropped', 1);
+  }
+
+  function scheduleContractsUI(){
+    clearTimeout(questUiTimer);
+    questUiTimer = setTimeout(()=>{
+      // Claim before painting so the Quests tab rarely shows a stale Claim button.
+      maybeAutoClaimQuests();
+      updateContractsUI();
+    }, 120);
+  }
 
   function upgradeCost(def){
-    const lvl = upgradeLevel(def.id);
+    // Cost tracks purchased levels only — prestige bonus levels are free power.
+    if(upgradeLevel(def.id) >= def.maxLevel) return Infinity;
+    const bought = purchasedLevel(def.id);
+    return Math.floor(def.baseCost * Math.pow(def.costScale, bought) * upgradeCostMult());
+  }
+
+  function prestigeUpgradeCost(def){
+    const lvl = prestigeLevel(def.id);
     if(lvl >= def.maxLevel) return Infinity;
     return Math.floor(def.baseCost * Math.pow(def.costScale, lvl));
   }
 
   function autoDropIntervalMs(){
     const lvl = upgradeLevel('autoDealer');
-    if(lvl <= 0) return Infinity;
-    // Steep curve: ~3.2s at Lv1, sub-second by Lv5, floors at 150ms.
-    return Math.max(150, Math.floor(3200 * Math.pow(0.72, lvl - 1)));
+    if(lvl <= 0 || !isAutoEnabled('autoDealer')) return Infinity;
+    // Steep through the teens (~3.2s → ~86ms by Lv12), then a gentler
+    // cut so Lv13–30 still matter, flooring at 40ms near the top.
+    const early = 3200 * Math.pow(0.72, Math.min(lvl, 12) - 1);
+    const late = early * Math.pow(0.94, Math.max(0, lvl - 12));
+    return Math.max(40, Math.floor(late));
   }
 
   function autoDropCount(){
     return 1 + upgradeLevel('multiDeal');
   }
 
-  function scoreMultiplier(){
+  function holdDealUnlocked(){
+    return prestigeLevel('holdDeal') > 0;
+  }
+
+  function holdDropIntervalMs(){
+    const lvl = prestigeLevel('holdDeal');
+    if(lvl <= 0) return Infinity;
+    // ~400ms at Lv1, under 150ms by Lv6, floors at 70ms.
+    return Math.max(70, Math.floor(400 * Math.pow(0.82, lvl - 1)));
+  }
+
+  function tableScoreMultiplier(){
     return 1 + 0.25 * upgradeLevel('bigBlind');
+  }
+
+  function scoreMultiplier(){
+    return tableScoreMultiplier() * prestigeChipMult();
   }
 
   function chainBonus(){
@@ -855,12 +2539,13 @@
   }
 
   function pinHitPayout(){
-    return upgradeLevel('pinPayout');
+    const lvl = upgradeLevel('pinPayout');
+    return lvl ? Math.floor(lvl * prestigeChipMult()) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? lvl * 2 : 0;
+    return lvl ? Math.floor(lvl * 2 * prestigeChipMult()) : 0;
   }
 
   function floorClearPayout(){
@@ -922,17 +2607,127 @@
     scoreUiDirty = false;
     updateScoreUI();
   }
+  function showLevelUpToast(lvl, parts){
+    const text = parts.length
+      ? ('LEVEL ' + lvl + '! ' + parts.join(' · '))
+      : ('LEVEL ' + lvl + '!');
+    pushPopup({
+      x: W / 2,
+      y: PEG_ZONE * 0.45,
+      text,
+      color: '#F0D78C',
+      t0: performance.now(),
+      duration: 1600,
+      big: true
+    });
+    if(!resolving && !looping) startLoop();
+    const toast = document.getElementById('levelToast');
+    if(toast){
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(levelToastTimer);
+      levelToastTimer = setTimeout(()=>toast.classList.remove('show'), 2200);
+    }
+  }
+
+  function grantLevelReward(lvl, opts){
+    opts = opts || {};
+    const silent = !!opts.silent;
+    const parts = [];
+    // maxRunLevel updates after the level-up loop, so "prior" is still the peak.
+    const firstTimeAtLevel = (stats.maxRunLevel || 1) < lvl;
+    for(const def of UPGRADE_DEFS){
+      if((def.unlockAt || 1) === lvl && firstTimeAtLevel){
+        parts.push('Unlocked ' + def.name);
+      }
+    }
+    const bonus = LEVEL_BONUSES[lvl];
+    if(bonus){
+      if(bonus.comps){
+        runCompCredit += bonus.comps;
+        parts.push('+' + bonus.comps + ' Cash Out comp' + (bonus.comps === 1 ? '' : 's'));
+      }
+      if(bonus.chips){
+        score += bonus.chips;
+        // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
+        parts.push('+' + formatNum(bonus.chips) + ' chips');
+      }
+      if(bonus.upgrade){
+        const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
+        if(uDef){
+          const beforeEff = upgradeLevel(uDef.id);
+          const gained = addPurchasedLevels(uDef.id, bonus.upgrade.n || 1);
+          if(gained > 0){
+            parts.push('+' + gained + ' ' + uDef.name);
+            if(uDef.id === 'highCut' || uDef.id === 'suitCut') reshapeShoe();
+            if(uDef.id === 'suitBomb' && beforeEff === 0){
+              suitBombReadyAt = performance.now();
+            }
+          }
+        }
+      }
+      if(bonus.prestige){
+        const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
+        if(pDef){
+          const before = prestigeLevel(pDef.id);
+          if(before < pDef.maxLevel){
+            prestigeUpgrades[pDef.id] = before + 1;
+            parts.push('VIP +1 ' + pDef.name);
+          }
+        }
+      }
+      if(bonus.label && !parts.length) parts.push(bonus.label);
+    }
+    if(lvl === MIN_CASH_OUT_LEVEL && firstTimeAtLevel){
+      parts.push('VIP Lounge unlocked');
+    }
+    // Slot i unlocks at run level i+1 (first slot at Lv 2).
+    if(lvl >= 2 && lvl <= MAX_QUEST_SLOTS + 1){
+      if(lvl === 2){
+        if(firstTimeAtLevel) parts.push('Quests unlocked');
+      } else {
+        parts.push('Quest slot +1');
+      }
+    }
+    if(!silent) showLevelUpToast(lvl, parts);
+  }
+
+  function syncRunLevel(opts){
+    opts = opts || {};
+    const target = runLevelFromLifetime(lifetime);
+    if(target <= runLevel){
+      if(runLevel > (stats.maxRunLevel || 1)){
+        stats.maxRunLevel = runLevel;
+        scheduleContractsUI();
+      }
+      return false;
+    }
+    while(runLevel < target){
+      runLevel++;
+      grantLevelReward(runLevel, opts);
+    }
+    if(runLevel > (stats.maxRunLevel || 1)) stats.maxRunLevel = runLevel;
+    syncQuestSlots();
+    scheduleContractsUI();
+    return true;
+  }
+
   function awardChips(amount){
     amount = Math.floor(amount);
     if(amount <= 0) return 0;
     score += amount;
     lifetime += amount;
+    const leveled = syncRunLevel();
     scheduleSave();
     // Peg/bumper hits can fire often — batch score + shop DOM updates.
     scoreUiDirty = true;
     if(!scoreUiTimer) scoreUiTimer = setTimeout(flushScoreUI, 80);
     clearTimeout(shopUiTimer);
-    shopUiTimer = setTimeout(updateShopUI, 150);
+    shopUiTimer = setTimeout(()=>{
+      maybeAutoBuy();
+      updateShopUI();
+      if(leveled) updatePrestigeUI();
+    }, 150);
     return amount;
   }
 
@@ -977,11 +2772,14 @@
     const lvl = upgradeLevel(def.id);
     switch(def.id){
       case 'autoDealer':
-        return lvl ? ('Every ' + formatInterval(autoDropIntervalMs())) : 'Manual only';
+        if(!lvl) return 'Manual only';
+        return isAutoEnabled('autoDealer')
+          ? ('Every ' + formatInterval(autoDropIntervalMs()))
+          : 'Paused';
       case 'multiDeal':
         return (1 + lvl) + ' card' + (1+lvl === 1 ? '' : 's') + '/tick';
       case 'bigBlind':
-        return '×' + scoreMultiplier().toFixed(2).replace(/\.00$/,'');
+        return '×' + tableScoreMultiplier().toFixed(2).replace(/\.00$/,'');
       case 'hotStreak':
         return lvl ? ('+' + lvl + ' chain') : 'No bonus';
       case 'pinPayout':
@@ -1009,7 +2807,8 @@
           ? ('Cooldown ' + formatInterval(suitBombCooldownMs()))
           : 'Locked';
       case 'autoSuitBomb':
-        return lvl ? 'Auto-casting' : (upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge');
+        if(!lvl) return upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge';
+        return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
       case 'cardSense':
         return lvl ? 'Aiming near hands' : 'Random columns';
       case 'feltGrease':
@@ -1019,12 +2818,79 @@
     }
   }
 
+  function prestigeEffectText(def){
+    const lvl = prestigeLevel(def.id);
+    switch(def.id){
+      case 'houseEdge':
+        return '×' + prestigeChipMult().toFixed(2).replace(/\.00$/,'') + ' chips';
+      case 'seedStack':
+        return lvl ? (formatNum(startingChips()) + ' start') : 'Empty pockets';
+      case 'rackDiscount':
+        return lvl
+          ? (Math.round((1 - upgradeCostMult()) * 100) + '% off')
+          : 'Full price';
+      case 'compCard':
+        return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
+      case 'holdDeal':
+        return lvl
+          ? ('Hold every ' + formatInterval(holdDropIntervalMs()))
+          : 'Click to drop';
+      case 'quickDeal':
+        return lvl
+          ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
+          : 'No Auto Dealer bonus';
+      case 'pinPrivilege':
+        return lvl
+          ? ('+' + lvl + ' Pin Tip · now Lv ' + upgradeLevel('pinPayout'))
+          : 'No Pin Tip bonus';
+      case 'questInk':{
+        const rar = QUEST_RARITIES[maxQuestRarityIndex()] || 'common';
+        const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
+        return lvl ? ('Up to ' + label) : 'Common quests only';
+      }
+      case 'questDesk':
+        if(!lvl) return 'Manual claims';
+        return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
+      case 'pitBoss':
+        if(!lvl) return 'Manual buys only';
+        return isAutoEnabled('pitBoss')
+          ? ('Auto-buys ×' + lvl + ' / tick')
+          : 'Paused';
+      default:
+        return '';
+    }
+  }
+
+  function applyRunStartBonuses(){
+    upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
+    score = startingChips();
+    lifetime = 0;
+    runLevel = 1;
+    runCompCredit = 0;
+    lastAutoDropAt = 0;
+    suitBombReadyAt = 0;
+    pendingSuitBomb = null;
+  }
+
   function persistSave(){
     try{
       const now = performance.now();
       const cdLeft = Math.max(0, suitBombReadyAt - now);
       localStorage.setItem(SAVE_KEY, JSON.stringify({
-        score, lifetime, upgrades, suitBombCdLeft: cdLeft, v: 1
+        score,
+        lifetime,
+        upgrades,
+        comps,
+        prestigeCount,
+        prestigeUpgrades,
+        runCompCredit,
+        stats,
+        questClaimed,
+        activeQuests,
+        questUidSeq,
+        autoEnabled,
+        suitBombCdLeft: cdLeft,
+        v: SAVE_VERSION
       }));
     }catch(_){ /* private mode / quota */ }
   }
@@ -1050,6 +2916,84 @@
           }
         }
       }
+      if(typeof data.comps === 'number' && data.comps >= 0) comps = Math.floor(data.comps);
+      if(typeof data.prestigeCount === 'number' && data.prestigeCount >= 0){
+        prestigeCount = Math.floor(data.prestigeCount);
+      }
+      if(data.prestigeUpgrades && typeof data.prestigeUpgrades === 'object'){
+        for(const def of PRESTIGE_DEFS){
+          const v = data.prestigeUpgrades[def.id];
+          if(typeof v === 'number' && v >= 0){
+            prestigeUpgrades[def.id] = Math.min(def.maxLevel, Math.floor(v));
+          }
+        }
+      }
+      // Migrate retired table Hold Deal into the VIP Hold Deal perk.
+      if(data.upgrades && typeof data.upgrades.holdDeal === 'number' && data.upgrades.holdDeal > 0){
+        const migrated = Math.min(
+          PRESTIGE_DEFS.find(u => u.id === 'holdDeal').maxLevel,
+          Math.floor(data.upgrades.holdDeal)
+        );
+        if(migrated > prestigeLevel('holdDeal')) prestigeUpgrades.holdDeal = migrated;
+      }
+      // Purchased levels can't push effective skill past max once VIP bonus applies.
+      for(const def of UPGRADE_DEFS){
+        upgrades[def.id] = Math.min(purchasedLevel(def.id), maxPurchasableLevel(def.id));
+      }
+      if(data.autoEnabled && typeof data.autoEnabled === 'object'){
+        for(const id of AUTO_TOGGLE_IDS){
+          if(typeof data.autoEnabled[id] === 'boolean') autoEnabled[id] = data.autoEnabled[id];
+        }
+      }
+      runLevel = runLevelFromLifetime(lifetime);
+      if(typeof data.runCompCredit === 'number' && data.runCompCredit >= 0){
+        runCompCredit = Math.floor(data.runCompCredit);
+      } else {
+        // Migrate older saves: reconstruct credit from levels already reached.
+        runCompCredit = recomputeRunCompCredit(runLevel);
+      }
+      if(data.stats && typeof data.stats === 'object'){
+        stats = Object.assign({}, EMPTY_STATS, data.stats);
+        for(const k of Object.keys(stats)){
+          if(typeof stats[k] !== 'number' || stats[k] < 0) stats[k] = EMPTY_STATS[k] || 0;
+          else stats[k] = Math.floor(stats[k]);
+        }
+      }
+      if(runLevel > (stats.maxRunLevel || 1)) stats.maxRunLevel = runLevel;
+      if(data.questClaimed && typeof data.questClaimed === 'object'){
+        questClaimed = Object.create(null);
+        for(const def of ACHIEVEMENT_DEFS){
+          if(data.questClaimed[def.id]) questClaimed[def.id] = true;
+        }
+      }
+      if(typeof data.questUidSeq === 'number' && data.questUidSeq > 0){
+        questUidSeq = Math.floor(data.questUidSeq);
+      }
+      activeQuests = [];
+      if(Array.isArray(data.activeQuests)){
+        for(const raw of data.activeQuests){
+          if(!raw || typeof raw !== 'object') continue;
+          const tmpl = QUEST_TEMPLATES.find(t => t.id === raw.templateId);
+          if(!tmpl) continue;
+          const rarity = QUEST_RARITIES.includes(raw.rarity) ? raw.rarity : 'common';
+          const target = Math.max(1, Math.floor(raw.target || tmpl.baseTarget));
+          activeQuests.push({
+            uid: typeof raw.uid === 'string' ? raw.uid : ('aq_' + (questUidSeq++)),
+            templateId: tmpl.id,
+            rarity,
+            name: tmpl.name,
+            desc: tmpl.desc.replace(/\{n\}/g, formatNum(target)),
+            stat: tmpl.stat,
+            target,
+            baseline: Math.max(0, Math.floor(raw.baseline || 0)),
+            reward: raw.reward && typeof raw.reward === 'object'
+              ? raw.reward
+              : scaleQuestReward(tmpl.reward || {}, rarity)
+          });
+        }
+      }
+      // Migrate older static-quest saves / fill missing slots for current run level.
+      syncQuestSlots();
       if(typeof data.suitBombCdLeft === 'number' && data.suitBombCdLeft > 0){
         suitBombReadyAt = performance.now() + data.suitBombCdLeft;
       } else {
@@ -1061,36 +3005,159 @@
   function resetProgress(){
     score = 0;
     lifetime = 0;
+    comps = 0;
+    prestigeCount = 0;
+    runLevel = 1;
+    runCompCredit = 0;
     upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
+    prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
+    autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
+    stats = Object.assign({}, EMPTY_STATS);
+    questClaimed = Object.create(null);
+    activeQuests = [];
+    questUidSeq = 1;
     lastAutoDropAt = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
     persistSave();
     updateScoreUI();
     updateShopUI();
+    updatePrestigeUI();
+    updateContractsUI();
+    updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
   }
 
-  function buyUpgrade(id){
+  function cashOut(){
+    const gain = pendingComps();
+    if(gain <= 0) return false;
+    comps += gain;
+    prestigeCount += 1;
+    bumpStat('cashOuts', 1);
+    applyRunStartBonuses();
+    resetRunQuests();
+    // Already-revealed upgrades stay visible; suppress re-flash on the new table.
+    seenUnlockFlash.clear();
+    for(const def of UPGRADE_DEFS){
+      if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
+    }
+    // Drop any batched HUD/shop timers so they can't re-apply pre-Cash-Out UI.
+    clearTimeout(shopUiTimer);
+    clearTimeout(scoreUiTimer);
+    clearTimeout(questUiTimer);
+    shopUiTimer = 0;
+    scoreUiTimer = 0;
+    scoreUiDirty = false;
+    persistSave();
+    updateScoreUI();
+    updateShopUI();
+    updatePrestigeUI();
+    updateContractsUI();
+    updateLevelUI();
+    updateAutoStatus();
+    updateSuitBombUI(performance.now(), true);
+    // Spend Seed Stack / free levels into the rack immediately if Pit Boss is owned.
+    maybeAutoBuy(performance.now());
+    return true;
+  }
+
+  function purchaseUpgrade(id){
     const def = UPGRADE_DEFS.find(u => u.id === id);
-    if(!def) return;
-    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return;
-    const lvl = upgradeLevel(id);
-    if(lvl >= def.maxLevel) return;
+    if(!def) return false;
+    if(!upgradeUnlocked(id)) return false;
+    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return false;
+    if(upgradeLevel(id) >= def.maxLevel) return false;
+    if(purchasedLevel(id) >= maxPurchasableLevel(id)) return false;
     const cost = upgradeCost(def);
-    if(score < cost) return;
+    if(score < cost) return false;
+    const beforeEff = upgradeLevel(id);
     score -= cost;
-    upgrades[id] = lvl + 1;
+    if(!addPurchasedLevels(id, 1)){
+      score += cost;
+      return false;
+    }
+    bumpStat('upgradesBought', 1);
     if(id === 'highCut' || id === 'suitCut') reshapeShoe();
-    if(id === 'suitBomb' && lvl === 0){
+    if(id === 'suitBomb' && beforeEff === 0){
       suitBombReadyAt = performance.now();
+    }
+    return true;
+  }
+
+  function buyUpgrade(id){
+    if(!purchaseUpgrade(id)) return;
+    scheduleSave();
+    updateScoreUI();
+    updateShopUI();
+    updatePrestigeUI();
+    updateAutoStatus();
+    updateSuitBombUI(performance.now(), true);
+  }
+
+  function tryAutoBuyUpgrades(){
+    const batch = prestigeLevel('pitBoss');
+    if(batch <= 0 || !isAutoEnabled('pitBoss')) return 0;
+    let bought = 0;
+    for(let i = 0; i < batch; i++){
+      let bestId = null;
+      let bestCost = Infinity;
+      for(const def of UPGRADE_DEFS){
+        if(!upgradeUnlocked(def.id)) continue;
+        if(def.id === 'autoSuitBomb' && !suitBombUnlocked()) continue;
+        const lvl = upgradeLevel(def.id);
+        if(lvl >= def.maxLevel) continue;
+        const cost = upgradeCost(def);
+        if(score < cost) continue;
+        if(cost < bestCost){
+          bestCost = cost;
+          bestId = def.id;
+        }
+      }
+      if(!bestId || !purchaseUpgrade(bestId)) break;
+      bought++;
+    }
+    if(bought) scheduleSave();
+    return bought;
+  }
+
+  let lastAutoBuyAt = 0;
+  function maybeAutoBuy(now){
+    if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return 0;
+    now = now || performance.now();
+    if(now - lastAutoBuyAt < 220) return 0;
+    const bought = tryAutoBuyUpgrades();
+    if(bought){
+      lastAutoBuyAt = now;
+      updateScoreUI();
+      updateShopUI();
+      updateAutoStatus();
+      updateSuitBombUI(now, true);
+    }
+    return bought;
+  }
+
+  function buyPrestigeUpgrade(id){
+    const def = PRESTIGE_DEFS.find(u => u.id === id);
+    if(!def) return;
+    const lvl = prestigeLevel(id);
+    if(lvl >= def.maxLevel) return;
+    const cost = prestigeUpgradeCost(def);
+    if(comps < cost) return;
+    comps -= cost;
+    prestigeUpgrades[id] = lvl + 1;
+    // VIP skill bonuses may cap purchasable room — clamp bought levels.
+    for(const uDef of UPGRADE_DEFS){
+      upgrades[uDef.id] = Math.min(purchasedLevel(uDef.id), maxPurchasableLevel(uDef.id));
     }
     scheduleSave();
     updateScoreUI();
     updateShopUI();
+    updatePrestigeUI();
     updateAutoStatus();
-    updateSuitBombUI(performance.now(), true);
+    if(id === 'pitBoss') maybeAutoBuy(performance.now());
+    if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
+    if(id === 'holdDeal' && !resolving && !looping) startLoop();
   }
 
   function columnReservations(){
@@ -1153,6 +3220,39 @@
     if(dropped > 0) lastAutoDropAt = now;
   }
 
+  function stopHoldDrop(){
+    holdDropping = false;
+    holdDropCol = null;
+  }
+
+  function startHoldDrop(col){
+    if(!holdDealUnlocked() || inputBlocked()) return false;
+    holdDropping = true;
+    holdDropCol = col == null ? null : col;
+    lastHoldDropAt = 0; // fire immediately on press
+    tryHoldDrop(performance.now());
+    startLoop();
+    return true;
+  }
+
+  function tryHoldDrop(now){
+    if(!holdDropping || !holdDealUnlocked()) return;
+    if(gameOver){ stopHoldDrop(); return; }
+    const interval = holdDropIntervalMs();
+    if(!Number.isFinite(interval)) return;
+    if(now - lastHoldDropAt < interval) return;
+    if(balls.length >= MAX_IN_FLIGHT) return;
+    if(colHeights.every(h => h >= ROWS)) return;
+
+    if(holdDropCol != null){
+      if(colHeights[holdDropCol] >= ROWS) return;
+      dropAt(holdDropCol * CELL + CELL / 2, {autoCol: holdDropCol});
+    } else {
+      dropAt(aimX);
+    }
+    lastHoldDropAt = now;
+  }
+
   function freshState(){
     grid = Array.from({length:COLS}, ()=>Array(ROWS).fill(0));
     colHeights = Array(COLS).fill(0);
@@ -1169,6 +3269,7 @@
     popups = [];
     pendingSuitBomb = null;
     lastAutoDropAt = performance.now();
+    stopHoldDrop();
     shoe = makeDeck().concat(makeDeck());
     nextCard = dealCard();
     updateNextUI();
@@ -1361,19 +3462,6 @@
     }
   }
 
-  // ---- column buttons ----
-  const colsEl = document.getElementById('cols');
-  colsEl.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
-  const buttons = [];
-  for(let c=0;c<COLS;c++){
-    const b = document.createElement('button');
-    b.className = 'colbtn';
-    b.textContent = '▾';
-    b.addEventListener('click', ()=>dropInColumn(c));
-    colsEl.appendChild(b);
-    buttons.push(b);
-  }
-
   function inputBlocked(){
     return gameOver;
   }
@@ -1392,11 +3480,7 @@
   const FLASH_MS = 480, EXPLODE_MS = 280;
 
   function refreshButtons(){
-    const blocked = inputBlocked();
-    for(let c=0;c<COLS;c++){
-      buttons[c].disabled = blocked;
-      buttons[c].classList.toggle('full', colHeights[c] >= ROWS);
-    }
+    // Column drop buttons removed — tap/hold the board to deal.
   }
 
   // ---- balls / animation state ----
@@ -1440,6 +3524,7 @@
       dropEpoch: resolveEpoch
     };
     balls.push(ball);
+    noteCardDropped();
     startLoop();
     refreshButtons();
   }
@@ -1714,7 +3799,10 @@
   function tick(){
     const now = performance.now();
     tryAutoDrop(now);
+    tryHoldDrop(now);
     tryAutoSuitBomb(now);
+    maybeAutoBuy(now);
+    maybeAutoClaimQuests(now);
     updateSuitBombUI(now);
 
     const speed = physicsSpeed();
@@ -1750,7 +3838,9 @@
     const nowEnd = performance.now();
     const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
     const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
-    const bombAuto = upgradeLevel('autoSuitBomb') > 0 && suitBombUnlocked();
+    const bombAuto = upgradeLevel('autoSuitBomb') > 0
+      && isAutoEnabled('autoSuitBomb')
+      && suitBombUnlocked();
     if(balls.length>0 || particles.length>0 || popupsAlive || resolving
       || Number.isFinite(autoDropIntervalMs()) || bombCharging || bombAuto){
       requestAnimationFrame(tick);
@@ -2243,6 +4333,7 @@
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
+    noteFloorClear();
     refreshButtons();
     startResolveLoop();
   }
@@ -2286,6 +4377,7 @@
     if(cells.length < 1) return false;
     // Spend the charge immediately so a mid-clear click still counts.
     suitBombReadyAt = now + suitBombCooldownMs();
+    noteSuitPurge();
     scheduleSave();
     if(resolving){
       pendingSuitBomb = suit;
@@ -2323,7 +4415,7 @@
   }
 
   function tryAutoSuitBomb(now){
-    if(!upgradeLevel('autoSuitBomb') || !suitBombReady(now)) return;
+    if(!upgradeLevel('autoSuitBomb') || !isAutoEnabled('autoSuitBomb') || !suitBombReady(now)) return;
     if(resolving || gameOver) return;
     const suit = pickAutoSuitBombTarget();
     if(!suit) return;
@@ -2391,6 +4483,7 @@
   function resolveTick(){
     const now = performance.now();
     tryAutoDrop(now);
+    tryHoldDrop(now);
     const speed = Math.min(physicsSpeed(), 2.8);
     const flashMs = FLASH_MS / speed;
     const explodeMs = EXPLODE_MS / speed;
@@ -2402,6 +4495,7 @@
           if(!isFloorClear){
             const chainMult = Math.max(1, chainStep + chainBonus());
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
+            noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
             flushScoreUI();
@@ -2725,95 +4819,654 @@
   // ---- UI wiring ----
   const scoreValEl = document.getElementById('scoreVal');
   const lifetimeValEl = document.getElementById('lifetimeVal');
+  const shopLevelValEl = document.getElementById('shopLevelVal');
+  const runLevelValEl = document.getElementById('runLevelVal');
+  const runLevelXpEl = document.getElementById('runLevelXp');
+  const runLevelFillEl = document.getElementById('runLevelFill');
+  const compsBoxEl = document.getElementById('compsBox');
+  const compsHudValEl = document.getElementById('compsHudVal');
+  const prestigeCountValEl = document.getElementById('prestigeCountVal');
+  const cashOutBtn = document.getElementById('cashOutBtn');
+  const cashoutReqEl = document.getElementById('cashoutReq');
   const autoStatusEl = document.getElementById('autoStatus');
   const autoStatusValEl = document.getElementById('autoStatusVal');
+  const autoStatusFillEl = document.getElementById('autoStatusFill');
   const upgradesEl = document.getElementById('upgrades');
+  const prestigeUpgradesEl = document.getElementById('prestigeUpgrades');
+  const questsEl = document.getElementById('quests');
+  const achievementsEl = document.getElementById('achievements');
+  const questReadyValEl = document.getElementById('questReadyVal');
+  const questSlotsMetaEl = document.getElementById('questSlotsMeta');
+  const achieveReadyValEl = document.getElementById('achieveReadyVal');
+  const appEl = document.getElementById('app');
+  const stageEl = document.getElementById('panelTable');
+  const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
+  const railPanels = Array.from(document.querySelectorAll('.rail-panel'));
+  const upgradesTabEl = document.querySelector('.rail-tab[data-panel="upgrades"]');
+  const questsTabEl = document.querySelector('.rail-tab[data-panel="quests"]');
+  const vipTabEl = document.querySelector('.rail-tab[data-panel="vip"]');
+  const upgradesPanelEl = document.getElementById('panelUpgrades');
+  const questsPanelEl = document.getElementById('panelQuests');
+  const vipPanelEl = document.getElementById('panelVip');
+  const desktopMq = window.matchMedia('(min-width:1000px)');
+  const tabBadges = {
+    upgrades: document.getElementById('badgeUpgrades'),
+    quests: document.getElementById('badgeQuests'),
+    achievements: document.getElementById('badgeAchievements'),
+    vip: document.getElementById('badgeVip')
+  };
+  let activeRailPanel = 'table';
   const nextLabel = document.getElementById('nextLabel');
   const banner = document.getElementById('banner');
   const bannerText = document.getElementById('bannerText');
   const upgradeButtons = {};
+  const prestigeButtons = {};
+  const contractButtons = {};
+  // Stable slot cards — updated in place so claim/progress ticks don't flicker.
+  const questSlotButtons = [];
+  const questLockedButtons = [];
+  const seenUnlockFlash = new Set();
+
+  function isDesktopLayout(){
+    return desktopMq.matches;
+  }
+
+  function setTabBadge(panel, count){
+    const el = tabBadges[panel];
+    if(!el) return;
+    const n = Math.max(0, count | 0);
+    if(n <= 0){
+      el.hidden = true;
+      el.textContent = '0';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = n > 99 ? '99+' : String(n);
+  }
+
+  function panelTabUnlocked(panel){
+    if(panel === 'upgrades') return upgradesTabUnlocked();
+    if(panel === 'quests') return questsTabUnlocked();
+    if(panel === 'vip') return vipTabUnlocked();
+    return true;
+  }
+
+  function updateRailTabAvailability(){
+    if(upgradesTabEl) upgradesTabEl.hidden = !upgradesTabUnlocked();
+    if(questsTabEl) questsTabEl.hidden = !questsTabUnlocked();
+    if(vipTabEl) vipTabEl.hidden = !vipTabUnlocked();
+    if(upgradesPanelEl && !upgradesTabUnlocked()) upgradesPanelEl.classList.remove('is-active');
+    if(questsPanelEl && !questsTabUnlocked()) questsPanelEl.classList.remove('is-active');
+    if(vipPanelEl && !vipTabUnlocked()) vipPanelEl.classList.remove('is-active');
+    if(!panelTabUnlocked(activeRailPanel)){
+      setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
+    }
+  }
+
+  // Back-compat name used by quest UI refresh.
+  function updateQuestTabAvailability(){
+    updateRailTabAvailability();
+  }
+
+  function setRailPanel(panel){
+    if(!panel) return;
+    if(!panelTabUnlocked(panel)) return;
+    if(panel === 'table' && isDesktopLayout()) panel = defaultShopPanel();
+    const known = panel === 'table' || railPanels.some(p => p.dataset.panel === panel);
+    if(!known) return;
+    activeRailPanel = panel;
+    const tableMode = panel === 'table' && !isDesktopLayout();
+    if(appEl){
+      appEl.classList.toggle('mode-table', tableMode);
+      appEl.classList.toggle('mode-shop', !tableMode);
+    }
+    if(stageEl){
+      stageEl.classList.toggle('is-active', tableMode || isDesktopLayout());
+    }
+    for(const p of railPanels){
+      p.classList.toggle('is-active', p.dataset.panel === panel);
+    }
+    for(const tab of railTabs){
+      const on = tab.dataset.panel === panel;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+  }
+
+  for(const tab of railTabs){
+    tab.addEventListener('click', ()=>setRailPanel(tab.dataset.panel));
+  }
+  desktopMq.addEventListener('change', ()=>{
+    if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
+    else setRailPanel(activeRailPanel);
+  });
+
+  function updateLevelUI(){
+    if(runLevelValEl) runLevelValEl.textContent = String(runLevel);
+    if(shopLevelValEl) shopLevelValEl.textContent = String(runLevel);
+    const cur = lifetimeForLevel(runLevel);
+    const next = runLevel >= MAX_RUN_LEVEL
+      ? cur
+      : lifetimeForLevel(runLevel + 1);
+    const span = Math.max(1, next - cur);
+    const into = Math.max(0, lifetime - cur);
+    const pct = runLevel >= MAX_RUN_LEVEL
+      ? 100
+      : Math.max(0, Math.min(100, (into / span) * 100));
+    if(runLevelFillEl) runLevelFillEl.style.width = pct + '%';
+    if(runLevelXpEl){
+      runLevelXpEl.textContent = runLevel >= MAX_RUN_LEVEL
+        ? 'MAX'
+        : (formatNum(lifetime) + ' / ' + formatNum(next));
+    }
+  }
+
+  function updateCompsHud(){
+    if(compsHudValEl) compsHudValEl.textContent = formatNum(comps);
+    if(compsBoxEl){
+      // Stay hidden until the first comp is earned.
+      compsBoxEl.hidden = !(comps > 0 || prestigeCount > 0);
+    }
+  }
 
   function updateScoreUI(){
     scoreValEl.textContent = formatNum(score);
     if(lifetimeValEl) lifetimeValEl.textContent = formatNum(lifetime);
+    updateCompsHud();
+    updateLevelUI();
+    // Cash-out text only — do not refresh VIP buttons on every chip tick
+    // (re-appending them steals clicks and flickers the list).
+    updateCashOutUI();
   }
 
-  function updateAutoStatus(){
+  function orderUpgradeButtons(container, ordered){
+    if(!container) return;
+    const kids = container.children;
+    let same = kids.length === ordered.length;
+    if(same){
+      for(let i = 0; i < ordered.length; i++){
+        if(kids[i] !== ordered[i]){ same = false; break; }
+      }
+    }
+    if(same) return;
+    for(const btn of ordered) container.appendChild(btn);
+  }
+
+  function updateAutoStatus(now){
+    if(!autoStatusEl) return;
+    const owned = upgradeLevel('autoDealer') > 0;
+    autoStatusEl.hidden = !owned;
+    if(!owned){
+      if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
+      return;
+    }
+    now = now == null ? performance.now() : now;
+    const enabled = isAutoEnabled('autoDealer');
     const interval = autoDropIntervalMs();
-    const on = Number.isFinite(interval);
+    const on = enabled && Number.isFinite(interval);
     autoStatusEl.classList.toggle('on', on);
+    if(!enabled){
+      if(autoStatusValEl) autoStatusValEl.textContent = 'paused';
+      if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
+      return;
+    }
     if(!on){
-      autoStatusValEl.textContent = 'off';
+      if(autoStatusValEl) autoStatusValEl.textContent = 'off';
+      if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
       return;
     }
     const n = autoDropCount();
-    autoStatusValEl.textContent = formatInterval(interval) + (n > 1 ? ' ×' + n : '');
+    if(autoStatusValEl){
+      autoStatusValEl.textContent = formatInterval(interval) + (n > 1 ? ' ×' + n : '');
+    }
+    if(autoStatusFillEl){
+      const t = Math.max(0, Math.min(1, (now - lastAutoDropAt) / interval));
+      autoStatusFillEl.style.width = (t * 100) + '%';
+    }
     startLoop();
+  }
+
+  function fillUpgradeButton(btn, def, opts){
+    opts = opts || {};
+    const bought = opts.bought != null ? opts.bought : (opts.lvl || 0);
+    const bonus = opts.bonus || 0;
+    const effective = Math.min(def.maxLevel, bought + bonus);
+    const maxed = !!opts.maxed || effective >= def.maxLevel;
+    const locked = !!opts.locked;
+    const canAfford = !!opts.canAfford;
+    const canToggle = !!opts.canToggle;
+    // Keep the card clickable when a pause toggle is present (maxed/unaffordable
+    // still block buys via the purchase helpers).
+    const disabled = locked || (!canToggle && (maxed || !canAfford));
+    btn.classList.toggle('is-disabled', disabled);
+    btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    if('disabled' in btn) btn.disabled = disabled;
+    btn.classList.toggle('buy-blocked', canToggle && !locked && (maxed || !canAfford));
+    btn.classList.toggle('affordable', canAfford && !maxed && !locked);
+    btn.classList.toggle('maxed', maxed);
+    btn.classList.toggle('has-bonus', bonus > 0);
+    const lvlEl = btn.querySelector('.upgrade-lvl');
+    if(lvlEl){
+      if(maxed) lvlEl.textContent = 'MAX';
+      else if(bonus > 0) lvlEl.textContent = 'Lv ' + bought + '+' + bonus + '/' + def.maxLevel;
+      else lvlEl.textContent = 'Lv ' + effective + '/' + def.maxLevel;
+    }
+    const toggle = btn.querySelector('.upgrade-toggle');
+    if(toggle){
+      toggle.hidden = !canToggle;
+      if(canToggle){
+        const on = isAutoEnabled(def.id);
+        toggle.textContent = on ? 'On' : 'Off';
+        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+        toggle.classList.toggle('is-off', !on);
+      }
+    }
+    const bonusFill = btn.querySelector('.upgrade-progress-bonus');
+    const boughtFill = btn.querySelector('.upgrade-progress-bought');
+    if(def.maxLevel > 0){
+      if(bonusFill){
+        bonusFill.style.width = Math.min(100, (effective / def.maxLevel) * 100) + '%';
+      }
+      if(boughtFill){
+        boughtFill.style.width = Math.min(100, (bought / def.maxLevel) * 100) + '%';
+      }
+    }
+    btn.querySelector('.upgrade-effect').textContent = opts.effect || '';
+    const costEl = btn.querySelector('.upgrade-cost');
+    if(maxed){
+      costEl.textContent = 'Maxed';
+      costEl.className = 'upgrade-cost max';
+    } else if(locked){
+      costEl.textContent = opts.costLabel || '';
+      costEl.className = 'upgrade-cost max';
+    } else {
+      costEl.textContent = formatNum(opts.cost) + ' ' + (opts.unit || 'chips');
+      costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
+    }
   }
 
   function updateShopUI(){
     const active = [];
     const maxedList = [];
+    let affordableCount = 0;
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
+      const revealed = upgradeUnlocked(def.id)
+        && (def.id !== 'autoSuitBomb' || suitBombUnlocked());
+      const bought = purchasedLevel(def.id);
+      const bonus = prestigeBonusLevels(def.id);
       const lvl = upgradeLevel(def.id);
       const maxed = lvl >= def.maxLevel;
-      const locked = def.id === 'autoSuitBomb' && !suitBombUnlocked();
       const cost = upgradeCost(def);
-      const canAfford = !maxed && !locked && score >= cost;
-      btn.disabled = maxed || locked || !canAfford;
-      btn.classList.toggle('affordable', canAfford);
-      btn.classList.toggle('maxed', maxed);
-      btn.querySelector('.upgrade-lvl').textContent = maxed
-        ? 'MAX'
-        : ('Lv ' + lvl + '/' + def.maxLevel);
-      const fill = btn.querySelector('.upgrade-progress > span');
-      if(fill){
-        const pct = def.maxLevel <= 0 ? 0 : Math.min(100, (lvl / def.maxLevel) * 100);
-        fill.style.width = pct + '%';
+      const canAfford = revealed && !maxed && score >= cost;
+      if(canAfford) affordableCount++;
+      // Always refresh state — including locked cards — so Cash Out can't leave
+      // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
+      fillUpgradeButton(btn, def, {
+        bought, bonus, maxed, locked: !revealed, cost, canAfford,
+        canToggle: !!(def.toggleable && lvl > 0),
+        effect: upgradeEffectText(def),
+        costLabel: 'Unlocks at Lv ' + (def.unlockAt || 1),
+        unit: 'chips'
+      });
+      btn.hidden = !revealed;
+      if(!revealed){
+        btn.classList.remove('affordable', 'maxed', 'just-unlocked');
+        continue;
       }
-      btn.querySelector('.upgrade-effect').textContent = upgradeEffectText(def);
-      const costEl = btn.querySelector('.upgrade-cost');
-      if(maxed){
-        costEl.textContent = 'Maxed';
-        costEl.className = 'upgrade-cost max';
-      } else if(locked){
-        costEl.textContent = 'Needs Suit Purge';
-        costEl.className = 'upgrade-cost max';
+      if(!seenUnlockFlash.has(def.id) && (def.unlockAt || 1) > 1){
+        seenUnlockFlash.add(def.id);
+        btn.classList.add('just-unlocked');
+        setTimeout(()=>btn.classList.remove('just-unlocked'), 700);
       } else {
-        costEl.textContent = formatNum(cost) + ' chips';
-        costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
+        seenUnlockFlash.add(def.id);
       }
       (maxed ? maxedList : active).push(btn);
     }
     // Keep buyable upgrades up top; sink completed ones.
-    for(const btn of active.concat(maxedList)) upgradesEl.appendChild(btn);
+    orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    setTabBadge('upgrades', affordableCount);
+  }
+
+  function updateCashOutUI(){
+    if(prestigeCountValEl) prestigeCountValEl.textContent = formatNum(prestigeCount);
+    updateCompsHud();
+    const gain = pendingComps();
+    const ready = gain > 0;
+    if(cashOutBtn){
+      cashOutBtn.disabled = !ready;
+      cashOutBtn.textContent = ready
+        ? ('Cash Out · +' + formatNum(gain) + ' comps')
+        : 'Cash Out';
+    }
+    if(cashoutReqEl){
+      if(ready){
+        cashoutReqEl.textContent =
+          'Lv ' + runLevel + ' · ' + formatNum(runCompCredit) + ' level comps banked · VIP perks stay';
+        cashoutReqEl.className = 'cashout-req ready';
+      } else if(runLevel < MIN_CASH_OUT_LEVEL){
+        cashoutReqEl.textContent =
+          'Reach run level ' + MIN_CASH_OUT_LEVEL + ' to cash out (now Lv ' + runLevel + ')';
+        cashoutReqEl.className = 'cashout-req';
+      } else {
+        cashoutReqEl.textContent = 'Earn level rewards that grant Cash Out comps';
+        cashoutReqEl.className = 'cashout-req';
+      }
+    }
+    return { gain, ready };
+  }
+
+  function updatePrestigeUI(){
+    const { ready } = updateCashOutUI();
+    let vipReady = ready ? 1 : 0;
+    if(prestigeUpgradesEl){
+      const active = [];
+      const maxedList = [];
+      for(const def of PRESTIGE_DEFS){
+        const btn = prestigeButtons[def.id];
+        if(!btn) continue;
+        const lvl = prestigeLevel(def.id);
+        const maxed = lvl >= def.maxLevel;
+        const cost = prestigeUpgradeCost(def);
+        const canAfford = !maxed && comps >= cost;
+        if(canAfford) vipReady++;
+        fillUpgradeButton(btn, def, {
+          bought: lvl, bonus: 0, maxed, locked: false, cost, canAfford,
+          canToggle: !!(def.toggleable && lvl > 0),
+          effect: prestigeEffectText(def),
+          costLabel: '',
+          unit: 'comps'
+        });
+        (maxed ? maxedList : active).push(btn);
+      }
+      orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
+    }
+    setTabBadge('vip', vipReady);
+    updateRailTabAvailability();
+  }
+
+  function makeUpgradeButton(def, onBuy, prestige){
+    // Div (not <button>) so an On/Off control can nest without invalid HTML.
+    const btn = document.createElement('div');
+    btn.className = 'upgrade' + (prestige ? ' prestige-upgrade' : '');
+    btn.dataset.id = def.id;
+    btn.setAttribute('role', 'button');
+    btn.tabIndex = 0;
+    btn.innerHTML =
+      '<div class="upgrade-top">' +
+        '<span class="upgrade-name"></span>' +
+        '<span class="upgrade-top-right">' +
+          (def.toggleable
+            ? '<button type="button" class="upgrade-toggle" hidden>On</button>'
+            : '') +
+          '<span class="upgrade-lvl"></span>' +
+        '</span>' +
+      '</div>' +
+      '<p class="upgrade-desc"></p>' +
+      '<div class="upgrade-effect"></div>' +
+      '<div class="upgrade-cost"></div>' +
+      '<div class="upgrade-progress" aria-hidden="true">' +
+        '<span class="upgrade-progress-bonus"></span>' +
+        '<span class="upgrade-progress-bought"></span>' +
+      '</div>';
+    btn.querySelector('.upgrade-name').textContent = def.name;
+    btn.querySelector('.upgrade-desc').textContent = def.desc;
+    const toggle = btn.querySelector('.upgrade-toggle');
+    if(toggle){
+      toggle.addEventListener('click', (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        setAutoEnabled(def.id, !isAutoEnabled(def.id));
+      });
+    }
+    const tryBuy = ()=>{
+      if(btn.classList.contains('is-disabled')) return;
+      onBuy(def.id);
+    };
+    btn.addEventListener('click', (e)=>{
+      if(e.target.closest('.upgrade-toggle')) return;
+      tryBuy();
+    });
+    btn.addEventListener('keydown', (e)=>{
+      if(e.key !== 'Enter' && e.key !== ' ') return;
+      if(e.target.closest('.upgrade-toggle')) return;
+      e.preventDefault();
+      tryBuy();
+    });
+    return btn;
+  }
+
+  function makeQuestCardShell(){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quest';
+    btn.innerHTML =
+      '<div class="quest-top">' +
+        '<span class="quest-name"></span>' +
+        '<span class="quest-kind"></span>' +
+      '</div>' +
+      '<p class="quest-desc"></p>' +
+      '<div class="quest-reward"></div>' +
+      '<div class="quest-progress-row">' +
+        '<span class="quest-prog"></span>' +
+        '<span class="quest-action">In progress</span>' +
+      '</div>' +
+      '<div class="quest-bar" aria-hidden="true"><span></span></div>';
+    return btn;
+  }
+
+  function ensureQuestSlotButton(slot){
+    while(questSlotButtons.length <= slot){
+      const idx = questSlotButtons.length;
+      const btn = makeQuestCardShell();
+      btn.addEventListener('click', ()=>{
+        const q = activeQuests[idx];
+        if(q) claimActiveQuest(q.uid);
+      });
+      questSlotButtons.push(btn);
+    }
+    return questSlotButtons[slot];
+  }
+
+  function fillActiveQuestButton(btn, q){
+    const progress = activeQuestProgress(q);
+    const complete = progress >= q.target;
+    const meta = QUEST_RARITY[q.rarity] || QUEST_RARITY.common;
+    for(const r of QUEST_RARITIES) btn.classList.remove('rarity-' + r);
+    btn.classList.remove('quest-locked', 'claimed');
+    btn.hidden = false;
+    btn.dataset.id = q.uid;
+    btn.classList.add('rarity-' + q.rarity);
+    btn.classList.toggle('claimable', complete);
+    btn.disabled = !complete;
+    btn.querySelector('.quest-name').textContent = q.name;
+    btn.querySelector('.quest-kind').textContent = meta.label;
+    btn.querySelector('.quest-desc').textContent = q.desc;
+    btn.querySelector('.quest-reward').textContent = contractRewardText(q.reward);
+    const fill = btn.querySelector('.quest-bar > span');
+    if(fill) fill.style.width = Math.min(100, (progress / q.target) * 100) + '%';
+    const progEl = btn.querySelector('.quest-prog');
+    if(progEl){
+      progEl.innerHTML =
+        '<b>' + formatNum(progress) + '</b> / ' + formatNum(q.target);
+    }
+    const actionEl = btn.querySelector('.quest-action');
+    if(actionEl) actionEl.textContent = complete ? 'Claim · replace' : 'In progress';
+    return complete;
+  }
+
+  function fillLockedQuestButton(btn, slotIndex){
+    const unlockLvl = slotIndex + 2;
+    for(const r of QUEST_RARITIES) btn.classList.remove('rarity-' + r);
+    btn.classList.remove('claimable', 'claimed');
+    btn.classList.add('quest-locked');
+    btn.hidden = false;
+    btn.disabled = true;
+    delete btn.dataset.id;
+    btn.querySelector('.quest-name').textContent = 'Locked slot';
+    btn.querySelector('.quest-kind').textContent = 'Lv ' + unlockLvl;
+    btn.querySelector('.quest-desc').textContent =
+      'Reach run level ' + unlockLvl + ' to open this quest slot.';
+    btn.querySelector('.quest-reward').textContent = '—';
+    const fill = btn.querySelector('.quest-bar > span');
+    if(fill) fill.style.width = '0%';
+    const progEl = btn.querySelector('.quest-prog');
+    if(progEl) progEl.textContent = '0 / 1';
+    const actionEl = btn.querySelector('.quest-action');
+    if(actionEl) actionEl.textContent = 'Locked';
+  }
+
+  function updateQuestsUI(){
+    updateQuestTabAvailability();
+    if(!questsEl) return;
+    const cap = questSlotCap();
+    let questReady = 0;
+    const claimable = [];
+    const inProgress = [];
+
+    while(questSlotButtons.length > activeQuests.length){
+      const btn = questSlotButtons.pop();
+      if(btn && btn.parentNode) btn.parentNode.removeChild(btn);
+    }
+    for(let i = 0; i < activeQuests.length; i++){
+      const btn = ensureQuestSlotButton(i);
+      if(fillActiveQuestButton(btn, activeQuests[i])){
+        questReady++;
+        claimable.push(btn);
+      } else {
+        inProgress.push(btn);
+      }
+    }
+
+    const lockedNeed = Math.max(0, MAX_QUEST_SLOTS - cap);
+    while(questLockedButtons.length > lockedNeed){
+      const btn = questLockedButtons.pop();
+      if(btn && btn.parentNode) btn.parentNode.removeChild(btn);
+    }
+    while(questLockedButtons.length < lockedNeed){
+      questLockedButtons.push(makeQuestCardShell());
+    }
+    for(let i = 0; i < lockedNeed; i++){
+      fillLockedQuestButton(questLockedButtons[i], cap + i);
+    }
+
+    // Only reshuffle DOM when claimable order actually changes.
+    orderUpgradeButtons(
+      questsEl,
+      claimable.concat(inProgress, questLockedButtons)
+    );
+    if(questReadyValEl) questReadyValEl.textContent = String(questReady);
+    if(questSlotsMetaEl){
+      questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
+    }
+    setTabBadge('quests', questReady);
+  }
+
+  function updateAchievementsUI(){
+    if(!achievementsEl) return;
+    let achieveReady = 0;
+    const claimable = [];
+    const active = [];
+    const done = [];
+    for(const def of ACHIEVEMENT_DEFS){
+      const btn = contractButtons[def.id];
+      if(!btn) continue;
+      const revealed = achievementRevealed(def);
+      btn.hidden = !revealed;
+      if(!revealed) continue;
+      const progress = achievementProgress(def);
+      const complete = progress >= def.target;
+      const claimed = achievementIsClaimed(def);
+      const canClaim = complete && !claimed;
+      const stillSecret = !!(def.secret && !complete && !claimed);
+      if(canClaim) achieveReady++;
+      btn.disabled = !canClaim;
+      btn.classList.toggle('claimable', canClaim);
+      btn.classList.toggle('claimed', claimed);
+      btn.classList.add('achievement');
+      btn.querySelector('.quest-name').textContent = stillSecret ? '???' : def.name;
+      btn.querySelector('.quest-desc').textContent = stillSecret
+        ? 'Hidden achievement — keep playing.'
+        : def.desc;
+      const fill = btn.querySelector('.quest-bar > span');
+      if(fill){
+        fill.style.width = Math.min(100, (progress / def.target) * 100) + '%';
+      }
+      const progEl = btn.querySelector('.quest-prog');
+      if(progEl){
+        progEl.innerHTML = stillSecret
+          ? '<b>?</b> / ?'
+          : ('<b>' + formatNum(progress) + '</b> / ' + formatNum(def.target));
+      }
+      const actionEl = btn.querySelector('.quest-action');
+      if(actionEl){
+        actionEl.textContent = claimed
+          ? 'Claimed'
+          : (canClaim ? 'Claim reward' : 'In progress');
+      }
+      if(canClaim) claimable.push(btn);
+      else if(claimed) done.push(btn);
+      else active.push(btn);
+    }
+    if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
+    setTabBadge('achievements', achieveReady);
+    orderUpgradeButtons(achievementsEl, claimable.concat(active, done));
+  }
+
+  function updateContractsUI(){
+    updateQuestsUI();
+    updateAchievementsUI();
+  }
+
+  function makeAchievementButton(def){
+    const btn = makeQuestCardShell();
+    btn.classList.add('achievement');
+    btn.dataset.id = def.id;
+    btn.querySelector('.quest-name').textContent = def.secret ? '???' : def.name;
+    btn.querySelector('.quest-kind').textContent = 'Achievement';
+    btn.querySelector('.quest-desc').textContent = def.secret
+      ? 'Hidden achievement — keep playing.'
+      : def.desc;
+    btn.querySelector('.quest-reward').textContent = contractRewardText(def.reward);
+    btn.addEventListener('click', ()=>claimAchievement(def.id));
+    return btn;
+  }
+
+  function buildContracts(){
+    if(questsEl) questsEl.innerHTML = '';
+    if(achievementsEl) achievementsEl.innerHTML = '';
+    questSlotButtons.length = 0;
+    questLockedButtons.length = 0;
+    for(const key of Object.keys(contractButtons)) delete contractButtons[key];
+    for(const def of ACHIEVEMENT_DEFS){
+      const btn = makeAchievementButton(def);
+      if(achievementsEl) achievementsEl.appendChild(btn);
+      contractButtons[def.id] = btn;
+    }
+    syncQuestSlots();
+    updateContractsUI();
+    persistSave();
   }
 
   function buildShop(){
     upgradesEl.innerHTML = '';
     for(const def of UPGRADE_DEFS){
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'upgrade';
-      btn.dataset.id = def.id;
-      btn.innerHTML =
-        '<div class="upgrade-top">' +
-          '<span class="upgrade-name"></span>' +
-          '<span class="upgrade-lvl"></span>' +
-        '</div>' +
-        '<p class="upgrade-desc"></p>' +
-        '<div class="upgrade-effect"></div>' +
-        '<div class="upgrade-cost"></div>' +
-        '<div class="upgrade-progress" aria-hidden="true"><span></span></div>';
-      btn.querySelector('.upgrade-name').textContent = def.name;
-      btn.querySelector('.upgrade-desc').textContent = def.desc;
-      btn.addEventListener('click', ()=>buyUpgrade(def.id));
+      const btn = makeUpgradeButton(def, buyUpgrade, false);
       upgradesEl.appendChild(btn);
       upgradeButtons[def.id] = btn;
     }
+    if(prestigeUpgradesEl){
+      prestigeUpgradesEl.innerHTML = '';
+      for(const def of PRESTIGE_DEFS){
+        const btn = makeUpgradeButton(def, buyPrestigeUpgrade, true);
+        prestigeUpgradesEl.appendChild(btn);
+        prestigeButtons[def.id] = btn;
+      }
+    }
+    buildContracts();
     updateShopUI();
+    updatePrestigeUI();
   }
 
   const suitBombBar = document.getElementById('suitBombBar');
@@ -2850,13 +5503,17 @@
 
     const cd = suitBombCooldownMs();
     const ready = suitBombReady(now);
-    const auto = upgradeLevel('autoSuitBomb') > 0;
+    const autoOwned = upgradeLevel('autoSuitBomb') > 0;
+    const auto = autoOwned && isAutoEnabled('autoSuitBomb');
     if(ready){
-      suitBombStatus.textContent = auto ? 'ready · auto' : 'ready';
+      suitBombStatus.textContent = auto
+        ? 'ready · auto'
+        : (autoOwned ? 'ready · paused' : 'ready');
       suitBombStatus.className = auto ? 'ready auto' : 'ready';
     } else {
       const left = Math.max(0, suitBombReadyAt - now);
-      suitBombStatus.textContent = formatInterval(left) + (auto ? ' · auto' : '');
+      suitBombStatus.textContent = formatInterval(left)
+        + (auto ? ' · auto' : (autoOwned ? ' · paused' : ''));
       suitBombStatus.className = auto ? 'auto' : '';
     }
 
@@ -2870,15 +5527,22 @@
       }
     }
     const inShoe = new Set(activeSuits());
+    const inFlight = {'♠':0,'♥':0,'♦':0,'♣':0};
+    for(const b of balls){
+      if(b.card && inFlight[b.card.suit] != null) inFlight[b.card.suit]++;
+    }
     let visible = 0;
     for(const s of SUITS){
       const btn = suitBombButtons[s];
       if(!btn) continue;
       const count = counts[s] || 0;
       const queued = pendingSuitBomb === s;
-      // Exiled suits disappear once the board is clear of them.
-      const gone = !inShoe.has(s) && count === 0 && !queued;
+      const present = count > 0 || inFlight[s] > 0 || queued;
+      // Always show suits still in the shoe (even with none on the board).
+      // Only hide an exiled suit after it is fully gone from play.
+      const gone = !inShoe.has(s) && !present;
       btn.classList.toggle('gone', gone);
+      btn.hidden = gone;
       if(gone) continue;
       visible++;
       // Stay clickable during hand clears — cast queues until the board is free.
@@ -2914,8 +5578,145 @@
     refreshButtons();
     draw();
   });
+  const cashoutModal = document.getElementById('cashoutModal');
+  const cashoutModalGain = document.getElementById('cashoutModalGain');
+  const cashoutModalLevel = document.getElementById('cashoutModalLevel');
+  const cashoutModalTables = document.getElementById('cashoutModalTables');
+  const cashoutModalCancel = document.getElementById('cashoutModalCancel');
+  const cashoutModalConfirm = document.getElementById('cashoutModalConfirm');
+  const cashoutModalBackdrop = document.getElementById('cashoutModalBackdrop');
+  let cashoutModalBusy = false;
+  let cashoutCountRaf = 0;
+
+  function setCashoutGainDisplay(n){
+    if(!cashoutModalGain) return;
+    cashoutModalGain.innerHTML = formatNum(n) + '<span>comps</span>';
+  }
+
+  function animateCashoutGain(target){
+    if(cashoutCountRaf) cancelAnimationFrame(cashoutCountRaf);
+    if(!cashoutModalGain || !(target > 0)){
+      setCashoutGainDisplay(target || 0);
+      return;
+    }
+    const start = performance.now();
+    const dur = Math.min(900, 420 + Math.log10(target + 1) * 180);
+    const tick = (now)=>{
+      const t = Math.min(1, (now - start) / dur);
+      // Ease-out cubic — lands hard on the final comps.
+      const eased = 1 - Math.pow(1 - t, 3);
+      setCashoutGainDisplay(Math.round(target * eased));
+      if(t < 1) cashoutCountRaf = requestAnimationFrame(tick);
+      else cashoutCountRaf = 0;
+    };
+    setCashoutGainDisplay(0);
+    cashoutCountRaf = requestAnimationFrame(tick);
+  }
+
+  function closeCashOutModal(){
+    if(!cashoutModal || cashoutModal.hidden) return;
+    if(cashoutCountRaf){
+      cancelAnimationFrame(cashoutCountRaf);
+      cashoutCountRaf = 0;
+    }
+    cashoutModal.classList.add('leaving');
+    cashoutModal.classList.remove('show');
+    let done = false;
+    const finish = (e)=>{
+      if(done) return;
+      if(e && e.target !== cashoutModal) return;
+      done = true;
+      cashoutModal.hidden = true;
+      cashoutModal.classList.remove('leaving');
+      cashoutModalBusy = false;
+      if(cashoutModalConfirm) cashoutModalConfirm.disabled = false;
+      cashoutModal.removeEventListener('transitionend', finish);
+    };
+    cashoutModal.addEventListener('transitionend', finish);
+    setTimeout(()=>finish(), 300);
+  }
+
+  function openCashOutModal(){
+    const gain = pendingComps();
+    if(gain <= 0 || !cashoutModal || cashoutModalBusy) return;
+    if(!cashoutModal.hidden && cashoutModal.classList.contains('show')) return;
+    cashoutModalBusy = false;
+    if(cashoutModalConfirm) cashoutModalConfirm.disabled = false;
+    if(cashoutModalLevel) cashoutModalLevel.textContent = 'Lv ' + runLevel;
+    if(cashoutModalTables) cashoutModalTables.textContent = '#' + (prestigeCount + 1);
+    cashoutModal.classList.remove('leaving');
+    cashoutModal.hidden = false;
+    animateCashoutGain(gain);
+    // Next frame so the enter transition plays.
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>cashoutModal.classList.add('show'));
+    });
+    if(cashoutModalConfirm) cashoutModalConfirm.focus();
+  }
+
+  function confirmCashOutModal(){
+    if(!cashoutModal || cashoutModal.hidden || cashoutModalBusy) return;
+    if(!cashoutModal.classList.contains('show')) return;
+    const gain = pendingComps();
+    if(gain <= 0) return;
+    cashoutModalBusy = true;
+    if(cashoutModalConfirm) cashoutModalConfirm.disabled = true;
+    closeCashOutModal();
+    if(!cashOut()){
+      cashoutModalBusy = false;
+      if(cashoutModalConfirm) cashoutModalConfirm.disabled = false;
+      return;
+    }
+    banner.classList.remove('show');
+    freshState();
+    refreshButtons();
+    draw();
+    pushPopup({
+      x: W / 2,
+      y: PEG_ZONE * 0.42,
+      text: '+' + formatNum(gain) + ' COMPS',
+      color: '#F0D78C',
+      t0: performance.now(),
+      duration: 1800,
+      big: true
+    });
+    pushPopup({
+      x: W / 2,
+      y: PEG_ZONE * 0.42 + 36,
+      text: 'CASHED OUT',
+      color: '#C9A84A',
+      t0: performance.now() + 80,
+      duration: 1600,
+      big: true
+    });
+    if(!resolving && !looping) startLoop();
+  }
+
+  if(cashOutBtn){
+    cashOutBtn.addEventListener('click', openCashOutModal);
+  }
+  if(cashoutModalCancel) cashoutModalCancel.addEventListener('click', ()=>{
+    if(cashoutModalBusy) return;
+    closeCashOutModal();
+  });
+  if(cashoutModalBackdrop) cashoutModalBackdrop.addEventListener('click', ()=>{
+    if(cashoutModalBusy) return;
+    closeCashOutModal();
+  });
+  if(cashoutModalConfirm) cashoutModalConfirm.addEventListener('click', confirmCashOutModal);
+  document.addEventListener('keydown', (e)=>{
+    if(!cashoutModal || cashoutModal.hidden || !cashoutModal.classList.contains('show')) return;
+    if(e.key === 'Escape'){
+      if(cashoutModalBusy) return;
+      e.preventDefault();
+      closeCashOutModal();
+    } else if(e.key === 'Enter'){
+      e.preventDefault();
+      confirmCashOutModal();
+    }
+  });
   document.getElementById('resetScores').addEventListener('click', ()=>{
-    if(!confirm('Reset chips, upgrades, and the board?')) return;
+    if(!confirm('Wipe ALL progress, including VIP comps, perks, and contracts?')) return;
     resetProgress();
     freshState();
     refreshButtons();
@@ -2947,7 +5748,11 @@
     pointerDown = true;
     canvas.setPointerCapture(e.pointerId);
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
-    draw();
+    if(holdDealUnlocked()){
+      startHoldDrop(null);
+    } else {
+      draw();
+    }
   });
   canvas.addEventListener('pointermove', (e)=>{
     if(!pointerDown) return;
@@ -2958,11 +5763,16 @@
   function releasePointer(){
     if(!pointerDown) return;
     pointerDown = false;
+    if(holdDealUnlocked()){
+      stopHoldDrop();
+      return;
+    }
     if(!inputBlocked()) dropAt(aimX);
   }
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', ()=>{
     pointerDown = false;
+    stopHoldDrop();
   });
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
@@ -2970,14 +5780,24 @@
   // Lightweight keeper: only runs work when the physics/resolve loops are idle.
   function idleSpin(){
     const now = performance.now();
+    if(upgradeLevel('autoDealer') > 0) updateAutoStatus(now);
     if(!looping && !resolveLooping){
       updateSuitBombUI(now);
       tryAutoDrop(now);
+      tryHoldDrop(now);
       tryAutoSuitBomb(now);
+      maybeAutoBuy(now);
+      maybeAutoClaimQuests(now);
       const needLoop = balls.length || particles.length || resolving
+        || holdDropping
+        || (prestigeLevel('pitBoss') > 0 && isAutoEnabled('pitBoss'))
+        || (prestigeLevel('questDesk') > 0
+          && isAutoEnabled('questDesk')
+          && activeQuests.some(q => activeQuestComplete(q)))
         || Number.isFinite(autoDropIntervalMs())
         || (suitBombUnlocked() && (
-          upgradeLevel('autoSuitBomb') > 0 || !suitBombReady(now)
+          (upgradeLevel('autoSuitBomb') > 0 && isAutoEnabled('autoSuitBomb'))
+          || !suitBombReady(now)
         ));
       if(needLoop) startLoop();
       else draw();
@@ -2986,14 +5806,23 @@
   }
 
   loadSave();
+  // Don't flash unlock animations for upgrades already available on load.
+  for(const def of UPGRADE_DEFS){
+    if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
+  }
   buildShop();
   buildSuitBombUI();
   freshState();
   updateScoreUI();
+  updateLevelUI();
   updateAutoStatus();
   updateShopUI();
+  updatePrestigeUI();
+  updateContractsUI();
   updateSuitBombUI();
   refreshButtons();
+  updateRailTabAvailability();
+  setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
   draw();
   requestAnimationFrame(idleSpin);
   window.addEventListener('beforeunload', persistSave);
