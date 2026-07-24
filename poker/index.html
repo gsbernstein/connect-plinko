@@ -2580,8 +2580,20 @@
       }
     }
 
+    // Grid-zone balls (seating + cascade launches still below the peg line)
+    // must paint under the plate so upward flights don't cover the overlay.
     for(const b of balls){
-      if(b.phase==='grid') drawBall(b);
+      if(b.y < PEG_ZONE && b.phase !== 'grid') continue;
+      for(let i=0;i<b.trail.length;i++){
+        const t = b.trail[i];
+        if(t.y < PEG_ZONE) continue;
+        const alpha = (i+1)/b.trail.length * 0.25;
+        ctx.beginPath();
+        ctx.arc(t.x,t.y,20,0,Math.PI*2);
+        ctx.fillStyle = trailRGBA(b.card, alpha);
+        ctx.fill();
+      }
+      drawBall(b);
     }
 
     plateCtx.clearRect(0,PEG_ZONE,W,H-PEG_ZONE);
@@ -2619,20 +2631,6 @@
     // Near-miss guides sit on top of the plate so the dotted bridges stay
     // readable between holes (pairs, flush/straight draws).
     drawNearMissHints();
-
-    for(const b of balls){
-      if(b.phase==='grid' || b.y < PEG_ZONE) continue;
-      for(let i=0;i<b.trail.length;i++){
-        const t = b.trail[i];
-        if(t.y < PEG_ZONE) continue;
-        const alpha = (i+1)/b.trail.length * 0.25;
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,20,0,Math.PI*2);
-        ctx.fillStyle = trailRGBA(b.card, alpha);
-        ctx.fill();
-      }
-      drawBall(b);
-    }
 
     for(const p of particles){
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
