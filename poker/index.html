@@ -4997,9 +4997,12 @@
     target.translate(cx, cy);
     target.rotate(angle || 0);
 
+    // Soft contact shadow only — suit-colored blur bloomed the gold rim into
+    // a big yellow halo in the peg zone that settled column chips never had.
     if(isBall){
-      target.shadowColor = color;
-      target.shadowBlur = Math.max(8, radius * 0.45);
+      target.shadowColor = 'rgba(0,0,0,0.45)';
+      target.shadowBlur = Math.max(3, radius * 0.14);
+      target.shadowOffsetY = Math.max(1, radius * 0.06);
     }
     if(tex){
       target.drawImage(tex, -radius, -radius, d, d);
@@ -5011,6 +5014,7 @@
       target.fill();
     }
     target.shadowBlur = 0;
+    target.shadowOffsetY = 0;
     drawChipGlyphs(target, card, radius);
 
     if(highlight){
