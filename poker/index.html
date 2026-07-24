@@ -389,17 +389,17 @@
     <a class="current" href="./" aria-current="page">Poker</a>
   </div>
 
-  <div class="hud">
-    <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
-    <div class="idle-pill" id="autoStatus">Auto&nbsp;<b id="autoStatusVal">off</b></div>
-    <div class="next-card">
-      <canvas id="nextPreview" width="72" height="72"></canvas>
-      <div>Next&nbsp;<b id="nextLabel">—</b></div>
-    </div>
-  </div>
-
   <div class="play-row">
     <div class="stage">
+      <div class="hud">
+        <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
+        <div class="idle-pill" id="autoStatus">Auto&nbsp;<b id="autoStatusVal">off</b></div>
+        <div class="next-card">
+          <canvas id="nextPreview" width="72" height="72"></canvas>
+          <div>Next&nbsp;<b id="nextLabel">—</b></div>
+        </div>
+      </div>
+
       <div class="cols" id="cols"></div>
 
       <div class="board-frame">
@@ -613,6 +613,30 @@
       maxLevel: 10
     },
     {
+      id: 'pinPayout',
+      name: 'Pin Tip',
+      desc: 'Earn chips whenever a card bounces off a peg.',
+      baseCost: 35,
+      costScale: 1.65,
+      maxLevel: 25
+    },
+    {
+      id: 'bumperPayout',
+      name: 'Rail Tax',
+      desc: 'Earn chips whenever a card hits a bumper arch.',
+      baseCost: 50,
+      costScale: 1.7,
+      maxLevel: 25
+    },
+    {
+      id: 'floorPayout',
+      name: 'Sweep Stakes',
+      desc: 'Earn chips when a full-board floor clear fires.',
+      baseCost: 90,
+      costScale: 1.8,
+      maxLevel: 20
+    },
+    {
       id: 'cardSense',
       name: 'Card Sense',
       desc: 'Auto-drops aim toward near-miss columns.',
@@ -645,7 +669,8 @@
   function autoDropIntervalMs(){
     const lvl = upgradeLevel('autoDealer');
     if(lvl <= 0) return Infinity;
-    return Math.max(320, Math.floor(3800 * Math.pow(0.84, lvl - 1)));
+    // Steep curve: ~3.2s at Lv1, sub-second by Lv5, floors at 150ms.
+    return Math.max(150, Math.floor(3200 * Math.pow(0.72, lvl - 1)));
   }
 
   function autoDropCount(){
@@ -662,6 +687,50 @@
 
   function physicsSpeed(){
     return 1 + 0.22 * upgradeLevel('feltGrease');
+  }
+
+  function pinHitPayout(){
+    return upgradeLevel('pinPayout');
+  }
+
+  function bumperHitPayout(){
+    const lvl = upgradeLevel('bumperPayout');
+    return lvl ? lvl * 2 : 0;
+  }
+
+  function floorClearPayout(){
+    const lvl = upgradeLevel('floorPayout');
+    return lvl ? lvl * 15 : 0;
+  }
+
+  let shopUiTimer = 0;
+  function awardChips(amount){
+    amount = Math.floor(amount);
+    if(amount <= 0) return 0;
+    score += amount;
+    lifetime += amount;
+    scheduleSave();
+    updateScoreUI();
+    // Peg/bumper hits can fire often — debounce shop affordability refresh.
+    clearTimeout(shopUiTimer);
+    shopUiTimer = setTimeout(updateShopUI, 120);
+    return amount;
+  }
+
+  let lastHitPopupAt = 0;
+  function spawnHitPopup(x, y, text, color){
+    const now = performance.now();
+    // Peg traffic is dense — keep chip awards, but don't flood the canvas.
+    if(now - lastHitPopupAt < 90) return;
+    lastHitPopupAt = now;
+    popups.push({
+      x, y: y - 8,
+      text,
+      color: color || '#ffffff',
+      t0: now,
+      duration: 650
+    });
+    if(!resolving && !looping) startLoop();
   }
 
   function formatNum(n){
@@ -690,6 +759,12 @@
         return '×' + scoreMultiplier().toFixed(2).replace(/\.00$/,'');
       case 'hotStreak':
         return lvl ? ('+' + lvl + ' chain') : 'No bonus';
+      case 'pinPayout':
+        return lvl ? ('+' + pinHitPayout() + ' / peg') : 'No payout';
+      case 'bumperPayout':
+        return lvl ? ('+' + bumperHitPayout() + ' / bumper') : 'No payout';
+      case 'floorPayout':
+        return lvl ? ('+' + floorClearPayout() + ' / clear') : 'No payout';
       case 'cardSense':
         return lvl ? 'Aiming near hands' : 'Random columns';
       case 'feltGrease':
@@ -1012,6 +1087,13 @@
       if(rail.edgeRight) ball.vx = Math.min(ball.vx, -2.4);
       ball.vy = Math.min(ball.vy, -1.5);
       impartSpin(ball, kx, ky);
+      if(!rail.hit){
+        const payout = bumperHitPayout();
+        if(payout > 0){
+          awardChips(payout);
+          spawnHitPopup(ball.x, ball.y, '+' + payout, PEG);
+        }
+      }
       rail.hit = 14;
     }
   }
@@ -1157,6 +1239,13 @@
           if(p.x < CELL*0.75) ball.vx = Math.max(ball.vx, 1.1);
           if(p.x > W - CELL*0.75) ball.vx = Math.min(ball.vx, -1.1);
           impartSpin(ball, nx, ny);
+          if(!p.hit){
+            const payout = pinHitPayout();
+            if(payout > 0){
+              awardChips(payout);
+              spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
+            }
+          }
           p.hit = 10;
         }
       }
@@ -1383,7 +1472,8 @@
 
     draw();
 
-    if(balls.length>0 || particles.length>0 || Number.isFinite(autoDropIntervalMs())){
+    const popupsAlive = popups.some(p => performance.now()-p.t0 < p.duration);
+    if(balls.length>0 || particles.length>0 || popupsAlive || Number.isFinite(autoDropIntervalMs())){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -1930,18 +2020,20 @@
           if(!isFloorClear){
             const chainMult = Math.max(1, chainStep + chainBonus());
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
-            score += pts;
-            lifetime += pts;
-            scheduleSave();
-            updateScoreUI();
+            awardChips(pts);
+            clearTimeout(shopUiTimer);
             updateShopUI();
             spawnPopups(currentGroups, pts, chainMult);
           } else {
+            const floorPts = floorClearPayout();
+            if(floorPts > 0) awardChips(floorPts);
+            clearTimeout(shopUiTimer);
+            updateShopUI();
             popups.push({
               x: W/2,
               y: PEG_ZONE + (ROWS-1)*CELL + CELL/2,
-              text: 'FLOOR CLEAR!',
-              color: '#ffffff',
+              text: floorPts > 0 ? ('FLOOR CLEAR +' + floorPts) : 'FLOOR CLEAR!',
+              color: floorPts > 0 ? (getCSS('--felt-bright') || '#2d8a6e') : '#ffffff',
               t0: performance.now(),
               duration: 900,
               big: true
