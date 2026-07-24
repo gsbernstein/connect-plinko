@@ -29,6 +29,8 @@ Full-height layout: the table scales to fit, and the sidebar tabs scroll with th
 
 Saves in the browser. Near-miss guides show when you’re close; a full board still triggers the automatic floor clear.
 
+**Sound effects** (Web Audio, no downloads) cover drops, peg ticks, bumpers, landings, hand/match wins, chains, level-ups, buys, and cash-out. Mute from Poker **Settings** or the Classic footer — preference is shared across both games.
+
 ## Local
 
 Serve the repo root:

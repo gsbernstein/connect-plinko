@@ -190,6 +190,48 @@
     font-size:12px;
     line-height:1.45;
   }
+  .settings-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px 0 14px;
+    border-bottom:1px solid #2a2545;
+    margin-bottom:14px;
+  }
+  .settings-row-label{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    min-width:0;
+  }
+  .settings-row-label strong{
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .settings-row-label span{
+    font-size:11px;
+    color:var(--ink-dim);
+    line-height:1.35;
+  }
+  .sfx-toggle{
+    flex:0 0 auto;
+    background:var(--panel-2);
+    color:var(--ink);
+    border:1px solid #3a3558;
+    border-radius:999px;
+    padding:8px 14px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    cursor:pointer;
+    min-width:72px;
+  }
+  .sfx-toggle:hover{border-color:#463d7a;}
+  .sfx-toggle.is-muted{
+    color:var(--ink-dim);
+    border-color:#2a2545;
+  }
   .rails{
     width:100%;
     display:flex;
@@ -1623,6 +1665,13 @@
         <div class="shop-head">
           <h2>Settings</h2>
         </div>
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <strong>Sound effects</strong>
+            <span>Casino chips, peg ticks, hand wins</span>
+          </div>
+          <button type="button" class="sfx-toggle" id="sfxToggle" aria-pressed="true">On</button>
+        </div>
         <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
         <button type="button" class="reset" id="resetScores">Reset all progress</button>
       </section>
@@ -1718,6 +1767,7 @@
   </div>
 </div>
 
+<script src="../sfx.js"></script>
 <script>
 (function(){
   const COLS = 7, ROWS = 6, CELL = 90;
@@ -1753,6 +1803,31 @@
   const plateCtx = plateCanvas.getContext('2d');
 
   function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+  function sfx(id){
+    if(window.PlinkoSfx) PlinkoSfx.play(id);
+  }
+  function sfxWinTier(tier){
+    if(window.PlinkoSfx) PlinkoSfx.playWinTier(tier);
+  }
+  function syncSfxToggle(){
+    const btn = document.getElementById('sfxToggle');
+    if(!btn || !window.PlinkoSfx) return;
+    const muted = PlinkoSfx.isMuted();
+    btn.textContent = muted ? 'Off' : 'On';
+    btn.classList.toggle('is-muted', muted);
+    btn.setAttribute('aria-pressed', muted ? 'false' : 'true');
+  }
+  const sfxToggleBtn = document.getElementById('sfxToggle');
+  if(sfxToggleBtn){
+    sfxToggleBtn.addEventListener('click', ()=>{
+      if(!window.PlinkoSfx) return;
+      PlinkoSfx.unlock();
+      PlinkoSfx.toggleMute();
+      syncSfxToggle();
+      if(!PlinkoSfx.isMuted()) sfx('click');
+    });
+  }
 
   // ---- cards ----
   const SUITS = ['♠','♥','♦','♣'];
@@ -2839,6 +2914,7 @@
     );
     activeQuests[idx] = rollQuest(used);
     if(!opts.deferUi){
+      sfx('claim');
       refreshQuestUiAndSave();
       pushPopup({
         x: W / 2,
@@ -2866,6 +2942,7 @@
       claimed.push(q);
     }
     if(!claimed.length) return 0;
+    sfx('claim');
     refreshQuestUiAndSave();
     if(claimed.length === 1){
       const q = claimed[0];
@@ -2909,6 +2986,7 @@
     if(!def || !achievementCanClaim(def)) return false;
     questClaimed[def.id] = true;
     applyContractReward(def.reward);
+    sfx('claim');
     refreshQuestUiAndSave();
     pushPopup({
       x: W / 2,
@@ -3147,6 +3225,7 @@
     };
     const sign = Math.random() < 0.5 ? -1 : 1;
     const gold = '#F0D78C';
+    sfx('levelup');
     pushPopup({
       x: W / 2,
       y: PEG_ZONE * 0.45,
@@ -3689,6 +3768,7 @@
 
   function buyUpgrade(id){
     if(!purchaseUpgrade(id)) return;
+    sfx('buy');
     scheduleSave();
     updateScoreUI();
     updateShopUI();
@@ -3748,6 +3828,7 @@
     if(comps < cost) return;
     comps -= cost;
     prestigeUpgrades[id] = lvl + 1;
+    sfx('buy');
     // VIP skill bonuses may cap purchasable room — clamp bought levels.
     for(const uDef of UPGRADE_DEFS){
       upgrades[uDef.id] = Math.min(purchasedLevel(uDef.id), maxPurchasableLevel(uDef.id));
@@ -4054,6 +4135,7 @@
       ball.vy = Math.min(ball.vy, -1.5);
       impartSpin(ball, kx, ky);
       if(!rail.hit){
+        sfx('bumper');
         const payout = bumperHitPayout();
         if(payout > 0){
           awardChips(payout);
@@ -4194,6 +4276,7 @@
     };
     balls.push(ball);
     noteCardDropped();
+    sfx('drop');
     startLoop();
     refreshButtons();
   }
@@ -4265,6 +4348,7 @@
           if(p.x > W - CELL*0.75) ball.vx = Math.min(ball.vx, -1.1);
           impartSpin(ball, nx, ny);
           if(!p.hit){
+            sfx('peg');
             const payout = pinHitPayout();
             if(payout > 0){
               awardChips(payout);
@@ -4391,6 +4475,7 @@
     ball.vy = 0;
     ball.spin *= 0.2;
     ball.landed = true;
+    sfx('land');
   }
 
   function stepGridBall(ball, gravity){
@@ -4800,6 +4885,8 @@
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
     const mult = scoreMultiplier();
+    let bestTier = 'normal';
+    const tierRank = { normal:0, medium:1, big:2, huge:3 };
     for(const g of groups){
       const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
       const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
@@ -4807,6 +4894,7 @@
       const y = PEG_ZONE + avgR*CELL + CELL/2;
       const pts = Math.floor(g.points * chainMult * mult);
       const tier = handTextTier(g.name);
+      if((tierRank[tier] || 0) > (tierRank[bestTier] || 0)) bestTier = tier;
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
       const bangs = '!'.repeat(fx.bangs);
       const sign = Math.random() < 0.5 ? -1 : 1;
@@ -4825,7 +4913,9 @@
         big: fx.big
       });
     }
+    sfxWinTier(bestTier);
     if(chainMult>1){
+      sfx('chain');
       pushPopup({
         x:W/2, y:PEG_ZONE*0.4,
         text:'CHAIN ×'+chainMult+'!',
@@ -4834,6 +4924,7 @@
       });
     }
     if(groups.length>1){
+      sfx('combo');
       pushPopup({
         x:W/2, y:PEG_ZONE*0.4 + (chainMult>1?34:0),
         text:'COMBO ×'+groups.length+'!',
@@ -5046,6 +5137,7 @@
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
+    sfx('suitbomb');
     refreshButtons();
     updateSuitBombUI(performance.now(), true);
     startResolveLoop();
@@ -5141,6 +5233,7 @@
     for(const g of groups) for(const [c,r] of g.cells) flashCells.add(c+','+r);
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
+    sfx('flash');
   }
 
   function finishResolveOrChain(){
@@ -5183,12 +5276,14 @@
             flushScoreUI();
             updateShopUI();
             spawnPopups(currentGroups, pts, chainMult);
+            sfx('explode');
           } else {
             const floorPts = floorClearPayout();
             if(floorPts > 0) awardChips(floorPts);
             clearTimeout(shopUiTimer);
             flushScoreUI();
             updateShopUI();
+            sfx('floor');
             pushPopup({
               x: W/2,
               y: PEG_ZONE + (ROWS-1)*CELL + CELL/2,
@@ -5698,7 +5793,10 @@
   }
 
   for(const tab of railTabs){
-    tab.addEventListener('click', ()=>setRailPanel(tab.dataset.panel));
+    tab.addEventListener('click', ()=>{
+      sfx('click');
+      setRailPanel(tab.dataset.panel);
+    });
   }
   if(welcomeToTableBtn){
     welcomeToTableBtn.addEventListener('click', ()=>setRailPanel('table'));
@@ -6603,6 +6701,7 @@
     freshState();
     refreshButtons();
     draw();
+    sfx('cashout');
     pushPopup({
       x: W / 2,
       y: PEG_ZONE * 0.42,
@@ -6764,6 +6863,7 @@
   refreshButtons();
   updateRailTabAvailability();
   setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
+  syncSfxToggle();
   draw();
   requestAnimationFrame(idleSpin);
   window.addEventListener('beforeunload', persistSave);
