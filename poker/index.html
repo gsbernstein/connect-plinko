@@ -554,17 +554,6 @@
     return String(r);
   }
   function cardFace(card){ return rankLabel(card.rank) + card.suit; }
-  // Tens are two glyphs — shrink + use mono so "10" doesn't read as a fat "O".
-  function fillRankText(target, rank, y, radius){
-    const label = rankLabel(rank);
-    if(label === '10'){
-      target.font = `bold ${Math.round(radius*0.52)}px 'IBM Plex Mono', monospace`;
-      target.fillText(label, 0, y);
-    } else {
-      target.font = `bold ${Math.round(radius*0.72)}px 'Space Grotesk', sans-serif`;
-      target.fillText(label, 0, y);
-    }
-  }
   function trailRGBA(card, alpha){
     const hex = SUIT_COLOR[card.suit] || '#ffffff';
     const n = parseInt(hex.slice(1), 16);
@@ -2444,10 +2433,12 @@
     target.fillStyle = ink;
     target.textAlign = 'center';
     target.textBaseline = 'middle';
-    fillRankText(target, card.rank, -radius*0.18, radius);
-    target.font = `${Math.round(radius*0.7)}px 'Space Grotesk', sans-serif`;
+    // Keep rank and suit apart so Q's tail (and similar) don't collide.
+    target.font = `bold ${Math.round(radius*0.62)}px 'Space Grotesk', sans-serif`;
+    target.fillText(rankLabel(card.rank), 0, -radius*0.30);
+    target.font = `${Math.round(radius*0.58)}px 'Space Grotesk', sans-serif`;
     target.fillStyle = color;
-    target.fillText(card.suit, 0, radius*0.32);
+    target.fillText(card.suit, 0, radius*0.36);
 
     if(highlight){
       target.beginPath();
@@ -2482,10 +2473,11 @@
     ctx.fillStyle = SUIT_INK[card.suit];
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    fillRankText(ctx, card.rank, -6, 32);
+    ctx.font = "bold 16px 'Space Grotesk', sans-serif";
+    ctx.fillText(rankLabel(card.rank), 0, -9);
     ctx.fillStyle = color;
-    ctx.font = "18px 'Space Grotesk', sans-serif";
-    ctx.fillText(card.suit, 0, 10);
+    ctx.font = "16px 'Space Grotesk', sans-serif";
+    ctx.fillText(card.suit, 0, 12);
     ctx.restore();
   }
 
