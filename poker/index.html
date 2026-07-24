@@ -378,6 +378,73 @@
     font-size:14px;
   }
   .idle-pill.on{color:var(--felt-bright);border-color:rgba(46,138,110,0.4);}
+  .suit-bomb{
+    width:100%;
+    display:none;
+    flex-direction:column;
+    gap:8px;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:12px;
+    padding:10px 12px;
+  }
+  .suit-bomb.show{display:flex;}
+  .suit-bomb-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+    font-size:12px;
+    color:var(--ink-dim);
+  }
+  .suit-bomb-head b{
+    color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+  }
+  .suit-bomb-head .ready{color:var(--felt-bright);}
+  .suit-bomb-head .auto{color:var(--peg);}
+  .suit-bomb-btns{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:6px;
+  }
+  .suit-btn{
+    position:relative;
+    overflow:hidden;
+    border:1px solid #2a2545;
+    background:var(--panel-2);
+    border-radius:10px;
+    padding:10px 0;
+    cursor:pointer;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:20px;
+    line-height:1;
+    color:var(--ink);
+    transition:transform .08s ease, border-color .15s ease, opacity .15s ease;
+  }
+  .suit-btn:hover:not(:disabled){
+    transform:translateY(-1px);
+    border-color:#463d7a;
+  }
+  .suit-btn:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  .suit-btn .cd-fill{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:0%;
+    background:rgba(139,127,255,0.22);
+    pointer-events:none;
+    transition:height .1s linear;
+  }
+  .suit-btn.charging .cd-fill{height:var(--cd, 0%);}
+  .suit-btn[data-suit="♥"]{color:var(--heart);}
+  .suit-btn[data-suit="♦"]{color:var(--diamond);}
+  .suit-btn[data-suit="♠"]{color:var(--spade);}
+  .suit-btn[data-suit="♣"]{color:var(--club);}
 </style>
 </head>
 <body>
@@ -398,6 +465,14 @@
           <canvas id="nextPreview" width="72" height="72"></canvas>
           <div>Next&nbsp;<b id="nextLabel">—</b></div>
         </div>
+      </div>
+
+      <div class="suit-bomb" id="suitBombBar" aria-label="Suit Purge">
+        <div class="suit-bomb-head">
+          <b>Suit Purge</b>
+          <span id="suitBombStatus">ready</span>
+        </div>
+        <div class="suit-bomb-btns" id="suitBombBtns"></div>
       </div>
 
       <div class="cols" id="cols"></div>
@@ -666,6 +741,22 @@
       maxLevel: 3
     },
     {
+      id: 'suitBomb',
+      name: 'Suit Purge',
+      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait.',
+      baseCost: 400,
+      costScale: 1.85,
+      maxLevel: 12
+    },
+    {
+      id: 'autoSuitBomb',
+      name: 'Auto Purge',
+      desc: 'Automatically cast Suit Purge on the most crowded suit when charged.',
+      baseCost: 1800,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
       id: 'cardSense',
       name: 'Card Sense',
       desc: 'Auto-drops aim toward near-miss columns.',
@@ -685,6 +776,7 @@
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let lastAutoDropAt = 0;
+  let suitBombReadyAt = 0;
   let saveTimer = 0;
 
   function upgradeLevel(id){ return upgrades[id] || 0; }
@@ -730,6 +822,21 @@
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     return lvl ? lvl * 15 : 0;
+  }
+
+  function suitBombCooldownMs(){
+    const lvl = upgradeLevel('suitBomb');
+    if(lvl <= 0) return Infinity;
+    // ~45s at Lv1, under 20s by Lv6, floors at 8s.
+    return Math.max(8000, Math.floor(45000 * Math.pow(0.88, lvl - 1)));
+  }
+
+  function suitBombUnlocked(){
+    return upgradeLevel('suitBomb') > 0;
+  }
+
+  function suitBombReady(now){
+    return suitBombUnlocked() && now >= suitBombReadyAt;
   }
 
   // Lowest non-ace rank still in the shoe. Lv0 => 2 (full ranks), Lv8 => 10.
@@ -835,6 +942,12 @@
         const gone = SUIT_CUT_ORDER.slice(0, lvl).join('');
         return 'Out ' + gone + ' · In ' + left;
       }
+      case 'suitBomb':
+        return lvl
+          ? ('Cooldown ' + formatInterval(suitBombCooldownMs()))
+          : 'Locked';
+      case 'autoSuitBomb':
+        return lvl ? 'Auto-casting' : (upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge');
       case 'cardSense':
         return lvl ? 'Aiming near hands' : 'Random columns';
       case 'feltGrease':
@@ -846,8 +959,10 @@
 
   function persistSave(){
     try{
+      const now = performance.now();
+      const cdLeft = Math.max(0, suitBombReadyAt - now);
       localStorage.setItem(SAVE_KEY, JSON.stringify({
-        score, lifetime, upgrades, v: 1
+        score, lifetime, upgrades, suitBombCdLeft: cdLeft, v: 1
       }));
     }catch(_){ /* private mode / quota */ }
   }
@@ -873,6 +988,11 @@
           }
         }
       }
+      if(typeof data.suitBombCdLeft === 'number' && data.suitBombCdLeft > 0){
+        suitBombReadyAt = performance.now() + data.suitBombCdLeft;
+      } else {
+        suitBombReadyAt = performance.now();
+      }
     }catch(_){ /* corrupt save */ }
   }
 
@@ -881,25 +1001,33 @@
     lifetime = 0;
     upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
     lastAutoDropAt = 0;
+    suitBombReadyAt = 0;
     persistSave();
     updateScoreUI();
     updateShopUI();
     updateAutoStatus();
+    updateSuitBombUI();
   }
 
   function buyUpgrade(id){
     const def = UPGRADE_DEFS.find(u => u.id === id);
     if(!def) return;
+    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return;
     const lvl = upgradeLevel(id);
     if(lvl >= def.maxLevel) return;
     const cost = upgradeCost(def);
     if(score < cost) return;
     score -= cost;
     upgrades[id] = lvl + 1;
+    if(id === 'highCut' || id === 'suitCut') reshapeShoe();
+    if(id === 'suitBomb' && lvl === 0){
+      suitBombReadyAt = performance.now();
+    }
     scheduleSave();
     updateScoreUI();
     updateShopUI();
     updateAutoStatus();
+    updateSuitBombUI();
   }
 
   function columnReservations(){
@@ -1513,6 +1641,8 @@
   function tick(){
     const now = performance.now();
     tryAutoDrop(now);
+    tryAutoSuitBomb(now);
+    updateSuitBombUI(now);
 
     const speed = physicsSpeed();
     const gravity = 0.42 * Math.min(speed, 3.2);
@@ -1542,8 +1672,12 @@
 
     draw();
 
-    const popupsAlive = popups.some(p => performance.now()-p.t0 < p.duration);
-    if(balls.length>0 || particles.length>0 || popupsAlive || Number.isFinite(autoDropIntervalMs())){
+    const nowEnd = performance.now();
+    const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
+    const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
+    const bombAuto = upgradeLevel('autoSuitBomb') > 0 && suitBombUnlocked();
+    if(balls.length>0 || particles.length>0 || popupsAlive
+      || Number.isFinite(autoDropIntervalMs()) || bombCharging || bombAuto){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -2021,6 +2155,71 @@
     requestAnimationFrame(resolveTick);
   }
 
+  function findSuitCells(suit){
+    const cells = [];
+    for(let c=0;c<COLS;c++){
+      for(let r=0;r<ROWS;r++){
+        const card = grid[c][r];
+        if(card && card.suit === suit) cells.push([c, r]);
+      }
+    }
+    return cells;
+  }
+
+  function beginSuitBomb(suit, cells){
+    resolving = true;
+    resolveEpoch++;
+    pendingChain = 0;
+    chainStep = 0;
+    currentGroups = [{
+      name: 'SUIT PURGE ' + suit,
+      points: Math.max(1, cells.length),
+      cells,
+      suitBomb: true,
+      color: SUIT_COLOR[suit] || '#ffffff'
+    }];
+    flashCells = new Set(cells.map(([c,r]) => c+','+r));
+    resolvePhase = 'flash';
+    resolvePhaseStart = performance.now();
+    refreshButtons();
+    updateSuitBombUI();
+    requestAnimationFrame(resolveTick);
+  }
+
+  function castSuitBomb(suit){
+    const now = performance.now();
+    if(!suitBombReady(now) || resolving || gameOver) return false;
+    if(!SUITS.includes(suit)) return false;
+    const cells = findSuitCells(suit);
+    if(cells.length < 1) return false;
+    suitBombReadyAt = now + suitBombCooldownMs();
+    scheduleSave();
+    beginSuitBomb(suit, cells);
+    return true;
+  }
+
+  function pickAutoSuitBombTarget(){
+    let best = null, bestCount = 0;
+    for(const s of SUITS){
+      const n = findSuitCells(s).length;
+      if(n > bestCount){
+        bestCount = n;
+        best = s;
+      }
+    }
+    // Don't waste a charge on a lonely singleton.
+    if(bestCount < 2) return null;
+    return best;
+  }
+
+  function tryAutoSuitBomb(now){
+    if(!upgradeLevel('autoSuitBomb') || !suitBombReady(now)) return;
+    if(resolving || gameOver) return;
+    const suit = pickAutoSuitBombTarget();
+    if(!suit) return;
+    castSuitBomb(suit);
+  }
+
   function maybeStartResolve(){
     if(gameOver || resolving) return;
     const groups = findPokerHands();
@@ -2444,9 +2643,10 @@
       if(!btn) continue;
       const lvl = upgradeLevel(def.id);
       const maxed = lvl >= def.maxLevel;
+      const locked = def.id === 'autoSuitBomb' && !suitBombUnlocked();
       const cost = upgradeCost(def);
-      const canAfford = !maxed && score >= cost;
-      btn.disabled = maxed || !canAfford;
+      const canAfford = !maxed && !locked && score >= cost;
+      btn.disabled = maxed || locked || !canAfford;
       btn.classList.toggle('affordable', canAfford);
       btn.classList.toggle('maxed', maxed);
       btn.querySelector('.upgrade-lvl').textContent = maxed
@@ -2456,6 +2656,9 @@
       const costEl = btn.querySelector('.upgrade-cost');
       if(maxed){
         costEl.textContent = 'Maxed';
+        costEl.className = 'upgrade-cost max';
+      } else if(locked){
+        costEl.textContent = 'Needs Suit Purge';
         costEl.className = 'upgrade-cost max';
       } else {
         costEl.textContent = formatNum(cost) + ' chips';
@@ -2486,6 +2689,61 @@
       upgradeButtons[def.id] = btn;
     }
     updateShopUI();
+  }
+
+  const suitBombBar = document.getElementById('suitBombBar');
+  const suitBombStatus = document.getElementById('suitBombStatus');
+  const suitBombBtnsEl = document.getElementById('suitBombBtns');
+  const suitBombButtons = {};
+
+  function buildSuitBombUI(){
+    suitBombBtnsEl.innerHTML = '';
+    for(const s of SUITS){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'suit-btn';
+      btn.dataset.suit = s;
+      btn.setAttribute('aria-label', 'Purge ' + s);
+      btn.innerHTML = '<span class="cd-fill"></span><span class="suit-glyph"></span>';
+      btn.querySelector('.suit-glyph').textContent = s;
+      btn.addEventListener('click', ()=>castSuitBomb(s));
+      suitBombBtnsEl.appendChild(btn);
+      suitBombButtons[s] = btn;
+    }
+  }
+
+  function updateSuitBombUI(now){
+    if(!suitBombBar) return;
+    now = now || performance.now();
+    const unlocked = suitBombUnlocked();
+    suitBombBar.classList.toggle('show', unlocked);
+    if(!unlocked) return;
+
+    const cd = suitBombCooldownMs();
+    const ready = suitBombReady(now);
+    const auto = upgradeLevel('autoSuitBomb') > 0;
+    if(ready){
+      suitBombStatus.textContent = auto ? 'ready · auto' : 'ready';
+      suitBombStatus.className = auto ? 'ready auto' : 'ready';
+    } else {
+      const left = Math.max(0, suitBombReadyAt - now);
+      suitBombStatus.textContent = formatInterval(left) + (auto ? ' · auto' : '');
+      suitBombStatus.className = auto ? 'auto' : '';
+    }
+
+    const charge = ready ? 1 : Math.max(0, Math.min(1, 1 - (suitBombReadyAt - now) / cd));
+    for(const s of SUITS){
+      const btn = suitBombButtons[s];
+      if(!btn) continue;
+      const count = findSuitCells(s).length;
+      const canCast = ready && !resolving && !gameOver && count > 0;
+      btn.disabled = !canCast;
+      btn.classList.toggle('charging', !ready);
+      btn.style.setProperty('--cd', Math.round(charge * 100) + '%');
+      btn.title = count
+        ? ('Purge ' + count + ' × ' + s)
+        : ('No ' + s + ' on board');
+    }
   }
 
   function updateNextUI(){
@@ -2562,11 +2820,16 @@
   // wake the physics loop whenever the auto-dealer is armed.
   function idleSpin(){
     const now = performance.now();
+    updateSuitBombUI(now);
     if(!looping && !resolving){
       tryAutoDrop(now);
-      if(balls.length || particles.length || Number.isFinite(autoDropIntervalMs())){
-        startLoop();
-      }
+      tryAutoSuitBomb(now);
+      const needLoop = balls.length || particles.length
+        || Number.isFinite(autoDropIntervalMs())
+        || (suitBombUnlocked() && (
+          upgradeLevel('autoSuitBomb') > 0 || !suitBombReady(now)
+        ));
+      if(needLoop) startLoop();
       draw();
     }
     requestAnimationFrame(idleSpin);
@@ -2574,10 +2837,12 @@
 
   loadSave();
   buildShop();
+  buildSuitBombUI();
   freshState();
   updateScoreUI();
   updateAutoStatus();
   updateShopUI();
+  updateSuitBombUI();
   refreshButtons();
   draw();
   requestAnimationFrame(idleSpin);
