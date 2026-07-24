@@ -97,7 +97,15 @@
     color:var(--felt-bright);
   }
   .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor;}
-  .score b{color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:18px;}
+  .score b{
+    color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:18px;
+    font-variant-numeric:tabular-nums;
+    display:inline-block;
+    min-width:4ch;
+    text-align:right;
+  }
   .next-card{
     display:flex;
     align-items:center;
@@ -641,31 +649,60 @@
     color:#F0D78C;
     font-family:'Space Grotesk',sans-serif;
     font-size:14px;
+    font-variant-numeric:tabular-nums;
+    display:inline-block;
+    min-width:2ch;
+    text-align:right;
+  }
+  .comps-pill{
+    flex:none;
   }
   .level-pill{
     display:flex;
     flex-direction:column;
     gap:4px;
-    min-width:120px;
-    flex:1 1 140px;
-    max-width:220px;
+    /* Fixed size so XP/level digit changes don't reflow the HUD/board. */
+    flex:0 0 158px;
+    width:158px;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
     padding:7px 12px 8px;
     font-size:11px;
     color:var(--ink-dim);
+    font-variant-numeric:tabular-nums;
+    box-sizing:border-box;
   }
   .level-pill-top{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:8px;
+    min-width:0;
+  }
+  .level-pill-top > span:first-child{
+    flex:0 0 auto;
+    white-space:nowrap;
   }
   .level-pill b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
     font-size:14px;
+    font-variant-numeric:tabular-nums;
+  }
+  #runLevelVal{
+    display:inline-block;
+    min-width:2ch;
+    text-align:right;
+  }
+  #runLevelXp{
+    flex:1 1 auto;
+    min-width:0;
+    text-align:right;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums;
   }
   .level-bar{
     height:4px;
