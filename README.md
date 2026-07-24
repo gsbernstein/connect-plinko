@@ -1,20 +1,36 @@
 # Connect Plinko
 
-A browser Plinko / Connect Four hybrid game.
+Browser Plinko games published from this repo.
 
 ## Play
 
-**https://gsbernstein.github.io/connect-plinko/**
+| Game | URL |
+|------|-----|
+| **Plinko Four** (classic) | https://gsbernstein.github.io/connect-plinko/ |
+| **Plinko Poker** | https://gsbernstein.github.io/connect-plinko/poker/ |
+
+Each page has a Classic / Poker switch to jump between them.
+
+### Plinko Four
+
+Drop colored pucks through pegs into a Connect Four–style grid. Get 4+ in a row to score and explode — cascades chain for more points. Full board? click a piece to blow it up.
+
+### Plinko Poker
+
+Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes. Near-miss guides show when you’re close.
 
 ## Local
 
-Open `index.html` in a browser, or serve the repo root:
+Serve the repo root:
 
 ```bash
 python3 -m http.server 8080
 ```
 
-Then visit `http://localhost:8080`.
+Then visit:
+
+- Classic: `http://localhost:8080/`
+- Poker: `http://localhost:8080/poker/`
 
 ## Hosting
 
