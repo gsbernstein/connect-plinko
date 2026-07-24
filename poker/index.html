@@ -2674,12 +2674,19 @@
     );
   }
 
+  function vipProgressStarted(){
+    // Sticky once you earn comps, cash out, or buy a VIP perk — spending comps
+    // before run Lv 8 must not hide the lounge again.
+    return prestigeCount > 0
+      || comps > 0
+      || PRESTIGE_DEFS.some(def => prestigeLevel(def.id) > 0);
+  }
+
   function vipTabUnlocked(){
     // Cash Out / VIP Lounge opens at run Lv 8, after any Cash Out, or once you
     // hold permanent comps (e.g. first achievement reward) so you can spend them.
     return highestRunLevelReached() >= MIN_CASH_OUT_LEVEL
-      || prestigeCount > 0
-      || comps > 0;
+      || vipProgressStarted();
   }
 
   function defaultShopPanel(){
@@ -6152,8 +6159,8 @@
   function updateCompsHud(){
     if(compsHudValEl) compsHudValEl.textContent = formatNum(comps);
     if(compsBoxEl){
-      // Stay hidden until the first comp is earned.
-      compsBoxEl.hidden = !(comps > 0 || prestigeCount > 0);
+      // Stay hidden until the first comp is earned (or spent on VIP perks).
+      compsBoxEl.hidden = !vipProgressStarted();
     }
   }
 
