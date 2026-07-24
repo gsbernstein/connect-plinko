@@ -468,6 +468,8 @@
     flex-shrink:0;
     transition:border-color .15s ease, background .15s ease, transform .08s ease;
   }
+  /* Author display:flex otherwise overrides the hidden attribute after Cash Out. */
+  .upgrade[hidden], .quest[hidden]{display:none !important;}
   .upgrade-progress{
     position:absolute;
     left:0;
@@ -2132,6 +2134,13 @@
     for(const def of UPGRADE_DEFS){
       if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
     }
+    // Drop any batched HUD/shop timers so they can't re-apply pre-Cash-Out UI.
+    clearTimeout(shopUiTimer);
+    clearTimeout(scoreUiTimer);
+    clearTimeout(questUiTimer);
+    shopUiTimer = 0;
+    scoreUiTimer = 0;
+    scoreUiDirty = false;
     persistSave();
     updateScoreUI();
     updateShopUI();
@@ -3968,8 +3977,24 @@
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
       const revealed = upgradeUnlocked(def.id);
+      const lvl = upgradeLevel(def.id);
+      const maxed = lvl >= def.maxLevel;
+      const locked = def.id === 'autoSuitBomb' && !suitBombUnlocked();
+      const cost = upgradeCost(def);
+      const canAfford = revealed && !maxed && !locked && score >= cost;
+      // Always refresh state — including locked cards — so Cash Out can't leave
+      // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
+      fillUpgradeButton(
+        btn, def, lvl, maxed, locked || !revealed, cost, canAfford,
+        upgradeEffectText(def),
+        revealed ? 'Needs Suit Purge' : ('Unlocks at Lv ' + (def.unlockAt || 1)),
+        'chips'
+      );
       btn.hidden = !revealed;
-      if(!revealed) continue;
+      if(!revealed){
+        btn.classList.remove('affordable', 'maxed', 'just-unlocked');
+        continue;
+      }
       if(!seenUnlockFlash.has(def.id) && (def.unlockAt || 1) > 1){
         seenUnlockFlash.add(def.id);
         btn.classList.add('just-unlocked');
@@ -3977,17 +4002,6 @@
       } else {
         seenUnlockFlash.add(def.id);
       }
-      const lvl = upgradeLevel(def.id);
-      const maxed = lvl >= def.maxLevel;
-      const locked = def.id === 'autoSuitBomb' && !suitBombUnlocked();
-      const cost = upgradeCost(def);
-      const canAfford = !maxed && !locked && score >= cost;
-      fillUpgradeButton(
-        btn, def, lvl, maxed, locked, cost, canAfford,
-        upgradeEffectText(def),
-        'Needs Suit Purge',
-        'chips'
-      );
       (maxed ? maxedList : active).push(btn);
     }
     // Keep buyable upgrades up top; sink completed ones.
