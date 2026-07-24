@@ -1699,21 +1699,24 @@
     drawCardFace(ctx, b.x, b.y, b.card, b.angle||0, 32, true, 0);
   }
 
-  function fillFelt(target, x, y, w, h){
+  function fillFelt(target, x, y, w, h, {vignette=false}={}){
     const pat = target === plateCtx ? tableTex.feltPatPlate : tableTex.feltPat;
     if(pat){
       target.fillStyle = pat;
       target.fillRect(x, y, w, h);
-      // Vignette + depth so the tile doesn't read as wallpaper.
-      const grad = target.createRadialGradient(
-        x + w * 0.5, y + h * 0.35, Math.min(w, h) * 0.15,
-        x + w * 0.5, y + h * 0.5, Math.max(w, h) * 0.75
-      );
-      grad.addColorStop(0, 'rgba(31,122,88,0.18)');
-      grad.addColorStop(0.55, 'rgba(13,74,52,0.12)');
-      grad.addColorStop(1, 'rgba(8,30,20,0.55)');
-      target.fillStyle = grad;
-      target.fillRect(x, y, w, h);
+      if(vignette){
+        // Soft depth in the peg zone only — keep grid felt even so
+        // punched holes read as open windows onto the cloth.
+        const grad = target.createRadialGradient(
+          x + w * 0.5, y + h * 0.35, Math.min(w, h) * 0.15,
+          x + w * 0.5, y + h * 0.5, Math.max(w, h) * 0.75
+        );
+        grad.addColorStop(0, 'rgba(31,122,88,0.12)');
+        grad.addColorStop(0.55, 'rgba(13,74,52,0.08)');
+        grad.addColorStop(1, 'rgba(8,30,20,0.4)');
+        target.fillStyle = grad;
+        target.fillRect(x, y, w, h);
+      }
       return;
     }
     const grad = target.createLinearGradient(x, y, x, y + h);
@@ -1749,7 +1752,7 @@
   function draw(){
     ctx.clearRect(0,0,W,H);
 
-    fillFelt(ctx, 0, 0, W, PEG_ZONE);
+    fillFelt(ctx, 0, 0, W, PEG_ZONE, {vignette:true});
 
     // Thin wood lip separating the drop zone from the card grid.
     const lipGrad = ctx.createLinearGradient(0, PEG_ZONE - 10, 0, PEG_ZONE);
@@ -1854,7 +1857,11 @@
 
     plateCtx.clearRect(0,PEG_ZONE,W,H-PEG_ZONE);
     fillWoodPlate(plateCtx, 0, PEG_ZONE, W, H - PEG_ZONE);
+    // Must punch with an opaque fill — destination-out uses the source
+    // alpha, and the wood sheen left fillStyle semi-transparent so holes
+    // were only partially erased (dark discs instead of open felt).
     plateCtx.globalCompositeOperation = 'destination-out';
+    plateCtx.fillStyle = '#000';
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
@@ -1865,18 +1872,20 @@
     }
     plateCtx.globalCompositeOperation = 'source-over';
 
+    // Rim sits on the wood only (outside the punched hole) so the opening
+    // stays fully transparent down to the felt.
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
         plateCtx.beginPath();
-        plateCtx.arc(cx,cy,HOLE_R,0,Math.PI*2);
-        plateCtx.lineWidth = 4;
-        plateCtx.strokeStyle = 'rgba(20,10,0,0.65)';
+        plateCtx.arc(cx,cy,HOLE_R + 1.5,0,Math.PI*2);
+        plateCtx.lineWidth = 3;
+        plateCtx.strokeStyle = 'rgba(20,10,0,0.55)';
         plateCtx.stroke();
         plateCtx.beginPath();
-        plateCtx.arc(cx,cy,HOLE_R-2.5,0,Math.PI*2);
-        plateCtx.lineWidth = 1.5;
-        plateCtx.strokeStyle = 'rgba(255,220,160,0.16)';
+        plateCtx.arc(cx,cy,HOLE_R + 3,0,Math.PI*2);
+        plateCtx.lineWidth = 1.25;
+        plateCtx.strokeStyle = 'rgba(255,220,160,0.14)';
         plateCtx.stroke();
       }
     }

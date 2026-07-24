@@ -1,0 +1,14 @@
+Poker table textures — sources & licenses
+
+felt.jpg
+  Source: Texturelabs — "Green felt sheet" (Fabric 184)
+  URL: https://texturelabs.org/textures/fabric_184/
+  License: Free for commercial and non-commercial use
+           (see https://texturelabs.org/terms/)
+
+wood.jpg
+wood-rail.jpg (brightness/contrast derivative of wood.jpg)
+  Source: ambientCG — Wood013
+  URL: https://ambientcg.com/a/Wood013
+  License: CC0 1.0 Universal (public domain dedication)
+           https://creativecommons.org/publicdomain/zero/1.0/
