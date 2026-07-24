@@ -253,7 +253,9 @@
 <script>
 (function(){
   const COLS = 7, ROWS = 6, CELL = 90;
-  const PEG_ZONE = 380;
+  // Tall enough for 6 peg rows with clear air above the bumper —
+  // the bottom peg row must sit between columns, not on their mouths.
+  const PEG_ZONE = 420;
   const W = COLS*CELL, H = PEG_ZONE + ROWS*CELL;
   const canvas = document.getElementById('board');
   canvas.width = W; canvas.height = H;
@@ -318,21 +320,27 @@
   // A fixed lattice of peg positions. These never move — the only thing
   // that changes as columns fill is the addition of physical bumpers
   // (below), which the ball actually collides and bounces off of.
+  // Six rows ending on an odd (between-column) row so the last pegs sit
+  // in the gaps between column mouths instead of blocking them — that
+  // was pinching balls against the bumper.
   const pegs = [];
   (function buildPegs(){
-    const rows = 5;
-    const topPad = 54, rowGap = 60;
+    const rows = 6;
+    const topPad = 50, rowGap = 54;
     for(let r=0;r<rows;r++){
       const y = topPad + r*rowGap;
       const isEven = r % 2 === 0;
+      // even rows: pegs on column centers; odd rows: pegs between columns
       const offset = isEven ? 0 : CELL/2;
       const cMin = 0, cMax = isEven ? COLS-1 : COLS-2; // inclusive
+      const isBottom = r === rows - 1;
       for(let c=cMin;c<=cMax;c++){
         const x = offset + c*CELL + CELL/2;
         // jitter each peg so the lattice isn't perfectly symmetric —
-        // this is what kills the repeating zigzag pattern
+        // this is what kills the repeating zigzag pattern. Keep the
+        // bottom row's Y stable so clearance above the bumper stays honest.
         const jx = (Math.random()*8-4);
-        const jy = (Math.random()*5-2.5);
+        const jy = isBottom ? 0 : (Math.random()*5-2.5);
         pegs.push({x: x+jx, y: y+jy, r: 6});
       }
     }
@@ -347,7 +355,9 @@
   // circles sampled along the path (same reflection model as pegs).
   let bumpers = [];
   let bumperPaths = []; // polylines for drawing the continuous arc
-  const BUMPER_BASE_Y = PEG_ZONE - 18;
+  // Sit the bumper near the grid mouth so there's clear air under the
+  // bottom (between-column) peg row — peg+bumper sandwiches were common.
+  const BUMPER_BASE_Y = PEG_ZONE - 14;
   const BUMPER_ARC = 16; // how far the peak rises above the base
   const BUMPER_R = 18;
 
@@ -376,7 +386,7 @@
     const edgeRight = endCol === COLS-1;
     // Inset from the walls on a full-width run so bumper+wall can't form
     // a wedge that pins stranded plinko pucks in the corner.
-    const wallPad = (edgeLeft && edgeRight) ? (BUMPER_R + BALL_RADIUS + 6) : 8;
+    const wallPad = (edgeLeft && edgeRight) ? (BUMPER_R + 20) : 8;
     const leftX = startCol*CELL + (edgeLeft && edgeRight ? wallPad : 8);
     const rightX = (endCol+1)*CELL - (edgeLeft && edgeRight ? wallPad : 8);
     const span = rightX - leftX;
