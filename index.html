@@ -220,7 +220,7 @@
 <body>
 <div class="wrap">
   <h1>Plinko Four</h1>
-  <div class="tagline">Press and drag on the board to aim, release to drop — full columns get a bumper that physically knocks pucks aside.</div>
+  <div class="tagline">Press and drag on the board to aim, release to drop — full columns raise an arched bumper. Matches explode and can blast the stack back into the pegs.</div>
 
   <div class="hud">
     <div class="score p1" id="score1"><span class="dot" style="background:var(--p1)"></span>Red&nbsp;<b id="s1">0</b></div>
@@ -245,7 +245,7 @@
   </div>
 
   <div class="footer-row">
-    <span class="hint">4+ in a row scores &amp; clears — game ends when the board's full</span>
+    <span class="hint">4+ in a row scores &amp; explodes — game ends when the board's full</span>
     <button class="reset" id="resetScores">Reset scores</button>
   </div>
 </div>
@@ -303,7 +303,7 @@
     currentGroups = [];
     chainStep = 0;
     flashCells = null;
-    fallAnims = [];
+    particles = [];
     popups = [];
     recomputeBumpers();
   }
@@ -333,22 +333,65 @@
   })();
 
   // ---- bumpers ----
-  // A real physical obstacle placed over any column that's already full.
-  // Each bumper is three overlapping circles spanning the column's width,
-  // positioned right at the mouth of the slot — so a descending ball
-  // actually collides with it (same reflection physics as a peg, just
-  // livelier) and gets knocked sideways into an open column instead of
-  // ever reaching the full one. No teleporting, no invisible steering.
+  // Physical obstacles over runs of already-full columns. Contiguous full
+  // columns share one gently arched bumper path so adjacent blockers read
+  // as a single continuous hill. Runs that touch a board edge leave that
+  // side more linear as they depart the wall. Collision uses overlapping
+  // circles sampled along the path (same reflection model as pegs).
   let bumpers = [];
+  let bumperPaths = []; // polylines for drawing the continuous arc
+  const BUMPER_BASE_Y = PEG_ZONE - 18;
+  const BUMPER_ARC = 16; // how far the middle rises above the base
+  const BUMPER_R = 18;
+
+  // t in [0,1] → unit rise. Smooth hill by default; flatten into a linear
+  // ramp on whichever side(s) touch the board edge.
+  function bumperRise(t, flatLeft, flatRight){
+    const smooth = 0.5 - 0.5*Math.cos(2*Math.PI*t); // 0..1..0, flat tangents
+    const tent = t <= 0.5 ? t*2 : (1-t)*2;           // linear up/down
+    let rise = smooth;
+    if(flatLeft){
+      const w = Math.max(0, 1 - t/0.45); // stronger near the left wall
+      rise = rise*(1-w) + tent*w;
+    }
+    if(flatRight){
+      const w = Math.max(0, 1 - (1-t)/0.45);
+      rise = rise*(1-w) + tent*w;
+    }
+    return rise;
+  }
+
+  function addBumperRun(startCol, endCol){
+    const leftX = startCol*CELL + 8;
+    const rightX = (endCol+1)*CELL - 8;
+    const span = rightX - leftX;
+    const flatLeft = startCol === 0;
+    const flatRight = endCol === COLS-1;
+    const samples = Math.max(6, Math.round(span / 14));
+    const path = [];
+    const pathBumpers = [];
+    for(let i=0;i<=samples;i++){
+      const t = i/samples;
+      const x = leftX + span*t;
+      const y = BUMPER_BASE_Y - BUMPER_ARC*bumperRise(t, flatLeft, flatRight);
+      path.push({x,y});
+      // every sample gets a collider so the arc has no gaps
+      const bp = {x, y, r: BUMPER_R, hit:0};
+      pathBumpers.push(bp);
+      bumpers.push(bp);
+    }
+    bumperPaths.push({points: path, bumpers: pathBumpers, hit:0});
+  }
+
   function recomputeBumpers(){
     bumpers = [];
-    for(let c=0;c<COLS;c++){
-      if(colHeights[c] >= ROWS){
-        const cx = c*CELL + CELL/2;
-        for(const off of [-30, 0, 30]){
-          bumpers.push({x: cx+off, y: PEG_ZONE-24, r: 27, col:c, hit:0});
-        }
-      }
+    bumperPaths = [];
+    let c = 0;
+    while(c < COLS){
+      if(colHeights[c] < ROWS){ c++; continue; }
+      const start = c;
+      while(c < COLS && colHeights[c] >= ROWS) c++;
+      addBumperRun(start, c-1);
     }
   }
 
@@ -371,14 +414,14 @@
 
   // ---- match resolution (clear + cascade) state ----
   let resolving = false;
-  let resolvePhase = null;   // 'flash' | 'fall'
+  let resolvePhase = null;   // 'flash' | 'explode' | 'wait'
   let resolvePhaseStart = 0;
   let currentGroups = [];
   let chainStep = 0;
   let flashCells = null;     // Set of "col,row" currently flashing before clear
-  let fallAnims = [];        // pieces sliding down after a clear
+  let particles = [];        // explosion debris from cleared pucks
   let popups = [];           // floating score/chain text
-  const FLASH_MS = 480, FALL_MS = 320;
+  const FLASH_MS = 480, EXPLODE_MS = 280;
 
   function refreshButtons(){
     const blocked = inputBlocked();
@@ -508,47 +551,173 @@
         }
       }
 
-      // watchdog: if the ball has been bouncing around near a wall or
-      // wedged between pegs for too long, force it into the grid instead
-      // of leaving it stuck forever
-      if(ball.frameSafety > SAFETY_LIMIT || ball.y > PEG_ZONE){
-        ball.phase = 'grid';
-        ball.y = Math.max(ball.y, PEG_ZONE + 1);
-        const rawCol = Math.min(COLS-1, Math.max(0, Math.floor(ball.x / CELL)));
-        const targetCol = nearestOpenColumn(rawCol);
-        // reserve this slot immediately so other balls in flight — and any
-        // clear/gravity pass — see an accurate, up-to-date stack
-        const h = stack[targetCol].length;
-        const row = ROWS - 1 - h;
-        const entry = {type:'ball', ball, row};
-        stack[targetCol].push(entry);
-        colHeights[targetCol] = stack[targetCol].length;
-        recomputeBumpers();
-        ball.targetCol = targetCol;
-        ball.row = row;
-        ball.stackEntry = entry;
+      // Blasted pucks traveling through the board face should bounce off
+      // settled pieces instead of phasing through them.
+      if(ball.y > PEG_ZONE - 20){
+        collideBallWithSettledPieces(ball);
+      }
+
+      // Enter the grid once we're past the mouth AND falling — so an
+      // explosion blast can travel up through the column and back into
+      // the pegs without immediately re-committing to a slot. Watchdog
+      // still force-enters if a ball is stuck forever in the peg field.
+      if(ball.frameSafety > SAFETY_LIMIT || (ball.y > PEG_ZONE && ball.vy >= 0)){
+        enterGridColumn(ball);
       }
     } else {
-      // grid phase: ease x toward the reserved column, keep falling to the reserved row
-      const targetX = ball.targetCol*CELL + CELL/2;
-      ball.x += (targetX - ball.x) * 0.16;
-      ball.vy += gravity;
-      ball.vy = Math.min(ball.vy, 20);
-      ball.y += ball.vy;
-
-      const landingY = PEG_ZONE + ball.row*CELL + CELL/2;
-
-      if(ball.y >= landingY){
-        ball.y = landingY;
-        ball.vy = -ball.vy*0.25;
-        if((Math.abs(ball.vy) < 1.6 && Math.abs(ball.x-targetX) < 3) || ball.frameSafety > 900){
-          ball.landed = true;
-        }
+      // grid phase: real physics inside the column until the puck settles.
+      // Column walls contain it sideways; settled pieces below act as static
+      // circles to bounce on. A hard upward blast (from a clear) can send it
+      // back out the top into the peg zone as a free physics object again.
+      if(ball.y < PEG_ZONE - 8 && ball.vy < -0.5){
+        releaseBallToPegs(ball);
+      } else {
+        stepGridBall(ball, gravity);
       }
     }
 
     ball.trail.push({x:ball.x, y:ball.y});
     if(ball.trail.length>10) ball.trail.shift();
+  }
+
+  function collideBallWithSettledPieces(ball){
+    const PIECE_R = 32;
+    for(let c=0;c<COLS;c++){
+      const px = c*CELL + CELL/2;
+      for(let i=0;i<stack[c].length;i++){
+        const entry = stack[c][i];
+        if(entry.type!=='piece') continue;
+        const py = PEG_ZONE + (ROWS-1-i)*CELL + CELL/2;
+        const dx = ball.x - px, dy = ball.y - py;
+        const dist = Math.hypot(dx, dy);
+        const minDist = ball.radius + PIECE_R - 4;
+        if(dist < minDist && dist > 0.0001){
+          const nx = dx/dist, ny = dy/dist;
+          ball.x = px + nx*minDist;
+          ball.y = py + ny*minDist;
+          const dot = ball.vx*nx + ball.vy*ny;
+          if(dot < 0){
+            ball.vx -= 1.9*dot*nx;
+            ball.vy -= 1.9*dot*ny;
+          }
+          ball.vx *= 0.9;
+          ball.vy *= 0.9;
+        }
+      }
+    }
+  }
+
+  function rebuildColumnFromStack(c){
+    const col = Array(ROWS).fill(0);
+    for(let i=0;i<stack[c].length;i++){
+      const entry = stack[c][i];
+      const row = ROWS - 1 - i;
+      if(entry.type==='ball'){
+        entry.row = row;
+        entry.ball.row = row;
+      } else {
+        col[row] = entry.player;
+      }
+    }
+    for(let r=0;r<ROWS;r++) grid[c][r] = col[r];
+    colHeights[c] = stack[c].length;
+  }
+
+  function enterGridColumn(ball){
+    ball.phase = 'grid';
+    ball.y = Math.max(ball.y, PEG_ZONE + 1);
+    const rawCol = Math.min(COLS-1, Math.max(0, Math.floor(ball.x / CELL)));
+    const targetCol = nearestOpenColumn(rawCol);
+    // reserve this slot immediately so other balls in flight — and any
+    // clear pass — see an accurate, up-to-date stack
+    const h = stack[targetCol].length;
+    if(h >= ROWS){
+      // nowhere to go (board filled under us) — keep knocking around in pegs
+      ball.phase = 'peg';
+      ball.y = PEG_ZONE - ball.radius;
+      ball.vy = -Math.abs(ball.vy) - 2;
+      return;
+    }
+    const row = ROWS - 1 - h;
+    const entry = {type:'ball', ball, row};
+    stack[targetCol].push(entry);
+    colHeights[targetCol] = stack[targetCol].length;
+    recomputeBumpers();
+    ball.targetCol = targetCol;
+    ball.row = row;
+    ball.stackEntry = entry;
+    // kill leftover horizontal speed a bit so it commits to the slot
+    ball.vx *= 0.55;
+  }
+
+  function releaseBallToPegs(ball){
+    const col = ball.targetCol;
+    if(ball.stackEntry && col!=null){
+      const idx = stack[col].indexOf(ball.stackEntry);
+      if(idx>=0) stack[col].splice(idx, 1);
+      rebuildColumnFromStack(col);
+      recomputeBumpers();
+    }
+    ball.stackEntry = null;
+    ball.targetCol = null;
+    ball.row = null;
+    ball.phase = 'peg';
+    ball.frameSafety = 0;
+  }
+
+  function stepGridBall(ball, gravity){
+    const targetX = ball.targetCol*CELL + CELL/2;
+    const colLeft = ball.targetCol*CELL + ball.radius + 4;
+    const colRight = (ball.targetCol+1)*CELL - ball.radius - 4;
+
+    ball.vy += gravity;
+    ball.vy = Math.min(ball.vy, 20);
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    if(ball.x < colLeft){ ball.x = colLeft; ball.vx = Math.abs(ball.vx)*0.4; }
+    if(ball.x > colRight){ ball.x = colRight; ball.vx = -Math.abs(ball.vx)*0.4; }
+
+    // bounce off settled pucks already in this column (static obstacles)
+    const PIECE_R = 32;
+    for(let i=0;i<stack[ball.targetCol].length;i++){
+      const entry = stack[ball.targetCol][i];
+      if(entry.type!=='piece') continue;
+      const py = PEG_ZONE + (ROWS-1-i)*CELL + CELL/2;
+      const dx = ball.x - targetX;
+      const dy = ball.y - py;
+      const dist = Math.hypot(dx, dy);
+      const minDist = ball.radius + PIECE_R - 6; // slight overlap ok visually through holes
+      if(dist < minDist && dist > 0.0001){
+        const nx = dx/dist, ny = dy/dist;
+        ball.x = targetX + nx*minDist;
+        ball.y = py + ny*minDist;
+        const dot = ball.vx*nx + ball.vy*ny;
+        if(dot < 0){
+          ball.vx -= 1.8*dot*nx;
+          ball.vy -= 1.8*dot*ny;
+        }
+        ball.vx *= 0.85;
+        ball.vy *= 0.85;
+      }
+    }
+
+    // soft pull toward the column center so it eventually seats in the hole
+    ball.vx += (targetX - ball.x) * 0.04;
+    ball.vx *= 0.98;
+
+    const landingY = PEG_ZONE + ball.row*CELL + CELL/2;
+    if(ball.y >= landingY){
+      ball.y = landingY;
+      ball.vy = -ball.vy*0.32;
+      ball.vx *= 0.7;
+      if((Math.abs(ball.vy) < 1.35 && Math.abs(ball.vx) < 0.9 && Math.abs(ball.x-targetX) < 6)
+         || ball.frameSafety > 900){
+        ball.x = targetX;
+        ball.y = landingY;
+        ball.landed = true;
+      }
+    }
   }
 
   function resolveBallCollisions(){
@@ -577,11 +746,17 @@
     const gravity = 0.42;
     for(const p of pegs){ if(p.hit) p.hit--; }
     for(const bp of bumpers){ if(bp.hit) bp.hit--; }
+    // propagate collider hits onto the drawn path so the whole arc flashes
+    for(const path of bumperPaths){
+      path.hit = 0;
+      for(const bp of path.bumpers) if(bp.hit > path.hit) path.hit = bp.hit;
+    }
 
     for(const ball of balls){
       stepBall(ball, gravity);
     }
     resolveBallCollisions();
+    stepParticles();
 
     const landed = balls.filter(b=>b.landed);
     if(landed.length){
@@ -594,7 +769,7 @@
 
     draw();
 
-    if(balls.length>0){
+    if(balls.length>0 || particles.length>0){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -683,47 +858,128 @@
     }
   }
 
-  // Removes matched cells, then drops everything above them straight down
-  // to fill the gap — same idea as a Tetris/Puyo clear. Records fallAnims
-  // so draw() can animate the settle instead of snapping instantly.
-  function applyClearAndGravity(groups){
+  function spawnExplosion(x, y, player){
+    const color = player===1 ? P1 : P2;
+    for(let i=0;i<16;i++){
+      const ang = Math.random()*Math.PI*2;
+      const spd = 2.2 + Math.random()*6.5;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang)*spd,
+        vy: Math.sin(ang)*spd - 3.5,
+        r: 2.5 + Math.random()*5,
+        color,
+        life: 1,
+        decay: 0.018 + Math.random()*0.025
+      });
+    }
+    // a few larger bright shards
+    for(let i=0;i<4;i++){
+      const ang = -Math.PI/2 + (Math.random()-0.5)*1.4;
+      const spd = 5 + Math.random()*5;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang)*spd,
+        vy: Math.sin(ang)*spd,
+        r: 5 + Math.random()*4,
+        color: '#ffffff',
+        life: 1,
+        decay: 0.03 + Math.random()*0.02
+      });
+    }
+  }
+
+  function stepParticles(){
+    for(const p of particles){
+      p.vy += 0.25;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.99;
+      p.life -= p.decay;
+    }
+    particles = particles.filter(p => p.life > 0);
+  }
+
+  // Launch a settled (or in-flight) puck back into free physics. Strong
+  // upward impulse so clears can fling pieces out of the column and into
+  // the peg field — they'll re-enter a column when they fall again.
+  function launchPuckFromCell(col, row, player, stackPos, fromClearIndex){
+    const x = col*CELL + CELL/2 + (Math.random()*10-5);
+    const y = PEG_ZONE + row*CELL + CELL/2;
+    const heightBoost = Math.max(0, stackPos - fromClearIndex);
+    // Depth-scaled impulse: higher stack pieces get thrown harder, and
+    // deeper cells need more kick to have a chance of clearing the mouth.
+    const depth = Math.max(0, row);
+    const ball = {
+      x, y,
+      vx: (Math.random()-0.5)*8,
+      vy: -(12 + Math.random()*5 + heightBoost*2.4 + depth*0.9),
+      radius: BALL_RADIUS,
+      phase: 'peg',
+      targetCol: null,
+      row: null,
+      player,
+      frameSafety: 0,
+      trail: [],
+      stackEntry: null
+    };
+    balls.push(ball);
+  }
+
+  // Matched cells explode into particles. Every puck stacked above a clear
+  // in that column is blasted back into physics (often up into the pegs).
+  // Survivors below the blast stay put — no Tetris slide; physics refills.
+  function applyExplosionClear(groups){
     const cleared = new Set();
     for(const g of groups) for(const [c,r] of g.cells) cleared.add(c+','+r);
 
-    fallAnims = [];
+    for(const key of cleared){
+      const [c,r] = key.split(',').map(Number);
+      const player = grid[c][r];
+      if(player) spawnExplosion(c*CELL+CELL/2, PEG_ZONE+r*CELL+CELL/2, player);
+    }
+
     for(let c=0;c<COLS;c++){
       const oldStack = stack[c];
-      // walk bottom-to-top (index 0 = row ROWS-1), dropping any matched
-      // pieces and keeping everything else — including in-flight balls —
-      // in its original relative order
+      let lowestClearedIdx = Infinity;
+      for(let i=0;i<oldStack.length;i++){
+        const oldRow = ROWS - 1 - i;
+        if(oldStack[i].type==='piece' && cleared.has(c+','+oldRow)){
+          lowestClearedIdx = Math.min(lowestClearedIdx, i);
+        }
+      }
+
       const survivors = [];
       for(let i=0;i<oldStack.length;i++){
         const entry = oldStack[i];
         const oldRow = ROWS - 1 - i;
-        if(entry.type==='piece' && cleared.has(c+','+oldRow)) continue;
-        survivors.push({entry, oldRow});
-      }
-      const newGridCol = Array(ROWS).fill(0);
-      for(let i=0;i<survivors.length;i++){
-        const {entry, oldRow} = survivors[i];
-        const newRow = ROWS - 1 - i;
-        if(entry.type==='piece'){
-          newGridCol[newRow] = entry.player;
-          if(newRow !== oldRow){
-            fallAnims.push({col:c, player:entry.player, fromRow:oldRow, toRow:newRow, t0:performance.now()});
-          }
-        } else {
-          // in-flight ball: update its reserved row so it keeps falling
-          // toward the correct spot instead of the stale pre-clear one
-          entry.row = newRow;
-          entry.ball.row = newRow;
+        if(entry.type==='piece' && cleared.has(c+','+oldRow)){
+          continue; // destroyed in the explosion
         }
+        if(lowestClearedIdx !== Infinity && i > lowestClearedIdx){
+          // above the blast — fling back into play
+          if(entry.type==='piece'){
+            launchPuckFromCell(c, oldRow, entry.player, i, lowestClearedIdx);
+          } else if(entry.type==='ball'){
+            const b = entry.ball;
+            b.vx += (Math.random()-0.5)*6;
+            b.vy = Math.min(b.vy, 0) - (8 + Math.random()*4 + (i-lowestClearedIdx)*1.5);
+            b.stackEntry = null;
+            b.targetCol = null;
+            b.row = null;
+            b.phase = 'peg';
+            b.frameSafety = 0;
+          }
+          continue;
+        }
+        survivors.push(entry);
       }
-      for(let r=0;r<ROWS;r++) grid[c][r] = newGridCol[r];
-      stack[c] = survivors.map(s=>s.entry);
-      colHeights[c] = stack[c].length;
+
+      stack[c] = survivors;
+      rebuildColumnFromStack(c);
     }
     recomputeBumpers();
+    startLoop(); // keep the loop alive for launched pucks and debris
   }
 
   function maybeStartResolve(){
@@ -758,6 +1014,22 @@
     resolvePhaseStart = performance.now();
   }
 
+  function finishResolveOrChain(){
+    const nextGroups = findMatches();
+    if(nextGroups.length>0){
+      enterFlash(nextGroups);
+    } else {
+      resolving = false;
+      chainStep = 0;
+      if(colHeights.every(h=>h>=ROWS)){
+        gameOver = true;
+        showBanner();
+      }
+      refreshButtons();
+      maybeTriggerAI();
+    }
+  }
+
   function resolveTick(){
     const now = performance.now();
     if(resolving){
@@ -768,27 +1040,22 @@
           scores[1]+=pts[1]; scores[2]+=pts[2];
           updateScoreUI();
           spawnPopups(currentGroups);
-          applyClearAndGravity(currentGroups);
+          applyExplosionClear(currentGroups);
           flashCells = null;
-          resolvePhase = 'fall';
+          resolvePhase = 'explode';
           resolvePhaseStart = now;
         }
-      } else if(resolvePhase==='fall'){
-        if(elapsed >= FALL_MS || fallAnims.length===0){
-          fallAnims = [];
-          const nextGroups = findMatches();
-          if(nextGroups.length>0){
-            enterFlash(nextGroups);
-          } else {
-            resolving = false;
-            chainStep = 0;
-            if(colHeights.every(h=>h>=ROWS)){
-              gameOver = true;
-              showBanner();
-            }
-            refreshButtons();
-            maybeTriggerAI();
-          }
+      } else if(resolvePhase==='explode'){
+        // brief beat for the blast to read, then wait on physics
+        if(elapsed >= EXPLODE_MS){
+          resolvePhase = 'wait';
+          resolvePhaseStart = now;
+        }
+      } else if(resolvePhase==='wait'){
+        // launched pucks must fully settle before the next cascade check —
+        // they may still be bouncing around in the pegs
+        if(balls.length===0){
+          finishResolveOrChain();
         }
       }
     }
@@ -888,20 +1155,34 @@
     }
     ctx.shadowBlur = 0;
 
-    // bumpers — solid obstacles physically blocking full columns
+    // bumpers — continuous arched rails over runs of full columns
     const BUMPER_COLOR = '#FF6B4D';
-    for(const bp of bumpers){
+    for(const path of bumperPaths){
+      const pts = path.points;
+      if(pts.length < 2) continue;
+      const hit = path.hit > 0;
       ctx.beginPath();
-      ctx.arc(bp.x,bp.y,bp.r,0,Math.PI*2);
-      ctx.fillStyle = bp.hit ? '#ffffff' : BUMPER_COLOR;
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.strokeStyle = hit ? '#ffffff' : BUMPER_COLOR;
+      ctx.lineWidth = BUMPER_R * 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.shadowColor = BUMPER_COLOR;
-      ctx.shadowBlur = bp.hit ? 26 : 10;
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.shadowBlur = hit ? 28 : 12;
+      ctx.stroke();
+      // inner highlight so the rail reads as a solid bumper, not a flat stroke
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.strokeStyle = hit ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = BUMPER_R * 0.7;
+      ctx.shadowBlur = 0;
       ctx.stroke();
     }
     ctx.shadowBlur = 0;
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
 
     // trails
     for(const b of balls){
@@ -933,8 +1214,6 @@
     const flashElapsed = resolvePhase==='flash' ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS) : 0;
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
-        // pieces currently sliding down after a clear are drawn separately, below
-        if(fallAnims.some(a=>a.col===c && a.toRow===r)) continue;
         const val = grid[c][r];
         if(val===0) continue;
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
@@ -945,17 +1224,6 @@
           drawPiece(cx,cy,val);
         }
       }
-    }
-
-    // pieces sliding down to fill the gap left by a clear
-    for(const a of fallAnims){
-      const t = Math.min(1,(performance.now()-a.t0)/FALL_MS);
-      const ease = 1-Math.pow(1-t,3);
-      const fromY = PEG_ZONE + a.fromRow*CELL + CELL/2;
-      const toY = PEG_ZONE + a.toRow*CELL + CELL/2;
-      const x = a.col*CELL+CELL/2;
-      const y = fromY + (toY-fromY)*ease;
-      drawPiece(x,y,a.player);
     }
 
     // pucks currently dropping through the grid zone — same treatment,
@@ -998,6 +1266,19 @@
     }
 
     ctx.drawImage(plateCanvas, 0, 0);
+
+    // explosion debris — on top of the plate so the blast reads clearly
+    for(const p of particles){
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
 
     // score/chain popups — always fully visible, drawn on top of the plate
     const nowP = performance.now();
