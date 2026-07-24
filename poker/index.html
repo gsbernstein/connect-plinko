@@ -1475,7 +1475,8 @@
   const MAX_RUN_LEVEL = 40;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
   const MIN_CASH_OUT_LEVEL = 8;
-  // Shop order = array order. unlockAt = run level required to reveal.
+  // Shop order = array order. unlockAt = run level required to first reveal.
+  // Once revealed (via maxRunLevel), upgrades stay visible across Cash Out.
   // Flow: deal → score → passives → feel/aim → shoe → suit tools.
   const UPGRADE_DEFS = [
     {
@@ -2005,10 +2006,15 @@
     return credit;
   }
 
+  function highestRunLevelReached(){
+    return Math.max(runLevel, stats.maxRunLevel || 1);
+  }
+
   function upgradeUnlocked(id){
     const def = UPGRADE_DEFS.find(u => u.id === id);
     if(!def) return false;
-    return runLevel >= (def.unlockAt || 1);
+    // Sticky after first reveal — Cash Out resets run level, not shop discovery.
+    return highestRunLevelReached() >= (def.unlockAt || 1);
   }
 
   function pendingComps(){
@@ -2023,23 +2029,24 @@
   }
 
   function questSlotCap(){
-    // One slot per run level above 1, capped at 5. Tab stays locked at Lv 1.
+    // One slot per run level above 1, capped at 5.
     return Math.min(MAX_QUEST_SLOTS, Math.max(0, runLevel - 1));
   }
 
   function questsTabUnlocked(){
-    return questSlotCap() > 0;
+    // First opens at run Lv 2; stays after Cash Out (slots still gate on this run).
+    return questSlotCap() > 0 || highestRunLevelReached() >= 2;
   }
 
   function upgradesTabUnlocked(){
+    // First hand opens the shop; hands persist across Cash Out, wipe on Reset.
     return (stats.hands || 0) > 0;
   }
 
   function vipTabUnlocked(){
     // Cash Out / VIP Lounge opens at run Lv 8; stays once you've ever reached it.
-    return runLevel >= MIN_CASH_OUT_LEVEL
-      || prestigeCount > 0
-      || (stats.maxRunLevel || 1) >= MIN_CASH_OUT_LEVEL;
+    return highestRunLevelReached() >= MIN_CASH_OUT_LEVEL
+      || prestigeCount > 0;
   }
 
   function defaultShopPanel(){
@@ -2068,7 +2075,7 @@
   function achievementRevealed(def){
     if(achievementIsClaimed(def) || achievementComplete(def)) return true;
     if(def.secret) return achievementProgress(def) > 0;
-    return runLevel >= (def.unlockAt || 1) || (stats.maxRunLevel || 1) >= (def.unlockAt || 1);
+    return highestRunLevelReached() >= (def.unlockAt || 1);
   }
 
   function achievementCanClaim(def){
@@ -2491,8 +2498,10 @@
     opts = opts || {};
     const silent = !!opts.silent;
     const parts = [];
+    // maxRunLevel updates after the level-up loop, so "prior" is still the peak.
+    const firstTimeAtLevel = (stats.maxRunLevel || 1) < lvl;
     for(const def of UPGRADE_DEFS){
-      if((def.unlockAt || 1) === lvl){
+      if((def.unlockAt || 1) === lvl && firstTimeAtLevel){
         parts.push('Unlocked ' + def.name);
       }
     }
@@ -2533,12 +2542,16 @@
       }
       if(bonus.label && !parts.length) parts.push(bonus.label);
     }
-    if(lvl === MIN_CASH_OUT_LEVEL){
+    if(lvl === MIN_CASH_OUT_LEVEL && firstTimeAtLevel){
       parts.push('VIP Lounge unlocked');
     }
     // Slot i unlocks at run level i+1 (first slot at Lv 2).
     if(lvl >= 2 && lvl <= MAX_QUEST_SLOTS + 1){
-      parts.push(lvl === 2 ? 'Quests unlocked' : 'Quest slot +1');
+      if(lvl === 2){
+        if(firstTimeAtLevel) parts.push('Quests unlocked');
+      } else {
+        parts.push('Quest slot +1');
+      }
     }
     if(!silent) showLevelUpToast(lvl, parts);
   }
@@ -2871,7 +2884,7 @@
     bumpStat('cashOuts', 1);
     applyRunStartBonuses();
     resetRunQuests();
-    // Allow unlock flashes again on the next table.
+    // Already-revealed upgrades stay visible; suppress re-flash on the new table.
     seenUnlockFlash.clear();
     for(const def of UPGRADE_DEFS){
       if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
