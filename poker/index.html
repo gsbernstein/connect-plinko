@@ -915,6 +915,7 @@
     padding:10px 12px;
   }
   .suit-bomb.show{display:flex;}
+  .suit-bomb.picker-hidden{padding-bottom:8px;}
   .suit-bomb-head{
     display:flex;
     justify-content:space-between;
@@ -2579,11 +2580,12 @@
     {
       id: 'suitBomb',
       name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait.',
+      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait. Toggle to hide the suit picker.',
       baseCost: 400,
       costScale: 1.85,
       maxLevel: 12,
-      unlockAt: 11
+      unlockAt: 11,
+      toggleable: true
     },
     {
       id: 'autoSuitBomb',
@@ -2924,7 +2926,7 @@
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'questDesk', 'pitBoss'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -3016,6 +3018,10 @@
 
   function isAutoEnabled(id){
     return autoEnabled[id] !== false;
+  }
+
+  function suitBombUiVisible(){
+    return upgradeLevel('suitBomb') > 0 && isAutoEnabled('suitBomb');
   }
 
   function setAutoEnabled(id, on){
@@ -4198,9 +4204,9 @@
         return 'Out ' + gone + ' · In ' + left;
       }
       case 'suitBomb':
-        return lvl
-          ? ('Cooldown ' + formatInterval(suitBombCooldownMs()))
-          : 'Locked';
+        if(!lvl) return 'Locked';
+        if(!isAutoEnabled('suitBomb')) return 'Picker hidden';
+        return 'Cooldown ' + formatInterval(suitBombCooldownMs());
       case 'autoSuitBomb':
         if(!lvl) return upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge';
         return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
@@ -7541,7 +7547,10 @@
     if(!force && now - lastSuitBombUiAt < 120) return;
     lastSuitBombUiAt = now;
     const unlocked = suitBombUnlocked();
+    const showPicker = suitBombUiVisible();
     suitBombBar.classList.toggle('show', unlocked);
+    suitBombBar.classList.toggle('picker-hidden', unlocked && !showPicker);
+    if(suitBombBtnsEl) suitBombBtnsEl.hidden = !showPicker;
     if(!unlocked) return;
 
     const cd = suitBombCooldownMs();
