@@ -1060,49 +1060,42 @@
             }
           }
 
-          // 4-card flush draw
-          if(cards.length >= 4){
-            for(let i=0;i<=cards.length-4;i++){
-              const slice = cards.slice(i, i+4);
-              const sliceCells = cells.slice(i, i+4);
-              if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              if(slice.every(card => card.suit === slice[0].suit)){
-                pushHint(sliceCells, 'flush4', 'flush', SUIT_COLOR[slice[0].suit], 40);
-              }
-            }
-          }
+          // Same-cell flush+straight draws collapse to one "SF" hint so
+          // labels never stack on top of each other.
+          const sfWindows = new Set();
 
-          // 4-card straight draw
           if(cards.length >= 4){
             for(let i=0;i<=cards.length-4;i++){
               const slice = cards.slice(i, i+4);
               const sliceCells = cells.slice(i, i+4);
               if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              if(canCompleteStraight(slice.map(card => card.rank))){
+              const sameSuit = slice.every(card => card.suit === slice[0].suit);
+              const straightish = canCompleteStraight(slice.map(card => card.rank));
+              if(sameSuit && straightish){
+                sfWindows.add('4:'+i);
+                pushHint(sliceCells, 'sf4', 'SF', SUIT_COLOR[slice[0].suit], 50);
+              } else if(sameSuit){
+                pushHint(sliceCells, 'flush4', 'flush', SUIT_COLOR[slice[0].suit], 40);
+              } else if(straightish){
                 pushHint(sliceCells, 'straight4', 'straight', PEG, 35);
               }
             }
           }
 
-          // 3-card flush draw (fainter)
           if(cards.length >= 3){
             for(let i=0;i<=cards.length-3;i++){
               const slice = cards.slice(i, i+3);
               const sliceCells = cells.slice(i, i+3);
               if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              if(slice.every(card => card.suit === slice[0].suit)){
+              // Covered by a 4-card SF window that includes this stub
+              if(sfWindows.has('4:'+i) || sfWindows.has('4:'+(i-1))) continue;
+              const sameSuit = slice.every(card => card.suit === slice[0].suit);
+              const straightish = isConnectedStraight3(slice.map(card => card.rank));
+              if(sameSuit && straightish){
+                pushHint(sliceCells, 'sf3', 'SF', SUIT_COLOR[slice[0].suit], 28);
+              } else if(sameSuit){
                 pushHint(sliceCells, 'flush3', 'flush', SUIT_COLOR[slice[0].suit], 18);
-              }
-            }
-          }
-
-          // 3 connected ranks (straight stub)
-          if(cards.length >= 3){
-            for(let i=0;i<=cards.length-3;i++){
-              const slice = cards.slice(i, i+3);
-              const sliceCells = cells.slice(i, i+3);
-              if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              if(isConnectedStraight3(slice.map(card => card.rank))){
+              } else if(straightish){
                 pushHint(sliceCells, 'straight3', 'straight', '#B8B0E0', 16);
               }
             }
@@ -1125,14 +1118,27 @@
       }
     }
 
-    // Prefer stronger draws; drop a 3-card hint fully covered by a 4-card one
+    // Prefer stronger draws; drop stubs covered by a longer same-family hint.
+    // SF also suppresses flush/straight on the same cells.
+    function family(kind){
+      if(kind.startsWith('sf')) return 'sf';
+      if(kind.startsWith('flush')) return 'flush';
+      if(kind.startsWith('straight')) return 'straight';
+      return kind;
+    }
+    function coversFamily(keeper, other){
+      const kf = family(keeper.kind), of = family(other.kind);
+      if(kf === of) return true;
+      if(kf === 'sf' && (of === 'flush' || of === 'straight')) return true;
+      return false;
+    }
+
     hints.sort((a,b)=> b.priority - a.priority);
     const kept = [];
     for(const h of hints){
       const keys = h.cells.map(([c,r])=>c+','+r);
       const covered = kept.some(k => {
-        if(k.priority < h.priority) return false;
-        if(k.kind.replace(/\d/,'') !== h.kind.replace(/\d/,'')) return false;
+        if(!coversFamily(k, h)) return false;
         const set = new Set(k.cells.map(([c,r])=>c+','+r));
         return keys.every(key => set.has(key));
       });
