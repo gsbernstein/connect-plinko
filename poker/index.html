@@ -831,7 +831,8 @@
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
-    return lvl ? lvl * 15 : 0;
+    // Full-board clears are rare — pay enough to matter at each level.
+    return lvl ? Math.floor(lvl * 75 * scoreMultiplier()) : 0;
   }
 
   function suitBombCooldownMs(){
