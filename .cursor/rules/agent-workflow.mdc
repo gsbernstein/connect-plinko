@@ -1,0 +1,38 @@
+---
+description: Git workflow and branch hygiene for cloud agents
+alwaysApply: true
+---
+
+# Agent workflow
+
+## Check merged branches before committing
+
+Before committing on an existing feature branch — especially `cursor/*` branches left from prior agent runs:
+
+1. `git fetch origin master`
+2. Verify the branch is **not** already merged into `master`:
+   ```bash
+   git merge-base --is-ancestor HEAD origin/master && echo MERGED || echo OK
+   ```
+   Or compare to the remote branch tip if you have not checked it out locally:
+   ```bash
+   git merge-base --is-ancestor origin/<branch-name> origin/master
+   ```
+3. If **merged** (or the PR is closed/merged): do **not** commit on that branch. Instead:
+   - `git checkout master && git pull origin master`
+   - Create a new branch: `cursor/<descriptive-name>-65f3`
+   - Cherry-pick only if you still need unmerged commits; otherwise start fresh from `master`.
+4. If **not merged**: rebasing on latest `master` is fine when it reduces conflict risk; avoid piling unrelated changes onto stale branches.
+
+List merged remote cursor branches for a quick scan:
+
+```bash
+git branch -r --merged origin/master | grep 'origin/cursor/'
+```
+
+## Other defaults
+
+- Base branch for PRs: `master`.
+- This repo has no build or test command — validate with `python3 -m http.server 8080` and manual play when UI/gameplay changes.
+- Most edits are in `index.html` (classic) or `poker/index.html` (poker). Read `AGENTS.md` before wide exploration.
+- Bump `SAVE_VERSION` and migrate in `loadSave` when changing poker save shape.
