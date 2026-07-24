@@ -600,6 +600,27 @@
     return detonateMode && !resolving && !gameOver;
   }
 
+  // Custom bomb cursor for the board-full detonate pick.
+  // Hotspot sits on the bomb body so it lines up with the puck under the tip.
+  const BOMB_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+      <path d="M18.5 9c2.2-3.2 5.2-4.2 7.5-3.2" fill="none" stroke="#FFD23F" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="26.5" cy="5" r="2.6" fill="#FF6B4D"/>
+      <circle cx="26.5" cy="5" r="1.1" fill="#FFD23F"/>
+      <rect x="16.2" y="8.6" width="3.2" height="4.2" rx="1" transform="rotate(40 17.8 10.7)" fill="#C8C2E8"/>
+      <circle cx="14" cy="19" r="9.5" fill="#1a1630"/>
+      <circle cx="14" cy="19" r="9.5" fill="none" stroke="#F1EEFB" stroke-width="1.6"/>
+      <circle cx="11.2" cy="16.2" r="2.6" fill="rgba(255,255,255,0.28)"/>
+      <path d="M10 22.5c1.6 1.8 4.2 2.4 6.5 1.2" fill="none" stroke="#FF6B4D" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>`
+  )}") 14 19, crosshair`;
+
+  function setBoardCursor(mode){
+    if(mode === 'bomb') canvas.style.cursor = BOMB_CURSOR;
+    else if(mode === 'pointer') canvas.style.cursor = 'pointer';
+    else canvas.style.cursor = 'default';
+  }
+
   // ---- match resolution (clear + cascade) state ----
   let resolving = false;
   let resolvePhase = null;
@@ -1414,6 +1435,7 @@
     gameOver = false;
     banner.classList.remove('show');
     refreshButtons();
+    setBoardCursor('bomb');
     startDetonateAnim();
   }
 
@@ -1423,6 +1445,7 @@
     if(!grid[col][row]) return;
     detonateMode = false;
     detonateHover = null;
+    setBoardCursor('pointer');
     resolving = true;
     resolveEpoch++;
     pendingChain = 0;
@@ -1910,13 +1933,13 @@
       const same = (!cell && !detonateHover) ||
         (cell && detonateHover && cell.col===detonateHover.col && cell.row===detonateHover.row);
       detonateHover = cell;
-      canvas.style.cursor = cell ? 'crosshair' : 'default';
+      setBoardCursor('bomb');
       if(!same) draw();
       return;
     }
     if(inputBlocked() || pointerDown) return;
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
-    canvas.style.cursor = 'pointer';
+    setBoardCursor('pointer');
     draw();
   });
 
@@ -1972,7 +1995,7 @@
     pointerDown = false;
     pointerDetonate = false;
   });
-  canvas.style.cursor = 'pointer';
+  setBoardCursor('pointer');
   canvas.style.touchAction = 'none';
 
   // Keep the aim preview gently spinning even when idle
