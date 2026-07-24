@@ -1669,8 +1669,11 @@
   function autoDropIntervalMs(){
     const lvl = upgradeLevel('autoDealer');
     if(lvl <= 0) return Infinity;
-    // Steep curve: ~3.2s at Lv1, sub-second by Lv5, floors at 150ms.
-    return Math.max(150, Math.floor(3200 * Math.pow(0.72, lvl - 1)));
+    // Steep through the teens (~3.2s → ~86ms by Lv12), then a gentler
+    // cut so Lv13–30 still matter, flooring at 40ms near the top.
+    const early = 3200 * Math.pow(0.72, Math.min(lvl, 12) - 1);
+    const late = early * Math.pow(0.94, Math.max(0, lvl - 12));
+    return Math.max(40, Math.floor(late));
   }
 
   function autoDropCount(){
