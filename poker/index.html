@@ -323,17 +323,18 @@
     margin:0 auto;
   }
   .welcome-chip{
-    width:148px;
-    height:148px;
-    filter:drop-shadow(0 18px 28px rgba(0,0,0,0.45));
+    width:156px;
+    height:156px;
     animation:welcomeChipIn .7s cubic-bezier(.2,.8,.2,1) both;
   }
-  .welcome-chip svg{
+  .welcome-chip img{
     width:100%;
     height:100%;
     display:block;
+    object-fit:contain;
     animation:welcomeChipIdle 5.5s ease-in-out infinite;
     transform-origin:50% 50%;
+    filter:drop-shadow(0 16px 24px rgba(0,0,0,0.55));
   }
   .welcome-brand{
     margin:0;
@@ -347,10 +348,12 @@
   }
   .welcome-hint{
     margin:0;
+    max-width:16em;
     font-family:'Space Grotesk',sans-serif;
-    font-size:15px;
+    font-size:14px;
     font-weight:700;
-    letter-spacing:0.02em;
+    letter-spacing:0.01em;
+    line-height:1.35;
     color:var(--felt-bright);
     animation:welcomeFadeUp .55s ease .22s both, welcomeHintPulse 2.4s ease-in-out 1s infinite;
   }
@@ -1330,42 +1333,12 @@
       <section class="rail-panel welcome-panel" id="panelWelcome" data-panel="welcome" aria-label="Welcome">
         <div class="welcome">
           <div class="welcome-chip" aria-hidden="true">
-            <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <radialGradient id="welcomeChipFace" cx="38%" cy="32%" r="68%">
-                  <stop offset="0%" stop-color="#2f9a78"/>
-                  <stop offset="55%" stop-color="#1a4d3e"/>
-                  <stop offset="100%" stop-color="#0f2e25"/>
-                </radialGradient>
-                <linearGradient id="welcomeChipRim" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#F7E7A8"/>
-                  <stop offset="45%" stop-color="#E6C35C"/>
-                  <stop offset="100%" stop-color="#8A6A28"/>
-                </linearGradient>
-              </defs>
-              <circle cx="60" cy="60" r="56" fill="url(#welcomeChipRim)"/>
-              <circle cx="60" cy="60" r="48" fill="#14101f"/>
-              <circle cx="60" cy="60" r="42" fill="url(#welcomeChipFace)"/>
-              <circle cx="60" cy="60" r="42" fill="none" stroke="rgba(247,231,168,0.28)" stroke-width="2"/>
-              <g fill="#F0D78C">
-                <rect x="56" y="8" width="8" height="14" rx="2" transform="rotate(0 60 60)"/>
-                <rect x="56" y="8" width="8" height="14" rx="2" transform="rotate(45 60 60)"/>
-                <rect x="56" y="8" width="8" height="14" rx="2" transform="rotate(90 60 60)"/>
-                <rect x="56" y="8" width="8" height="14" rx="2" transform="rotate(135 60 60)"/>
-                <rect x="56" y="8" width="8" height="14" rx="2" transform="rotate(180 60 60)"/>
-                <rect x="56" y="8" width="8" height="14" rx="2" transform="rotate(225 60 60)"/>
-                <rect x="56" y="8" width="8" height="14" rx="2" transform="rotate(270 60 60)"/>
-                <rect x="56" y="8" width="8" height="14" rx="2" transform="rotate(315 60 60)"/>
-              </g>
-              <circle cx="60" cy="60" r="26" fill="none" stroke="#F0D78C" stroke-width="2.5"/>
-              <circle cx="60" cy="60" r="21" fill="rgba(11,10,20,0.35)"/>
-              <text x="60" y="66" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="18" font-weight="700" fill="#F1EEFB">P</text>
-            </svg>
+            <img src="welcome-chip.png" width="384" height="384" alt="">
           </div>
           <h2 class="welcome-brand">Plinko Poker</h2>
           <p class="welcome-hint">
-            <span class="welcome-hint-tap">Tap to drop</span>
-            <span class="welcome-hint-click">Click to drop</span>
+            <span class="welcome-hint-tap">Tap anywhere on the board to drop</span>
+            <span class="welcome-hint-click">Click anywhere on the board to drop</span>
           </p>
           <button type="button" class="welcome-cta" id="welcomeToTable">Open table</button>
         </div>
@@ -3176,6 +3149,9 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    // Reset is launched from Settings (always unlocked), so tab gating alone
+    // won't leave FTUE — jump back to the first-run default panel.
+    setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
   }
 
   function cashOut(){
