@@ -4705,6 +4705,9 @@
   const upgradeButtons = {};
   const prestigeButtons = {};
   const contractButtons = {};
+  // Stable slot cards — updated in place so claim/progress ticks don't flicker.
+  const questSlotButtons = [];
+  const questLockedButtons = [];
   const seenUnlockFlash = new Set();
 
   function isDesktopLayout(){
@@ -5043,55 +5046,106 @@
     return btn;
   }
 
+  function ensureQuestSlotButton(slot){
+    while(questSlotButtons.length <= slot){
+      const idx = questSlotButtons.length;
+      const btn = makeQuestCardShell();
+      btn.addEventListener('click', ()=>{
+        const q = activeQuests[idx];
+        if(q) claimActiveQuest(q.uid);
+      });
+      questSlotButtons.push(btn);
+    }
+    return questSlotButtons[slot];
+  }
+
+  function fillActiveQuestButton(btn, q){
+    const progress = activeQuestProgress(q);
+    const complete = progress >= q.target;
+    const meta = QUEST_RARITY[q.rarity] || QUEST_RARITY.common;
+    for(const r of QUEST_RARITIES) btn.classList.remove('rarity-' + r);
+    btn.classList.remove('quest-locked', 'claimed');
+    btn.hidden = false;
+    btn.dataset.id = q.uid;
+    btn.classList.add('rarity-' + q.rarity);
+    btn.classList.toggle('claimable', complete);
+    btn.disabled = !complete;
+    btn.querySelector('.quest-name').textContent = q.name;
+    btn.querySelector('.quest-kind').textContent = meta.label;
+    btn.querySelector('.quest-desc').textContent = q.desc;
+    btn.querySelector('.quest-reward').textContent = contractRewardText(q.reward);
+    const fill = btn.querySelector('.quest-bar > span');
+    if(fill) fill.style.width = Math.min(100, (progress / q.target) * 100) + '%';
+    const progEl = btn.querySelector('.quest-prog');
+    if(progEl){
+      progEl.innerHTML =
+        '<b>' + formatNum(progress) + '</b> / ' + formatNum(q.target);
+    }
+    const actionEl = btn.querySelector('.quest-action');
+    if(actionEl) actionEl.textContent = complete ? 'Claim · replace' : 'In progress';
+    return complete;
+  }
+
+  function fillLockedQuestButton(btn, slotIndex){
+    const unlockLvl = slotIndex + 2;
+    for(const r of QUEST_RARITIES) btn.classList.remove('rarity-' + r);
+    btn.classList.remove('claimable', 'claimed');
+    btn.classList.add('quest-locked');
+    btn.hidden = false;
+    btn.disabled = true;
+    delete btn.dataset.id;
+    btn.querySelector('.quest-name').textContent = 'Locked slot';
+    btn.querySelector('.quest-kind').textContent = 'Lv ' + unlockLvl;
+    btn.querySelector('.quest-desc').textContent =
+      'Reach run level ' + unlockLvl + ' to open this quest slot.';
+    btn.querySelector('.quest-reward').textContent = '—';
+    const fill = btn.querySelector('.quest-bar > span');
+    if(fill) fill.style.width = '0%';
+    const progEl = btn.querySelector('.quest-prog');
+    if(progEl) progEl.textContent = '0 / 1';
+    const actionEl = btn.querySelector('.quest-action');
+    if(actionEl) actionEl.textContent = 'Locked';
+  }
+
   function updateQuestsUI(){
     updateQuestTabAvailability();
     if(!questsEl) return;
     const cap = questSlotCap();
     let questReady = 0;
-    questsEl.innerHTML = '';
-    // Active rolled quests first (claimable sorted to top).
-    const ordered = activeQuests.slice().sort((a, b)=>{
-      const ac = activeQuestComplete(a) ? 0 : 1;
-      const bc = activeQuestComplete(b) ? 0 : 1;
-      return ac - bc;
-    });
-    for(const q of ordered){
-      const progress = activeQuestProgress(q);
-      const complete = progress >= q.target;
-      const meta = QUEST_RARITY[q.rarity] || QUEST_RARITY.common;
-      if(complete) questReady++;
-      const btn = makeQuestCardShell();
-      btn.dataset.id = q.uid;
-      btn.classList.add('rarity-' + q.rarity);
-      btn.classList.toggle('claimable', complete);
-      btn.disabled = !complete;
-      btn.querySelector('.quest-name').textContent = q.name;
-      btn.querySelector('.quest-kind').textContent = meta.label;
-      btn.querySelector('.quest-desc').textContent = q.desc;
-      btn.querySelector('.quest-reward').textContent = contractRewardText(q.reward);
-      const fill = btn.querySelector('.quest-bar > span');
-      if(fill) fill.style.width = Math.min(100, (progress / q.target) * 100) + '%';
-      btn.querySelector('.quest-prog').innerHTML =
-        '<b>' + formatNum(progress) + '</b> / ' + formatNum(q.target);
-      btn.querySelector('.quest-action').textContent = complete ? 'Claim · replace' : 'In progress';
-      btn.addEventListener('click', ()=>claimActiveQuest(q.uid));
-      questsEl.appendChild(btn);
+    const claimable = [];
+    const inProgress = [];
+
+    while(questSlotButtons.length > activeQuests.length){
+      const btn = questSlotButtons.pop();
+      if(btn && btn.parentNode) btn.parentNode.removeChild(btn);
     }
-    // Locked slot placeholders until all 5 are opened this run.
-    for(let i = cap; i < MAX_QUEST_SLOTS; i++){
-      const unlockLvl = i + 2;
-      const btn = makeQuestCardShell();
-      btn.classList.add('quest-locked');
-      btn.disabled = true;
-      btn.querySelector('.quest-name').textContent = 'Locked slot';
-      btn.querySelector('.quest-kind').textContent = 'Lv ' + unlockLvl;
-      btn.querySelector('.quest-desc').textContent =
-        'Reach run level ' + unlockLvl + ' to open this quest slot.';
-      btn.querySelector('.quest-reward').textContent = '—';
-      btn.querySelector('.quest-prog').textContent = '0 / 1';
-      btn.querySelector('.quest-action').textContent = 'Locked';
-      questsEl.appendChild(btn);
+    for(let i = 0; i < activeQuests.length; i++){
+      const btn = ensureQuestSlotButton(i);
+      if(fillActiveQuestButton(btn, activeQuests[i])){
+        questReady++;
+        claimable.push(btn);
+      } else {
+        inProgress.push(btn);
+      }
     }
+
+    const lockedNeed = Math.max(0, MAX_QUEST_SLOTS - cap);
+    while(questLockedButtons.length > lockedNeed){
+      const btn = questLockedButtons.pop();
+      if(btn && btn.parentNode) btn.parentNode.removeChild(btn);
+    }
+    while(questLockedButtons.length < lockedNeed){
+      questLockedButtons.push(makeQuestCardShell());
+    }
+    for(let i = 0; i < lockedNeed; i++){
+      fillLockedQuestButton(questLockedButtons[i], cap + i);
+    }
+
+    // Only reshuffle DOM when claimable order actually changes.
+    orderUpgradeButtons(
+      questsEl,
+      claimable.concat(inProgress, questLockedButtons)
+    );
     if(questReadyValEl) questReadyValEl.textContent = String(questReady);
     if(questSlotsMetaEl){
       questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
@@ -5147,7 +5201,7 @@
     }
     if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
     setTabBadge('achievements', achieveReady);
-    for(const btn of claimable.concat(active, done)) achievementsEl.appendChild(btn);
+    orderUpgradeButtons(achievementsEl, claimable.concat(active, done));
   }
 
   function updateContractsUI(){
@@ -5172,6 +5226,8 @@
   function buildContracts(){
     if(questsEl) questsEl.innerHTML = '';
     if(achievementsEl) achievementsEl.innerHTML = '';
+    questSlotButtons.length = 0;
+    questLockedButtons.length = 0;
     for(const key of Object.keys(contractButtons)) delete contractButtons[key];
     for(const def of ACHIEVEMENT_DEFS){
       const btn = makeAchievementButton(def);
