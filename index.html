@@ -220,7 +220,7 @@
 <body>
 <div class="wrap">
   <h1>Plinko Four</h1>
-  <div class="tagline">Press and drag on the board to aim, release to drop — full columns get a bumper that physically knocks pucks aside.</div>
+  <div class="tagline">Press and drag on the board to aim, release to drop — full columns raise an arched bumper. Matches explode, and if the board packs solid you click one piece to blow it up.</div>
 
   <div class="hud">
     <div class="score p1" id="score1"><span class="dot" style="background:var(--p1)"></span>Red&nbsp;<b id="s1">0</b></div>
@@ -245,7 +245,7 @@
   </div>
 
   <div class="footer-row">
-    <span class="hint">4+ in a row scores &amp; clears — game ends when the board's full</span>
+    <span class="hint">4+ in a row scores &amp; explodes — board full? click a piece to blow it up</span>
     <button class="reset" id="resetScores">Reset scores</button>
   </div>
 </div>
@@ -253,7 +253,9 @@
 <script>
 (function(){
   const COLS = 7, ROWS = 6, CELL = 90;
-  const PEG_ZONE = 380;
+  // Tall enough for 6 peg rows with clear air above the bumper —
+  // the bottom peg row must sit between columns, not on their mouths.
+  const PEG_ZONE = 420;
   const W = COLS*CELL, H = PEG_ZONE + ROWS*CELL;
   const canvas = document.getElementById('board');
   canvas.width = W; canvas.height = H;
@@ -280,6 +282,9 @@
 
   // ---- board state ----
   let grid, colHeights, current, gameOver;
+  let detonateMode = false;        // board full: click a piece to blow it up
+  let detonateHover = null;        // {col,row} under the cursor while choosing
+  let detonateConsumesTurn = false; // after a detonation settles, pass the turn
   let scores = {1:0, 2:0};
   let vsComputerEnabled = false;
 
@@ -297,13 +302,18 @@
     stack = Array.from({length:COLS}, ()=>[]);
     current = 1;
     gameOver = false;
+    detonateMode = false;
+    detonateHover = null;
+    detonateConsumesTurn = false;
+    aiMoveId++;
     balls = [];
     resolving = false;
     resolvePhase = null;
     currentGroups = [];
     chainStep = 0;
+    pendingChain = 0;
     flashCells = null;
-    fallAnims = [];
+    particles = [];
     popups = [];
     recomputeBumpers();
   }
@@ -312,43 +322,195 @@
   // A fixed lattice of peg positions. These never move — the only thing
   // that changes as columns fill is the addition of physical bumpers
   // (below), which the ball actually collides and bounces off of.
+  // Six rows ending on an odd (between-column) row so the last pegs sit
+  // in the gaps between column mouths instead of blocking them — that
+  // was pinching balls against the bumper.
   const pegs = [];
   (function buildPegs(){
-    const rows = 5;
-    const topPad = 54, rowGap = 60;
+    const rows = 6;
+    const topPad = 50, rowGap = 54;
     for(let r=0;r<rows;r++){
       const y = topPad + r*rowGap;
       const isEven = r % 2 === 0;
+      // even rows: pegs on column centers; odd rows: pegs between columns
       const offset = isEven ? 0 : CELL/2;
       const cMin = 0, cMax = isEven ? COLS-1 : COLS-2; // inclusive
+      const isBottom = r === rows - 1;
       for(let c=cMin;c<=cMax;c++){
         const x = offset + c*CELL + CELL/2;
         // jitter each peg so the lattice isn't perfectly symmetric —
-        // this is what kills the repeating zigzag pattern
+        // this is what kills the repeating zigzag pattern. Keep the
+        // bottom row's Y stable so clearance above the bumper stays honest.
         const jx = (Math.random()*8-4);
-        const jy = (Math.random()*5-2.5);
+        const jy = isBottom ? 0 : (Math.random()*5-2.5);
         pegs.push({x: x+jx, y: y+jy, r: 6});
       }
     }
   })();
 
   // ---- bumpers ----
-  // A real physical obstacle placed over any column that's already full.
-  // Each bumper is three overlapping circles spanning the column's width,
-  // positioned right at the mouth of the slot — so a descending ball
-  // actually collides with it (same reflection physics as a peg, just
-  // livelier) and gets knocked sideways into an open column instead of
-  // ever reaching the full one. No teleporting, no invisible steering.
-  let bumpers = [];
+  // Contiguous full columns share one circular-arc rail (or a flat bar when
+  // the whole board is packed). Collision is continuous: closest point on
+  // the arc/segment, then a capsule of radius BUMPER_R — no sampled circles.
+  let bumperPaths = [];
+  // Sit the bumper near the grid mouth so there's clear air under the
+  // bottom (between-column) peg row — peg+bumper sandwiches were common.
+  const BUMPER_BASE_Y = PEG_ZONE - 14;
+  const BUMPER_ARC = 18; // sagitta: how far the peak rises above the base
+  const BUMPER_R = 18;
+  // Channel between wall and bumper end — wide enough for a puck so it
+  // bounces off the wall into open play instead of pinning under the rail.
+  const BUMPER_EDGE_PAD = BUMPER_R + 16;
+
+  function normalizeArcDelta(a0, a1){
+    let delta = a1 - a0;
+    while(delta > Math.PI) delta -= Math.PI*2;
+    while(delta < -Math.PI) delta += Math.PI*2;
+    return delta;
+  }
+
+  // Closest point on a circular arc swept from a0 to a1 (a1 = a0+delta,
+  // with delta already normalized into (-π, π]).
+  function closestPointOnArc(px, py, arc){
+    const {cx, cy, r, a0, a1} = arc;
+    const delta = a1 - a0;
+    let off = Math.atan2(py - cy, px - cx) - a0;
+    while(off > Math.PI) off -= Math.PI*2;
+    while(off < -Math.PI) off += Math.PI*2;
+    let t = 0;
+    if(Math.abs(delta) > 1e-9){
+      if(delta > 0) t = Math.max(0, Math.min(1, off / delta));
+      else t = Math.max(0, Math.min(1, off / delta));
+    }
+    const a = a0 + delta*t;
+    return {x: cx + Math.cos(a)*r, y: cy + Math.sin(a)*r};
+  }
+
+  function closestPointOnSegment(px, py, x1, y1, x2, y2){
+    const dx = x2 - x1, dy = y2 - y1;
+    const len2 = dx*dx + dy*dy || 1;
+    const t = Math.max(0, Math.min(1, ((px-x1)*dx + (py-y1)*dy) / len2));
+    return {x: x1 + t*dx, y: y1 + t*dy};
+  }
+
+  function closestPointOnBumper(px, py, rail){
+    if(rail.arc) return closestPointOnArc(px, py, rail.arc);
+    const a = rail.points[0], b = rail.points[rail.points.length-1];
+    return closestPointOnSegment(px, py, a.x, a.y, b.x, b.y);
+  }
+
+  function addBumperRun(startCol, endCol){
+    const edgeLeft = startCol === 0;
+    const edgeRight = endCol === COLS-1;
+    const leftX = startCol*CELL + (edgeLeft ? BUMPER_EDGE_PAD : 8);
+    const rightX = (endCol+1)*CELL - (edgeRight ? BUMPER_EDGE_PAD : 8);
+    const span = Math.max(24, rightX - leftX);
+    const h = BUMPER_ARC;
+
+    if(edgeLeft && edgeRight){
+      // Full-width: flat inset bar — no corner pockets
+      const y = BUMPER_BASE_Y - h*0.35;
+      bumperPaths.push({
+        points: [{x:leftX,y},{x:rightX,y}],
+        hit:0, edgeLeft, edgeRight
+      });
+      return;
+    }
+
+    if(edgeLeft){
+      // Half-arc: peak at the (inset) wall side with horizontal tangent,
+      // sweeping down to the open end.
+      const R = (span*span + h*h) / (2*h);
+      const cx = leftX;
+      const cy = BUMPER_BASE_Y - h + R;
+      const a0 = -Math.PI/2;
+      const a1 = a0 + normalizeArcDelta(a0, Math.atan2(BUMPER_BASE_Y - cy, rightX - cx));
+      bumperPaths.push({
+        points: [
+          {x: cx + Math.cos(a0)*R, y: cy + Math.sin(a0)*R},
+          {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
+        ],
+        hit:0, edgeLeft, edgeRight,
+        arc: {cx, cy, r:R, a0, a1}
+      });
+      return;
+    }
+
+    if(edgeRight){
+      const R = (span*span + h*h) / (2*h);
+      const cx = rightX;
+      const cy = BUMPER_BASE_Y - h + R;
+      const leftA = Math.atan2(BUMPER_BASE_Y - cy, leftX - cx);
+      const peakA = -Math.PI/2;
+      const a0 = leftA;
+      const a1 = leftA + normalizeArcDelta(leftA, peakA);
+      bumperPaths.push({
+        points: [
+          {x: cx + Math.cos(a0)*R, y: cy + Math.sin(a0)*R},
+          {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
+        ],
+        hit:0, edgeLeft, edgeRight,
+        arc: {cx, cy, r:R, a0, a1}
+      });
+      return;
+    }
+
+    // Interior run: circular arch between the two open ends
+    const R = (h*h + (span*0.5)*(span*0.5)) / (2*h);
+    const cx = (leftX + rightX) * 0.5;
+    const cy = BUMPER_BASE_Y - h + R;
+    const leftA = Math.atan2(BUMPER_BASE_Y - cy, leftX - cx);
+    const rightA = Math.atan2(BUMPER_BASE_Y - cy, rightX - cx);
+    const a0 = leftA;
+    const a1 = leftA + normalizeArcDelta(leftA, rightA);
+    bumperPaths.push({
+      points: [
+        {x: cx + Math.cos(a0)*R, y: cy + Math.sin(a0)*R},
+        {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
+      ],
+      hit:0, edgeLeft, edgeRight,
+      arc: {cx, cy, r:R, a0, a1}
+    });
+  }
+
   function recomputeBumpers(){
-    bumpers = [];
-    for(let c=0;c<COLS;c++){
-      if(colHeights[c] >= ROWS){
-        const cx = c*CELL + CELL/2;
-        for(const off of [-30, 0, 30]){
-          bumpers.push({x: cx+off, y: PEG_ZONE-24, r: 27, col:c, hit:0});
-        }
+    bumperPaths = [];
+    let c = 0;
+    while(c < COLS){
+      if(colHeights[c] < ROWS){ c++; continue; }
+      const start = c;
+      while(c < COLS && colHeights[c] >= ROWS) c++;
+      addBumperRun(start, c-1);
+    }
+  }
+
+  function collideBallWithBumpers(ball){
+    for(const rail of bumperPaths){
+      const closest = closestPointOnBumper(ball.x, ball.y, rail);
+      const dx = ball.x - closest.x, dy = ball.y - closest.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = ball.radius + BUMPER_R;
+      if(dist >= minDist || dist <= 0.0001) continue;
+      const nx = dx/dist, ny = dy/dist;
+      ball.x = closest.x + nx*minDist;
+      ball.y = closest.y + ny*minDist;
+      // Bias bounce inward on edge rails so wall-side contacts don't skitter
+      let kx = nx, ky = ny;
+      if(rail.edgeLeft) kx = Math.max(kx, 0.4);
+      if(rail.edgeRight) kx = Math.min(kx, -0.4);
+      const kLen = Math.hypot(kx, ky) || 1;
+      kx /= kLen; ky /= kLen;
+      const dot = ball.vx*kx + ball.vy*ky;
+      if(dot < 0){
+        ball.vx -= 2*dot*kx;
+        ball.vy -= 2*dot*ky;
       }
+      ball.vx *= 1.05; ball.vy *= 1.05;
+      ball.vx += kx*1.4 + (Math.random()*0.6-0.3);
+      if(rail.edgeLeft) ball.vx = Math.max(ball.vx, 2.4);
+      if(rail.edgeRight) ball.vx = Math.min(ball.vx, -2.4);
+      ball.vy = Math.min(ball.vy, -1.5);
+      rail.hit = 14;
     }
   }
 
@@ -365,20 +527,28 @@
     buttons.push(b);
   }
 
+  // Placement stays open during match resolve — only detonate-mode / AI turn
+  // / game-over should steal the controls.
   function inputBlocked(){
-    return gameOver || resolving || (vsComputerEnabled && current===2);
+    return gameOver || detonateMode || (vsComputerEnabled && current===2);
+  }
+
+  function canChooseDetonate(){
+    return detonateMode && !resolving && !gameOver && !(vsComputerEnabled && current===2);
   }
 
   // ---- match resolution (clear + cascade) state ----
   let resolving = false;
-  let resolvePhase = null;   // 'flash' | 'fall'
+  let resolvePhase = null;   // 'flash' | 'explode'
   let resolvePhaseStart = 0;
+  let resolveEpoch = 0;      // bumps each new resolve; free drops tag themselves with it
   let currentGroups = [];
   let chainStep = 0;
+  let pendingChain = 0;      // carry multiplier while blast physics is still in flight
   let flashCells = null;     // Set of "col,row" currently flashing before clear
-  let fallAnims = [];        // pieces sliding down after a clear
+  let particles = [];        // explosion debris from cleared pucks
   let popups = [];           // floating score/chain text
-  const FLASH_MS = 480, FALL_MS = 320;
+  const FLASH_MS = 480, EXPLODE_MS = 280;
 
   function refreshButtons(){
     const blocked = inputBlocked();
@@ -406,8 +576,9 @@
 
   // continuous drop: x can be anywhere along the top, not snapped to a column
   function dropAt(x){
-    if(gameOver) return;
+    if(gameOver || detonateMode) return;
     if(colHeights.every(h=>h>=ROWS)) return; // board already fully committed
+    aiMoveId++; // cancel any pending AI timeout; we'll re-schedule below if needed
     const ball = {
       x: Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, x)) + (Math.random()*6-3),
       y: 14,
@@ -419,7 +590,10 @@
       row: null,
       player: current,
       frameSafety: 0,
-      trail: []
+      trail: [],
+      // Drops made while a clear is animating shouldn't hold up that resolve
+      freeDrop: resolving,
+      dropEpoch: resolveEpoch
     };
     balls.push(ball);
     startLoop();
@@ -463,11 +637,15 @@
 
       if(ball.x - ball.radius < 0){
         ball.x = ball.radius;
-        ball.vx = -ball.vx*0.7 + 1.2; // kick away from the wall so it can't hover in the corner
+        // Always rebound into the board; near the bumper line add extra
+        // inward shove so corner skitter can't sustain itself.
+        ball.vx = Math.abs(ball.vx)*0.75 + 1.6;
+        if(ball.y > BUMPER_BASE_Y - 90) ball.vx += 2.2;
       }
       if(ball.x + ball.radius > W){
         ball.x = W - ball.radius;
-        ball.vx = -ball.vx*0.7 - 1.2;
+        ball.vx = -Math.abs(ball.vx)*0.75 - 1.6;
+        if(ball.y > BUMPER_BASE_Y - 90) ball.vx -= 2.2;
       }
 
       for(const p of pegs){
@@ -483,67 +661,39 @@
           ball.vy -= 2*dot*ny;
           ball.vx *= 0.88; ball.vy *= 0.88; // livelier bounce, less energy lost per hit
           ball.vx += (Math.random()*0.8-0.4);
+          // Edge-column pegs tend to spit balls into the wall — bias the
+          // exit velocity back toward the open board.
+          if(p.x < CELL*0.75) ball.vx = Math.max(ball.vx, 1.1);
+          if(p.x > W - CELL*0.75) ball.vx = Math.min(ball.vx, -1.1);
           p.hit = 10;
         }
       }
 
-      // bumpers over full columns: a real elastic bounce, kicked a little
-      // harder than a peg so it reliably shoves the ball out of the
-      // blocked column and back into open play
-      for(const bp of bumpers){
-        const dx = ball.x - bp.x, dy = ball.y - bp.y;
-        const dist = Math.hypot(dx,dy);
-        const minDist = ball.radius + bp.r;
-        if(dist < minDist && dist > 0.0001){
-          const nx = dx/dist, ny = dy/dist;
-          ball.x = bp.x + nx*minDist;
-          ball.y = bp.y + ny*minDist;
-          const dot = ball.vx*nx + ball.vy*ny;
-          ball.vx -= 2*dot*nx;
-          ball.vy -= 2*dot*ny;
-          ball.vx *= 1.05; ball.vy *= 1.05; // bumpers add energy, like a pinball kicker
-          ball.vx += nx*1.4 + (Math.random()*0.8-0.4);
-          ball.vy = Math.min(ball.vy, -1.5); // always shove back upward, never let it settle on top
-          bp.hit = 14;
-        }
+      // Continuous capsule collision against each bumper rail
+      collideBallWithBumpers(ball);
+
+      // Blasted pucks traveling through the board face should bounce off
+      // settled pieces instead of phasing through them.
+      if(ball.y > PEG_ZONE - 20){
+        collideBallWithSettledPieces(ball);
       }
 
-      // watchdog: if the ball has been bouncing around near a wall or
-      // wedged between pegs for too long, force it into the grid instead
-      // of leaving it stuck forever
-      if(ball.frameSafety > SAFETY_LIMIT || ball.y > PEG_ZONE){
-        ball.phase = 'grid';
-        ball.y = Math.max(ball.y, PEG_ZONE + 1);
-        const rawCol = Math.min(COLS-1, Math.max(0, Math.floor(ball.x / CELL)));
-        const targetCol = nearestOpenColumn(rawCol);
-        // reserve this slot immediately so other balls in flight — and any
-        // clear/gravity pass — see an accurate, up-to-date stack
-        const h = stack[targetCol].length;
-        const row = ROWS - 1 - h;
-        const entry = {type:'ball', ball, row};
-        stack[targetCol].push(entry);
-        colHeights[targetCol] = stack[targetCol].length;
-        recomputeBumpers();
-        ball.targetCol = targetCol;
-        ball.row = row;
-        ball.stackEntry = entry;
+      // Enter the grid once we're past the mouth AND falling — so an
+      // explosion blast can travel up through the column and back into
+      // the pegs without immediately re-committing to a slot. Watchdog
+      // still force-enters if a ball is stuck forever in the peg field.
+      if(ball.frameSafety > SAFETY_LIMIT || (ball.y > PEG_ZONE && ball.vy >= 0)){
+        enterGridColumn(ball);
       }
     } else {
-      // grid phase: ease x toward the reserved column, keep falling to the reserved row
-      const targetX = ball.targetCol*CELL + CELL/2;
-      ball.x += (targetX - ball.x) * 0.16;
-      ball.vy += gravity;
-      ball.vy = Math.min(ball.vy, 20);
-      ball.y += ball.vy;
-
-      const landingY = PEG_ZONE + ball.row*CELL + CELL/2;
-
-      if(ball.y >= landingY){
-        ball.y = landingY;
-        ball.vy = -ball.vy*0.25;
-        if((Math.abs(ball.vy) < 1.6 && Math.abs(ball.x-targetX) < 3) || ball.frameSafety > 900){
-          ball.landed = true;
-        }
+      // grid phase: real physics inside the column until the puck settles.
+      // Column walls contain it sideways; settled pieces below act as static
+      // circles to bounce on. A hard upward blast (from a clear) can send it
+      // back out the top into the peg zone as a free physics object again.
+      if(ball.y < PEG_ZONE - 8 && ball.vy < -0.5){
+        releaseBallToPegs(ball);
+      } else {
+        stepGridBall(ball, gravity);
       }
     }
 
@@ -551,10 +701,155 @@
     if(ball.trail.length>10) ball.trail.shift();
   }
 
+  function collideBallWithSettledPieces(ball){
+    const PIECE_R = 32;
+    for(let c=0;c<COLS;c++){
+      const px = c*CELL + CELL/2;
+      for(let i=0;i<stack[c].length;i++){
+        const entry = stack[c][i];
+        if(entry.type!=='piece') continue;
+        const py = PEG_ZONE + (ROWS-1-i)*CELL + CELL/2;
+        const dx = ball.x - px, dy = ball.y - py;
+        const dist = Math.hypot(dx, dy);
+        const minDist = ball.radius + PIECE_R - 4;
+        if(dist < minDist && dist > 0.0001){
+          const nx = dx/dist, ny = dy/dist;
+          ball.x = px + nx*minDist;
+          ball.y = py + ny*minDist;
+          const dot = ball.vx*nx + ball.vy*ny;
+          if(dot < 0){
+            ball.vx -= 1.9*dot*nx;
+            ball.vy -= 1.9*dot*ny;
+          }
+          ball.vx *= 0.9;
+          ball.vy *= 0.9;
+        }
+      }
+    }
+  }
+
+  function rebuildColumnFromStack(c){
+    const col = Array(ROWS).fill(0);
+    for(let i=0;i<stack[c].length;i++){
+      const entry = stack[c][i];
+      const row = ROWS - 1 - i;
+      if(entry.type==='ball'){
+        entry.row = row;
+        entry.ball.row = row;
+      } else {
+        col[row] = entry.player;
+      }
+    }
+    for(let r=0;r<ROWS;r++) grid[c][r] = col[r];
+    colHeights[c] = stack[c].length;
+  }
+
+  const GRID_SETTLE_FRAMES = 360; // ~6s hard cap inside a column before we seat it
+
+  function enterGridColumn(ball){
+    ball.phase = 'grid';
+    ball.y = Math.max(ball.y, PEG_ZONE + 1);
+    const rawCol = Math.min(COLS-1, Math.max(0, Math.floor(ball.x / CELL)));
+    const targetCol = nearestOpenColumn(rawCol);
+    // reserve this slot immediately so other balls in flight — and any
+    // clear pass — see an accurate, up-to-date stack
+    const h = stack[targetCol].length;
+    if(h >= ROWS){
+      // nowhere to go (board filled under us) — keep knocking around in pegs
+      ball.phase = 'peg';
+      ball.y = PEG_ZONE - ball.radius;
+      ball.vy = -Math.abs(ball.vy) - 2;
+      return;
+    }
+    const row = ROWS - 1 - h;
+    const entry = {type:'ball', ball, row};
+    stack[targetCol].push(entry);
+    colHeights[targetCol] = stack[targetCol].length;
+    recomputeBumpers();
+    ball.targetCol = targetCol;
+    ball.row = row;
+    ball.stackEntry = entry;
+    ball.gridAge = 0;
+    // kill leftover horizontal speed a bit so it commits to the slot
+    ball.vx *= 0.55;
+  }
+
+  function releaseBallToPegs(ball){
+    const col = ball.targetCol;
+    if(ball.stackEntry && col!=null){
+      const idx = stack[col].indexOf(ball.stackEntry);
+      if(idx>=0) stack[col].splice(idx, 1);
+      rebuildColumnFromStack(col);
+      recomputeBumpers();
+    }
+    ball.stackEntry = null;
+    ball.targetCol = null;
+    ball.row = null;
+    ball.phase = 'peg';
+    ball.frameSafety = 0;
+    ball.gridAge = 0;
+  }
+
+  function seatBall(ball){
+    const targetX = ball.targetCol*CELL + CELL/2;
+    const landingY = PEG_ZONE + ball.row*CELL + CELL/2;
+    ball.x = targetX;
+    ball.y = landingY;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.landed = true;
+  }
+
+  function stepGridBall(ball, gravity){
+    ball.gridAge = (ball.gridAge || 0) + 1;
+    const targetX = ball.targetCol*CELL + CELL/2;
+    const colLeft = ball.targetCol*CELL + ball.radius + 4;
+    const colRight = (ball.targetCol+1)*CELL - ball.radius - 4;
+    const landingY = PEG_ZONE + ball.row*CELL + CELL/2;
+
+    // Hard unstick: if a puck has been bouncing in-column too long, just
+    // seat it. Prevents two pucks wedging forever and freezing resolves.
+    if(ball.gridAge > GRID_SETTLE_FRAMES){
+      seatBall(ball);
+      return;
+    }
+
+    ball.vy += gravity;
+    ball.vy = Math.min(ball.vy, 20);
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    if(ball.x < colLeft){ ball.x = colLeft; ball.vx = Math.abs(ball.vx)*0.35; }
+    if(ball.x > colRight){ ball.x = colRight; ball.vx = -Math.abs(ball.vx)*0.35; }
+
+    // Pull toward the hole center — stronger once near the seat so it
+    // can't keep skating on top of the puck below forever.
+    const nearSeat = ball.y > landingY - CELL*0.7;
+    ball.vx += (targetX - ball.x) * (nearSeat ? 0.12 : 0.04);
+    ball.vx *= nearSeat ? 0.9 : 0.98;
+
+    // The reserved stack slot is authoritative: rest on that cell's floor.
+    // Commit as soon as we reach the seat (one soft bounce if arriving hot)
+    // so matches can resolve without waiting for a long settle wiggle.
+    if(ball.y >= landingY){
+      ball.y = landingY;
+      if(ball.vy > 4){
+        ball.vy = -ball.vy*0.22;
+        ball.vx *= 0.55;
+      } else {
+        seatBall(ball);
+      }
+    }
+  }
+
   function resolveBallCollisions(){
     for(let i=0;i<balls.length;i++){
       for(let j=i+1;j<balls.length;j++){
         const a = balls[i], b = balls[j];
+        // Same-column grid pucks already have reserved seats — colliding
+        // them against each other wedges them between seat snap and
+        // separation. Let the stack order handle those.
+        if(a.phase==='grid' && b.phase==='grid' && a.targetCol===b.targetCol) continue;
         const dx = b.x-a.x, dy = b.y-a.y;
         const dist = Math.hypot(dx,dy);
         const minDist = a.radius+b.radius;
@@ -573,15 +868,30 @@
     }
   }
 
+  // Last-resort: any grid ball that somehow never seated gets forced down
+  // so a resolve wait (or the drop loop) can never hang the game.
+  function forceSeatStuckGridBalls(){
+    let any = false;
+    for(const b of balls){
+      if(b.phase==='grid' && !b.landed && (b.gridAge || 0) > GRID_SETTLE_FRAMES){
+        seatBall(b);
+        any = true;
+      }
+    }
+    return any;
+  }
+
   function tick(){
     const gravity = 0.42;
     for(const p of pegs){ if(p.hit) p.hit--; }
-    for(const bp of bumpers){ if(bp.hit) bp.hit--; }
+    for(const path of bumperPaths){ if(path.hit) path.hit--; }
 
     for(const ball of balls){
       stepBall(ball, gravity);
     }
     resolveBallCollisions();
+    forceSeatStuckGridBalls();
+    stepParticles();
 
     const landed = balls.filter(b=>b.landed);
     if(landed.length){
@@ -592,9 +902,13 @@
       if(!resolving) maybeStartResolve();
     }
 
+    // Board packed solid: any puck still in the pegs has nowhere to land.
+    // Pop them so they can't wedge under the bumper and freeze play.
+    if(boardIsFull()) purgeStrandedPegBalls();
+
     draw();
 
-    if(balls.length>0){
+    if(balls.length>0 || particles.length>0){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -683,67 +997,251 @@
     }
   }
 
-  // Removes matched cells, then drops everything above them straight down
-  // to fill the gap — same idea as a Tetris/Puyo clear. Records fallAnims
-  // so draw() can animate the settle instead of snapping instantly.
-  function applyClearAndGravity(groups){
+  function spawnExplosion(x, y, player){
+    const color = player===1 ? P1 : P2;
+    for(let i=0;i<16;i++){
+      const ang = Math.random()*Math.PI*2;
+      const spd = 2.2 + Math.random()*6.5;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang)*spd,
+        vy: Math.sin(ang)*spd - 3.5,
+        r: 2.5 + Math.random()*5,
+        color,
+        life: 1,
+        decay: 0.018 + Math.random()*0.025
+      });
+    }
+    // a few larger bright shards
+    for(let i=0;i<4;i++){
+      const ang = -Math.PI/2 + (Math.random()-0.5)*1.4;
+      const spd = 5 + Math.random()*5;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang)*spd,
+        vy: Math.sin(ang)*spd,
+        r: 5 + Math.random()*4,
+        color: '#ffffff',
+        life: 1,
+        decay: 0.03 + Math.random()*0.02
+      });
+    }
+  }
+
+  function stepParticles(){
+    for(const p of particles){
+      p.vy += 0.25;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.99;
+      p.life -= p.decay;
+    }
+    particles = particles.filter(p => p.life > 0);
+  }
+
+  // Launch a settled (or in-flight) puck back into free physics. Strong
+  // upward impulse so clears can fling pieces out of the column and into
+  // the peg field — they'll re-enter a column when they fall again.
+  function launchPuckFromCell(col, row, player, stackPos, fromClearIndex){
+    const x = col*CELL + CELL/2 + (Math.random()*10-5);
+    const y = PEG_ZONE + row*CELL + CELL/2;
+    const heightBoost = Math.max(0, stackPos - fromClearIndex);
+    // Depth-scaled impulse: higher stack pieces get thrown harder, and
+    // deeper cells need more kick to have a chance of clearing the mouth.
+    const depth = Math.max(0, row);
+    const ball = {
+      x, y,
+      vx: (Math.random()-0.5)*8,
+      vy: -(12 + Math.random()*5 + heightBoost*2.4 + depth*0.9),
+      radius: BALL_RADIUS,
+      phase: 'peg',
+      targetCol: null,
+      row: null,
+      player,
+      frameSafety: 0,
+      trail: [],
+      stackEntry: null,
+      cascadeBall: true // from a clear — lands can continue the chain multiplier
+    };
+    balls.push(ball);
+  }
+
+  // Matched cells explode into particles. Every puck stacked above a clear
+  // in that column is blasted back into physics (often up into the pegs).
+  // Survivors below the blast stay put — no Tetris slide; physics refills.
+  function applyExplosionClear(groups){
     const cleared = new Set();
     for(const g of groups) for(const [c,r] of g.cells) cleared.add(c+','+r);
 
-    fallAnims = [];
+    for(const key of cleared){
+      const [c,r] = key.split(',').map(Number);
+      const player = grid[c][r];
+      if(player) spawnExplosion(c*CELL+CELL/2, PEG_ZONE+r*CELL+CELL/2, player);
+    }
+
     for(let c=0;c<COLS;c++){
       const oldStack = stack[c];
-      // walk bottom-to-top (index 0 = row ROWS-1), dropping any matched
-      // pieces and keeping everything else — including in-flight balls —
-      // in its original relative order
+      let lowestClearedIdx = Infinity;
+      for(let i=0;i<oldStack.length;i++){
+        const oldRow = ROWS - 1 - i;
+        if(oldStack[i].type==='piece' && cleared.has(c+','+oldRow)){
+          lowestClearedIdx = Math.min(lowestClearedIdx, i);
+        }
+      }
+
       const survivors = [];
       for(let i=0;i<oldStack.length;i++){
         const entry = oldStack[i];
         const oldRow = ROWS - 1 - i;
-        if(entry.type==='piece' && cleared.has(c+','+oldRow)) continue;
-        survivors.push({entry, oldRow});
-      }
-      const newGridCol = Array(ROWS).fill(0);
-      for(let i=0;i<survivors.length;i++){
-        const {entry, oldRow} = survivors[i];
-        const newRow = ROWS - 1 - i;
-        if(entry.type==='piece'){
-          newGridCol[newRow] = entry.player;
-          if(newRow !== oldRow){
-            fallAnims.push({col:c, player:entry.player, fromRow:oldRow, toRow:newRow, t0:performance.now()});
-          }
-        } else {
-          // in-flight ball: update its reserved row so it keeps falling
-          // toward the correct spot instead of the stale pre-clear one
-          entry.row = newRow;
-          entry.ball.row = newRow;
+        if(entry.type==='piece' && cleared.has(c+','+oldRow)){
+          continue; // destroyed in the explosion
         }
+        if(lowestClearedIdx !== Infinity && i > lowestClearedIdx){
+          // above the blast — fling back into play
+          if(entry.type==='piece'){
+            launchPuckFromCell(c, oldRow, entry.player, i, lowestClearedIdx);
+          } else if(entry.type==='ball'){
+            const b = entry.ball;
+            b.vx += (Math.random()-0.5)*6;
+            b.vy = Math.min(b.vy, 0) - (8 + Math.random()*4 + (i-lowestClearedIdx)*1.5);
+            b.stackEntry = null;
+            b.targetCol = null;
+            b.row = null;
+            b.phase = 'peg';
+            b.frameSafety = 0;
+            b.gridAge = 0;
+            b.cascadeBall = true;
+            b.freeDrop = false;
+          }
+          continue;
+        }
+        survivors.push(entry);
       }
-      for(let r=0;r<ROWS;r++) grid[c][r] = newGridCol[r];
-      stack[c] = survivors.map(s=>s.entry);
-      colHeights[c] = stack[c].length;
+
+      stack[c] = survivors;
+      rebuildColumnFromStack(c);
     }
     recomputeBumpers();
+    startLoop(); // keep the loop alive for launched pucks and debris
+  }
+
+  function boardIsFull(){
+    return colHeights.every(h=>h>=ROWS);
+  }
+
+  // When every column is already committed, peg-zone pucks can never enter
+  // the grid — they just pin under the bumper forever and block resolves.
+  // Pop them out of play (no score) so detonate-mode can take over.
+  function purgeStrandedPegBalls(){
+    if(!boardIsFull()) return false;
+    const stranded = balls.filter(b => b.phase==='peg');
+    if(!stranded.length) return false;
+    for(const b of stranded){
+      spawnExplosion(b.x, b.y, b.player);
+    }
+    balls = balls.filter(b => b.phase!=='peg');
+    startLoop(); // keep debris animating
+    return true;
+  }
+
+  let detonateAnim = false;
+  function startDetonateAnim(){
+    if(detonateAnim) return;
+    detonateAnim = true;
+    const step = ()=>{
+      if(!detonateMode){ detonateAnim = false; return; }
+      draw();
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  function enterDetonateMode(){
+    purgeStrandedPegBalls();
+    detonateMode = true;
+    detonateHover = null;
+    gameOver = false;
+    banner.classList.remove('show');
+    refreshButtons();
+    updateTurnUI();
+    startDetonateAnim();
+    maybeTriggerAIDetonate();
+  }
+
+  // Board-full escape hatch: blow up one settled piece (no points), flinging
+  // everything above it back into physics — same blast as a match clear.
+  function beginDetonate(col, row){
+    if(!detonateMode || resolving) return;
+    if(col<0 || col>=COLS || row<0 || row>=ROWS) return;
+    if(!grid[col][row]) return;
+    detonateMode = false;
+    detonateHover = null;
+    detonateConsumesTurn = true;
+    resolving = true;
+    resolveEpoch++;
+    pendingChain = 0;
+    chainStep = 0;
+    currentGroups = [{player: grid[col][row], cells:[[col,row]], detonate:true}];
+    flashCells = new Set([col+','+row]);
+    resolvePhase = 'flash';
+    resolvePhaseStart = performance.now();
+    refreshButtons();
+    requestAnimationFrame(resolveTick);
+  }
+
+  function cellAtCanvasPos(x, y){
+    if(y < PEG_ZONE) return null;
+    const col = Math.floor(x / CELL);
+    const row = Math.floor((y - PEG_ZONE) / CELL);
+    if(col<0 || col>=COLS || row<0 || row>=ROWS) return null;
+    if(!grid[col][row]) return null;
+    // require a click near the puck itself, not just anywhere in the cell
+    const cx = col*CELL + CELL/2;
+    const cy = PEG_ZONE + row*CELL + CELL/2;
+    if(Math.hypot(x-cx, y-cy) > HOLE_R) return null;
+    return {col, row};
   }
 
   function maybeStartResolve(){
-    if(gameOver) return;
+    if(gameOver || resolving) return;
     const groups = findMatches();
     if(groups.length>0){
       beginResolveChain(groups);
-    } else {
-      if(colHeights.every(h=>h>=ROWS)){
-        gameOver = true;
-        showBanner();
+    } else if(boardIsFull()){
+      // Pop any peg-zone leftovers that can never land, then wait until
+      // in-column pucks have seated before offering the detonate pick.
+      purgeStrandedPegBalls();
+      if(balls.length===0){
+        pendingChain = 0;
+        enterDetonateMode();
+      } else {
+        refreshButtons();
       }
-      refreshButtons();
-      maybeTriggerAI();
+    } else {
+      if(balls.length===0) pendingChain = 0;
+      afterBoardQuiet();
     }
+  }
+
+  // Shared end-of-cascade bookkeeping: pass the turn if a detonation was
+  // the action that got us here, then let the next player drop (or AI).
+  function afterBoardQuiet(){
+    if(detonateConsumesTurn){
+      current = current === 1 ? 2 : 1;
+      detonateConsumesTurn = false;
+      updateTurnUI();
+    }
+    refreshButtons();
+    maybeTriggerAI();
   }
 
   function beginResolveChain(groups){
     resolving = true;
-    chainStep = 0;
+    resolveEpoch++;
+    // Continue a cascade multiplier if blasted pucks from the previous
+    // clear are what just seated into this match.
+    chainStep = pendingChain;
+    pendingChain = 0;
     refreshButtons();
     enterFlash(groups);
     requestAnimationFrame(resolveTick);
@@ -758,37 +1256,73 @@
     resolvePhaseStart = performance.now();
   }
 
+  function finishResolveOrChain(){
+    const nextGroups = findMatches();
+    if(nextGroups.length>0){
+      enterFlash(nextGroups);
+    } else {
+      // Don't sit around for blasted pucks to reseat — hand control back
+      // and let their landings start the next resolve. Keep the chain
+      // multiplier alive while any of that physics is still in flight.
+      pendingChain = balls.length > 0 ? chainStep : 0;
+      resolving = false;
+      chainStep = 0;
+      purgeStrandedPegBalls();
+      if(boardIsFull() && balls.length===0){
+        pendingChain = 0;
+        // Still packed after the blast — other player picks the next piece.
+        if(detonateConsumesTurn){
+          current = current === 1 ? 2 : 1;
+          detonateConsumesTurn = false;
+          updateTurnUI();
+        }
+        enterDetonateMode();
+      } else if(boardIsFull()){
+        // Grid pucks still seating into the last slots — tick will hand
+        // off to detonate mode once they land.
+        refreshButtons();
+      } else {
+        afterBoardQuiet();
+      }
+    }
+  }
+
   function resolveTick(){
     const now = performance.now();
     if(resolving){
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
         if(elapsed >= FLASH_MS){
-          const pts = scoreGroups(currentGroups, chainStep);
-          scores[1]+=pts[1]; scores[2]+=pts[2];
-          updateScoreUI();
-          spawnPopups(currentGroups);
-          applyClearAndGravity(currentGroups);
+          const isDetonate = currentGroups.some(g => g.detonate);
+          if(!isDetonate){
+            const pts = scoreGroups(currentGroups, chainStep);
+            scores[1]+=pts[1]; scores[2]+=pts[2];
+            updateScoreUI();
+            spawnPopups(currentGroups);
+          } else {
+            const g = currentGroups[0];
+            const [c,r] = g.cells[0];
+            popups.push({
+              x: c*CELL+CELL/2,
+              y: PEG_ZONE + r*CELL + CELL/2,
+              text: 'BOOM!',
+              color: '#ffffff',
+              t0: performance.now(),
+              duration: 900,
+              big: true
+            });
+          }
+          applyExplosionClear(currentGroups);
           flashCells = null;
-          resolvePhase = 'fall';
+          resolvePhase = 'explode';
           resolvePhaseStart = now;
         }
-      } else if(resolvePhase==='fall'){
-        if(elapsed >= FALL_MS || fallAnims.length===0){
-          fallAnims = [];
-          const nextGroups = findMatches();
-          if(nextGroups.length>0){
-            enterFlash(nextGroups);
-          } else {
-            resolving = false;
-            chainStep = 0;
-            if(colHeights.every(h=>h>=ROWS)){
-              gameOver = true;
-              showBanner();
-            }
-            refreshButtons();
-            maybeTriggerAI();
-          }
+      } else if(resolvePhase==='explode'){
+        // Brief beat for the blast to read, then continue immediately —
+        // do not wait for launched pucks to settle before the next resolve.
+        if(elapsed >= EXPLODE_MS){
+          for(const b of balls) b.cascadeBall = false;
+          finishResolveOrChain();
         }
       }
     }
@@ -845,15 +1379,54 @@
     return open[open.length-1];
   }
 
+  let aiMoveId = 0;
   function maybeTriggerAI(){
-    if(!vsComputerEnabled || gameOver || resolving || current!==2) return;
+    // AI may drop during resolve just like a human — only detonate-mode
+    // and turn ownership should block it.
+    if(!vsComputerEnabled || gameOver || detonateMode || current!==2) return;
+    const id = ++aiMoveId;
     const delay = 450 + Math.random()*550;
     setTimeout(()=>{
-      if(!vsComputerEnabled || gameOver || resolving || current!==2) return;
+      if(id !== aiMoveId) return;
+      if(!vsComputerEnabled || gameOver || detonateMode || current!==2) return;
       const col = chooseAiColumn();
       if(col===null) return;
       const x = col*CELL + CELL/2 + (Math.random()*36-18);
       dropAt(x);
+    }, delay);
+  }
+
+  // Prefer blowing up the opponent's pieces that have a tall stack above
+  // them — more chaos, better chance the board opens up for the computer.
+  function chooseAiDetonateCell(){
+    const picks = [];
+    for(let c=0;c<COLS;c++){
+      for(let r=0;r<ROWS;r++){
+        if(!grid[c][r]) continue;
+        const above = r; // rows above this cell (0 = top)
+        const oppBonus = grid[c][r] === 1 ? 2.5 : 1;
+        const weight = (1 + above*1.4) * oppBonus;
+        picks.push({c, r, weight});
+      }
+    }
+    if(!picks.length) return null;
+    const total = picks.reduce((s,p)=>s+p.weight, 0);
+    let roll = Math.random()*total;
+    for(const p of picks){
+      roll -= p.weight;
+      if(roll <= 0) return p;
+    }
+    return picks[picks.length-1];
+  }
+
+  function maybeTriggerAIDetonate(){
+    if(!vsComputerEnabled || !detonateMode || resolving || gameOver || current!==2) return;
+    const delay = 550 + Math.random()*700;
+    setTimeout(()=>{
+      if(!vsComputerEnabled || !detonateMode || resolving || gameOver || current!==2) return;
+      const pick = chooseAiDetonateCell();
+      if(!pick) return;
+      beginDetonate(pick.c, pick.r);
     }, delay);
   }
 
@@ -888,23 +1461,45 @@
     }
     ctx.shadowBlur = 0;
 
-    // bumpers — solid obstacles physically blocking full columns
+    // bumpers — smooth circular-arc rails over runs of full columns
     const BUMPER_COLOR = '#FF6B4D';
-    for(const bp of bumpers){
+    function strokeBumperPath(path){
       ctx.beginPath();
-      ctx.arc(bp.x,bp.y,bp.r,0,Math.PI*2);
-      ctx.fillStyle = bp.hit ? '#ffffff' : BUMPER_COLOR;
+      if(path.arc){
+        const {cx, cy, r, a0, a1} = path.arc;
+        ctx.arc(cx, cy, r, a0, a1, a1 < a0);
+      } else {
+        const pts = path.points;
+        if(pts.length < 2) return;
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      }
+    }
+    for(const path of bumperPaths){
+      if(!path.points.length) continue;
+      const hit = path.hit > 0;
+      strokeBumperPath(path);
+      ctx.strokeStyle = hit ? '#ffffff' : BUMPER_COLOR;
+      ctx.lineWidth = BUMPER_R * 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.shadowColor = BUMPER_COLOR;
-      ctx.shadowBlur = bp.hit ? 26 : 10;
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.shadowBlur = hit ? 28 : 12;
+      ctx.stroke();
+      // inner highlight so the rail reads as a solid bumper, not a flat stroke
+      strokeBumperPath(path);
+      ctx.strokeStyle = hit ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = BUMPER_R * 0.7;
+      ctx.shadowBlur = 0;
       ctx.stroke();
     }
     ctx.shadowBlur = 0;
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
 
-    // trails
+    // trails for pucks that are still above the board mouth
     for(const b of balls){
+      if(b.phase==='grid' || b.y >= PEG_ZONE) continue;
       for(let i=0;i<b.trail.length;i++){
         const t = b.trail[i];
         const alpha = (i+1)/b.trail.length * 0.25;
@@ -915,9 +1510,12 @@
       }
     }
 
-    // pucks still bouncing through the peg zone render normally, in front of the pegs
+    // pucks still bouncing through the peg zone render normally, in front of the pegs.
+    // (Blasted pucks that are still overlapping the board face are drawn later,
+    // on top of the plate — otherwise the grid fill/plate swallows them and they
+    // look like they teleported out of the column.)
     for(const b of balls){
-      if(b.phase!=='grid') drawPiece(b.x,b.y,b.player,true);
+      if(b.phase!=='grid' && b.y < PEG_ZONE) drawPiece(b.x,b.y,b.player,true);
     }
 
     // ---- grid zone ----
@@ -931,10 +1529,9 @@
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
     const flashElapsed = resolvePhase==='flash' ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS) : 0;
+    const detonatePulse = detonateMode ? 0.5 + 0.5*Math.sin(performance.now()/180) : 0;
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
-        // pieces currently sliding down after a clear are drawn separately, below
-        if(fallAnims.some(a=>a.col===c && a.toRow===r)) continue;
         const val = grid[c][r];
         if(val===0) continue;
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
@@ -942,20 +1539,10 @@
         if(flashCells && flashCells.has(key)){
           drawFlashPiece(cx,cy,val,flashElapsed);
         } else {
-          drawPiece(cx,cy,val);
+          const hovered = detonateMode && detonateHover && detonateHover.col===c && detonateHover.row===r;
+          drawPiece(cx,cy,val, false, hovered ? 1 : detonatePulse*0.35);
         }
       }
-    }
-
-    // pieces sliding down to fill the gap left by a clear
-    for(const a of fallAnims){
-      const t = Math.min(1,(performance.now()-a.t0)/FALL_MS);
-      const ease = 1-Math.pow(1-t,3);
-      const fromY = PEG_ZONE + a.fromRow*CELL + CELL/2;
-      const toY = PEG_ZONE + a.toRow*CELL + CELL/2;
-      const x = a.col*CELL+CELL/2;
-      const y = fromY + (toY-fromY)*ease;
-      drawPiece(x,y,a.player);
     }
 
     // pucks currently dropping through the grid zone — same treatment,
@@ -999,6 +1586,35 @@
 
     ctx.drawImage(plateCanvas, 0, 0);
 
+    // Free pucks still inside the board face (explosion launches, etc.)
+    // draw on top of the plastic so the flight out of the column stays visible.
+    for(const b of balls){
+      if(b.phase==='grid' || b.y < PEG_ZONE) continue;
+      for(let i=0;i<b.trail.length;i++){
+        const t = b.trail[i];
+        if(t.y < PEG_ZONE) continue;
+        const alpha = (i+1)/b.trail.length * 0.25;
+        ctx.beginPath();
+        ctx.arc(t.x,t.y,20,0,Math.PI*2);
+        ctx.fillStyle = b.player===1 ? `rgba(255,77,109,${alpha})` : `rgba(255,210,63,${alpha})`;
+        ctx.fill();
+      }
+      drawPiece(b.x,b.y,b.player,true);
+    }
+
+    // explosion debris — on top of the plate so the blast reads clearly
+    for(const p of particles){
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+
     // score/chain popups — always fully visible, drawn on top of the plate
     const nowP = performance.now();
     popups = popups.filter(p => nowP - p.t0 < p.duration);
@@ -1018,7 +1634,7 @@
     }
 
     // aim marker — shows exactly where the next drop will start
-    if(!gameOver){
+    if(!gameOver && !detonateMode){
       const c = current===1 ? P1 : P2;
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
@@ -1030,6 +1646,36 @@
       ctx.shadowBlur = 10;
       ctx.fill();
       ctx.shadowBlur = 0;
+    }
+
+    // board-full prompt: pick a piece to detonate
+    if(detonateMode && !resolving){
+      const who = current===1 ? 'Red' : (vsComputerEnabled ? 'Computer' : 'Yellow');
+      const msg = (vsComputerEnabled && current===2)
+        ? 'Board full — Computer is picking a piece…'
+        : `Board full — ${who}, click a piece to blow up`;
+      ctx.save();
+      ctx.font = "bold 18px 'Space Grotesk', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const tw = ctx.measureText(msg).width;
+      const px = W/2, py = PEG_ZONE * 0.42;
+      ctx.fillStyle = 'rgba(11,10,20,0.72)';
+      ctx.beginPath();
+      // rounded pill behind the prompt
+      const rw = tw/2 + 18, rh = 18;
+      ctx.moveTo(px-rw+rh, py-rh);
+      ctx.arcTo(px+rw, py-rh, px+rw, py+rh, rh);
+      ctx.arcTo(px+rw, py+rh, px-rw, py+rh, rh);
+      ctx.arcTo(px-rw, py+rh, px-rw, py-rh, rh);
+      ctx.arcTo(px-rw, py-rh, px+rw, py-rh, rh);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = current===1 ? P1 : P2;
+      ctx.shadowBlur = 12;
+      ctx.fillText(msg, px, py);
+      ctx.restore();
     }
   }
 
@@ -1048,7 +1694,7 @@
     ctx.stroke();
   }
 
-  function drawPiece(cx,cy,player,isBall){
+  function drawPiece(cx,cy,player,isBall, highlight){
     const base = player===1? P1 : P2;
     const dark = player===1? P1D : P2D;
     ctx.beginPath();
@@ -1060,6 +1706,20 @@
     ctx.lineWidth = 3;
     ctx.strokeStyle = dark;
     ctx.stroke();
+    if(highlight){
+      ctx.beginPath();
+      ctx.arc(cx,cy,34,0,Math.PI*2);
+      ctx.strokeStyle = `rgba(255,255,255,${0.25 + 0.55*highlight})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      if(highlight > 0.7){
+        ctx.beginPath();
+        ctx.arc(cx,cy,28,0,Math.PI*2);
+        ctx.strokeStyle = `rgba(255,255,255,${0.35*highlight})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
   }
 
   // ---- UI wiring ----
@@ -1108,23 +1768,53 @@
     updateTurnUI();
     refreshButtons();
     maybeTriggerAI(); // in case it's already the computer's turn
+    maybeTriggerAIDetonate();
   });
 
   // ---- continuous aim/drop on the canvas ----
-  function canvasX(evt){
+  function canvasPos(evt){
     const rect = canvas.getBoundingClientRect();
-    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-    const scale = W / rect.width;
-    return (clientX - rect.left) * scale;
+    const src = evt.touches ? evt.touches[0] : evt;
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    return {
+      x: (src.clientX - rect.left) * scaleX,
+      y: (src.clientY - rect.top) * scaleY
+    };
   }
+  function canvasX(evt){ return canvasPos(evt).x; }
+
   canvas.addEventListener('mousemove', (e)=>{
+    if(canChooseDetonate()){
+      const {x,y} = canvasPos(e);
+      const cell = cellAtCanvasPos(x,y);
+      const same = (!cell && !detonateHover) ||
+        (cell && detonateHover && cell.col===detonateHover.col && cell.row===detonateHover.row);
+      detonateHover = cell;
+      canvas.style.cursor = cell ? 'crosshair' : 'default';
+      if(!same) draw();
+      return;
+    }
     if(inputBlocked() || pointerDown) return;
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
+    canvas.style.cursor = 'pointer';
     draw();
   });
 
   let pointerDown = false;
+  let pointerDetonate = false;
   canvas.addEventListener('pointerdown', (e)=>{
+    if(canChooseDetonate()){
+      const {x,y} = canvasPos(e);
+      const cell = cellAtCanvasPos(x,y);
+      if(cell){
+        pointerDetonate = true;
+        detonateHover = cell;
+        canvas.setPointerCapture(e.pointerId);
+        draw();
+      }
+      return;
+    }
     if(inputBlocked()) return;
     pointerDown = true;
     canvas.setPointerCapture(e.pointerId);
@@ -1132,18 +1822,38 @@
     draw();
   });
   canvas.addEventListener('pointermove', (e)=>{
+    if(pointerDetonate){
+      e.preventDefault();
+      const {x,y} = canvasPos(e);
+      detonateHover = cellAtCanvasPos(x,y);
+      draw();
+      return;
+    }
     if(!pointerDown) return;
     e.preventDefault();
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
     draw();
   });
-  function releasePointer(){
+  function releasePointer(e){
+    if(pointerDetonate){
+      pointerDetonate = false;
+      if(canChooseDetonate()){
+        const {x,y} = canvasPos(e || {clientX:0,clientY:0, touches:null});
+        // prefer the hovered cell from last move; fall back to event pos
+        const cell = detonateHover || (e ? cellAtCanvasPos(x,y) : null);
+        if(cell) beginDetonate(cell.col, cell.row);
+      }
+      return;
+    }
     if(!pointerDown) return;
     pointerDown = false;
     if(!inputBlocked()) dropAt(aimX);
   }
   canvas.addEventListener('pointerup', releasePointer);
-  canvas.addEventListener('pointercancel', ()=>{ pointerDown = false; });
+  canvas.addEventListener('pointercancel', ()=>{
+    pointerDown = false;
+    pointerDetonate = false;
+  });
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
 
