@@ -736,7 +736,7 @@
     {
       id: 'highCut',
       name: 'High Cut',
-      desc: 'Burn the lowest ranks from the shoe. Aces always stay.',
+      desc: 'Remove the lowest ranks from the shoe. Aces always stay.',
       baseCost: 100,
       costScale: 1.9,
       maxLevel: 8
@@ -956,10 +956,12 @@
       case 'floorPayout':
         return lvl ? ('+' + floorClearPayout() + ' / clear') : 'No payout';
       case 'highCut': {
-        if(!lvl) return 'Ranks A–K';
-        const minR = minKeptRank();
-        if(minR >= 10) return 'A, 10–K only';
-        return 'A, ' + minR + '–K';
+        if(!lvl) return 'All ranks';
+        // Lv1 burns 2s, Lv2 burns 2–3, … Lv8 burns 2–9.
+        const hi = 1 + lvl;
+        if(lvl === 1) return '2s removed';
+        if(lvl === 2) return '2s and 3s removed';
+        return '2–' + hi + ' removed';
       }
       case 'suitCut': {
         if(!lvl) return 'All four suits';
