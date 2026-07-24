@@ -163,6 +163,8 @@
     border-radius:16px;
     padding:10px;
     box-shadow:0 20px 50px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02);
+    transform-origin:center center;
+    will-change:transform;
   }
   canvas{
     display:block;
@@ -250,7 +252,7 @@
 <body>
 <div class="wrap">
   <h1>Plinko Four</h1>
-  <div class="tagline">Press and drag on the board to aim, release to drop — full columns raise an arched bumper. Matches explode, and if the board packs solid the bottom row blows out automatically.</div>
+  <div class="tagline">Press and drag on the board to aim, release to drop — tilt a phone or tablet to lean the board. Full columns raise an arched bumper. Matches explode, and if the board packs solid the bottom row blows out automatically.</div>
   <div class="game-switch">
     <a class="current" href="./" aria-current="page">Classic</a>
     <a href="./poker/">Poker</a>
@@ -588,6 +590,9 @@
   let balls = [];
   let looping = false;
   let aimX = W/2;
+  // Gyro tilt: -1..1 lean, mapped to ±MAX_TILT_DEG visual + peg gravity.
+  const MAX_TILT_DEG = 10;
+  let boardTilt = 0;
 
   const BALL_RADIUS = 14;
   const HOLE_R = 29; // radius of the front-plate holes pucks are seen through
@@ -650,7 +655,10 @@
     ball.frameSafety++;
 
     if(ball.phase === 'peg'){
-      ball.vy += gravity;
+      // Split gravity along the board tilt so a leaned device steers the fall.
+      const tiltRad = boardTilt * MAX_TILT_DEG * Math.PI / 180;
+      ball.vx += gravity * Math.sin(tiltRad);
+      ball.vy += gravity * Math.cos(tiltRad);
       ball.vy = Math.min(ball.vy, 15);
       // turbulence: constant small random push so the ball never settles
       // into a stable back-and-forth groove between two pegs
@@ -1668,6 +1676,74 @@
     maybeTriggerAI(); // in case it's already the computer's turn
   });
 
+  // ---- gyro board tilt (DeviceOrientation when available) ----
+  // Portrait gamma / landscape beta → lean the frame and bias peg-zone gravity.
+  const boardFrame = document.querySelector('.board-frame');
+  const TILT_GAMMA_RANGE = 30; // degrees of device lean that maps to full board tilt
+  let gyroEnabled = false;
+  let gyroPrompted = false;
+  let gyroBaseline = null;
+
+  function screenOrientationAngle(){
+    if(typeof screen !== 'undefined' && screen.orientation && typeof screen.orientation.angle === 'number'){
+      return screen.orientation.angle;
+    }
+    return typeof window.orientation === 'number' ? window.orientation : 0;
+  }
+
+  // Horizontal lean relative to the upright board, accounting for screen rotation.
+  function deviceLeanX(e){
+    if(e.gamma == null && e.beta == null) return null;
+    const angle = ((screenOrientationAngle() % 360) + 360) % 360;
+    if(angle === 90) return e.beta;
+    if(angle === 270) return e.beta == null ? null : -e.beta;
+    if(angle === 180) return e.gamma == null ? null : -e.gamma;
+    return e.gamma;
+  }
+
+  function applyBoardTiltVisual(){
+    if(!boardFrame) return;
+    boardFrame.style.transform = 'rotate(' + (boardTilt * MAX_TILT_DEG).toFixed(2) + 'deg)';
+  }
+
+  function onDeviceOrientation(e){
+    const lean = deviceLeanX(e);
+    if(lean == null || Number.isNaN(lean)) return;
+    if(gyroBaseline == null) gyroBaseline = lean;
+    const raw = Math.max(-1, Math.min(1, (lean - gyroBaseline) / TILT_GAMMA_RANGE));
+    boardTilt += (raw - boardTilt) * 0.2;
+    applyBoardTiltVisual();
+  }
+
+  function enableGyro(){
+    if(gyroEnabled) return Promise.resolve(true);
+    if(typeof window.DeviceOrientationEvent === 'undefined') return Promise.resolve(false);
+    const start = ()=>{
+      window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      gyroEnabled = true;
+      return true;
+    };
+    if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+      return DeviceOrientationEvent.requestPermission()
+        .then(state => state === 'granted' ? start() : false)
+        .catch(()=>false);
+    }
+    start();
+    return Promise.resolve(true);
+  }
+
+  function maybeEnableGyro(){
+    if(gyroPrompted) return;
+    gyroPrompted = true;
+    enableGyro();
+  }
+
+  // No permission prompt needed (typical Android) — start listening immediately.
+  if(typeof window.DeviceOrientationEvent !== 'undefined'
+    && typeof DeviceOrientationEvent.requestPermission !== 'function'){
+    maybeEnableGyro();
+  }
+
   // ---- continuous aim/drop on the canvas ----
   function canvasPos(evt){
     const rect = canvas.getBoundingClientRect();
@@ -1690,6 +1766,7 @@
 
   let pointerDown = false;
   canvas.addEventListener('pointerdown', (e)=>{
+    maybeEnableGyro();
     if(inputBlocked()) return;
     pointerDown = true;
     canvas.setPointerCapture(e.pointerId);
