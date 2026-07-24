@@ -432,6 +432,7 @@
     opacity:0.4;
     cursor:not-allowed;
   }
+  .suit-btn.gone{display:none;}
   .suit-btn .cd-fill{
     position:absolute;
     left:0; right:0; bottom:0;
@@ -2820,11 +2821,18 @@
         if(card) counts[card.suit] = (counts[card.suit]||0) + 1;
       }
     }
+    const inShoe = new Set(activeSuits());
+    let visible = 0;
     for(const s of SUITS){
       const btn = suitBombButtons[s];
       if(!btn) continue;
       const count = counts[s] || 0;
       const queued = pendingSuitBomb === s;
+      // Exiled suits disappear once the board is clear of them.
+      const gone = !inShoe.has(s) && count === 0 && !queued;
+      btn.classList.toggle('gone', gone);
+      if(gone) continue;
+      visible++;
       // Stay clickable during hand clears — cast queues until the board is free.
       const canCast = ready && !gameOver && count > 0;
       btn.disabled = !canCast && !queued;
@@ -2837,6 +2845,8 @@
           ? ('Purge ' + count + ' × ' + s)
           : ('No ' + s + ' on board');
     }
+    suitBombBtnsEl.style.gridTemplateColumns =
+      'repeat(' + Math.max(1, visible) + ', 1fr)';
   }
 
   function updateNextUI(){
