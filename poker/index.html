@@ -3625,22 +3625,22 @@
     normal: {
       fontSize: 18, duration: 1100, float: 34,
       bangs: 0, tilt: 0.05, slam: 1.4, slamMs: 140,
-      glow: 10, bright: 0, stroke: false, big: false
+      glow: 10, bright: 0, big: false
     },
     medium: {
       fontSize: 24, duration: 1400, float: 44,
       bangs: 1, tilt: 0.12, slam: 1.85, slamMs: 170,
-      glow: 18, bright: 0.18, stroke: false, big: false
+      glow: 18, bright: 0.18, big: false
     },
     big: {
       fontSize: 32, duration: 1750, float: 56,
       bangs: 2, tilt: 0.2, slam: 2.35, slamMs: 200,
-      glow: 26, bright: 0.32, stroke: true, big: true
+      glow: 26, bright: 0.32, big: true
     },
     huge: {
       fontSize: 40, duration: 2300, float: 72,
       bangs: 3, tilt: 0.28, slam: 2.9, slamMs: 240,
-      glow: 36, bright: 0.5, stroke: true, big: true
+      glow: 36, bright: 0.5, big: true
     }
   };
 
@@ -4361,7 +4361,6 @@
         slam: fx.slam,
         slamMs: fx.slamMs,
         glow: fx.glow,
-        stroke: fx.stroke,
         big: fx.big
       });
     }
@@ -5035,12 +5034,12 @@
       ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      if(p.stroke){
-        ctx.lineWidth = Math.max(3, fontSize * 0.08);
-        ctx.strokeStyle = 'rgba(10,8,20,0.55)';
-        ctx.lineJoin = 'round';
-        ctx.strokeText(p.text, 0, 0);
-      }
+      // Dark outline so labels stay readable over suit-colored pucks.
+      ctx.lineWidth = Math.max(4, fontSize * 0.18);
+      ctx.strokeStyle = 'rgba(8,6,16,0.92)';
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+      ctx.strokeText(p.text, 0, 0);
       ctx.fillStyle = p.color;
       ctx.shadowColor = p.color;
       ctx.shadowBlur = glow;
