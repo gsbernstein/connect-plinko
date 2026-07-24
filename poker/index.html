@@ -267,6 +267,7 @@
     display:grid;
     grid-template-columns:1fr;
     gap:8px;
+    align-content:start;
   }
   @media (min-width:560px){
     .upgrades{grid-template-columns:1fr 1fr;}
@@ -403,9 +404,6 @@
   }
   .upgrade-cost.too-much{color:var(--heart);}
   .upgrade-cost.max{color:var(--ink-dim);font-weight:500;}
-  .upgrades{
-    align-content:start;
-  }
   .idle-pill{
     display:inline-flex;
     align-items:center;
