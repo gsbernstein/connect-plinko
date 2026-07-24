@@ -348,13 +348,10 @@
   })();
 
   // ---- bumpers ----
-  // Physical obstacles over runs of already-full columns. Contiguous full
-  // columns share one circular-arc rail. Edge-touching runs are a half
-  // (quarter-circle-ish) arc peaking on the wall side and inset from the
-  // wall so colliders can't wedge pucks into the corner. Collision uses
-  // overlapping circles densely sampled along the true arc.
-  let bumpers = [];
-  let bumperPaths = []; // polylines / arc descriptors for drawing
+  // Contiguous full columns share one circular-arc rail (or a flat bar when
+  // the whole board is packed). Collision is continuous: closest point on
+  // the arc/segment, then a capsule of radius BUMPER_R — no sampled circles.
+  let bumperPaths = [];
   // Sit the bumper near the grid mouth so there's clear air under the
   // bottom (between-column) peg row — peg+bumper sandwiches were common.
   const BUMPER_BASE_Y = PEG_ZONE - 14;
@@ -364,26 +361,41 @@
   // bounces off the wall into open play instead of pinning under the rail.
   const BUMPER_EDGE_PAD = BUMPER_R + 16;
 
-  // Build a dense point list along a circular arc from angle a0→a1.
-  function sampleCircleArc(cx, cy, rad, a0, a1, edgeLeft, edgeRight){
+  function normalizeArcDelta(a0, a1){
     let delta = a1 - a0;
-    // take the shorter direction that passes through the top (peak above center)
     while(delta > Math.PI) delta -= Math.PI*2;
     while(delta < -Math.PI) delta += Math.PI*2;
-    const arcLen = Math.abs(delta) * rad;
-    const samples = Math.max(16, Math.round(arcLen / 4));
-    const path = [];
-    const pathBumpers = [];
-    for(let i=0;i<=samples;i++){
-      const a = a0 + delta*(i/samples);
-      const x = cx + Math.cos(a)*rad;
-      const y = cy + Math.sin(a)*rad;
-      path.push({x,y});
-      const bp = {x, y, r: BUMPER_R, hit:0, edgeLeft, edgeRight};
-      pathBumpers.push(bp);
-      bumpers.push(bp);
+    return delta;
+  }
+
+  // Closest point on a circular arc swept from a0 to a1 (a1 = a0+delta,
+  // with delta already normalized into (-π, π]).
+  function closestPointOnArc(px, py, arc){
+    const {cx, cy, r, a0, a1} = arc;
+    const delta = a1 - a0;
+    let off = Math.atan2(py - cy, px - cx) - a0;
+    while(off > Math.PI) off -= Math.PI*2;
+    while(off < -Math.PI) off += Math.PI*2;
+    let t = 0;
+    if(Math.abs(delta) > 1e-9){
+      if(delta > 0) t = Math.max(0, Math.min(1, off / delta));
+      else t = Math.max(0, Math.min(1, off / delta));
     }
-    return {path, pathBumpers, cx, cy, rad, a0, a1: a0+delta};
+    const a = a0 + delta*t;
+    return {x: cx + Math.cos(a)*r, y: cy + Math.sin(a)*r};
+  }
+
+  function closestPointOnSegment(px, py, x1, y1, x2, y2){
+    const dx = x2 - x1, dy = y2 - y1;
+    const len2 = dx*dx + dy*dy || 1;
+    const t = Math.max(0, Math.min(1, ((px-x1)*dx + (py-y1)*dy) / len2));
+    return {x: x1 + t*dx, y: y1 + t*dy};
+  }
+
+  function closestPointOnBumper(px, py, rail){
+    if(rail.arc) return closestPointOnArc(px, py, rail.arc);
+    const a = rail.points[0], b = rail.points[rail.points.length-1];
+    return closestPointOnSegment(px, py, a.x, a.y, b.x, b.y);
   }
 
   function addBumperRun(startCol, endCol){
@@ -393,37 +405,32 @@
     const rightX = (endCol+1)*CELL - (edgeRight ? BUMPER_EDGE_PAD : 8);
     const span = Math.max(24, rightX - leftX);
     const h = BUMPER_ARC;
-    const pathBumpers = [];
-    let path = [];
 
     if(edgeLeft && edgeRight){
       // Full-width: flat inset bar — no corner pockets
       const y = BUMPER_BASE_Y - h*0.35;
-      const samples = Math.max(12, Math.round(span / 8));
-      for(let i=0;i<=samples;i++){
-        const x = leftX + span*(i/samples);
-        path.push({x,y});
-        const bp = {x, y, r: BUMPER_R, hit:0, edgeLeft, edgeRight};
-        pathBumpers.push(bp);
-        bumpers.push(bp);
-      }
-      bumperPaths.push({points: path, bumpers: pathBumpers, hit:0, edgeLeft, edgeRight});
+      bumperPaths.push({
+        points: [{x:leftX,y},{x:rightX,y}],
+        hit:0, edgeLeft, edgeRight
+      });
       return;
     }
 
     if(edgeLeft){
       // Half-arc: peak at the (inset) wall side with horizontal tangent,
-      // sweeping down to the open end — a true circular quarter-ish arc.
+      // sweeping down to the open end.
       const R = (span*span + h*h) / (2*h);
       const cx = leftX;
       const cy = BUMPER_BASE_Y - h + R;
       const a0 = -Math.PI/2;
-      const a1 = Math.atan2(BUMPER_BASE_Y - cy, rightX - cx);
-      const sampled = sampleCircleArc(cx, cy, R, a0, a1, edgeLeft, edgeRight);
+      const a1 = a0 + normalizeArcDelta(a0, Math.atan2(BUMPER_BASE_Y - cy, rightX - cx));
       bumperPaths.push({
-        points: sampled.path, bumpers: sampled.pathBumpers, hit:0,
-        edgeLeft, edgeRight,
-        arc: {cx, cy, r:R, a0: sampled.a0, a1: sampled.a1}
+        points: [
+          {x: cx + Math.cos(a0)*R, y: cy + Math.sin(a0)*R},
+          {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
+        ],
+        hit:0, edgeLeft, edgeRight,
+        arc: {cx, cy, r:R, a0, a1}
       });
       return;
     }
@@ -432,13 +439,17 @@
       const R = (span*span + h*h) / (2*h);
       const cx = rightX;
       const cy = BUMPER_BASE_Y - h + R;
-      const a0 = Math.atan2(BUMPER_BASE_Y - cy, leftX - cx);
-      const a1 = -Math.PI/2;
-      const sampled = sampleCircleArc(cx, cy, R, a0, a1, edgeLeft, edgeRight);
+      const leftA = Math.atan2(BUMPER_BASE_Y - cy, leftX - cx);
+      const peakA = -Math.PI/2;
+      const a0 = leftA;
+      const a1 = leftA + normalizeArcDelta(leftA, peakA);
       bumperPaths.push({
-        points: sampled.path, bumpers: sampled.pathBumpers, hit:0,
-        edgeLeft, edgeRight,
-        arc: {cx, cy, r:R, a0: sampled.a0, a1: sampled.a1}
+        points: [
+          {x: cx + Math.cos(a0)*R, y: cy + Math.sin(a0)*R},
+          {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
+        ],
+        hit:0, edgeLeft, edgeRight,
+        arc: {cx, cy, r:R, a0, a1}
       });
       return;
     }
@@ -447,18 +458,21 @@
     const R = (h*h + (span*0.5)*(span*0.5)) / (2*h);
     const cx = (leftX + rightX) * 0.5;
     const cy = BUMPER_BASE_Y - h + R;
-    const a0 = Math.atan2(BUMPER_BASE_Y - cy, leftX - cx);
-    const a1 = Math.atan2(BUMPER_BASE_Y - cy, rightX - cx);
-    const sampled = sampleCircleArc(cx, cy, R, a0, a1, edgeLeft, edgeRight);
+    const leftA = Math.atan2(BUMPER_BASE_Y - cy, leftX - cx);
+    const rightA = Math.atan2(BUMPER_BASE_Y - cy, rightX - cx);
+    const a0 = leftA;
+    const a1 = leftA + normalizeArcDelta(leftA, rightA);
     bumperPaths.push({
-      points: sampled.path, bumpers: sampled.pathBumpers, hit:0,
-      edgeLeft, edgeRight,
-      arc: {cx, cy, r:R, a0: sampled.a0, a1: sampled.a1}
+      points: [
+        {x: cx + Math.cos(a0)*R, y: cy + Math.sin(a0)*R},
+        {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
+      ],
+      hit:0, edgeLeft, edgeRight,
+      arc: {cx, cy, r:R, a0, a1}
     });
   }
 
   function recomputeBumpers(){
-    bumpers = [];
     bumperPaths = [];
     let c = 0;
     while(c < COLS){
@@ -466,6 +480,36 @@
       const start = c;
       while(c < COLS && colHeights[c] >= ROWS) c++;
       addBumperRun(start, c-1);
+    }
+  }
+
+  function collideBallWithBumpers(ball){
+    for(const rail of bumperPaths){
+      const closest = closestPointOnBumper(ball.x, ball.y, rail);
+      const dx = ball.x - closest.x, dy = ball.y - closest.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = ball.radius + BUMPER_R;
+      if(dist >= minDist || dist <= 0.0001) continue;
+      const nx = dx/dist, ny = dy/dist;
+      ball.x = closest.x + nx*minDist;
+      ball.y = closest.y + ny*minDist;
+      // Bias bounce inward on edge rails so wall-side contacts don't skitter
+      let kx = nx, ky = ny;
+      if(rail.edgeLeft) kx = Math.max(kx, 0.4);
+      if(rail.edgeRight) kx = Math.min(kx, -0.4);
+      const kLen = Math.hypot(kx, ky) || 1;
+      kx /= kLen; ky /= kLen;
+      const dot = ball.vx*kx + ball.vy*ky;
+      if(dot < 0){
+        ball.vx -= 2*dot*kx;
+        ball.vy -= 2*dot*ky;
+      }
+      ball.vx *= 1.05; ball.vy *= 1.05;
+      ball.vx += kx*1.4 + (Math.random()*0.6-0.3);
+      if(rail.edgeLeft) ball.vx = Math.max(ball.vx, 2.4);
+      if(rail.edgeRight) ball.vx = Math.min(ball.vx, -2.4);
+      ball.vy = Math.min(ball.vy, -1.5);
+      rail.hit = 14;
     }
   }
 
@@ -629,39 +673,8 @@
         }
       }
 
-      // bumpers over full columns: a real elastic bounce, kicked a little
-      // harder than a peg so it reliably shoves the ball out of the
-      // blocked column and back into open play
-      for(const bp of bumpers){
-        const dx = ball.x - bp.x, dy = ball.y - bp.y;
-        const dist = Math.hypot(dx,dy);
-        const minDist = ball.radius + bp.r;
-        if(dist < minDist && dist > 0.0001){
-          const nx = dx/dist, ny = dy/dist;
-          // Separate along the true contact normal so we don't stay sunk
-          // in the collider, then bias the bounce inward on edge runs —
-          // raw circle normals on a wall-side peak otherwise sustain
-          // skitter along the side.
-          ball.x = bp.x + nx*minDist;
-          ball.y = bp.y + ny*minDist;
-          let kx = nx, ky = ny;
-          if(bp.edgeLeft) kx = Math.max(kx, 0.4);
-          if(bp.edgeRight) kx = Math.min(kx, -0.4);
-          const kLen = Math.hypot(kx, ky) || 1;
-          kx /= kLen; ky /= kLen;
-          const dot = ball.vx*kx + ball.vy*ky;
-          if(dot < 0){
-            ball.vx -= 2*dot*kx;
-            ball.vy -= 2*dot*ky;
-          }
-          ball.vx *= 1.05; ball.vy *= 1.05;
-          ball.vx += kx*1.4 + (Math.random()*0.6-0.3);
-          if(bp.edgeLeft) ball.vx = Math.max(ball.vx, 2.4);
-          if(bp.edgeRight) ball.vx = Math.min(ball.vx, -2.4);
-          ball.vy = Math.min(ball.vy, -1.5); // always shove back upward
-          bp.hit = 14;
-        }
-      }
+      // Continuous capsule collision against each bumper rail
+      collideBallWithBumpers(ball);
 
       // Blasted pucks traveling through the board face should bounce off
       // settled pieces instead of phasing through them.
@@ -875,12 +888,7 @@
   function tick(){
     const gravity = 0.42;
     for(const p of pegs){ if(p.hit) p.hit--; }
-    for(const bp of bumpers){ if(bp.hit) bp.hit--; }
-    // propagate collider hits onto the drawn path so the whole arc flashes
-    for(const path of bumperPaths){
-      path.hit = 0;
-      for(const bp of path.bumpers) if(bp.hit > path.hit) path.hit = bp.hit;
-    }
+    for(const path of bumperPaths){ if(path.hit) path.hit--; }
 
     for(const ball of balls){
       stepBall(ball, gravity);
@@ -1505,8 +1513,9 @@
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'miter';
 
-    // trails
+    // trails for pucks that are still above the board mouth
     for(const b of balls){
+      if(b.phase==='grid' || b.y >= PEG_ZONE) continue;
       for(let i=0;i<b.trail.length;i++){
         const t = b.trail[i];
         const alpha = (i+1)/b.trail.length * 0.25;
@@ -1517,9 +1526,12 @@
       }
     }
 
-    // pucks still bouncing through the peg zone render normally, in front of the pegs
+    // pucks still bouncing through the peg zone render normally, in front of the pegs.
+    // (Blasted pucks that are still overlapping the board face are drawn later,
+    // on top of the plate — otherwise the grid fill/plate swallows them and they
+    // look like they teleported out of the column.)
     for(const b of balls){
-      if(b.phase!=='grid') drawPiece(b.x,b.y,b.player,true);
+      if(b.phase!=='grid' && b.y < PEG_ZONE) drawPiece(b.x,b.y,b.player,true);
     }
 
     // ---- grid zone ----
@@ -1589,6 +1601,22 @@
     }
 
     ctx.drawImage(plateCanvas, 0, 0);
+
+    // Free pucks still inside the board face (explosion launches, etc.)
+    // draw on top of the plastic so the flight out of the column stays visible.
+    for(const b of balls){
+      if(b.phase==='grid' || b.y < PEG_ZONE) continue;
+      for(let i=0;i<b.trail.length;i++){
+        const t = b.trail[i];
+        if(t.y < PEG_ZONE) continue;
+        const alpha = (i+1)/b.trail.length * 0.25;
+        ctx.beginPath();
+        ctx.arc(t.x,t.y,20,0,Math.PI*2);
+        ctx.fillStyle = b.player===1 ? `rgba(255,77,109,${alpha})` : `rgba(255,210,63,${alpha})`;
+        ctx.fill();
+      }
+      drawPiece(b.x,b.y,b.player,true);
+    }
 
     // explosion debris — on top of the plate so the blast reads clearly
     for(const p of particles){
