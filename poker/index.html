@@ -568,8 +568,8 @@
     return arr;
   }
 
-  // Suit Exile removes these in order, always leaving at least spades.
-  const SUIT_CUT_ORDER = ['♣','♦','♥'];
+  // Suit Exile removes these in order, always leaving at least two suits.
+  const SUIT_CUT_ORDER = ['♣','♦'];
 
   function makeDeck(){
     const d = [];
@@ -740,10 +740,10 @@
     {
       id: 'suitCut',
       name: 'Suit Exile',
-      desc: 'Ban a suit from the shoe each level.',
+      desc: 'Ban a suit from the shoe each level. Stops at two suits left.',
       baseCost: 250,
       costScale: 2.4,
-      maxLevel: 3
+      maxLevel: 2
     },
     {
       id: 'suitBomb',
