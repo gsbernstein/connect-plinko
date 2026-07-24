@@ -220,7 +220,7 @@
 <body>
 <div class="wrap">
   <h1>Plinko Four</h1>
-  <div class="tagline">Press and drag on the board to aim, release to drop — full columns raise an arched bumper. Matches explode and can blast the stack back into the pegs.</div>
+  <div class="tagline">Press and drag on the board to aim, release to drop — full columns raise an arched bumper. Matches explode, and if the board packs solid you click one piece to blow it up.</div>
 
   <div class="hud">
     <div class="score p1" id="score1"><span class="dot" style="background:var(--p1)"></span>Red&nbsp;<b id="s1">0</b></div>
@@ -633,6 +633,8 @@
     colHeights[c] = stack[c].length;
   }
 
+  const GRID_SETTLE_FRAMES = 360; // ~6s hard cap inside a column before we seat it
+
   function enterGridColumn(ball){
     ball.phase = 'grid';
     ball.y = Math.max(ball.y, PEG_ZONE + 1);
@@ -656,6 +658,7 @@
     ball.targetCol = targetCol;
     ball.row = row;
     ball.stackEntry = entry;
+    ball.gridAge = 0;
     // kill leftover horizontal speed a bit so it commits to the slot
     ball.vx *= 0.55;
   }
@@ -673,59 +676,57 @@
     ball.row = null;
     ball.phase = 'peg';
     ball.frameSafety = 0;
+    ball.gridAge = 0;
+  }
+
+  function seatBall(ball){
+    const targetX = ball.targetCol*CELL + CELL/2;
+    const landingY = PEG_ZONE + ball.row*CELL + CELL/2;
+    ball.x = targetX;
+    ball.y = landingY;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.landed = true;
   }
 
   function stepGridBall(ball, gravity){
+    ball.gridAge = (ball.gridAge || 0) + 1;
     const targetX = ball.targetCol*CELL + CELL/2;
     const colLeft = ball.targetCol*CELL + ball.radius + 4;
     const colRight = (ball.targetCol+1)*CELL - ball.radius - 4;
+    const landingY = PEG_ZONE + ball.row*CELL + CELL/2;
+
+    // Hard unstick: if a puck has been bouncing in-column too long, just
+    // seat it. Prevents two pucks wedging forever and freezing resolves.
+    if(ball.gridAge > GRID_SETTLE_FRAMES){
+      seatBall(ball);
+      return;
+    }
 
     ball.vy += gravity;
     ball.vy = Math.min(ball.vy, 20);
     ball.x += ball.vx;
     ball.y += ball.vy;
 
-    if(ball.x < colLeft){ ball.x = colLeft; ball.vx = Math.abs(ball.vx)*0.4; }
-    if(ball.x > colRight){ ball.x = colRight; ball.vx = -Math.abs(ball.vx)*0.4; }
+    if(ball.x < colLeft){ ball.x = colLeft; ball.vx = Math.abs(ball.vx)*0.35; }
+    if(ball.x > colRight){ ball.x = colRight; ball.vx = -Math.abs(ball.vx)*0.35; }
 
-    // bounce off settled pucks already in this column (static obstacles)
-    const PIECE_R = 32;
-    for(let i=0;i<stack[ball.targetCol].length;i++){
-      const entry = stack[ball.targetCol][i];
-      if(entry.type!=='piece') continue;
-      const py = PEG_ZONE + (ROWS-1-i)*CELL + CELL/2;
-      const dx = ball.x - targetX;
-      const dy = ball.y - py;
-      const dist = Math.hypot(dx, dy);
-      const minDist = ball.radius + PIECE_R - 6; // slight overlap ok visually through holes
-      if(dist < minDist && dist > 0.0001){
-        const nx = dx/dist, ny = dy/dist;
-        ball.x = targetX + nx*minDist;
-        ball.y = py + ny*minDist;
-        const dot = ball.vx*nx + ball.vy*ny;
-        if(dot < 0){
-          ball.vx -= 1.8*dot*nx;
-          ball.vy -= 1.8*dot*ny;
-        }
-        ball.vx *= 0.85;
-        ball.vy *= 0.85;
-      }
-    }
+    // Pull toward the hole center — stronger once near the seat so it
+    // can't keep skating on top of the puck below forever.
+    const nearSeat = ball.y > landingY - CELL*0.7;
+    ball.vx += (targetX - ball.x) * (nearSeat ? 0.12 : 0.04);
+    ball.vx *= nearSeat ? 0.9 : 0.98;
 
-    // soft pull toward the column center so it eventually seats in the hole
-    ball.vx += (targetX - ball.x) * 0.04;
-    ball.vx *= 0.98;
-
-    const landingY = PEG_ZONE + ball.row*CELL + CELL/2;
+    // The reserved stack slot is authoritative: rest on that cell's floor.
+    // (Circle-vs-settled-piece collision used to fight this seat and leave
+    // two pucks oscillating mid-hole, which also blocked the resolve wait.)
     if(ball.y >= landingY){
       ball.y = landingY;
-      ball.vy = -ball.vy*0.32;
-      ball.vx *= 0.7;
-      if((Math.abs(ball.vy) < 1.35 && Math.abs(ball.vx) < 0.9 && Math.abs(ball.x-targetX) < 6)
-         || ball.frameSafety > 900){
-        ball.x = targetX;
-        ball.y = landingY;
-        ball.landed = true;
+      if(ball.vy > 0) ball.vy = -ball.vy*0.28;
+      ball.vx *= 0.65;
+      if((Math.abs(ball.vy) < 1.5 && Math.abs(ball.vx) < 1.1 && Math.abs(ball.x-targetX) < 10)
+         || ball.gridAge > GRID_SETTLE_FRAMES*0.55){
+        seatBall(ball);
       }
     }
   }
@@ -734,6 +735,10 @@
     for(let i=0;i<balls.length;i++){
       for(let j=i+1;j<balls.length;j++){
         const a = balls[i], b = balls[j];
+        // Same-column grid pucks already have reserved seats — colliding
+        // them against each other wedges them between seat snap and
+        // separation. Let the stack order handle those.
+        if(a.phase==='grid' && b.phase==='grid' && a.targetCol===b.targetCol) continue;
         const dx = b.x-a.x, dy = b.y-a.y;
         const dist = Math.hypot(dx,dy);
         const minDist = a.radius+b.radius;
@@ -752,6 +757,19 @@
     }
   }
 
+  // Last-resort: any grid ball that somehow never seated gets forced down
+  // so a resolve wait (or the drop loop) can never hang the game.
+  function forceSeatStuckGridBalls(){
+    let any = false;
+    for(const b of balls){
+      if(b.phase==='grid' && !b.landed && (b.gridAge || 0) > GRID_SETTLE_FRAMES){
+        seatBall(b);
+        any = true;
+      }
+    }
+    return any;
+  }
+
   function tick(){
     const gravity = 0.42;
     for(const p of pegs){ if(p.hit) p.hit--; }
@@ -766,6 +784,7 @@
       stepBall(ball, gravity);
     }
     resolveBallCollisions();
+    forceSeatStuckGridBalls();
     stepParticles();
 
     const landed = balls.filter(b=>b.landed);
@@ -775,6 +794,16 @@
       // check for matches the moment any piece lands, even if other
       // balls are still bouncing through the peg zone
       if(!resolving) maybeStartResolve();
+    }
+
+    // Peg-zone orphans with nowhere to land (board full) would bounce
+    // forever and freeze a resolve wait — cull them after a grace period.
+    if(boardIsFull() && balls.length){
+      const stuckPeg = balls.filter(b => b.phase==='peg' && b.frameSafety > SAFETY_LIMIT);
+      if(stuckPeg.length){
+        const cull = new Set(stuckPeg);
+        balls = balls.filter(b => !cull.has(b));
+      }
     }
 
     draw();
@@ -979,6 +1008,7 @@
             b.row = null;
             b.phase = 'peg';
             b.frameSafety = 0;
+            b.gridAge = 0;
           }
           continue;
         }
@@ -1153,9 +1183,24 @@
         }
       } else if(resolvePhase==='wait'){
         // launched pucks must fully settle before the next cascade check —
-        // they may still be bouncing around in the pegs
+        // they may still be bouncing around in the pegs. Also force-seat
+        // any grid puck that wedged (so a stuck pair can't freeze input).
+        forceSeatStuckGridBalls();
         if(balls.length===0){
           finishResolveOrChain();
+        } else if(elapsed > 8000){
+          // Absolute failsafe: seat or discard whatever is left and move on
+          for(const b of balls){
+            if(b.phase==='grid' && b.targetCol!=null && b.row!=null) seatBall(b);
+          }
+          balls = balls.filter(b => b.phase==='grid'); // drop peg orphans
+          // tick will finalize seated balls; if none left, finish now
+          if(balls.every(b=>b.landed) || balls.length===0){
+            const landedNow = balls.filter(b=>b.landed);
+            balls = balls.filter(b=>!b.landed);
+            for(const b of landedNow) finalizeDrop(b);
+            finishResolveOrChain();
+          }
         }
       }
     }
