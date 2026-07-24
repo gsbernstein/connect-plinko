@@ -19,10 +19,11 @@ Drop colored pucks through pegs into a Connect Four–style grid. Get 4+ in a ro
 
 Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes for **chips**.
 
-Progression has three layers:
+Progression layers:
 1. **Chips** — spend on table upgrades (Auto Dealer, Hold Deal, Big Blind, …). Many upgrades stay hidden until unlocked.
 2. **Run level** — rises automatically from chips *earned* this table. Levels unlock shop items and grant rewards (comp credit, free upgrade bumps, even VIP perk levels). Resets when you Cash Out.
-3. **VIP / prestige** — from run level 8, **Cash Out** banks your level comps for permanent perks (House Edge, Seed Stack, Rack Discount, Comp Card, Quick Deal, Pin Privilege). Hard reset wipes VIP too.
+3. **Contracts** — run **quests** (reset each Cash Out) and permanent **achievements**. Claim rewards for chips, comps, and VIP bumps. A few achievements stay secret until you stumble into them.
+4. **VIP / prestige** — from run level 8, **Cash Out** banks your level comps for permanent perks (House Edge, Seed Stack, Rack Discount, Comp Card, Quick Deal, Pin Privilege). Hard reset wipes VIP and contracts too.
 
 Saves in the browser. Near-miss guides show when you’re close; a full board still triggers the automatic floor clear.
 

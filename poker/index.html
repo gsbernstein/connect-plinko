@@ -244,21 +244,21 @@
     gap:18px;
     min-width:0;
   }
-  .shop, .prestige{
+  .shop, .prestige, .contracts, .rail-col{
     width:100%;
     display:flex;
     flex-direction:column;
     gap:10px;
     min-width:0;
   }
-  .shop-head, .prestige-head{
+  .shop-head, .prestige-head, .contracts-head{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:12px;
     flex-wrap:wrap;
   }
-  .shop-head h2, .prestige-head h2{
+  .shop-head h2, .prestige-head h2, .contracts-head h2{
     margin:0;
     font-family:'Space Grotesk',sans-serif;
     font-size:18px;
@@ -266,13 +266,15 @@
     letter-spacing:-0.01em;
   }
   .prestige-head h2{color:#F0D78C;}
-  .shop-meta, .prestige-meta{
+  .contracts-head h2{color:#7EC8A3;}
+  .shop-meta, .prestige-meta, .contracts-meta{
     color:var(--ink-dim);
     font-size:12px;
   }
   .shop-meta b{color:var(--felt-bright);font-weight:600;}
   .prestige-meta b{color:#F0D78C;font-weight:600;}
-  .upgrades{
+  .contracts-meta b{color:#7EC8A3;font-weight:600;}
+  .upgrades, .quests{
     display:grid;
     grid-template-columns:1fr;
     gap:8px;
@@ -313,7 +315,7 @@
     }
     .upgrades{grid-template-columns:1fr;}
   }
-  /* Board | Upgrades | VIP — three columns when wide enough. */
+  /* Board | (Upgrades+Contracts) | VIP — when wide enough. */
   @media (min-width:1320px){
     .wrap{max-width:1360px;}
     .rails{
@@ -326,7 +328,7 @@
       padding-right:0;
       scrollbar-gutter:auto;
     }
-    .shop, .prestige{
+    .rail-col, .prestige{
       flex:1 1 0;
       width:auto;
       min-width:0;
@@ -336,13 +338,107 @@
       padding-right:10px;
       scrollbar-gutter:stable;
     }
-    .shop::-webkit-scrollbar, .prestige::-webkit-scrollbar{width:8px;}
-    .shop::-webkit-scrollbar-track, .prestige::-webkit-scrollbar-track{background:transparent;}
-    .shop::-webkit-scrollbar-thumb, .prestige::-webkit-scrollbar-thumb{
+    .rail-col::-webkit-scrollbar, .prestige::-webkit-scrollbar{width:8px;}
+    .rail-col::-webkit-scrollbar-track, .prestige::-webkit-scrollbar-track{background:transparent;}
+    .rail-col::-webkit-scrollbar-thumb, .prestige::-webkit-scrollbar-thumb{
       background:#3a3558;
       border-radius:999px;
     }
   }
+  .quest{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    text-align:left;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:12px;
+    padding:12px 14px 14px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono',monospace;
+    cursor:pointer;
+    overflow:hidden;
+    min-height:min-content;
+    flex-shrink:0;
+    transition:border-color .15s ease, background .15s ease, transform .08s ease;
+  }
+  .quest:hover:not(:disabled){
+    border-color:#2d8a6e;
+    background:var(--panel-2);
+    transform:translateY(-1px);
+  }
+  .quest:disabled{cursor:default;}
+  .quest.claimable{
+    border-color:rgba(46,138,110,0.65);
+    box-shadow:0 0 0 1px rgba(46,138,110,0.18);
+  }
+  .quest.claimed{
+    opacity:0.62;
+    border-color:#3a3558;
+  }
+  .quest.achievement .quest-kind{color:#F0D78C;}
+  .quest-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+  }
+  .quest-name{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:14px;
+  }
+  .quest-kind{
+    color:#7EC8A3;
+    font-size:10px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .quest-desc{
+    margin:0;
+    color:var(--ink-dim);
+    font-size:11px;
+    line-height:1.35;
+  }
+  .quest-reward{
+    color:var(--felt-bright);
+    font-size:11px;
+  }
+  .quest-progress-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+    font-size:11px;
+    color:var(--ink-dim);
+  }
+  .quest-progress-row b{color:var(--ink);font-weight:600;}
+  .quest-bar{
+    height:3px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    overflow:hidden;
+  }
+  .quest-bar > span{
+    display:block;
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+    transition:width .2s ease;
+  }
+  .quest.achievement .quest-bar > span{
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+  }
+  .quest-action{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .quest.claimable .quest-action{color:var(--felt-bright);}
+  .quest.claimed .quest-action{color:var(--ink-dim);font-weight:500;}
   .upgrade{
     position:relative;
     display:flex;
@@ -715,13 +811,23 @@
     </div>
 
     <aside class="rails" aria-label="Shop">
-      <section class="shop" aria-label="Upgrades">
-        <div class="shop-head">
-          <h2>Upgrades</h2>
-          <div class="shop-meta">Run&nbsp;<b id="lifetimeVal">0</b> chips · Lv <b id="shopLevelVal">1</b></div>
-        </div>
-        <div class="upgrades" id="upgrades"></div>
-      </section>
+      <div class="rail-col">
+        <section class="shop" aria-label="Upgrades">
+          <div class="shop-head">
+            <h2>Upgrades</h2>
+            <div class="shop-meta">Run&nbsp;<b id="lifetimeVal">0</b> chips · Lv <b id="shopLevelVal">1</b></div>
+          </div>
+          <div class="upgrades" id="upgrades"></div>
+        </section>
+
+        <section class="contracts" id="contractsPanel" aria-label="Contracts">
+          <div class="contracts-head">
+            <h2>Contracts</h2>
+            <div class="contracts-meta"><b id="questReadyVal">0</b> ready to claim</div>
+          </div>
+          <div class="quests" id="quests"></div>
+        </section>
+      </div>
 
       <section class="prestige" id="prestigePanel" aria-label="VIP Lounge">
         <div class="prestige-head">
@@ -739,7 +845,7 @@
   </div>
 
   <div class="footer-row">
-    <span class="hint">Earn chips to level up · unlock upgrades · cash out level comps in the VIP Lounge</span>
+    <span class="hint">Level up to unlock upgrades · clear Contracts · cash out comps in the VIP Lounge</span>
     <button class="reset" id="resetScores">Reset progress</button>
   </div>
 </div>
@@ -909,7 +1015,7 @@
 
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
-  const SAVE_VERSION = 3;
+  const SAVE_VERSION = 4;
   const MAX_IN_FLIGHT = 14;
   const MAX_CASCADE_BALLS = 42;
   const MAX_POPUPS = 36;
@@ -1063,6 +1169,160 @@
     40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' }
   };
 
+  // Contracts: run quests (reset on Cash Out) + permanent achievements.
+  // reward.chips → spendable chips (not XP); reward.comps → permanent VIP comps;
+  // reward.runComps → Cash Out credit; reward.prestige / reward.upgrade as level bonuses.
+  const HAND_STAT = {
+    'ROYAL FLUSH': 'royalFlushes',
+    'STRAIGHT FLUSH': 'straightFlushes',
+    'FOUR OF A KIND': 'fourKinds',
+    'FULL HOUSE': 'fullHouses',
+    'FLUSH': 'flushes',
+    'STRAIGHT': 'straights',
+    'THREE OF A KIND': 'threeKinds',
+    'TWO PAIR': 'twoPairs'
+  };
+  const CONTRACT_DEFS = [
+    {
+      id: 'q_hands_5', kind: 'quest', name: 'Ante Up',
+      desc: 'Score 5 poker hands this table.',
+      stat: 'runHands', target: 5, unlockAt: 1,
+      reward: { chips: 50 }
+    },
+    {
+      id: 'q_drops_40', kind: 'quest', name: 'Busy Dealer',
+      desc: 'Drop 40 cards this table.',
+      stat: 'runCardsDropped', target: 40, unlockAt: 2,
+      reward: { chips: 80 }
+    },
+    {
+      id: 'q_hands_20', kind: 'quest', name: 'Session Grind',
+      desc: 'Score 20 hands this table.',
+      stat: 'runHands', target: 20, unlockAt: 3,
+      reward: { chips: 200, runComps: 1 }
+    },
+    {
+      id: 'q_chain', kind: 'quest', name: 'On a Heater',
+      desc: 'Clear a chained hand (×2+) this table.',
+      stat: 'runChainClears', target: 1, unlockAt: 4,
+      reward: { chips: 150 }
+    },
+    {
+      id: 'q_floor', kind: 'quest', name: 'Sweep the Felt',
+      desc: 'Trigger a floor clear this table.',
+      stat: 'runFloorClears', target: 1, unlockAt: 5,
+      reward: { chips: 250, runComps: 1 }
+    },
+    {
+      id: 'q_combo', kind: 'quest', name: 'Two-Way Pot',
+      desc: 'Clear two hands in one resolve this table.',
+      stat: 'runMultiClears', target: 1, unlockAt: 6,
+      reward: { chips: 220 }
+    },
+    {
+      id: 'q_purge', kind: 'quest', name: 'Clean House',
+      desc: 'Cast Suit Purge this table.',
+      stat: 'runSuitPurges', target: 1, unlockAt: 11,
+      reward: { chips: 400, runComps: 1 }
+    },
+    {
+      id: 'a_first_hand', kind: 'achievement', name: 'First Pot',
+      desc: 'Score your first poker hand.',
+      stat: 'hands', target: 1, unlockAt: 1,
+      reward: { chips: 25 }
+    },
+    {
+      id: 'a_hands_50', kind: 'achievement', name: 'Table Regular',
+      desc: 'Score 50 hands lifetime.',
+      stat: 'hands', target: 50, unlockAt: 1,
+      reward: { comps: 1 }
+    },
+    {
+      id: 'a_hands_250', kind: 'achievement', name: 'Felt Veteran',
+      desc: 'Score 250 hands lifetime.',
+      stat: 'hands', target: 250, unlockAt: 1,
+      reward: { comps: 3 }
+    },
+    {
+      id: 'a_flush', kind: 'achievement', name: 'Suited Up',
+      desc: 'Score a Flush.',
+      stat: 'flushes', target: 1, unlockAt: 1,
+      reward: { chips: 120, runComps: 1 }
+    },
+    {
+      id: 'a_straight', kind: 'achievement', name: 'In Order',
+      desc: 'Score a Straight.',
+      stat: 'straights', target: 1, unlockAt: 1,
+      reward: { chips: 120 }
+    },
+    {
+      id: 'a_fullhouse', kind: 'achievement', name: 'Full Boat',
+      desc: 'Score a Full House.',
+      stat: 'fullHouses', target: 1, unlockAt: 1,
+      reward: { chips: 200, comps: 1 }
+    },
+    {
+      id: 'a_quads', kind: 'achievement', name: 'Quad Squad',
+      desc: 'Score Four of a Kind.',
+      stat: 'fourKinds', target: 1, unlockAt: 1,
+      reward: { comps: 2 }
+    },
+    {
+      id: 'a_sf', kind: 'achievement', name: 'Painted Straight',
+      desc: 'Score a Straight Flush.',
+      stat: 'straightFlushes', target: 1, secret: true,
+      reward: { comps: 3 }
+    },
+    {
+      id: 'a_royal', kind: 'achievement', name: 'Crown Jewel',
+      desc: 'Score a Royal Flush.',
+      stat: 'royalFlushes', target: 1, secret: true,
+      reward: { comps: 5, prestige: 'houseEdge' }
+    },
+    {
+      id: 'a_combo', kind: 'achievement', name: 'Double Down',
+      desc: 'Clear two hands in one resolve.',
+      stat: 'multiHandClears', target: 1, unlockAt: 1,
+      reward: { chips: 150 }
+    },
+    {
+      id: 'a_floor_10', kind: 'achievement', name: 'Janitor',
+      desc: 'Trigger 10 floor clears lifetime.',
+      stat: 'floorClears', target: 10, unlockAt: 1,
+      reward: { comps: 2 }
+    },
+    {
+      id: 'a_cashout_1', kind: 'achievement', name: 'First Buy-In',
+      desc: 'Cash Out once.',
+      stat: 'cashOuts', target: 1, unlockAt: 1,
+      reward: { comps: 1 }
+    },
+    {
+      id: 'a_cashout_5', kind: 'achievement', name: 'High Roller',
+      desc: 'Cash Out 5 times.',
+      stat: 'cashOuts', target: 5, unlockAt: 1,
+      reward: { comps: 3, prestige: 'compCard' }
+    },
+    {
+      id: 'a_level_20', kind: 'achievement', name: 'Deep Stack',
+      desc: 'Reach run level 20 in a single table.',
+      stat: 'maxRunLevel', target: 20, unlockAt: 1,
+      reward: { comps: 3 }
+    },
+    {
+      id: 'a_upgrades_20', kind: 'achievement', name: 'Rack Builder',
+      desc: 'Buy 20 table upgrades.',
+      stat: 'upgradesBought', target: 20, unlockAt: 1,
+      reward: { comps: 2 }
+    },
+    {
+      id: 'a_purges_10', kind: 'achievement', name: 'Suit Sanitizer',
+      desc: 'Cast Suit Purge 10 times.',
+      stat: 'suitPurges', target: 10, unlockAt: 11,
+      reward: { comps: 2 }
+    }
+  ];
+
   // Permanent VIP perks bought with comps from Cash Out.
   const PRESTIGE_DEFS = [
     {
@@ -1129,6 +1389,17 @@
   let holdDropCol = null; // null = aim at aimX; number = fixed column
   let lastHoldDropAt = 0;
   let levelToastTimer = 0;
+  let questUiTimer = 0;
+  let questClaimed = Object.create(null); // id -> true
+  const EMPTY_STATS = {
+    hands: 0, royalFlushes: 0, straightFlushes: 0, fourKinds: 0,
+    fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
+    multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
+    cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
+    runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
+    runCardsDropped: 0, runMultiClears: 0
+  };
+  let stats = Object.assign({}, EMPTY_STATS);
 
   function upgradeLevel(id){ return upgrades[id] || 0; }
   function prestigeLevel(id){ return prestigeUpgrades[id] || 0; }
@@ -1200,6 +1471,151 @@
 
   function canCashOut(){
     return pendingComps() > 0;
+  }
+
+  function questProgress(def){
+    return Math.min(def.target, stats[def.stat] || 0);
+  }
+
+  function questComplete(def){
+    return questProgress(def) >= def.target;
+  }
+
+  function questIsClaimed(def){
+    return !!questClaimed[def.id];
+  }
+
+  function questRevealed(def){
+    if(questIsClaimed(def) || questComplete(def)) return true;
+    if(def.secret) return questProgress(def) > 0;
+    return runLevel >= (def.unlockAt || 1);
+  }
+
+  function questCanClaim(def){
+    return questRevealed(def) && questComplete(def) && !questIsClaimed(def);
+  }
+
+  function contractRewardText(def){
+    const r = def.reward || {};
+    const parts = [];
+    if(r.chips) parts.push('+' + formatNum(r.chips) + ' chips');
+    if(r.comps) parts.push('+' + r.comps + ' VIP comps');
+    if(r.runComps) parts.push('+' + r.runComps + ' Cash Out comps');
+    if(r.prestige){
+      const p = PRESTIGE_DEFS.find(u => u.id === r.prestige);
+      parts.push('VIP +1 ' + (p ? p.name : r.prestige));
+    }
+    if(r.upgrade){
+      const u = UPGRADE_DEFS.find(d => d.id === r.upgrade.id);
+      parts.push('+' + (r.upgrade.n || 1) + ' ' + (u ? u.name : r.upgrade.id));
+    }
+    return parts.length ? parts.join(' · ') : 'Reward';
+  }
+
+  function applyContractReward(def){
+    const r = def.reward || {};
+    if(r.chips) score += r.chips;
+    if(r.comps) comps += r.comps;
+    if(r.runComps) runCompCredit += r.runComps;
+    if(r.prestige){
+      const pDef = PRESTIGE_DEFS.find(u => u.id === r.prestige);
+      if(pDef && prestigeLevel(pDef.id) < pDef.maxLevel){
+        prestigeUpgrades[pDef.id] = prestigeLevel(pDef.id) + 1;
+      }
+    }
+    if(r.upgrade){
+      const uDef = UPGRADE_DEFS.find(u => u.id === r.upgrade.id);
+      if(uDef){
+        const before = upgradeLevel(uDef.id);
+        upgrades[uDef.id] = Math.min(uDef.maxLevel, before + (r.upgrade.n || 1));
+        if(uDef.id === 'highCut' || uDef.id === 'suitCut') reshapeShoe();
+        if(uDef.id === 'suitBomb' && before === 0) suitBombReadyAt = performance.now();
+      }
+    }
+  }
+
+  function claimContract(id){
+    const def = CONTRACT_DEFS.find(c => c.id === id);
+    if(!def || !questCanClaim(def)) return false;
+    questClaimed[def.id] = true;
+    applyContractReward(def);
+    scheduleSave();
+    updateScoreUI();
+    updateShopUI();
+    updatePrestigeUI();
+    updateContractsUI();
+    updateAutoStatus();
+    updateSuitBombUI(performance.now(), true);
+    pushPopup({
+      x: W / 2,
+      y: PEG_ZONE * 0.38,
+      text: 'CONTRACT · ' + def.name,
+      color: def.kind === 'achievement' ? '#F0D78C' : '#7EC8A3',
+      t0: performance.now(),
+      duration: 1400,
+      big: true
+    });
+    if(!resolving && !looping) startLoop();
+    return true;
+  }
+
+  function resetRunQuestClaims(){
+    for(const def of CONTRACT_DEFS){
+      if(def.kind === 'quest') delete questClaimed[def.id];
+    }
+    stats.runHands = 0;
+    stats.runFloorClears = 0;
+    stats.runSuitPurges = 0;
+    stats.runChainClears = 0;
+    stats.runCardsDropped = 0;
+    stats.runMultiClears = 0;
+  }
+
+  function bumpStat(key, n){
+    n = n == null ? 1 : n;
+    if(!n) return;
+    stats[key] = (stats[key] || 0) + n;
+    scheduleContractsUI();
+  }
+
+  function noteHandClear(groups, chainMult){
+    if(!groups || !groups.length) return;
+    if(groups.some(g => g.floorClear || g.suitBomb)) return;
+    const n = groups.length;
+    bumpStat('hands', n);
+    bumpStat('runHands', n);
+    if(n > 1){
+      bumpStat('multiHandClears', 1);
+      bumpStat('runMultiClears', 1);
+    }
+    if(chainMult > 1){
+      bumpStat('chainClears', 1);
+      bumpStat('runChainClears', 1);
+    }
+    for(const g of groups){
+      const key = HAND_STAT[g.name];
+      if(key) bumpStat(key, 1);
+    }
+  }
+
+  function noteFloorClear(){
+    bumpStat('floorClears', 1);
+    bumpStat('runFloorClears', 1);
+  }
+
+  function noteSuitPurge(){
+    bumpStat('suitPurges', 1);
+    bumpStat('runSuitPurges', 1);
+  }
+
+  function noteCardDropped(){
+    bumpStat('cardsDropped', 1);
+    bumpStat('runCardsDropped', 1);
+  }
+
+  function scheduleContractsUI(){
+    clearTimeout(questUiTimer);
+    questUiTimer = setTimeout(updateContractsUI, 120);
   }
 
   function upgradeCost(def){
@@ -1400,11 +1816,19 @@
   function syncRunLevel(opts){
     opts = opts || {};
     const target = runLevelFromLifetime(lifetime);
-    if(target <= runLevel) return false;
+    if(target <= runLevel){
+      if(runLevel > (stats.maxRunLevel || 1)){
+        stats.maxRunLevel = runLevel;
+        scheduleContractsUI();
+      }
+      return false;
+    }
     while(runLevel < target){
       runLevel++;
       grantLevelReward(runLevel, opts);
     }
+    if(runLevel > (stats.maxRunLevel || 1)) stats.maxRunLevel = runLevel;
+    scheduleContractsUI();
     return true;
   }
 
@@ -1562,6 +1986,8 @@
         prestigeCount,
         prestigeUpgrades,
         runCompCredit,
+        stats,
+        questClaimed,
         suitBombCdLeft: cdLeft,
         v: SAVE_VERSION
       }));
@@ -1608,6 +2034,20 @@
         // Migrate older saves: reconstruct credit from levels already reached.
         runCompCredit = recomputeRunCompCredit(runLevel);
       }
+      if(data.stats && typeof data.stats === 'object'){
+        stats = Object.assign({}, EMPTY_STATS, data.stats);
+        for(const k of Object.keys(stats)){
+          if(typeof stats[k] !== 'number' || stats[k] < 0) stats[k] = EMPTY_STATS[k] || 0;
+          else stats[k] = Math.floor(stats[k]);
+        }
+      }
+      if(runLevel > (stats.maxRunLevel || 1)) stats.maxRunLevel = runLevel;
+      if(data.questClaimed && typeof data.questClaimed === 'object'){
+        questClaimed = Object.create(null);
+        for(const def of CONTRACT_DEFS){
+          if(data.questClaimed[def.id]) questClaimed[def.id] = true;
+        }
+      }
       if(typeof data.suitBombCdLeft === 'number' && data.suitBombCdLeft > 0){
         suitBombReadyAt = performance.now() + data.suitBombCdLeft;
       } else {
@@ -1625,6 +2065,8 @@
     runCompCredit = 0;
     upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
     prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
+    stats = Object.assign({}, EMPTY_STATS);
+    questClaimed = Object.create(null);
     lastAutoDropAt = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
@@ -1632,6 +2074,7 @@
     updateScoreUI();
     updateShopUI();
     updatePrestigeUI();
+    updateContractsUI();
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
@@ -1642,7 +2085,9 @@
     if(gain <= 0) return false;
     comps += gain;
     prestigeCount += 1;
+    bumpStat('cashOuts', 1);
     applyRunStartBonuses();
+    resetRunQuestClaims();
     // Allow unlock flashes again on the next table.
     seenUnlockFlash.clear();
     for(const def of UPGRADE_DEFS){
@@ -1652,6 +2097,7 @@
     updateScoreUI();
     updateShopUI();
     updatePrestigeUI();
+    updateContractsUI();
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
@@ -1669,6 +2115,7 @@
     if(score < cost) return;
     score -= cost;
     upgrades[id] = lvl + 1;
+    bumpStat('upgradesBought', 1);
     if(id === 'highCut' || id === 'suitCut') reshapeShoe();
     if(id === 'suitBomb' && lvl === 0){
       suitBombReadyAt = performance.now();
@@ -2094,6 +2541,7 @@
       dropEpoch: resolveEpoch
     };
     balls.push(ball);
+    noteCardDropped();
     startLoop();
     refreshButtons();
   }
@@ -2898,6 +3346,7 @@
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
+    noteFloorClear();
     refreshButtons();
     startResolveLoop();
   }
@@ -2941,6 +3390,7 @@
     if(cells.length < 1) return false;
     // Spend the charge immediately so a mid-clear click still counts.
     suitBombReadyAt = now + suitBombCooldownMs();
+    noteSuitPurge();
     scheduleSave();
     if(resolving){
       pendingSuitBomb = suit;
@@ -3058,6 +3508,7 @@
           if(!isFloorClear){
             const chainMult = Math.max(1, chainStep + chainBonus());
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
+            noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
             flushScoreUI();
@@ -3393,11 +3844,14 @@
   const autoStatusValEl = document.getElementById('autoStatusVal');
   const upgradesEl = document.getElementById('upgrades');
   const prestigeUpgradesEl = document.getElementById('prestigeUpgrades');
+  const questsEl = document.getElementById('quests');
+  const questReadyValEl = document.getElementById('questReadyVal');
   const nextLabel = document.getElementById('nextLabel');
   const banner = document.getElementById('banner');
   const bannerText = document.getElementById('bannerText');
   const upgradeButtons = {};
   const prestigeButtons = {};
+  const contractButtons = {};
   const seenUnlockFlash = new Set();
 
   function updateLevelUI(){
@@ -3569,6 +4023,96 @@
     return btn;
   }
 
+  function updateContractsUI(){
+    if(!questsEl) return;
+    let readyCount = 0;
+    const claimable = [];
+    const active = [];
+    const done = [];
+    for(const def of CONTRACT_DEFS){
+      const btn = contractButtons[def.id];
+      if(!btn) continue;
+      const revealed = questRevealed(def);
+      btn.hidden = !revealed;
+      if(!revealed) continue;
+      const progress = questProgress(def);
+      const complete = progress >= def.target;
+      const claimed = questIsClaimed(def);
+      const canClaim = complete && !claimed;
+      const stillSecret = !!(def.secret && !complete && !claimed);
+      if(canClaim) readyCount++;
+      btn.disabled = !canClaim;
+      btn.classList.toggle('claimable', canClaim);
+      btn.classList.toggle('claimed', claimed);
+      btn.classList.toggle('achievement', def.kind === 'achievement');
+      btn.querySelector('.quest-name').textContent = stillSecret ? '???' : def.name;
+      btn.querySelector('.quest-desc').textContent = stillSecret
+        ? 'Hidden contract — keep playing.'
+        : def.desc;
+      const fill = btn.querySelector('.quest-bar > span');
+      if(fill){
+        fill.style.width = Math.min(100, (progress / def.target) * 100) + '%';
+      }
+      const progEl = btn.querySelector('.quest-prog');
+      if(progEl){
+        progEl.innerHTML = stillSecret
+          ? '<b>?</b> / ?'
+          : ('<b>' + formatNum(progress) + '</b> / ' + formatNum(def.target));
+      }
+      const actionEl = btn.querySelector('.quest-action');
+      if(actionEl){
+        actionEl.textContent = claimed
+          ? 'Claimed'
+          : (canClaim ? 'Claim reward' : (complete ? 'Complete' : 'In progress'));
+      }
+      if(canClaim) claimable.push(btn);
+      else if(claimed) done.push(btn);
+      else active.push(btn);
+    }
+    if(questReadyValEl) questReadyValEl.textContent = String(readyCount);
+    for(const btn of claimable.concat(active, done)) questsEl.appendChild(btn);
+  }
+
+  function makeContractButton(def){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quest' + (def.kind === 'achievement' ? ' achievement' : '');
+    btn.dataset.id = def.id;
+    btn.innerHTML =
+      '<div class="quest-top">' +
+        '<span class="quest-name"></span>' +
+        '<span class="quest-kind"></span>' +
+      '</div>' +
+      '<p class="quest-desc"></p>' +
+      '<div class="quest-reward"></div>' +
+      '<div class="quest-progress-row">' +
+        '<span class="quest-prog"></span>' +
+        '<span class="quest-action">In progress</span>' +
+      '</div>' +
+      '<div class="quest-bar" aria-hidden="true"><span></span></div>';
+    btn.querySelector('.quest-name').textContent = def.secret && !questComplete(def) && !questIsClaimed(def)
+      ? '???'
+      : def.name;
+    btn.querySelector('.quest-kind').textContent = def.kind === 'achievement' ? 'Achievement' : 'Quest';
+    btn.querySelector('.quest-desc').textContent = def.secret && !questComplete(def) && !questIsClaimed(def)
+      ? 'Hidden contract — keep playing.'
+      : def.desc;
+    btn.querySelector('.quest-reward').textContent = contractRewardText(def);
+    btn.addEventListener('click', ()=>claimContract(def.id));
+    return btn;
+  }
+
+  function buildContracts(){
+    if(!questsEl) return;
+    questsEl.innerHTML = '';
+    for(const def of CONTRACT_DEFS){
+      const btn = makeContractButton(def);
+      questsEl.appendChild(btn);
+      contractButtons[def.id] = btn;
+    }
+    updateContractsUI();
+  }
+
   function buildShop(){
     upgradesEl.innerHTML = '';
     for(const def of UPGRADE_DEFS){
@@ -3584,6 +4128,7 @@
         prestigeButtons[def.id] = btn;
       }
     }
+    buildContracts();
     updateShopUI();
     updatePrestigeUI();
   }
@@ -3702,7 +4247,7 @@
     });
   }
   document.getElementById('resetScores').addEventListener('click', ()=>{
-    if(!confirm('Wipe ALL progress, including VIP comps and perks?')) return;
+    if(!confirm('Wipe ALL progress, including VIP comps, perks, and contracts?')) return;
     resetProgress();
     freshState();
     refreshButtons();
@@ -3796,6 +4341,7 @@
   updateAutoStatus();
   updateShopUI();
   updatePrestigeUI();
+  updateContractsUI();
   updateSuitBombUI();
   refreshButtons();
   draw();
