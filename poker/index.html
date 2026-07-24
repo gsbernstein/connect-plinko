@@ -1057,7 +1057,7 @@
   .cashout-modal-card{
     position:relative;
     width:min(440px, 100%);
-    padding:34px 28px 24px;
+    padding:34px 28px 22px;
     border-radius:22px;
     background:
       linear-gradient(180deg, rgba(230,195,92,0.14), transparent 28%),
@@ -1093,17 +1093,14 @@
     animation:cashoutSheen 3s ease-in-out infinite;
     pointer-events:none;
   }
-  .cashout-modal-card::after{
-    content:'♠  ♥  ♦  ♣';
-    position:absolute;
-    left:0;
-    right:0;
-    bottom:10px;
+  .cashout-modal-suits{
+    margin:28px 0 2px;
     text-align:center;
     font-size:11px;
     letter-spacing:0.55em;
     color:rgba(230,195,92,0.22);
     pointer-events:none;
+    line-height:1;
   }
   @keyframes cashoutSheen{
     0%, 100%{ transform:translateX(-10%) rotate(10deg); opacity:0.3; }
@@ -1308,8 +1305,8 @@
   }
   @media (max-width:420px){
     .cashout-modal-actions{grid-template-columns:1fr;}
-    .cashout-modal-card{padding:28px 18px 20px;}
-    .cashout-modal-card::after{letter-spacing:0.35em;}
+    .cashout-modal-card{padding:28px 18px 18px;}
+    .cashout-modal-suits{letter-spacing:0.35em; margin-top:24px;}
   }
 </style>
 </head>
@@ -1477,6 +1474,7 @@
         <button type="button" class="cashout-modal-cancel" id="cashoutModalCancel">Stay at the table</button>
         <button type="button" class="cashout-modal-confirm" id="cashoutModalConfirm">Collect comps</button>
       </div>
+      <div class="cashout-modal-suits" aria-hidden="true">♠  ♥  ♦  ♣</div>
     </div>
   </div>
 </div>
