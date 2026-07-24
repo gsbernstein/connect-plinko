@@ -222,7 +222,7 @@
   </div>
 
   <div class="footer-row">
-    <span class="hint">3-of-a-kind · two pair · straight · flush · full house · four · straight flush</span>
+    <span class="hint">Dotted guides show near hands · 3oak · two pair · straight · flush · boat · quads · SF</span>
     <button class="reset" id="resetScores">Reset score</button>
   </div>
 </div>
@@ -338,6 +338,30 @@
     if(n>=3 && counts[0]>=3) return {name:'THREE OF A KIND', points:2};
     if(n===4 && counts[0]===2 && counts[1]===2) return {name:'TWO PAIR', points:1};
     return null;
+  }
+
+  // One card shy of a scoring hand — used for faint guide lines on the board.
+  function canCompleteStraight(ranks){
+    const uniq = [...new Set(ranks)];
+    if(uniq.length !== ranks.length || uniq.length !== 4) return false;
+    for(let add=1; add<=13; add++){
+      if(uniq.includes(add)) continue;
+      if(isStraightRanks([...uniq, add])) return true;
+    }
+    return false;
+  }
+
+  function isConnectedStraight3(ranks){
+    const variants = [ranks.slice()];
+    if(ranks.includes(1)) variants.push(ranks.map(r => r===1 ? 14 : r));
+    for(const rs of variants){
+      const u = [...new Set(rs)].sort((a,b)=>a-b);
+      if(u.length !== 3) continue;
+      if(u[2]-u[0]===2 && u[1]-u[0]===1) return true;
+    }
+    // Wheel stub A-2-3
+    const u = [...new Set(ranks)].sort((a,b)=>a-b);
+    return u.length===3 && u[0]===1 && u[1]===2 && u[2]===3;
   }
 
   // ---- board state ----
@@ -994,6 +1018,192 @@
     return groups;
   }
 
+  // Scan contiguous runs for patterns that are one card away from scoring.
+  // Returns guide lines sorted strongest-first (flush draw > straight > pair).
+  function findNearMisses(){
+    const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+    const hints = [];
+    const seen = new Set();
+
+    function pushHint(cells, kind, label, color, priority){
+      const key = kind + '|' + cells.map(([c,r])=>c+','+r).join(';');
+      if(seen.has(key)) return;
+      // Skip if every cell is already flashing in a real hand clear
+      if(flashCells && cells.every(([c,r]) => flashCells.has(c+','+r))) return;
+      seen.add(key);
+      hints.push({cells, kind, label, color, priority});
+    }
+
+    for(const [dx,dy] of dirs){
+      for(let c=0;c<COLS;c++){
+        for(let r=0;r<ROWS;r++){
+          if(!grid[c][r]) continue;
+          const pc = c-dx, pr = r-dy;
+          if(pc>=0 && pc<COLS && pr>=0 && pr<ROWS && grid[pc][pr]) continue;
+
+          const cells = [];
+          const cards = [];
+          let cc=c, cr=r;
+          while(cc>=0 && cc<COLS && cr>=0 && cr<ROWS && grid[cc][cr]){
+            cells.push([cc,cr]);
+            cards.push(grid[cc][cr]);
+            cc+=dx; cr+=dy;
+          }
+          if(cards.length < 2) continue;
+
+          const scoringMask = new Array(cards.length).fill(false);
+          for(let len=5; len>=3; len--){
+            if(cards.length < len) continue;
+            for(let i=0;i<=cards.length-len;i++){
+              if(!evaluateCards(cards.slice(i, i+len))) continue;
+              for(let k=i;k<i+len;k++) scoringMask[k]=true;
+            }
+          }
+
+          // 4-card flush draw
+          if(cards.length >= 4){
+            for(let i=0;i<=cards.length-4;i++){
+              const slice = cards.slice(i, i+4);
+              const sliceCells = cells.slice(i, i+4);
+              if(slice.some((_,k)=>scoringMask[i+k])) continue;
+              if(slice.every(card => card.suit === slice[0].suit)){
+                pushHint(sliceCells, 'flush4', 'flush', SUIT_COLOR[slice[0].suit], 40);
+              }
+            }
+          }
+
+          // 4-card straight draw
+          if(cards.length >= 4){
+            for(let i=0;i<=cards.length-4;i++){
+              const slice = cards.slice(i, i+4);
+              const sliceCells = cells.slice(i, i+4);
+              if(slice.some((_,k)=>scoringMask[i+k])) continue;
+              if(canCompleteStraight(slice.map(card => card.rank))){
+                pushHint(sliceCells, 'straight4', 'straight', PEG, 35);
+              }
+            }
+          }
+
+          // 3-card flush draw (fainter)
+          if(cards.length >= 3){
+            for(let i=0;i<=cards.length-3;i++){
+              const slice = cards.slice(i, i+3);
+              const sliceCells = cells.slice(i, i+3);
+              if(slice.some((_,k)=>scoringMask[i+k])) continue;
+              if(slice.every(card => card.suit === slice[0].suit)){
+                pushHint(sliceCells, 'flush3', 'flush', SUIT_COLOR[slice[0].suit], 18);
+              }
+            }
+          }
+
+          // 3 connected ranks (straight stub)
+          if(cards.length >= 3){
+            for(let i=0;i<=cards.length-3;i++){
+              const slice = cards.slice(i, i+3);
+              const sliceCells = cells.slice(i, i+3);
+              if(slice.some((_,k)=>scoringMask[i+k])) continue;
+              if(isConnectedStraight3(slice.map(card => card.rank))){
+                pushHint(sliceCells, 'straight3', 'straight', '#B8B0E0', 16);
+              }
+            }
+          }
+
+          // Adjacent pair → one away from trips
+          for(let i=0;i<=cards.length-2;i++){
+            if(scoringMask[i] || scoringMask[i+1]) continue;
+            if(cards[i].rank === cards[i+1].rank){
+              pushHint(
+                cells.slice(i, i+2),
+                'pair',
+                'trips',
+                SUIT_COLOR[cards[i].suit],
+                22
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // Prefer stronger draws; drop a 3-card hint fully covered by a 4-card one
+    hints.sort((a,b)=> b.priority - a.priority);
+    const kept = [];
+    for(const h of hints){
+      const keys = h.cells.map(([c,r])=>c+','+r);
+      const covered = kept.some(k => {
+        if(k.priority < h.priority) return false;
+        if(k.kind.replace(/\d/,'') !== h.kind.replace(/\d/,'')) return false;
+        const set = new Set(k.cells.map(([c,r])=>c+','+r));
+        return keys.every(key => set.has(key));
+      });
+      if(covered) continue;
+      kept.push(h);
+      if(kept.length >= 12) break;
+    }
+    return kept;
+  }
+
+  function cellCenter(col, row){
+    return {x: col*CELL + CELL/2, y: PEG_ZONE + row*CELL + CELL/2};
+  }
+
+  function drawNearMissHints(){
+    if(gameOver || resolving) return;
+    const hints = findNearMisses();
+    if(!hints.length) return;
+
+    for(const h of hints){
+      const pts = h.cells.map(([c,r]) => cellCenter(c,r));
+      const strong = h.priority >= 30;
+      const alpha = strong ? 0.34 : 0.2;
+      const width = strong ? 2.4 : 1.6;
+
+      ctx.save();
+      ctx.setLineDash(strong ? [6, 6] : [4, 7]);
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = h.color;
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = h.color;
+      ctx.shadowBlur = strong ? 10 : 5;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+
+      // Soft rings so the linked cards read even when the dash sits on plastic
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = alpha * 0.85;
+      for(const p of pts){
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, HOLE_R - 3, 0, Math.PI*2);
+        ctx.stroke();
+      }
+
+      // Tiny label nudged off the line so it doesn't sit on a rank glyph
+      const a = pts[0], b = pts[pts.length-1];
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ox = (-dy / len) * 14;
+      const oy = (dx / len) * 14;
+      ctx.globalAlpha = Math.min(0.75, alpha * 1.35);
+      ctx.shadowBlur = 0;
+      ctx.font = "600 11px 'IBM Plex Mono', monospace";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = h.color;
+      ctx.fillText(h.label, mx + ox, my + oy);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.setLineDash([]);
+  }
+
   function scoreGroups(groups, chainMultiplier){
     let pts = 0;
     for(const g of groups) pts += g.points;
@@ -1544,6 +1754,10 @@
     }
 
     ctx.drawImage(plateCanvas, 0, 0);
+
+    // Near-miss guides sit on top of the plate so the dotted bridges stay
+    // readable between holes (pairs, flush/straight draws).
+    drawNearMissHints();
 
     for(const b of balls){
       if(b.phase==='grid' || b.y < PEG_ZONE) continue;
