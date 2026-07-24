@@ -8160,6 +8160,8 @@
     scheduleCountingUiRefresh();
     startLoop();
   }
+
+  function boardIsFull(){
     return colHeights.every(h=>h>=ROWS);
   }
 
