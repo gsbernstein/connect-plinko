@@ -46,6 +46,7 @@
     overflow:hidden;
   }
   .stage{
+    position:relative;
     width:100%;
     display:none;
     flex-direction:column;
@@ -56,6 +57,43 @@
     flex:1 1 auto;
     padding:10px 10px 0;
     overflow:hidden;
+  }
+  .chip-fx-layer{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+    z-index:6;
+  }
+  .fly-chip{
+    position:absolute;
+    width:16px;
+    height:16px;
+    margin:-8px 0 0 -8px;
+    border-radius:50%;
+    background:
+      radial-gradient(circle at 32% 28%, #fff6d8 0%, #f0d078 42%, #c9962e 78%, #8a6418 100%);
+    border:1.5px solid #5a3d12;
+    box-shadow:
+      inset 0 0 0 2px rgba(255,248,220,0.28),
+      0 2px 5px rgba(0,0,0,0.4);
+    will-change:transform, opacity;
+    pointer-events:none;
+  }
+  .fly-chip::after{
+    content:'';
+    position:absolute;
+    inset:2.5px;
+    border-radius:50%;
+    border:1px dashed rgba(70,45,10,0.35);
+  }
+  .score.chip-pulse{
+    animation:chipLandPulse 0.32s ease-out;
+  }
+  @keyframes chipLandPulse{
+    0%{ transform:scale(1); }
+    45%{ transform:scale(1.07); filter:brightness(1.12); }
+    100%{ transform:scale(1); filter:brightness(1); }
   }
   .app.mode-table .stage,
   .stage.is-active{display:flex;}
@@ -82,6 +120,7 @@
     color:var(--felt-bright);
   }
   .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor;}
+  .score.chip-pulse{box-shadow:0 0 0 1px var(--felt-bright), 0 0 22px -2px var(--felt-bright);}
   .score b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -1474,6 +1513,7 @@
 <body>
 <div class="app mode-table" id="app">
   <section class="stage is-active" id="panelTable" data-panel="table" aria-label="Table">
+    <div class="chip-fx-layer" id="chipFxLayer" aria-hidden="true"></div>
     <div class="hud">
       <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
       <div class="level-pill" id="levelBox" role="button" tabindex="0"
@@ -2529,7 +2569,10 @@
 
   function applyContractReward(reward){
     const r = reward || {};
-    if(r.chips) score += r.chips;
+    if(r.chips){
+      score += r.chips;
+      spawnChipFly(W/2, PEG_ZONE * 0.38, r.chips);
+    }
     if(r.comps) comps += r.comps;
     if(r.runComps) runCompCredit += r.runComps;
     if(r.prestige){
@@ -3038,6 +3081,7 @@
       if(bonus.chips){
         score += bonus.chips;
         // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
+        if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, bonus.chips);
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
@@ -3108,7 +3152,176 @@
     return true;
   }
 
-  function awardChips(amount){
+  const chipFxLayer = document.getElementById('chipFxLayer');
+  const scoreBoxEl = document.getElementById('scoreBox');
+  const MAX_FLYING_CHIPS = 48;
+  let flyingChips = [];
+  let chipFlyRaf = 0;
+  let scorePulseTimer = 0;
+
+  function canvasToStagePoint(cx, cy){
+    if(!chipFxLayer) return { x: cx, y: cy };
+    const canvasRect = canvas.getBoundingClientRect();
+    const stageRect = chipFxLayer.getBoundingClientRect();
+    const scaleX = canvasRect.width / W;
+    const scaleY = canvasRect.height / H;
+    return {
+      x: canvasRect.left - stageRect.left + cx * scaleX,
+      y: canvasRect.top - stageRect.top + cy * scaleY
+    };
+  }
+
+  function scoreBoxTarget(){
+    if(!scoreBoxEl || !chipFxLayer) return { x: 40, y: 20 };
+    const box = scoreBoxEl.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    return {
+      x: box.left - stage.left + box.width * 0.78,
+      y: box.top - stage.top + box.height * 0.5
+    };
+  }
+
+  function chipFlyCountForAmount(amount){
+    if(amount <= 1) return 1;
+    if(amount <= 4) return 2;
+    if(amount <= 12) return 3;
+    if(amount <= 30) return 4;
+    if(amount <= 80) return 6;
+    if(amount <= 200) return 8;
+    return 10;
+  }
+
+  function pulseScoreBox(){
+    if(!scoreBoxEl) return;
+    scoreBoxEl.classList.remove('chip-pulse');
+    // Restart the land pulse even when chips arrive in a rapid stream.
+    void scoreBoxEl.offsetWidth;
+    scoreBoxEl.classList.add('chip-pulse');
+    clearTimeout(scorePulseTimer);
+    scorePulseTimer = setTimeout(()=>scoreBoxEl.classList.remove('chip-pulse'), 340);
+  }
+
+  function clearFlyingChips(){
+    for(const c of flyingChips){
+      if(c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el);
+    }
+    flyingChips = [];
+    if(chipFlyRaf){
+      cancelAnimationFrame(chipFlyRaf);
+      chipFlyRaf = 0;
+    }
+  }
+
+  function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+  function easeInCubic(t){ return t * t * t; }
+  function easeOutQuad(t){ return t * (2 - t); }
+
+  function spawnChipFly(cx, cy, amount){
+    if(!chipFxLayer || !scoreBoxEl) return;
+    amount = Math.floor(amount);
+    if(amount <= 0) return;
+    const budget = Math.max(0, MAX_FLYING_CHIPS - flyingChips.length);
+    if(budget <= 0) return;
+    const count = Math.min(chipFlyCountForAmount(amount), budget);
+    const origin = canvasToStagePoint(cx, cy);
+    const target = scoreBoxTarget();
+    const now = performance.now();
+    for(let i = 0; i < count; i++){
+      const el = document.createElement('div');
+      el.className = 'fly-chip';
+      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.35;
+      const pop = 14 + Math.random() * 34;
+      const delay = i * 32 + Math.random() * 36;
+      const duration = 520 + Math.random() * 240;
+      const popX = origin.x + Math.cos(ang) * pop;
+      const popY = origin.y + Math.sin(ang) * pop;
+      el.style.left = '0px';
+      el.style.top = '0px';
+      el.style.opacity = '0';
+      el.style.transform = 'translate(' + origin.x + 'px,' + origin.y + 'px) scale(0)';
+      chipFxLayer.appendChild(el);
+      flyingChips.push({
+        el,
+        t0: now + delay,
+        duration,
+        x0: origin.x,
+        y0: origin.y,
+        popX,
+        popY,
+        tx: target.x + (Math.random() * 12 - 6),
+        ty: target.y + (Math.random() * 8 - 4),
+        rot: (Math.random() - 0.5) * 140,
+        size: 0.85 + Math.random() * 0.35
+      });
+    }
+    ensureChipFlyLoop();
+  }
+
+  function stepFlyingChips(){
+    if(!flyingChips.length) return;
+    const now = performance.now();
+    const liveTarget = scoreBoxTarget();
+    const next = [];
+    for(const c of flyingChips){
+      const age = now - c.t0;
+      if(age < 0){
+        next.push(c);
+        continue;
+      }
+      const t = Math.min(1, age / c.duration);
+      // Track the counter as layout shifts (HUD wrap / resize).
+      c.tx += (liveTarget.x - c.tx) * 0.12;
+      c.ty += (liveTarget.y - c.ty) * 0.12;
+
+      let x, y, scale, alpha, rot;
+      if(t < 0.28){
+        const p = easeOutCubic(t / 0.28);
+        x = c.x0 + (c.popX - c.x0) * p;
+        y = c.y0 + (c.popY - c.y0) * p;
+        scale = c.size * (0.2 + 1.05 * p);
+        alpha = Math.min(1, p * 1.4);
+        rot = c.rot * 0.35 * p;
+      } else {
+        const p = easeInCubic((t - 0.28) / 0.72);
+        const popBlend = easeOutQuad(Math.min(1, (t - 0.28) / 0.2));
+        const sx = c.popX;
+        const sy = c.popY;
+        x = sx + (c.tx - sx) * p;
+        y = sy + (c.ty - sy) * p;
+        // Soft arc so the path reads as a toss, not a laser.
+        y -= Math.sin(p * Math.PI) * (28 + Math.abs(c.popY - c.y0) * 0.25);
+        scale = c.size * (1.05 - 0.35 * p - 0.15 * popBlend);
+        alpha = t > 0.88 ? Math.max(0, 1 - (t - 0.88) / 0.12) : 1;
+        rot = c.rot * (0.35 + 0.65 * p);
+      }
+      c.el.style.opacity = String(alpha);
+      c.el.style.transform =
+        'translate(' + x + 'px,' + y + 'px) rotate(' + rot + 'deg) scale(' + scale + ')';
+
+      if(t >= 1){
+        if(c.el.parentNode) c.el.parentNode.removeChild(c.el);
+        pulseScoreBox();
+      } else {
+        next.push(c);
+      }
+    }
+    flyingChips = next;
+  }
+
+  function ensureChipFlyLoop(){
+    if(chipFlyRaf) return;
+    const step = ()=>{
+      stepFlyingChips();
+      if(flyingChips.length){
+        chipFlyRaf = requestAnimationFrame(step);
+      } else {
+        chipFlyRaf = 0;
+      }
+    };
+    chipFlyRaf = requestAnimationFrame(step);
+  }
+
+  function awardChips(amount, origin){
     amount = Math.floor(amount);
     if(amount <= 0) return 0;
     score += amount;
@@ -3124,6 +3337,9 @@
       updateShopUI();
       if(leveled) updatePrestigeUI();
     }, 150);
+    if(origin && Number.isFinite(origin.x) && Number.isFinite(origin.y)){
+      spawnChipFly(origin.x, origin.y, amount);
+    }
     return amount;
   }
 
@@ -3666,6 +3882,7 @@
     flashCells = null;
     particles = [];
     popups = [];
+    clearFlyingChips();
     pendingSuitBomb = null;
     lastAutoDropAt = performance.now();
     stopHoldDrop();
@@ -3853,7 +4070,7 @@
       if(!rail.hit){
         const payout = bumperHitPayout();
         if(payout > 0){
-          awardChips(payout);
+          awardChips(payout, ball);
           spawnHitPopup(ball.x, ball.y, '+' + payout, PEG);
         }
       }
@@ -4064,7 +4281,7 @@
           if(!p.hit){
             const payout = pinHitPayout();
             if(payout > 0){
-              awardChips(payout);
+              awardChips(payout, ball);
               spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
             }
           }
@@ -4594,6 +4811,18 @@
     return pts * chainMultiplier;
   }
 
+  function spawnHandChipFlies(groups, chainMult){
+    const mult = scoreMultiplier();
+    for(const g of groups){
+      const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
+      const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
+      const x = avgC*CELL+CELL/2;
+      const y = PEG_ZONE + avgR*CELL + CELL/2;
+      const pts = Math.floor(g.points * chainMult * mult);
+      if(pts > 0) spawnChipFly(x, y, pts);
+    }
+  }
+
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
     const mult = scoreMultiplier();
@@ -4980,15 +5209,17 @@
             flushScoreUI();
             updateShopUI();
             spawnPopups(currentGroups, pts, chainMult);
+            spawnHandChipFlies(currentGroups, chainMult);
           } else {
             const floorPts = floorClearPayout();
-            if(floorPts > 0) awardChips(floorPts);
+            const floorY = PEG_ZONE + (ROWS-1)*CELL + CELL/2;
+            if(floorPts > 0) awardChips(floorPts, { x: W/2, y: floorY });
             clearTimeout(shopUiTimer);
             flushScoreUI();
             updateShopUI();
             pushPopup({
               x: W/2,
-              y: PEG_ZONE + (ROWS-1)*CELL + CELL/2,
+              y: floorY,
               text: floorPts > 0 ? ('FLOOR CLEAR +' + floorPts) : 'FLOOR CLEAR!',
               color: floorPts > 0 ? (getCSS('--felt-bright') || '#2d8a6e') : '#ffffff',
               t0: performance.now(),
