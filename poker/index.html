@@ -1218,9 +1218,26 @@
   .cashout-modal-split{
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:16px;
+    gap:0;
     margin:22px 0 24px;
-    padding:0 2px;
+    padding:0;
+    border:none;
+    background:transparent;
+    pointer-events:none;
+  }
+  /* Plain consequence copy — not interactive controls. */
+  .cashout-modal-chip{
+    margin:0;
+    padding:0 14px 0 0;
+    border:none;
+    background:transparent;
+    box-shadow:none;
+    border-radius:0;
+    cursor:default;
+  }
+  .cashout-modal-chip + .cashout-modal-chip{
+    padding:0 0 0 14px;
+    border-left:1px solid rgba(230,195,92,0.18);
   }
   .cashout-modal-chip h3{
     margin:0 0 6px;
@@ -5428,6 +5445,7 @@
         cashoutReqEl.className = 'cashout-req';
       }
     }
+    syncCashOutModal();
     return { gain, ready };
   }
 
@@ -5861,30 +5879,50 @@
   const cashoutModalBackdrop = document.getElementById('cashoutModalBackdrop');
   let cashoutModalBusy = false;
   let cashoutCountRaf = 0;
+  let cashoutDisplayedGain = 0;
+  let cashoutLiveGain = 0;
 
   function setCashoutGainDisplay(n){
+    cashoutDisplayedGain = n;
     if(!cashoutModalGain) return;
     cashoutModalGain.innerHTML = formatNum(n) + '<span>comps</span>';
   }
 
-  function animateCashoutGain(target){
+  function animateCashoutGain(target, from){
     if(cashoutCountRaf) cancelAnimationFrame(cashoutCountRaf);
-    if(!cashoutModalGain || !(target > 0)){
+    cashoutLiveGain = target;
+    const startVal = from == null ? 0 : from;
+    if(!cashoutModalGain || target === startVal){
       setCashoutGainDisplay(target || 0);
+      cashoutCountRaf = 0;
       return;
     }
+    const delta = Math.abs(target - startVal);
     const start = performance.now();
-    const dur = Math.min(900, 420 + Math.log10(target + 1) * 180);
-    const tick = (now)=>{
+    const dur = Math.min(900, 280 + Math.log10(delta + 1) * 180);
+    const tickGain = (now)=>{
       const t = Math.min(1, (now - start) / dur);
       // Ease-out cubic — lands hard on the final comps.
       const eased = 1 - Math.pow(1 - t, 3);
-      setCashoutGainDisplay(Math.round(target * eased));
-      if(t < 1) cashoutCountRaf = requestAnimationFrame(tick);
+      setCashoutGainDisplay(Math.round(startVal + (target - startVal) * eased));
+      if(t < 1) cashoutCountRaf = requestAnimationFrame(tickGain);
       else cashoutCountRaf = 0;
     };
-    setCashoutGainDisplay(0);
-    cashoutCountRaf = requestAnimationFrame(tick);
+    setCashoutGainDisplay(startVal);
+    cashoutCountRaf = requestAnimationFrame(tickGain);
+  }
+
+  function syncCashOutModal(){
+    if(!cashoutModal || cashoutModal.hidden || cashoutModalBusy) return;
+    if(cashoutModal.classList.contains('leaving')) return;
+    const gain = pendingComps();
+    if(cashoutModalLevel) cashoutModalLevel.textContent = 'Lv ' + runLevel;
+    if(cashoutModalTables) cashoutModalTables.textContent = '#' + (prestigeCount + 1);
+    if(cashoutModalConfirm) cashoutModalConfirm.disabled = gain <= 0;
+    if(gain === cashoutLiveGain) return;
+    // Count up/down from whatever is on screen so live earnings feel continuous.
+    const from = cashoutCountRaf ? cashoutDisplayedGain : cashoutLiveGain;
+    animateCashoutGain(gain, from);
   }
 
   function closeCashOutModal(){
@@ -5893,6 +5931,8 @@
       cancelAnimationFrame(cashoutCountRaf);
       cashoutCountRaf = 0;
     }
+    cashoutLiveGain = 0;
+    cashoutDisplayedGain = 0;
     cashoutModal.classList.add('leaving');
     cashoutModal.classList.remove('show');
     let done = false;
@@ -5913,14 +5953,17 @@
   function openCashOutModal(){
     const gain = pendingComps();
     if(gain <= 0 || !cashoutModal || cashoutModalBusy) return;
-    if(!cashoutModal.hidden && cashoutModal.classList.contains('show')) return;
+    // Block re-entry while open or mid enter/leave transition.
+    if(!cashoutModal.hidden) return;
     cashoutModalBusy = false;
     if(cashoutModalConfirm) cashoutModalConfirm.disabled = false;
     if(cashoutModalLevel) cashoutModalLevel.textContent = 'Lv ' + runLevel;
     if(cashoutModalTables) cashoutModalTables.textContent = '#' + (prestigeCount + 1);
     cashoutModal.classList.remove('leaving');
     cashoutModal.hidden = false;
-    animateCashoutGain(gain);
+    cashoutLiveGain = 0;
+    cashoutDisplayedGain = 0;
+    animateCashoutGain(gain, 0);
     // Next frame so the enter transition plays.
     requestAnimationFrame(()=>{
       requestAnimationFrame(()=>cashoutModal.classList.add('show'));
