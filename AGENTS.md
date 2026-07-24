@@ -193,7 +193,7 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 
 ### Release poll (refresh banner)
 
-Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes and when the tab becomes visible. The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`**; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
+Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes (wall-clock via `releaseCheckDue` / `lastReleaseCheckAt`) and when the tab resumes (`visibilitychange`, `pageshow`, `window` `focus` → `resumeReleaseCheck`). The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`**; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
 
 No separate release counter — bumping a changelog `id` and setting `poker/version.json` `"v"` to match is enough. Missed `version.json` bumps only delay the refresh prompt.
 
