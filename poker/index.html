@@ -1410,6 +1410,14 @@
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
+    },
+    {
+      id: 'pitBoss',
+      name: 'Pit Boss',
+      desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick.',
+      baseCost: 12,
+      costScale: 2.4,
+      maxLevel: 5
     }
   ];
 
@@ -1885,6 +1893,7 @@
     if(!scoreUiTimer) scoreUiTimer = setTimeout(flushScoreUI, 80);
     clearTimeout(shopUiTimer);
     shopUiTimer = setTimeout(()=>{
+      maybeAutoBuy();
       updateShopUI();
       if(leveled) updatePrestigeUI();
     }, 150);
@@ -1995,6 +2004,8 @@
         return lvl ? ('+' + freeAutoDealerLevels() + ' Auto Dealer') : 'No free levels';
       case 'pinPrivilege':
         return lvl ? ('+' + freePinTipLevels() + ' Pin Tip') : 'No free levels';
+      case 'pitBoss':
+        return lvl ? ('Auto-buys ×' + lvl + ' / tick') : 'Manual buys only';
       default:
         return '';
     }
@@ -2149,18 +2160,20 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    // Spend Seed Stack / free levels into the rack immediately if Pit Boss is owned.
+    maybeAutoBuy(performance.now());
     return true;
   }
 
-  function buyUpgrade(id){
+  function purchaseUpgrade(id){
     const def = UPGRADE_DEFS.find(u => u.id === id);
-    if(!def) return;
-    if(!upgradeUnlocked(id)) return;
-    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return;
+    if(!def) return false;
+    if(!upgradeUnlocked(id)) return false;
+    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return false;
     const lvl = upgradeLevel(id);
-    if(lvl >= def.maxLevel) return;
+    if(lvl >= def.maxLevel) return false;
     const cost = upgradeCost(def);
-    if(score < cost) return;
+    if(score < cost) return false;
     score -= cost;
     upgrades[id] = lvl + 1;
     bumpStat('upgradesBought', 1);
@@ -2168,12 +2181,59 @@
     if(id === 'suitBomb' && lvl === 0){
       suitBombReadyAt = performance.now();
     }
+    return true;
+  }
+
+  function buyUpgrade(id){
+    if(!purchaseUpgrade(id)) return;
     scheduleSave();
     updateScoreUI();
     updateShopUI();
     updatePrestigeUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+  }
+
+  function tryAutoBuyUpgrades(){
+    const batch = prestigeLevel('pitBoss');
+    if(batch <= 0) return 0;
+    let bought = 0;
+    for(let i = 0; i < batch; i++){
+      let bestId = null;
+      let bestCost = Infinity;
+      for(const def of UPGRADE_DEFS){
+        if(!upgradeUnlocked(def.id)) continue;
+        if(def.id === 'autoSuitBomb' && !suitBombUnlocked()) continue;
+        const lvl = upgradeLevel(def.id);
+        if(lvl >= def.maxLevel) continue;
+        const cost = upgradeCost(def);
+        if(score < cost) continue;
+        if(cost < bestCost){
+          bestCost = cost;
+          bestId = def.id;
+        }
+      }
+      if(!bestId || !purchaseUpgrade(bestId)) break;
+      bought++;
+    }
+    if(bought) scheduleSave();
+    return bought;
+  }
+
+  let lastAutoBuyAt = 0;
+  function maybeAutoBuy(now){
+    if(prestigeLevel('pitBoss') <= 0) return 0;
+    now = now || performance.now();
+    if(now - lastAutoBuyAt < 220) return 0;
+    const bought = tryAutoBuyUpgrades();
+    if(bought){
+      lastAutoBuyAt = now;
+      updateScoreUI();
+      updateShopUI();
+      updateAutoStatus();
+      updateSuitBombUI(now, true);
+    }
+    return bought;
   }
 
   function buyPrestigeUpgrade(id){
@@ -2190,6 +2250,7 @@
     updateShopUI();
     updatePrestigeUI();
     updateAutoStatus();
+    if(id === 'pitBoss') maybeAutoBuy(performance.now());
   }
 
   function columnReservations(){
@@ -4369,8 +4430,10 @@
       tryAutoDrop(now);
       tryHoldDrop(now);
       tryAutoSuitBomb(now);
+      maybeAutoBuy(now);
       const needLoop = balls.length || particles.length || resolving
         || holdDropping
+        || prestigeLevel('pitBoss') > 0
         || Number.isFinite(autoDropIntervalMs())
         || (suitBombUnlocked() && (
           upgradeLevel('autoSuitBomb') > 0 || !suitBombReady(now)
