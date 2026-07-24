@@ -351,9 +351,10 @@
   // Physical obstacles over runs of already-full columns. Contiguous full
   // columns share one gently arched bumper path so adjacent blockers read
   // as a single continuous hill. If a run touches a board edge it becomes
-  // a half-arc peaking at that wall — so the slope kicks pucks inward
-  // instead of trapping them against the edge. Collision uses overlapping
-  // circles sampled along the path (same reflection model as pegs).
+  // a half-arc peaking on the wall side — and the whole run is inset from
+  // the wall so circle colliders can't form a wedge pocket that skitters
+  // pucks along the edge. Collision uses overlapping circles sampled
+  // along the path (same reflection model as pegs).
   let bumpers = [];
   let bumperPaths = []; // polylines for drawing the continuous arc
   // Sit the bumper near the grid mouth so there's clear air under the
@@ -361,11 +362,14 @@
   const BUMPER_BASE_Y = PEG_ZONE - 14;
   const BUMPER_ARC = 16; // how far the peak rises above the base
   const BUMPER_R = 18;
+  // Channel between wall and bumper end — wide enough for a puck so it
+  // bounces off the wall into open play instead of pinning under the rail.
+  const BUMPER_EDGE_PAD = BUMPER_R + 16;
 
   // t in [0,1] → unit rise above the base.
   //  - open on both sides: full hill (low → high → low)
-  //  - touches left wall:  half-arc (high at wall → low at open end)
-  //  - touches right wall: half-arc (low at open end → high at wall)
+  //  - touches left wall:  half-arc (high near wall → low at open end)
+  //  - touches right wall: half-arc (low at open end → high near wall)
   //  - full-width:         flat bar (an arch against both walls makes
   //                        corner pockets that trap pucks forever)
   function bumperRise(t, edgeLeft, edgeRight){
@@ -385,12 +389,9 @@
   function addBumperRun(startCol, endCol){
     const edgeLeft = startCol === 0;
     const edgeRight = endCol === COLS-1;
-    // Inset from the walls on a full-width run so bumper+wall can't form
-    // a wedge that pins stranded plinko pucks in the corner.
-    const wallPad = (edgeLeft && edgeRight) ? (BUMPER_R + 20) : 8;
-    const leftX = startCol*CELL + (edgeLeft && edgeRight ? wallPad : 8);
-    const rightX = (endCol+1)*CELL - (edgeLeft && edgeRight ? wallPad : 8);
-    const span = rightX - leftX;
+    const leftX = startCol*CELL + (edgeLeft ? BUMPER_EDGE_PAD : 8);
+    const rightX = (endCol+1)*CELL - (edgeRight ? BUMPER_EDGE_PAD : 8);
+    const span = Math.max(24, rightX - leftX);
     const samples = Math.max(6, Math.round(span / 14));
     const path = [];
     const pathBumpers = [];
@@ -400,11 +401,11 @@
       const y = BUMPER_BASE_Y - BUMPER_ARC*bumperRise(t, edgeLeft, edgeRight);
       path.push({x,y});
       // every sample gets a collider so the arc has no gaps
-      const bp = {x, y, r: BUMPER_R, hit:0};
+      const bp = {x, y, r: BUMPER_R, hit:0, edgeLeft, edgeRight};
       pathBumpers.push(bp);
       bumpers.push(bp);
     }
-    bumperPaths.push({points: path, bumpers: pathBumpers, hit:0});
+    bumperPaths.push({points: path, bumpers: pathBumpers, hit:0, edgeLeft, edgeRight});
   }
 
   function recomputeBumpers(){
@@ -547,11 +548,15 @@
 
       if(ball.x - ball.radius < 0){
         ball.x = ball.radius;
-        ball.vx = -ball.vx*0.7 + 1.2; // kick away from the wall so it can't hover in the corner
+        // Always rebound into the board; near the bumper line add extra
+        // inward shove so corner skitter can't sustain itself.
+        ball.vx = Math.abs(ball.vx)*0.75 + 1.6;
+        if(ball.y > BUMPER_BASE_Y - 90) ball.vx += 2.2;
       }
       if(ball.x + ball.radius > W){
         ball.x = W - ball.radius;
-        ball.vx = -ball.vx*0.7 - 1.2;
+        ball.vx = -Math.abs(ball.vx)*0.75 - 1.6;
+        if(ball.y > BUMPER_BASE_Y - 90) ball.vx -= 2.2;
       }
 
       for(const p of pegs){
@@ -567,6 +572,10 @@
           ball.vy -= 2*dot*ny;
           ball.vx *= 0.88; ball.vy *= 0.88; // livelier bounce, less energy lost per hit
           ball.vx += (Math.random()*0.8-0.4);
+          // Edge-column pegs tend to spit balls into the wall — bias the
+          // exit velocity back toward the open board.
+          if(p.x < CELL*0.75) ball.vx = Math.max(ball.vx, 1.1);
+          if(p.x > W - CELL*0.75) ball.vx = Math.min(ball.vx, -1.1);
           p.hit = 10;
         }
       }
@@ -579,14 +588,25 @@
         const dist = Math.hypot(dx,dy);
         const minDist = ball.radius + bp.r;
         if(dist < minDist && dist > 0.0001){
-          const nx = dx/dist, ny = dy/dist;
+          let nx = dx/dist, ny = dy/dist;
+          // Circle normals on a wall-side peak can point toward the edge
+          // and sustain skitter. Clamp the normal so edge bumpers only
+          // shove inward / upward.
+          if(bp.edgeLeft) nx = Math.max(nx, 0.35);
+          if(bp.edgeRight) nx = Math.min(nx, -0.35);
+          const nLen = Math.hypot(nx, ny) || 1;
+          nx /= nLen; ny /= nLen;
           ball.x = bp.x + nx*minDist;
           ball.y = bp.y + ny*minDist;
           const dot = ball.vx*nx + ball.vy*ny;
           ball.vx -= 2*dot*nx;
           ball.vy -= 2*dot*ny;
           ball.vx *= 1.05; ball.vy *= 1.05; // bumpers add energy, like a pinball kicker
-          ball.vx += nx*1.4 + (Math.random()*0.8-0.4);
+          // Kick along the (possibly clamped) normal — never amplify a
+          // wallward shove the way a raw nx*1.4 used to.
+          ball.vx += nx*1.4 + (Math.random()*0.6-0.3);
+          if(bp.edgeLeft) ball.vx = Math.max(ball.vx, 2.4);
+          if(bp.edgeRight) ball.vx = Math.min(ball.vx, -2.4);
           ball.vy = Math.min(ball.vy, -1.5); // always shove back upward, never let it settle on top
           bp.hit = 14;
         }
@@ -1035,6 +1055,8 @@
             b.phase = 'peg';
             b.frameSafety = 0;
             b.gridAge = 0;
+            b.cascadeBall = true;
+            b.freeDrop = false;
           }
           continue;
         }
