@@ -2259,9 +2259,11 @@
   }
 
   function vipTabUnlocked(){
-    // Cash Out / VIP Lounge opens at run Lv 8; stays once you've ever reached it.
+    // Cash Out / VIP Lounge opens at run Lv 8, after any Cash Out, or once you
+    // hold permanent comps (e.g. first achievement reward) so you can spend them.
     return highestRunLevelReached() >= MIN_CASH_OUT_LEVEL
-      || prestigeCount > 0;
+      || prestigeCount > 0
+      || comps > 0;
   }
 
   function defaultShopPanel(){
