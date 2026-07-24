@@ -4476,8 +4476,22 @@
     if(lifetimeValEl) lifetimeValEl.textContent = formatNum(lifetime);
     updateCompsHud();
     updateLevelUI();
-    // Cash-out readiness tracks run level / comp credit.
-    updatePrestigeUI();
+    // Cash-out text only — do not refresh VIP buttons on every chip tick
+    // (re-appending them steals clicks and flickers the list).
+    updateCashOutUI();
+  }
+
+  function orderUpgradeButtons(container, ordered){
+    if(!container) return;
+    const kids = container.children;
+    let same = kids.length === ordered.length;
+    if(same){
+      for(let i = 0; i < ordered.length; i++){
+        if(kids[i] !== ordered[i]){ same = false; break; }
+      }
+    }
+    if(same) return;
+    for(const btn of ordered) container.appendChild(btn);
   }
 
   function updateAutoStatus(now){
@@ -4589,15 +4603,13 @@
       (maxed ? maxedList : active).push(btn);
     }
     // Keep buyable upgrades up top; sink completed ones.
-    for(const btn of active.concat(maxedList)) upgradesEl.appendChild(btn);
+    orderUpgradeButtons(upgradesEl, active.concat(maxedList));
     setTabBadge('upgrades', affordableCount);
-    updateRailTabAvailability();
   }
 
-  function updatePrestigeUI(){
+  function updateCashOutUI(){
     if(prestigeCountValEl) prestigeCountValEl.textContent = formatNum(prestigeCount);
     updateCompsHud();
-
     const gain = pendingComps();
     const ready = gain > 0;
     if(cashOutBtn){
@@ -4620,7 +4632,11 @@
         cashoutReqEl.className = 'cashout-req';
       }
     }
+    return { gain, ready };
+  }
 
+  function updatePrestigeUI(){
+    const { ready } = updateCashOutUI();
     let vipReady = ready ? 1 : 0;
     if(prestigeUpgradesEl){
       const active = [];
@@ -4641,7 +4657,7 @@
         });
         (maxed ? maxedList : active).push(btn);
       }
-      for(const btn of active.concat(maxedList)) prestigeUpgradesEl.appendChild(btn);
+      orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
     }
     setTabBadge('vip', vipReady);
     updateRailTabAvailability();
