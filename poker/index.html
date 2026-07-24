@@ -984,17 +984,53 @@
     position:relative;
     width:min(420px, 100%);
     max-height:min(78dvh, 640px);
-    overflow:auto;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    overflow:hidden;
     background:linear-gradient(165deg, #221c36 0%, var(--panel) 55%, #12101c 100%);
     border:1px solid rgba(230,195,92,0.28);
     border-radius:16px;
-    padding:22px 20px 18px;
+    padding:22px 20px 16px;
     box-shadow:0 24px 60px rgba(0,0,0,0.55);
     transform:translateY(10px) scale(0.98);
     transition:transform .22s ease;
   }
   .level-modal.show .level-modal-card{
     transform:translateY(0) scale(1);
+  }
+  .level-modal-close{
+    position:absolute;
+    top:10px;
+    right:10px;
+    z-index:1;
+    width:36px;
+    height:36px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    border:1px solid transparent;
+    border-radius:10px;
+    cursor:pointer;
+    background:transparent;
+    color:var(--ink-dim);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:22px;
+    font-weight:700;
+    line-height:1;
+    transition:color .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .level-modal-close:hover,
+  .level-modal-close:focus-visible{
+    color:var(--ink);
+    border-color:rgba(230,195,92,0.35);
+    background:rgba(255,255,255,0.04);
+    outline:none;
+  }
+  .level-modal-head{
+    flex:0 0 auto;
+    padding-right:36px;
   }
   .level-modal-eyebrow{
     margin:0 0 4px;
@@ -1011,18 +1047,29 @@
     color:var(--ink);
   }
   .level-modal-meta{
-    margin:0 0 16px;
+    margin:0 0 14px;
     font-size:12px;
     color:var(--ink-dim);
     font-variant-numeric:tabular-nums;
   }
   .level-modal-meta b{color:var(--ink); font-weight:600;}
   .level-modal-section{
-    margin:0 0 14px;
+    margin:0 0 12px;
     padding:12px 12px 10px;
     border-radius:12px;
     background:rgba(255,255,255,0.03);
     border:1px solid rgba(255,255,255,0.06);
+  }
+  .level-modal-section.next{
+    flex:0 0 auto;
+  }
+  .level-modal-section.sofar{
+    flex:1 1 auto;
+    min-height:0;
+    margin-bottom:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
   }
   .level-modal-section h3{
     margin:0 0 8px;
@@ -1032,8 +1079,15 @@
     color:#F0D78C;
     letter-spacing:0.04em;
     text-transform:uppercase;
+    flex:0 0 auto;
   }
   .level-modal-section.next h3{color:#7EC8A3;}
+  .level-modal-sofar-scroll{
+    flex:1 1 auto;
+    min-height:0;
+    overflow:auto;
+    overscroll-behavior:contain;
+  }
   .level-modal-list{
     margin:0;
     padding:0;
@@ -1067,27 +1121,6 @@
     font-size:12px;
     color:var(--ink-dim);
     line-height:1.4;
-  }
-  .level-modal-actions{
-    display:flex;
-    justify-content:flex-end;
-    margin-top:4px;
-  }
-  .level-modal-close{
-    font-family:'Space Grotesk',sans-serif;
-    font-weight:700;
-    font-size:13px;
-    border:1px solid #2a2545;
-    border-radius:10px;
-    padding:9px 14px;
-    cursor:pointer;
-    background:var(--panel-2);
-    color:var(--ink);
-    transition:border-color .15s ease, filter .15s ease;
-  }
-  .level-modal-close:hover{
-    border-color:rgba(230,195,92,0.4);
-    filter:brightness(1.06);
   }
   .upgrade.just-unlocked{
     animation: unlockPulse .7s ease;
@@ -1573,23 +1606,25 @@
 
   <div class="level-modal" id="levelModal" role="dialog" aria-modal="true" aria-labelledby="levelModalTitle" hidden>
     <div class="level-modal-backdrop" id="levelModalBackdrop" aria-hidden="true"></div>
-    <div class="level-modal-card">
-      <p class="level-modal-eyebrow">Run progress</p>
-      <h2 class="level-modal-title" id="levelModalTitle">Level 1</h2>
-      <p class="level-modal-meta" id="levelModalMeta">0 / 18 chips earned</p>
-      <section class="level-modal-section" aria-labelledby="levelModalSoFarHeading">
-        <h3 id="levelModalSoFarHeading">So far</h3>
-        <ul class="level-modal-list" id="levelModalSoFar"></ul>
-        <p class="level-modal-empty" id="levelModalSoFarEmpty" hidden>No unlocks yet — keep dealing to level up.</p>
-      </section>
+    <div class="level-modal-card" id="levelModalCard">
+      <button type="button" class="level-modal-close" id="levelModalClose" aria-label="Close">×</button>
+      <div class="level-modal-head">
+        <p class="level-modal-eyebrow">Run progress</p>
+        <h2 class="level-modal-title" id="levelModalTitle">Level 1</h2>
+        <p class="level-modal-meta" id="levelModalMeta">0 / 18 chips earned</p>
+      </div>
       <section class="level-modal-section next" aria-labelledby="levelModalNextHeading">
         <h3 id="levelModalNextHeading">Next unlock</h3>
         <ul class="level-modal-list" id="levelModalNext"></ul>
         <p class="level-modal-empty" id="levelModalNextEmpty" hidden>Max level — every unlock is yours.</p>
       </section>
-      <div class="level-modal-actions">
-        <button type="button" class="level-modal-close" id="levelModalClose">Got it</button>
-      </div>
+      <section class="level-modal-section sofar" aria-labelledby="levelModalSoFarHeading">
+        <h3 id="levelModalSoFarHeading">So far</h3>
+        <div class="level-modal-sofar-scroll" id="levelModalSoFarScroll">
+          <ul class="level-modal-list" id="levelModalSoFar"></ul>
+          <p class="level-modal-empty" id="levelModalSoFarEmpty" hidden>No unlocks yet — keep dealing to level up.</p>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -3030,8 +3065,8 @@
 
   function earnedLevelEntries(uptoLevel){
     const entries = [];
-    for(let lvl = 2; lvl <= uptoLevel; lvl++){
-      // Levels already reached this run: list shop reveals + bonuses as earned.
+    // Newest first so the latest unlocks sit at the top of So far.
+    for(let lvl = uptoLevel; lvl >= 2; lvl--){
       const parts = describeLevelRewardParts(lvl, {
         firstTimeAtLevel: true,
         preview: true
@@ -5467,37 +5502,24 @@
     else setRailPanel(activeRailPanel);
   });
 
-  function updateLevelUI(){
-    if(runLevelValEl) runLevelValEl.textContent = String(runLevel);
-    if(shopLevelValEl) shopLevelValEl.textContent = String(runLevel);
-    const cur = lifetimeForLevel(runLevel);
-    const next = runLevel >= MAX_RUN_LEVEL
-      ? cur
-      : lifetimeForLevel(runLevel + 1);
-    const span = Math.max(1, next - cur);
-    const into = Math.max(0, lifetime - cur);
-    const pct = runLevel >= MAX_RUN_LEVEL
-      ? 100
-      : Math.max(0, Math.min(100, (into / span) * 100));
-    if(runLevelFillEl) runLevelFillEl.style.width = pct + '%';
-    if(runLevelXpEl){
-      runLevelXpEl.textContent = runLevel >= MAX_RUN_LEVEL
-        ? 'MAX'
-        : (formatNum(lifetime) + ' / ' + formatNum(next));
-    }
-  }
-
   const levelBoxEl = document.getElementById('levelBox');
   const levelModal = document.getElementById('levelModal');
+  const levelModalCard = document.getElementById('levelModalCard');
   const levelModalBackdrop = document.getElementById('levelModalBackdrop');
   const levelModalClose = document.getElementById('levelModalClose');
   const levelModalTitle = document.getElementById('levelModalTitle');
   const levelModalMeta = document.getElementById('levelModalMeta');
   const levelModalSoFar = document.getElementById('levelModalSoFar');
+  const levelModalSoFarScroll = document.getElementById('levelModalSoFarScroll');
   const levelModalSoFarEmpty = document.getElementById('levelModalSoFarEmpty');
   const levelModalNext = document.getElementById('levelModalNext');
   const levelModalNextEmpty = document.getElementById('levelModalNextEmpty');
   const levelModalNextHeading = document.getElementById('levelModalNextHeading');
+  let levelModalSignature = '';
+
+  function levelModalOpen(){
+    return !!(levelModal && !levelModal.hidden);
+  }
 
   function fillLevelRewardList(listEl, entries){
     if(!listEl) return;
@@ -5517,46 +5539,65 @@
   }
 
   function populateLevelModal(){
-    if(levelModalTitle) levelModalTitle.textContent = 'Level ' + runLevel;
+    if(!levelModal) return;
     const nextXp = runLevel >= MAX_RUN_LEVEL
       ? null
       : lifetimeForLevel(runLevel + 1);
+    const earned = earnedLevelEntries(runLevel);
+    const nextUnlock = nextLevelUnlockEntry(runLevel);
+    const needToLevel = (nextXp == null) ? 0 : Math.max(0, nextXp - lifetime);
+    const needToUnlock = nextUnlock
+      ? Math.max(0, lifetimeForLevel(nextUnlock.lvl) - lifetime)
+      : 0;
+    // Lists only rebuild on level/unlock changes; chip counts always refresh.
+    const listSignature = [
+      runLevel,
+      nextUnlock ? nextUnlock.lvl + ':' + nextUnlock.parts.join('·') : 'max',
+      earned.map(e => e.lvl + ':' + e.parts.join('·')).join(';')
+    ].join('|');
+    const listsChanged = listSignature !== levelModalSignature;
+    if(listsChanged) levelModalSignature = listSignature;
+
+    if(levelModalTitle) levelModalTitle.textContent = 'Level ' + runLevel;
     if(levelModalMeta){
       if(runLevel >= MAX_RUN_LEVEL){
         levelModalMeta.innerHTML = '<b>MAX</b> · ' + formatNum(lifetime) + ' chips earned this table';
       } else {
-        const need = Math.max(0, nextXp - lifetime);
         levelModalMeta.innerHTML =
           '<b>' + formatNum(lifetime) + ' / ' + formatNum(nextXp) + '</b> chips'
-          + (need > 0 ? ' · ' + formatNum(need) + ' to next level' : '');
+          + (needToLevel > 0 ? ' · ' + formatNum(needToLevel) + ' to next level' : '');
       }
     }
-    const earned = earnedLevelEntries(runLevel);
-    fillLevelRewardList(levelModalSoFar, earned);
-    if(levelModalSoFar) levelModalSoFar.hidden = !earned.length;
-    if(levelModalSoFarEmpty) levelModalSoFarEmpty.hidden = !!earned.length;
 
-    const nextUnlock = nextLevelUnlockEntry(runLevel);
-    if(nextUnlock){
-      fillLevelRewardList(levelModalNext, [nextUnlock]);
-      if(levelModalNext) levelModalNext.hidden = false;
-      if(levelModalNextEmpty) levelModalNextEmpty.hidden = true;
-      if(levelModalNextHeading){
-        const needXp = Math.max(0, lifetimeForLevel(nextUnlock.lvl) - lifetime);
-        levelModalNextHeading.textContent = needXp > 0
-          ? ('Next unlock · ' + formatNum(needXp) + ' chips')
-          : 'Next unlock';
+    if(listsChanged){
+      fillLevelRewardList(levelModalSoFar, earned);
+      if(levelModalSoFar) levelModalSoFar.hidden = !earned.length;
+      if(levelModalSoFarEmpty) levelModalSoFarEmpty.hidden = !!earned.length;
+
+      if(nextUnlock){
+        fillLevelRewardList(levelModalNext, [nextUnlock]);
+        if(levelModalNext) levelModalNext.hidden = false;
+        if(levelModalNextEmpty) levelModalNextEmpty.hidden = true;
+      } else {
+        fillLevelRewardList(levelModalNext, []);
+        if(levelModalNext) levelModalNext.hidden = true;
+        if(levelModalNextEmpty){
+          levelModalNextEmpty.hidden = false;
+          levelModalNextEmpty.textContent = runLevel >= MAX_RUN_LEVEL
+            ? 'Max level — every unlock is yours.'
+            : 'No more unlocks ahead — keep climbing for bragging rights.';
+        }
       }
-    } else {
-      fillLevelRewardList(levelModalNext, []);
-      if(levelModalNext) levelModalNext.hidden = true;
-      if(levelModalNextEmpty){
-        levelModalNextEmpty.hidden = false;
-        levelModalNextEmpty.textContent = runLevel >= MAX_RUN_LEVEL
-          ? 'Max level — every unlock is yours.'
-          : 'No more unlocks ahead — keep climbing for bragging rights.';
+      // Newest unlocks are at the top — jump back so a level-up is visible.
+      if(levelModalSoFarScroll) levelModalSoFarScroll.scrollTop = 0;
+    }
+
+    if(levelModalNextHeading){
+      if(nextUnlock && needToUnlock > 0){
+        levelModalNextHeading.textContent = 'Next unlock · ' + formatNum(needToUnlock) + ' chips';
+      } else {
+        levelModalNextHeading.textContent = 'Next unlock';
       }
-      if(levelModalNextHeading) levelModalNextHeading.textContent = 'Next unlock';
     }
   }
 
@@ -5564,15 +5605,43 @@
     if(!levelModal || levelModal.hidden) return;
     levelModal.classList.remove('show');
     levelModal.hidden = true;
+    levelModalSignature = '';
   }
 
   function openLevelModal(){
     if(!levelModal) return;
     if(cashoutModal && !cashoutModal.hidden) return;
+    levelModalSignature = '';
     populateLevelModal();
+    if(levelModalSoFarScroll) levelModalSoFarScroll.scrollTop = 0;
+    if(levelModalCard) levelModalCard.scrollTop = 0;
     levelModal.hidden = false;
-    requestAnimationFrame(()=>levelModal.classList.add('show'));
-    if(levelModalClose) levelModalClose.focus();
+    requestAnimationFrame(()=>{
+      levelModal.classList.add('show');
+      if(levelModalSoFarScroll) levelModalSoFarScroll.scrollTop = 0;
+    });
+    if(levelModalClose) levelModalClose.focus({ preventScroll: true });
+  }
+
+  function updateLevelUI(){
+    if(runLevelValEl) runLevelValEl.textContent = String(runLevel);
+    if(shopLevelValEl) shopLevelValEl.textContent = String(runLevel);
+    const cur = lifetimeForLevel(runLevel);
+    const next = runLevel >= MAX_RUN_LEVEL
+      ? cur
+      : lifetimeForLevel(runLevel + 1);
+    const span = Math.max(1, next - cur);
+    const into = Math.max(0, lifetime - cur);
+    const pct = runLevel >= MAX_RUN_LEVEL
+      ? 100
+      : Math.max(0, Math.min(100, (into / span) * 100));
+    if(runLevelFillEl) runLevelFillEl.style.width = pct + '%';
+    if(runLevelXpEl){
+      runLevelXpEl.textContent = runLevel >= MAX_RUN_LEVEL
+        ? 'MAX'
+        : (formatNum(lifetime) + ' / ' + formatNum(next));
+    }
+    if(levelModalOpen()) populateLevelModal();
   }
 
   if(levelBoxEl){
