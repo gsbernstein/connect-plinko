@@ -349,41 +349,41 @@
 
   // ---- bumpers ----
   // Physical obstacles over runs of already-full columns. Contiguous full
-  // columns share one gently arched bumper path so adjacent blockers read
-  // as a single continuous hill. If a run touches a board edge it becomes
-  // a half-arc peaking on the wall side — and the whole run is inset from
-  // the wall so circle colliders can't form a wedge pocket that skitters
-  // pucks along the edge. Collision uses overlapping circles sampled
-  // along the path (same reflection model as pegs).
+  // columns share one circular-arc rail. Edge-touching runs are a half
+  // (quarter-circle-ish) arc peaking on the wall side and inset from the
+  // wall so colliders can't wedge pucks into the corner. Collision uses
+  // overlapping circles densely sampled along the true arc.
   let bumpers = [];
-  let bumperPaths = []; // polylines for drawing the continuous arc
+  let bumperPaths = []; // polylines / arc descriptors for drawing
   // Sit the bumper near the grid mouth so there's clear air under the
   // bottom (between-column) peg row — peg+bumper sandwiches were common.
   const BUMPER_BASE_Y = PEG_ZONE - 14;
-  const BUMPER_ARC = 16; // how far the peak rises above the base
+  const BUMPER_ARC = 18; // sagitta: how far the peak rises above the base
   const BUMPER_R = 18;
   // Channel between wall and bumper end — wide enough for a puck so it
   // bounces off the wall into open play instead of pinning under the rail.
   const BUMPER_EDGE_PAD = BUMPER_R + 16;
 
-  // t in [0,1] → unit rise above the base.
-  //  - open on both sides: full hill (low → high → low)
-  //  - touches left wall:  half-arc (high near wall → low at open end)
-  //  - touches right wall: half-arc (low at open end → high near wall)
-  //  - full-width:         flat bar (an arch against both walls makes
-  //                        corner pockets that trap pucks forever)
-  function bumperRise(t, edgeLeft, edgeRight){
-    if(edgeLeft && edgeRight) return 0.35; // low flat shield across the mouth
-    if(edgeLeft){
-      // right half of a hill: peak at t=0, down to base at t=1
-      return Math.cos(0.5*Math.PI*t);
+  // Build a dense point list along a circular arc from angle a0→a1.
+  function sampleCircleArc(cx, cy, rad, a0, a1, edgeLeft, edgeRight){
+    let delta = a1 - a0;
+    // take the shorter direction that passes through the top (peak above center)
+    while(delta > Math.PI) delta -= Math.PI*2;
+    while(delta < -Math.PI) delta += Math.PI*2;
+    const arcLen = Math.abs(delta) * rad;
+    const samples = Math.max(16, Math.round(arcLen / 4));
+    const path = [];
+    const pathBumpers = [];
+    for(let i=0;i<=samples;i++){
+      const a = a0 + delta*(i/samples);
+      const x = cx + Math.cos(a)*rad;
+      const y = cy + Math.sin(a)*rad;
+      path.push({x,y});
+      const bp = {x, y, r: BUMPER_R, hit:0, edgeLeft, edgeRight};
+      pathBumpers.push(bp);
+      bumpers.push(bp);
     }
-    if(edgeRight){
-      // left half of a hill: base at t=0, peak at t=1
-      return Math.sin(0.5*Math.PI*t);
-    }
-    // full arch with flat tangents at the open ends
-    return 0.5 - 0.5*Math.cos(2*Math.PI*t);
+    return {path, pathBumpers, cx, cy, rad, a0, a1: a0+delta};
   }
 
   function addBumperRun(startCol, endCol){
@@ -392,20 +392,69 @@
     const leftX = startCol*CELL + (edgeLeft ? BUMPER_EDGE_PAD : 8);
     const rightX = (endCol+1)*CELL - (edgeRight ? BUMPER_EDGE_PAD : 8);
     const span = Math.max(24, rightX - leftX);
-    const samples = Math.max(6, Math.round(span / 14));
-    const path = [];
+    const h = BUMPER_ARC;
     const pathBumpers = [];
-    for(let i=0;i<=samples;i++){
-      const t = i/samples;
-      const x = leftX + span*t;
-      const y = BUMPER_BASE_Y - BUMPER_ARC*bumperRise(t, edgeLeft, edgeRight);
-      path.push({x,y});
-      // every sample gets a collider so the arc has no gaps
-      const bp = {x, y, r: BUMPER_R, hit:0, edgeLeft, edgeRight};
-      pathBumpers.push(bp);
-      bumpers.push(bp);
+    let path = [];
+
+    if(edgeLeft && edgeRight){
+      // Full-width: flat inset bar — no corner pockets
+      const y = BUMPER_BASE_Y - h*0.35;
+      const samples = Math.max(12, Math.round(span / 8));
+      for(let i=0;i<=samples;i++){
+        const x = leftX + span*(i/samples);
+        path.push({x,y});
+        const bp = {x, y, r: BUMPER_R, hit:0, edgeLeft, edgeRight};
+        pathBumpers.push(bp);
+        bumpers.push(bp);
+      }
+      bumperPaths.push({points: path, bumpers: pathBumpers, hit:0, edgeLeft, edgeRight});
+      return;
     }
-    bumperPaths.push({points: path, bumpers: pathBumpers, hit:0, edgeLeft, edgeRight});
+
+    if(edgeLeft){
+      // Half-arc: peak at the (inset) wall side with horizontal tangent,
+      // sweeping down to the open end — a true circular quarter-ish arc.
+      const R = (span*span + h*h) / (2*h);
+      const cx = leftX;
+      const cy = BUMPER_BASE_Y - h + R;
+      const a0 = -Math.PI/2;
+      const a1 = Math.atan2(BUMPER_BASE_Y - cy, rightX - cx);
+      const sampled = sampleCircleArc(cx, cy, R, a0, a1, edgeLeft, edgeRight);
+      bumperPaths.push({
+        points: sampled.path, bumpers: sampled.pathBumpers, hit:0,
+        edgeLeft, edgeRight,
+        arc: {cx, cy, r:R, a0: sampled.a0, a1: sampled.a1}
+      });
+      return;
+    }
+
+    if(edgeRight){
+      const R = (span*span + h*h) / (2*h);
+      const cx = rightX;
+      const cy = BUMPER_BASE_Y - h + R;
+      const a0 = Math.atan2(BUMPER_BASE_Y - cy, leftX - cx);
+      const a1 = -Math.PI/2;
+      const sampled = sampleCircleArc(cx, cy, R, a0, a1, edgeLeft, edgeRight);
+      bumperPaths.push({
+        points: sampled.path, bumpers: sampled.pathBumpers, hit:0,
+        edgeLeft, edgeRight,
+        arc: {cx, cy, r:R, a0: sampled.a0, a1: sampled.a1}
+      });
+      return;
+    }
+
+    // Interior run: circular arch between the two open ends
+    const R = (h*h + (span*0.5)*(span*0.5)) / (2*h);
+    const cx = (leftX + rightX) * 0.5;
+    const cy = BUMPER_BASE_Y - h + R;
+    const a0 = Math.atan2(BUMPER_BASE_Y - cy, leftX - cx);
+    const a1 = Math.atan2(BUMPER_BASE_Y - cy, rightX - cx);
+    const sampled = sampleCircleArc(cx, cy, R, a0, a1, edgeLeft, edgeRight);
+    bumperPaths.push({
+      points: sampled.path, bumpers: sampled.pathBumpers, hit:0,
+      edgeLeft, edgeRight,
+      arc: {cx, cy, r:R, a0: sampled.a0, a1: sampled.a1}
+    });
   }
 
   function recomputeBumpers(){
@@ -588,26 +637,28 @@
         const dist = Math.hypot(dx,dy);
         const minDist = ball.radius + bp.r;
         if(dist < minDist && dist > 0.0001){
-          let nx = dx/dist, ny = dy/dist;
-          // Circle normals on a wall-side peak can point toward the edge
-          // and sustain skitter. Clamp the normal so edge bumpers only
-          // shove inward / upward.
-          if(bp.edgeLeft) nx = Math.max(nx, 0.35);
-          if(bp.edgeRight) nx = Math.min(nx, -0.35);
-          const nLen = Math.hypot(nx, ny) || 1;
-          nx /= nLen; ny /= nLen;
+          const nx = dx/dist, ny = dy/dist;
+          // Separate along the true contact normal so we don't stay sunk
+          // in the collider, then bias the bounce inward on edge runs —
+          // raw circle normals on a wall-side peak otherwise sustain
+          // skitter along the side.
           ball.x = bp.x + nx*minDist;
           ball.y = bp.y + ny*minDist;
-          const dot = ball.vx*nx + ball.vy*ny;
-          ball.vx -= 2*dot*nx;
-          ball.vy -= 2*dot*ny;
-          ball.vx *= 1.05; ball.vy *= 1.05; // bumpers add energy, like a pinball kicker
-          // Kick along the (possibly clamped) normal — never amplify a
-          // wallward shove the way a raw nx*1.4 used to.
-          ball.vx += nx*1.4 + (Math.random()*0.6-0.3);
+          let kx = nx, ky = ny;
+          if(bp.edgeLeft) kx = Math.max(kx, 0.4);
+          if(bp.edgeRight) kx = Math.min(kx, -0.4);
+          const kLen = Math.hypot(kx, ky) || 1;
+          kx /= kLen; ky /= kLen;
+          const dot = ball.vx*kx + ball.vy*ky;
+          if(dot < 0){
+            ball.vx -= 2*dot*kx;
+            ball.vy -= 2*dot*ky;
+          }
+          ball.vx *= 1.05; ball.vy *= 1.05;
+          ball.vx += kx*1.4 + (Math.random()*0.6-0.3);
           if(bp.edgeLeft) ball.vx = Math.max(ball.vx, 2.4);
           if(bp.edgeRight) ball.vx = Math.min(ball.vx, -2.4);
-          ball.vy = Math.min(ball.vy, -1.5); // always shove back upward, never let it settle on top
+          ball.vy = Math.min(ball.vy, -1.5); // always shove back upward
           bp.hit = 14;
         }
       }
