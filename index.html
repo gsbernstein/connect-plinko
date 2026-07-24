@@ -922,9 +922,9 @@
       if(!resolving) maybeStartResolve();
     }
 
-    // Board packed solid: any puck still in the pegs has nowhere to land.
-    // Pop them so they can't wedge under the bumper and freeze play.
-    if(boardIsFull()) purgeStrandedPegBalls();
+    // Board packed solid with nothing left seating in-column: blow the floor
+    // even while peg-zone pucks are still bouncing — they'll fall in after.
+    if(!resolving && boardIsFull() && !hasGridBalls()) beginFloorClear();
 
     draw();
 
@@ -1149,26 +1149,15 @@
     return colHeights.every(h=>h>=ROWS);
   }
 
-  // When every column is already committed, peg-zone pucks can never enter
-  // the grid — they just pin under the bumper forever and block resolves.
-  // Pop them out of play (no score) so the floor clear can fire.
-  function purgeStrandedPegBalls(){
-    if(!boardIsFull()) return false;
-    const stranded = balls.filter(b => b.phase==='peg');
-    if(!stranded.length) return false;
-    for(const b of stranded){
-      spawnExplosion(b.x, b.y, b.player);
-    }
-    balls = balls.filter(b => b.phase!=='peg');
-    startLoop(); // keep debris animating
-    return true;
+  function hasGridBalls(){
+    return balls.some(b => b.phase==='grid');
   }
 
   // Board-full escape hatch: nuke the entire bottom row (no points). Pieces
   // above get flung back into the pegs — same blast as a match clear.
+  // Peg-zone pucks are left alone; once columns open they'll fall in.
   function beginFloorClear(){
     if(resolving || gameOver || !boardIsFull()) return;
-    purgeStrandedPegBalls();
     const row = ROWS - 1;
     const cells = [];
     for(let c=0;c<COLS;c++){
@@ -1193,10 +1182,9 @@
     if(groups.length>0){
       beginResolveChain(groups);
     } else if(boardIsFull()){
-      // Pop any peg-zone leftovers that can never land, then blow the floor
-      // once in-column pucks have seated.
-      purgeStrandedPegBalls();
-      if(balls.length===0){
+      // Blow the floor once in-column pucks have seated. Peg-zone pucks can
+      // keep bouncing — the clear opens columns for them to fall into.
+      if(!hasGridBalls()){
         pendingChain = 0;
         beginFloorClear();
       } else {
@@ -1246,8 +1234,7 @@
       pendingChain = balls.length > 0 ? chainStep : 0;
       resolving = false;
       chainStep = 0;
-      purgeStrandedPegBalls();
-      if(boardIsFull() && balls.length===0){
+      if(boardIsFull() && !hasGridBalls()){
         pendingChain = 0;
         // Still packed after the blast — clear the floor again.
         beginFloorClear();
