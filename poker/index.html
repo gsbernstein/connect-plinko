@@ -227,7 +227,7 @@
 <body>
 <div class="wrap">
   <h1>Plinko Poker</h1>
-  <div class="tagline">Drop spinning cards through the pegs. Land a poker hand in a line and it explodes — full board? click a card to blow it up.</div>
+  <div class="tagline">Drop spinning cards through the pegs. Land a poker hand in a line and it explodes — full board? the bottom row blows out automatically.</div>
   <div class="game-switch">
     <a href="../">Classic</a>
     <a class="current" href="./" aria-current="page">Poker</a>
@@ -252,7 +252,7 @@
   </div>
 
   <div class="footer-row">
-    <span class="hint">Dotted guides show near hands · 3oak · two pair · straight · flush · boat · quads · SF</span>
+    <span class="hint">Dotted guides show near hands · board full? bottom row blows out</span>
     <button class="reset" id="resetScores">Reset score</button>
   </div>
 </div>
@@ -397,8 +397,6 @@
   // ---- board state ----
   // grid[col][row] = 0 | {suit, rank, angle}
   let grid, colHeights, gameOver;
-  let detonateMode = false;
-  let detonateHover = null;
   let score = 0;
   let nextCard = null;
 
@@ -413,9 +411,6 @@
     colHeights = Array(COLS).fill(0);
     stack = Array.from({length:COLS}, ()=>[]);
     gameOver = false;
-    detonateMode = false;
-    detonateHover = null;
-    setBoardCursor('pointer');
     balls = [];
     resolving = false;
     resolvePhase = null;
@@ -624,32 +619,7 @@
   }
 
   function inputBlocked(){
-    return gameOver || detonateMode;
-  }
-
-  function canChooseDetonate(){
-    return detonateMode && !resolving && !gameOver;
-  }
-
-  // Custom bomb cursor for the board-full detonate pick.
-  // Hotspot sits on the bomb body so it lines up with the puck under the tip.
-  const BOMB_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-      <path d="M18.5 9c2.2-3.2 5.2-4.2 7.5-3.2" fill="none" stroke="#FFD23F" stroke-width="2" stroke-linecap="round"/>
-      <circle cx="26.5" cy="5" r="2.6" fill="#FF6B4D"/>
-      <circle cx="26.5" cy="5" r="1.1" fill="#FFD23F"/>
-      <rect x="16.2" y="8.6" width="3.2" height="4.2" rx="1" transform="rotate(40 17.8 10.7)" fill="#C8C2E8"/>
-      <circle cx="14" cy="19" r="9.5" fill="#1a1630"/>
-      <circle cx="14" cy="19" r="9.5" fill="none" stroke="#F1EEFB" stroke-width="1.6"/>
-      <circle cx="11.2" cy="16.2" r="2.6" fill="rgba(255,255,255,0.28)"/>
-      <path d="M10 22.5c1.6 1.8 4.2 2.4 6.5 1.2" fill="none" stroke="#FF6B4D" stroke-width="1.4" stroke-linecap="round"/>
-    </svg>`
-  )}") 14 19, crosshair`;
-
-  function setBoardCursor(mode){
-    if(mode === 'bomb') canvas.style.cursor = BOMB_CURSOR;
-    else if(mode === 'pointer') canvas.style.cursor = 'pointer';
-    else canvas.style.cursor = 'default';
+    return gameOver;
   }
 
   // ---- match resolution (clear + cascade) state ----
@@ -688,7 +658,7 @@
   }
 
   function dropAt(x){
-    if(gameOver || detonateMode) return;
+    if(gameOver) return;
     if(colHeights.every(h=>h>=ROWS)) return;
     if(!nextCard) nextCard = dealCard();
     const card = nextCard;
@@ -1447,64 +1417,34 @@
     return true;
   }
 
-  let detonateAnim = false;
-  function startDetonateAnim(){
-    if(detonateAnim) return;
-    detonateAnim = true;
-    const step = ()=>{
-      if(!detonateMode){ detonateAnim = false; return; }
-      draw();
-      requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }
-
-  function enterDetonateMode(){
+  // Board-full escape hatch: nuke the entire bottom row (no points). Pieces
+  // above get flung back into the pegs — same blast as a hand clear.
+  function beginFloorClear(){
+    if(resolving || gameOver || !boardIsFull()) return;
     purgeStrandedPegBalls();
-    detonateMode = true;
-    detonateHover = null;
-    gameOver = false;
-    banner.classList.remove('show');
-    refreshButtons();
-    setBoardCursor('bomb');
-    startDetonateAnim();
-  }
-
-  function beginDetonate(col, row){
-    if(!detonateMode || resolving) return;
-    if(col<0 || col>=COLS || row<0 || row>=ROWS) return;
-    if(!grid[col][row]) return;
-    detonateMode = false;
-    detonateHover = null;
-    setBoardCursor('pointer');
+    const row = ROWS - 1;
+    const cells = [];
+    for(let c=0;c<COLS;c++){
+      if(grid[c][row]) cells.push([c, row]);
+    }
+    if(!cells.length) return;
     resolving = true;
     resolveEpoch++;
     pendingChain = 0;
     chainStep = 0;
+    const first = grid[cells[0][0]][row];
     currentGroups = [{
-      name: 'BOOM',
+      name: 'FLOOR CLEAR',
       points: 0,
-      cells:[[col,row]],
-      detonate:true,
-      color: SUIT_COLOR[grid[col][row].suit]
+      cells,
+      floorClear:true,
+      color: first ? SUIT_COLOR[first.suit] : '#ffffff'
     }];
-    flashCells = new Set([col+','+row]);
+    flashCells = new Set(cells.map(([c,r]) => c+','+r));
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     refreshButtons();
     requestAnimationFrame(resolveTick);
-  }
-
-  function cellAtCanvasPos(x, y){
-    if(y < PEG_ZONE) return null;
-    const col = Math.floor(x / CELL);
-    const row = Math.floor((y - PEG_ZONE) / CELL);
-    if(col<0 || col>=COLS || row<0 || row>=ROWS) return null;
-    if(!grid[col][row]) return null;
-    const cx = col*CELL + CELL/2;
-    const cy = PEG_ZONE + row*CELL + CELL/2;
-    if(Math.hypot(x-cx, y-cy) > HOLE_R) return null;
-    return {col, row};
   }
 
   function maybeStartResolve(){
@@ -1516,7 +1456,7 @@
       purgeStrandedPegBalls();
       if(balls.length===0){
         pendingChain = 0;
-        enterDetonateMode();
+        beginFloorClear();
       } else {
         refreshButtons();
       }
@@ -1556,7 +1496,7 @@
       purgeStrandedPegBalls();
       if(boardIsFull() && balls.length===0){
         pendingChain = 0;
-        enterDetonateMode();
+        beginFloorClear();
       } else {
         refreshButtons();
       }
@@ -1569,19 +1509,17 @@
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
         if(elapsed >= FLASH_MS){
-          const isDetonate = currentGroups.some(g => g.detonate);
-          if(!isDetonate){
+          const isFloorClear = currentGroups.some(g => g.floorClear);
+          if(!isFloorClear){
             const pts = scoreGroups(currentGroups, chainStep);
             score += pts;
             updateScoreUI();
             spawnPopups(currentGroups);
           } else {
-            const g = currentGroups[0];
-            const [c,r] = g.cells[0];
             popups.push({
-              x: c*CELL+CELL/2,
-              y: PEG_ZONE + r*CELL + CELL/2,
-              text: 'BOOM!',
+              x: W/2,
+              y: PEG_ZONE + (ROWS-1)*CELL + CELL/2,
+              text: 'FLOOR CLEAR!',
               color: '#ffffff',
               t0: performance.now(),
               duration: 900,
@@ -1772,7 +1710,6 @@
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
     const flashElapsed = resolvePhase==='flash' ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS) : 0;
-    const detonatePulse = detonateMode ? 0.5 + 0.5*Math.sin(performance.now()/180) : 0;
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const val = grid[c][r];
@@ -1782,8 +1719,7 @@
         if(flashCells && flashCells.has(key)){
           drawFlashPiece(cx,cy,val,flashElapsed);
         } else {
-          const hovered = detonateMode && detonateHover && detonateHover.col===c && detonateHover.row===r;
-          drawPiece(cx,cy,val, false, hovered ? 1 : detonatePulse*0.35);
+          drawPiece(cx,cy,val, false);
         }
       }
     }
@@ -1871,7 +1807,7 @@
       ctx.globalAlpha = 1;
     }
 
-    if(!gameOver && !detonateMode && nextCard){
+    if(!gameOver && nextCard){
       const c = SUIT_COLOR[nextCard.suit];
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
@@ -1885,31 +1821,6 @@
       ctx.shadowBlur = 0;
       // tiny spinning preview of the next card at the drop point
       drawCardFace(ctx, aimX, 38, nextCard, performance.now()/400, 12, false, 0);
-    }
-
-    if(detonateMode && !resolving){
-      const msg = 'Board full — click a card to blow up';
-      ctx.save();
-      ctx.font = "bold 18px 'Space Grotesk', sans-serif";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const tw = ctx.measureText(msg).width;
-      const px = W/2, py = PEG_ZONE * 0.42;
-      ctx.fillStyle = 'rgba(11,10,20,0.72)';
-      ctx.beginPath();
-      const rw = tw/2 + 18, rh = 18;
-      ctx.moveTo(px-rw+rh, py-rh);
-      ctx.arcTo(px+rw, py-rh, px+rw, py+rh, rh);
-      ctx.arcTo(px+rw, py+rh, px-rw, py+rh, rh);
-      ctx.arcTo(px-rw, py+rh, px-rw, py-rh, rh);
-      ctx.arcTo(px-rw, py-rh, px+rw, py-rh, rh);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = PEG;
-      ctx.shadowBlur = 12;
-      ctx.fillText(msg, px, py);
-      ctx.restore();
     }
   }
 
@@ -1958,36 +1869,14 @@
   function canvasX(evt){ return canvasPos(evt).x; }
 
   canvas.addEventListener('mousemove', (e)=>{
-    if(canChooseDetonate()){
-      const {x,y} = canvasPos(e);
-      const cell = cellAtCanvasPos(x,y);
-      const same = (!cell && !detonateHover) ||
-        (cell && detonateHover && cell.col===detonateHover.col && cell.row===detonateHover.row);
-      detonateHover = cell;
-      setBoardCursor('bomb');
-      if(!same) draw();
-      return;
-    }
     if(inputBlocked() || pointerDown) return;
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
-    setBoardCursor('pointer');
+    canvas.style.cursor = 'pointer';
     draw();
   });
 
   let pointerDown = false;
-  let pointerDetonate = false;
   canvas.addEventListener('pointerdown', (e)=>{
-    if(canChooseDetonate()){
-      const {x,y} = canvasPos(e);
-      const cell = cellAtCanvasPos(x,y);
-      if(cell){
-        pointerDetonate = true;
-        detonateHover = cell;
-        canvas.setPointerCapture(e.pointerId);
-        draw();
-      }
-      return;
-    }
     if(inputBlocked()) return;
     pointerDown = true;
     canvas.setPointerCapture(e.pointerId);
@@ -1995,28 +1884,12 @@
     draw();
   });
   canvas.addEventListener('pointermove', (e)=>{
-    if(pointerDetonate){
-      e.preventDefault();
-      const {x,y} = canvasPos(e);
-      detonateHover = cellAtCanvasPos(x,y);
-      draw();
-      return;
-    }
     if(!pointerDown) return;
     e.preventDefault();
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
     draw();
   });
-  function releasePointer(e){
-    if(pointerDetonate){
-      pointerDetonate = false;
-      if(canChooseDetonate()){
-        const {x,y} = canvasPos(e || {clientX:0,clientY:0, touches:null});
-        const cell = detonateHover || (e ? cellAtCanvasPos(x,y) : null);
-        if(cell) beginDetonate(cell.col, cell.row);
-      }
-      return;
-    }
+  function releasePointer(){
     if(!pointerDown) return;
     pointerDown = false;
     if(!inputBlocked()) dropAt(aimX);
@@ -2024,14 +1897,13 @@
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', ()=>{
     pointerDown = false;
-    pointerDetonate = false;
   });
-  setBoardCursor('pointer');
+  canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
 
   // Keep the aim preview gently spinning even when idle
   function idleSpin(){
-    if(!looping && !resolving && !detonateMode) draw();
+    if(!looping && !resolving) draw();
     requestAnimationFrame(idleSpin);
   }
 
