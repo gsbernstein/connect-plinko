@@ -1031,7 +1031,7 @@
     updateScoreUI();
     updateShopUI();
     updateAutoStatus();
-    updateSuitBombUI();
+    updateSuitBombUI(performance.now(), true);
   }
 
   function buyUpgrade(id){
@@ -1052,7 +1052,7 @@
     updateScoreUI();
     updateShopUI();
     updateAutoStatus();
-    updateSuitBombUI();
+    updateSuitBombUI(performance.now(), true);
   }
 
   function columnReservations(){
@@ -2245,7 +2245,7 @@
     scheduleSave();
     if(resolving){
       pendingSuitBomb = suit;
-      updateSuitBombUI();
+      updateSuitBombUI(performance.now(), true);
       return true;
     }
     beginSuitBomb(suit, cells);
@@ -2258,7 +2258,7 @@
     pendingSuitBomb = null;
     const cells = findSuitCells(suit);
     if(cells.length < 1){
-      updateSuitBombUI();
+      updateSuitBombUI(performance.now(), true);
       return;
     }
     beginSuitBomb(suit, cells);
@@ -2339,7 +2339,7 @@
       } else {
         refreshButtons();
         flushPendingSuitBomb();
-        if(!resolving) updateSuitBombUI();
+        if(!resolving) updateSuitBombUI(performance.now(), true);
       }
     }
   }
