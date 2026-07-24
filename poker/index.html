@@ -1891,6 +1891,14 @@
       maxLevel: 4
     },
     {
+      id: 'questDesk',
+      name: 'Quest Desk',
+      desc: 'Automatically claim completed table quests and roll replacements.',
+      baseCost: 5,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
       id: 'pitBoss',
       name: 'Pit Boss',
       desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick.',
@@ -2232,28 +2240,81 @@
     updateSuitBombUI(performance.now(), true);
   }
 
-  function claimActiveQuest(uid){
+  function claimActiveQuest(uid, opts){
+    opts = opts || {};
     const idx = activeQuests.findIndex(q => q.uid === uid);
-    if(idx < 0) return false;
+    if(idx < 0) return null;
     const q = activeQuests[idx];
-    if(!activeQuestComplete(q)) return false;
+    if(!activeQuestComplete(q)) return null;
     applyContractReward(q.reward);
     const used = new Set(
       activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
     );
     activeQuests[idx] = rollQuest(used);
+    if(!opts.deferUi){
+      refreshQuestUiAndSave();
+      pushPopup({
+        x: W / 2,
+        y: PEG_ZONE * 0.38,
+        text: 'QUEST · ' + q.name,
+        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
+        t0: performance.now(),
+        duration: 1400,
+        big: true
+      });
+      if(!resolving && !looping) startLoop();
+    }
+    return q;
+  }
+
+  function tryAutoClaimQuests(){
+    if(prestigeLevel('questDesk') <= 0) return 0;
+    const claimed = [];
+    // Cap passes so a bad roll can never spin forever.
+    for(let guard = 0; guard < MAX_QUEST_SLOTS; guard++){
+      const ready = activeQuests.find(q => activeQuestComplete(q));
+      if(!ready) break;
+      const q = claimActiveQuest(ready.uid, { deferUi: true });
+      if(!q) break;
+      claimed.push(q);
+    }
+    if(!claimed.length) return 0;
     refreshQuestUiAndSave();
-    pushPopup({
-      x: W / 2,
-      y: PEG_ZONE * 0.38,
-      text: 'QUEST · ' + q.name,
-      color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
-      t0: performance.now(),
-      duration: 1400,
-      big: true
-    });
+    if(claimed.length === 1){
+      const q = claimed[0];
+      pushPopup({
+        x: W / 2,
+        y: PEG_ZONE * 0.38,
+        text: 'QUEST · ' + q.name,
+        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
+        t0: performance.now(),
+        duration: 1400,
+        big: true
+      });
+    } else {
+      pushPopup({
+        x: W / 2,
+        y: PEG_ZONE * 0.38,
+        text: 'QUEST DESK · ×' + claimed.length,
+        color: '#F0D78C',
+        t0: performance.now(),
+        duration: 1400,
+        big: true
+      });
+    }
     if(!resolving && !looping) startLoop();
-    return true;
+    return claimed.length;
+  }
+
+  let lastAutoClaimAt = 0;
+  function maybeAutoClaimQuests(now){
+    if(prestigeLevel('questDesk') <= 0) return 0;
+    now = now || performance.now();
+    if(now - lastAutoClaimAt < 180) return 0;
+    if(!activeQuests.some(q => activeQuestComplete(q))) return 0;
+    const n = tryAutoClaimQuests();
+    if(n) lastAutoClaimAt = now;
+    return n;
   }
 
   function claimAchievement(id){
@@ -2345,7 +2406,11 @@
 
   function scheduleContractsUI(){
     clearTimeout(questUiTimer);
-    questUiTimer = setTimeout(updateContractsUI, 120);
+    questUiTimer = setTimeout(()=>{
+      // Claim before painting so the Quests tab rarely shows a stale Claim button.
+      maybeAutoClaimQuests();
+      updateContractsUI();
+    }, 120);
   }
 
   function upgradeCost(def){
@@ -2708,6 +2773,8 @@
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
         return lvl ? ('Up to ' + label) : 'Common quests only';
       }
+      case 'questDesk':
+        return lvl ? 'Auto-claiming' : 'Manual claims';
       case 'pitBoss':
         return lvl ? ('Auto-buys ×' + lvl + ' / tick') : 'Manual buys only';
       default:
@@ -3003,6 +3070,7 @@
     updatePrestigeUI();
     updateAutoStatus();
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
+    if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
     if(id === 'holdDeal' && !resolving && !looping) startLoop();
   }
 
@@ -3648,6 +3716,7 @@
     tryHoldDrop(now);
     tryAutoSuitBomb(now);
     maybeAutoBuy(now);
+    maybeAutoClaimQuests(now);
     updateSuitBombUI(now);
 
     const speed = physicsSpeed();
@@ -5573,9 +5642,12 @@
       tryHoldDrop(now);
       tryAutoSuitBomb(now);
       maybeAutoBuy(now);
+      maybeAutoClaimQuests(now);
       const needLoop = balls.length || particles.length || resolving
         || holdDropping
         || prestigeLevel('pitBoss') > 0
+        || (prestigeLevel('questDesk') > 0
+          && activeQuests.some(q => activeQuestComplete(q)))
         || Number.isFinite(autoDropIntervalMs())
         || (suitBombUnlocked() && (
           upgradeLevel('autoSuitBomb') > 0 || !suitBombReady(now)
