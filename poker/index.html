@@ -5213,8 +5213,19 @@
     particles = particles.filter(p => p.life > 0);
   }
 
+  function makeRoomForCascadeBall(){
+    if(balls.length < MAX_CASCADE_BALLS) return true;
+    // Prefer dropping an old cascade body that's already back in the pegs;
+    // never strand a column piece because the cap filled up.
+    let dropIdx = balls.findIndex(b => b.phase === 'peg' && b.cascadeBall);
+    if(dropIdx < 0) dropIdx = balls.findIndex(b => b.phase === 'peg');
+    if(dropIdx < 0) return false;
+    balls.splice(dropIdx, 1);
+    return true;
+  }
+
   function launchPuckFromCell(col, row, card, angle, stackPos, fromClearIndex){
-    if(balls.length >= MAX_CASCADE_BALLS) return false;
+    if(balls.length >= MAX_CASCADE_BALLS && !makeRoomForCascadeBall()) return false;
     const x = col*CELL + CELL/2 + (Math.random()*10-5);
     const y = PEG_ZONE + row*CELL + CELL/2;
     const heightBoost = Math.max(0, stackPos - fromClearIndex);
@@ -5254,7 +5265,7 @@
       let lowestClearedIdx = Infinity;
       for(let i=0;i<oldStack.length;i++){
         const oldRow = ROWS - 1 - i;
-        if(oldStack[i].type==='piece' && cleared.has(c+','+oldRow)){
+        if(cleared.has(c+','+oldRow)){
           lowestClearedIdx = Math.min(lowestClearedIdx, i);
         }
       }
@@ -5266,17 +5277,24 @@
         if(entry.type==='piece' && cleared.has(c+','+oldRow)){
           continue;
         }
+        if(entry.type==='ball' && cleared.has(c+','+oldRow)){
+          const b = entry.ball;
+          b.vx += (Math.random()-0.5)*6;
+          b.vy = Math.min(b.vy, 0) - (8 + Math.random()*4);
+          b.spin += (Math.random()-0.5)*0.4;
+          b.stackEntry = null;
+          b.targetCol = null;
+          b.row = null;
+          b.phase = 'peg';
+          b.frameSafety = 0;
+          b.gridAge = 0;
+          b.cascadeBall = true;
+          b.freeDrop = false;
+          continue;
+        }
         if(lowestClearedIdx !== Infinity && i > lowestClearedIdx){
           if(entry.type==='piece'){
-            // Cap cascade bodies for perf, but never leave pieces parked in
-            // the column — that made floor clears strand the bottom rows.
-            if(!launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx)){
-              spawnExplosion(
-                c*CELL+CELL/2,
-                PEG_ZONE+oldRow*CELL+CELL/2,
-                entry.card
-              );
-            }
+            launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx);
             continue;
           } else if(entry.type==='ball'){
             const b = entry.ball;
@@ -5832,6 +5850,22 @@
     }
 
     ctx.drawImage(plateCanvas, 0, 0);
+
+    // Free pucks still inside the board face (explosion launches, etc.)
+    // draw on top of the plastic so the flight out of the column stays visible.
+    for(const b of balls){
+      if(b.phase==='grid' || b.y < PEG_ZONE) continue;
+      for(let i=0;i<b.trail.length;i++){
+        const t = b.trail[i];
+        if(t.y < PEG_ZONE) continue;
+        const alpha = (i+1)/b.trail.length * 0.25;
+        ctx.beginPath();
+        ctx.arc(t.x,t.y,20,0,Math.PI*2);
+        ctx.fillStyle = trailRGBA(b.card, alpha);
+        ctx.fill();
+      }
+      drawBall(b);
+    }
 
     // Near-miss guides sit on top of the plate so the dotted bridges stay
     // readable between holes (pairs, flush/straight draws).
