@@ -4557,21 +4557,21 @@
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
-      const revealed = upgradeUnlocked(def.id);
+      const revealed = upgradeUnlocked(def.id)
+        && (def.id !== 'autoSuitBomb' || suitBombUnlocked());
       const bought = purchasedLevel(def.id);
       const bonus = prestigeBonusLevels(def.id);
       const lvl = upgradeLevel(def.id);
       const maxed = lvl >= def.maxLevel;
-      const locked = def.id === 'autoSuitBomb' && !suitBombUnlocked();
       const cost = upgradeCost(def);
-      const canAfford = revealed && !maxed && !locked && score >= cost;
+      const canAfford = revealed && !maxed && score >= cost;
       if(canAfford) affordableCount++;
       // Always refresh state — including locked cards — so Cash Out can't leave
       // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
       fillUpgradeButton(btn, def, {
-        bought, bonus, maxed, locked: locked || !revealed, cost, canAfford,
+        bought, bonus, maxed, locked: !revealed, cost, canAfford,
         effect: upgradeEffectText(def),
-        costLabel: revealed ? 'Needs Suit Purge' : ('Unlocks at Lv ' + (def.unlockAt || 1)),
+        costLabel: 'Unlocks at Lv ' + (def.unlockAt || 1),
         unit: 'chips'
       });
       btn.hidden = !revealed;
@@ -4903,15 +4903,22 @@
       }
     }
     const inShoe = new Set(activeSuits());
+    const inFlight = {'♠':0,'♥':0,'♦':0,'♣':0};
+    for(const b of balls){
+      if(b.card && inFlight[b.card.suit] != null) inFlight[b.card.suit]++;
+    }
     let visible = 0;
     for(const s of SUITS){
       const btn = suitBombButtons[s];
       if(!btn) continue;
       const count = counts[s] || 0;
       const queued = pendingSuitBomb === s;
-      // Exiled suits disappear once the board is clear of them.
-      const gone = !inShoe.has(s) && count === 0 && !queued;
+      const present = count > 0 || inFlight[s] > 0 || queued;
+      // Always show suits still in the shoe (even with none on the board).
+      // Only hide an exiled suit after it is fully gone from play.
+      const gone = !inShoe.has(s) && !present;
       btn.classList.toggle('gone', gone);
+      btn.hidden = gone;
       if(gone) continue;
       visible++;
       // Stay clickable during hand clears — cast queues until the board is free.
