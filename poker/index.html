@@ -237,42 +237,51 @@
     border-color:var(--peg);
     background:rgba(139,127,255,0.12);
   }
-  .shop{
+  .rails{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    min-width:0;
+  }
+  .shop, .prestige{
     width:100%;
     display:flex;
     flex-direction:column;
     gap:10px;
     min-width:0;
   }
-  .shop-head{
+  .shop-head, .prestige-head{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:12px;
     flex-wrap:wrap;
   }
-  .shop-head h2{
+  .shop-head h2, .prestige-head h2{
     margin:0;
     font-family:'Space Grotesk',sans-serif;
     font-size:18px;
     font-weight:700;
     letter-spacing:-0.01em;
   }
-  .shop-meta{
+  .prestige-head h2{color:#F0D78C;}
+  .shop-meta, .prestige-meta{
     color:var(--ink-dim);
     font-size:12px;
   }
   .shop-meta b{color:var(--felt-bright);font-weight:600;}
+  .prestige-meta b{color:#F0D78C;font-weight:600;}
   .upgrades{
     display:grid;
     grid-template-columns:1fr;
     gap:8px;
     align-content:start;
   }
-  @media (min-width:560px){
+  @media (min-width:560px) and (max-width:999px){
     .upgrades{grid-template-columns:1fr 1fr;}
   }
-  /* Board (~660) + shop rail (~320) + gap — side-by-side when it fits. */
+  /* Board + upgrade rail. VIP stacks under upgrades until there's room. */
   @media (min-width:1000px){
     .wrap{max-width:1040px;}
     .play-row{
@@ -284,27 +293,52 @@
       flex:1 1 660px;
       max-width:660px;
     }
-    .shop{
+    .rails{
       flex:0 0 320px;
       width:320px;
       position:sticky;
       top:16px;
       max-height:calc(100vh - 32px);
+      overflow-x:hidden;
+      overflow-y:auto;
+      padding-right:10px;
+      scrollbar-gutter:stable;
+      gap:16px;
+    }
+    .rails::-webkit-scrollbar{width:8px;}
+    .rails::-webkit-scrollbar-track{background:transparent;}
+    .rails::-webkit-scrollbar-thumb{
+      background:#3a3558;
+      border-radius:999px;
+    }
+    .upgrades{grid-template-columns:1fr;}
+  }
+  /* Board | Upgrades | VIP — three columns when wide enough. */
+  @media (min-width:1320px){
+    .wrap{max-width:1360px;}
+    .rails{
+      flex:0 0 640px;
+      width:640px;
+      flex-direction:row;
+      align-items:stretch;
+      gap:18px;
       overflow:hidden;
       padding-right:0;
+      scrollbar-gutter:auto;
     }
-    .upgrades{
-      grid-template-columns:1fr;
-      flex:1 1 auto;
-      min-height:0;
+    .shop, .prestige{
+      flex:1 1 0;
+      width:auto;
+      min-width:0;
+      max-height:100%;
       overflow-x:hidden;
       overflow-y:auto;
       padding-right:10px;
       scrollbar-gutter:stable;
     }
-    .upgrades::-webkit-scrollbar{width:8px;}
-    .upgrades::-webkit-scrollbar-track{background:transparent;}
-    .upgrades::-webkit-scrollbar-thumb{
+    .shop::-webkit-scrollbar, .prestige::-webkit-scrollbar{width:8px;}
+    .shop::-webkit-scrollbar-track, .prestige::-webkit-scrollbar-track{background:transparent;}
+    .shop::-webkit-scrollbar-thumb, .prestige::-webkit-scrollbar-thumb{
       background:#3a3558;
       border-radius:999px;
     }
@@ -512,35 +546,6 @@
     font-family:'Space Grotesk',sans-serif;
     font-size:14px;
   }
-  .prestige{
-    width:100%;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    margin-top:6px;
-    padding-top:14px;
-    border-top:1px solid #2a2545;
-  }
-  .prestige-head{
-    display:flex;
-    justify-content:space-between;
-    align-items:baseline;
-    gap:12px;
-    flex-wrap:wrap;
-  }
-  .prestige-head h2{
-    margin:0;
-    font-family:'Space Grotesk',sans-serif;
-    font-size:18px;
-    font-weight:700;
-    letter-spacing:-0.01em;
-    color:#F0D78C;
-  }
-  .prestige-meta{
-    color:var(--ink-dim);
-    font-size:12px;
-  }
-  .prestige-meta b{color:#F0D78C;font-weight:600;}
   .cashout{
     display:flex;
     flex-direction:column;
@@ -590,25 +595,6 @@
     background:linear-gradient(90deg, #8a6f2a, #E6C35C);
   }
   .upgrade.prestige-upgrade .upgrade-effect{color:#F0D78C;}
-  @media (min-width:1000px){
-    .shop{
-      overflow-x:hidden;
-      overflow-y:auto;
-      padding-right:10px;
-      scrollbar-gutter:stable;
-    }
-    .shop::-webkit-scrollbar{width:8px;}
-    .shop::-webkit-scrollbar-track{background:transparent;}
-    .shop::-webkit-scrollbar-thumb{
-      background:#3a3558;
-      border-radius:999px;
-    }
-    .upgrades{
-      overflow:visible;
-      padding-right:0;
-      max-height:none;
-    }
-  }
 </style>
 </head>
 <body>
@@ -651,14 +637,16 @@
       </div>
     </div>
 
-    <section class="shop" aria-label="Upgrades">
-      <div class="shop-head">
-        <h2>Upgrades</h2>
-        <div class="shop-meta">Lifetime earned&nbsp;<b id="lifetimeVal">0</b></div>
-      </div>
-      <div class="upgrades" id="upgrades"></div>
+    <aside class="rails" aria-label="Shop">
+      <section class="shop" aria-label="Upgrades">
+        <div class="shop-head">
+          <h2>Upgrades</h2>
+          <div class="shop-meta">Lifetime earned&nbsp;<b id="lifetimeVal">0</b></div>
+        </div>
+        <div class="upgrades" id="upgrades"></div>
+      </section>
 
-      <div class="prestige" id="prestigePanel" aria-label="VIP Lounge">
+      <section class="prestige" id="prestigePanel" aria-label="VIP Lounge">
         <div class="prestige-head">
           <h2>VIP Lounge</h2>
           <div class="prestige-meta">Tables cashed&nbsp;<b id="prestigeCountVal">0</b></div>
@@ -669,8 +657,8 @@
           <div class="cashout-req" id="cashoutReq">Earn more chips this run to cash out</div>
         </div>
         <div class="upgrades" id="prestigeUpgrades"></div>
-      </div>
-    </section>
+      </section>
+    </aside>
   </div>
 
   <div class="footer-row">
