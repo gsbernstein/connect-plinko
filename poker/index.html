@@ -318,11 +318,15 @@
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:12px;
-    padding:12px 14px 14px;
+    /* Extra bottom padding so cost clears the absolute progress bar. */
+    padding:12px 14px 16px;
     color:var(--ink);
     font-family:'IBM Plex Mono',monospace;
     cursor:pointer;
     overflow:hidden;
+    /* overflow:hidden zeroes grid/flex min-size — keep cards content-sized. */
+    min-height:min-content;
+    flex-shrink:0;
     transition:border-color .15s ease, background .15s ease, transform .08s ease;
   }
   .upgrade-progress{
@@ -332,6 +336,7 @@
     bottom:0;
     height:3px;
     background:rgba(255,255,255,0.06);
+    pointer-events:none;
   }
   .upgrade-progress > span{
     display:block;
@@ -387,13 +392,20 @@
     font-size:11px;
   }
   .upgrade-cost{
+    flex-shrink:0;
+    position:relative;
+    z-index:1;
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:13px;
+    line-height:1.3;
     color:var(--ink);
   }
   .upgrade-cost.too-much{color:var(--heart);}
   .upgrade-cost.max{color:var(--ink-dim);font-weight:500;}
+  .upgrades{
+    align-content:start;
+  }
   .idle-pill{
     display:inline-flex;
     align-items:center;
