@@ -17,9 +17,14 @@ Drop colored pucks through pegs into a Connect Four–style grid. Get 4+ in a ro
 
 ### Plinko Poker
 
-Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes for **chips**. Spend chips on idle upgrades — Auto Dealer drops cards for you, Hold Deal lets you press-and-hold to keep dealing, Multi Deal piles on extras, Big Blind multiplies payouts, Pin Tip / Rail Tax / Sweep Stakes pay out on peg hits, bumper hits, and floor clears, High Cut / Suit Exile thin the shoe toward stronger hands, and Suit Purge / Auto Purge blow up a whole suit on a recharge timer.
+Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes for **chips**.
 
-After earning enough chips in a run, **Cash Out** in the VIP Lounge: the table resets, but you bank **comps** for permanent perks (House Edge chip mult, Seed Stack starting chips, Rack Discount, Comp Card, Quick Deal, Pin Privilege). Hard reset wipes VIP progress too. Saves in the browser. Near-miss guides show when you’re close; a full board still triggers the automatic floor clear.
+Progression has three layers:
+1. **Chips** — spend on table upgrades (Auto Dealer, Hold Deal, Big Blind, …). Many upgrades stay hidden until unlocked.
+2. **Run level** — rises automatically from chips *earned* this table. Levels unlock shop items and grant rewards (comp credit, free upgrade bumps, even VIP perk levels). Resets when you Cash Out.
+3. **VIP / prestige** — from run level 8, **Cash Out** banks your level comps for permanent perks (House Edge, Seed Stack, Rack Discount, Comp Card, Quick Deal, Pin Privilege). Hard reset wipes VIP too.
+
+Saves in the browser. Near-miss guides show when you’re close; a full board still triggers the automatic floor clear.
 
 ## Local
 
