@@ -664,7 +664,7 @@
   </div>
 
   <div class="footer-row">
-    <span class="hint">Buy Auto Dealer to idle · cash out for VIP comps · dotted guides show near hands</span>
+    <span class="hint">Hold Deal to spray cards · Auto Dealer to idle · cash out for VIP comps</span>
     <button class="reset" id="resetScores">Reset progress</button>
   </div>
 </div>
@@ -859,6 +859,14 @@
       maxLevel: 8
     },
     {
+      id: 'holdDeal',
+      name: 'Hold Deal',
+      desc: 'Hold on the board or a column to keep dropping cards. Higher levels deal faster.',
+      baseCost: 40,
+      costScale: 1.65,
+      maxLevel: 12
+    },
+    {
       id: 'bigBlind',
       name: 'Big Blind',
       desc: '+25% chips from every scored hand.',
@@ -1008,6 +1016,9 @@
   let suitBombReadyAt = 0;
   let pendingSuitBomb = null;
   let saveTimer = 0;
+  let holdDropping = false;
+  let holdDropCol = null; // null = aim at aimX; number = fixed column
+  let lastHoldDropAt = 0;
 
   function upgradeLevel(id){ return upgrades[id] || 0; }
   function prestigeLevel(id){ return prestigeUpgrades[id] || 0; }
@@ -1080,6 +1091,17 @@
 
   function autoDropCount(){
     return 1 + upgradeLevel('multiDeal');
+  }
+
+  function holdDealUnlocked(){
+    return upgradeLevel('holdDeal') > 0;
+  }
+
+  function holdDropIntervalMs(){
+    const lvl = upgradeLevel('holdDeal');
+    if(lvl <= 0) return Infinity;
+    // ~400ms at Lv1, under 150ms by Lv6, floors at 70ms.
+    return Math.max(70, Math.floor(400 * Math.pow(0.82, lvl - 1)));
   }
 
   function tableScoreMultiplier(){
@@ -1225,6 +1247,10 @@
         return lvl ? ('Every ' + formatInterval(autoDropIntervalMs())) : 'Manual only';
       case 'multiDeal':
         return (1 + lvl) + ' card' + (1+lvl === 1 ? '' : 's') + '/tick';
+      case 'holdDeal':
+        return lvl
+          ? ('Hold every ' + formatInterval(holdDropIntervalMs()))
+          : 'Click to drop';
       case 'bigBlind':
         return '×' + tableScoreMultiplier().toFixed(2).replace(/\.00$/,'');
       case 'hotStreak':
@@ -1488,6 +1514,39 @@
     if(dropped > 0) lastAutoDropAt = now;
   }
 
+  function stopHoldDrop(){
+    holdDropping = false;
+    holdDropCol = null;
+  }
+
+  function startHoldDrop(col){
+    if(!holdDealUnlocked() || inputBlocked()) return false;
+    holdDropping = true;
+    holdDropCol = col == null ? null : col;
+    lastHoldDropAt = 0; // fire immediately on press
+    tryHoldDrop(performance.now());
+    startLoop();
+    return true;
+  }
+
+  function tryHoldDrop(now){
+    if(!holdDropping || !holdDealUnlocked()) return;
+    if(gameOver){ stopHoldDrop(); return; }
+    const interval = holdDropIntervalMs();
+    if(!Number.isFinite(interval)) return;
+    if(now - lastHoldDropAt < interval) return;
+    if(balls.length >= MAX_IN_FLIGHT) return;
+    if(colHeights.every(h => h >= ROWS)) return;
+
+    if(holdDropCol != null){
+      if(colHeights[holdDropCol] >= ROWS) return;
+      dropAt(holdDropCol * CELL + CELL / 2, {autoCol: holdDropCol});
+    } else {
+      dropAt(aimX);
+    }
+    lastHoldDropAt = now;
+  }
+
   function freshState(){
     grid = Array.from({length:COLS}, ()=>Array(ROWS).fill(0));
     colHeights = Array(COLS).fill(0);
@@ -1504,6 +1563,7 @@
     popups = [];
     pendingSuitBomb = null;
     lastAutoDropAt = performance.now();
+    stopHoldDrop();
     shoe = makeDeck().concat(makeDeck());
     nextCard = dealCard();
     updateNextUI();
@@ -1704,7 +1764,23 @@
     const b = document.createElement('button');
     b.className = 'colbtn';
     b.textContent = '▾';
-    b.addEventListener('click', ()=>dropInColumn(c));
+    b.addEventListener('click', (e)=>{
+      // Hold Deal handles press/hold via pointer events — skip the click.
+      if(holdDealUnlocked()){
+        e.preventDefault();
+        return;
+      }
+      dropInColumn(c);
+    });
+    b.addEventListener('pointerdown', (e)=>{
+      if(!holdDealUnlocked() || inputBlocked()) return;
+      e.preventDefault();
+      b.setPointerCapture(e.pointerId);
+      startHoldDrop(c);
+    });
+    b.addEventListener('pointerup', stopHoldDrop);
+    b.addEventListener('pointercancel', stopHoldDrop);
+    b.addEventListener('lostpointercapture', stopHoldDrop);
     colsEl.appendChild(b);
     buttons.push(b);
   }
@@ -2049,6 +2125,7 @@
   function tick(){
     const now = performance.now();
     tryAutoDrop(now);
+    tryHoldDrop(now);
     tryAutoSuitBomb(now);
     updateSuitBombUI(now);
 
@@ -2726,6 +2803,7 @@
   function resolveTick(){
     const now = performance.now();
     tryAutoDrop(now);
+    tryHoldDrop(now);
     const speed = Math.min(physicsSpeed(), 2.8);
     const flashMs = FLASH_MS / speed;
     const explodeMs = EXPLODE_MS / speed;
@@ -3374,7 +3452,11 @@
     pointerDown = true;
     canvas.setPointerCapture(e.pointerId);
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
-    draw();
+    if(holdDealUnlocked()){
+      startHoldDrop(null);
+    } else {
+      draw();
+    }
   });
   canvas.addEventListener('pointermove', (e)=>{
     if(!pointerDown) return;
@@ -3385,11 +3467,16 @@
   function releasePointer(){
     if(!pointerDown) return;
     pointerDown = false;
+    if(holdDealUnlocked()){
+      stopHoldDrop();
+      return;
+    }
     if(!inputBlocked()) dropAt(aimX);
   }
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', ()=>{
     pointerDown = false;
+    stopHoldDrop();
   });
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
@@ -3400,8 +3487,10 @@
     if(!looping && !resolveLooping){
       updateSuitBombUI(now);
       tryAutoDrop(now);
+      tryHoldDrop(now);
       tryAutoSuitBomb(now);
       const needLoop = balls.length || particles.length || resolving
+        || holdDropping
         || Number.isFinite(autoDropIntervalMs())
         || (suitBombUnlocked() && (
           upgradeLevel('autoSuitBomb') > 0 || !suitBombReady(now)
