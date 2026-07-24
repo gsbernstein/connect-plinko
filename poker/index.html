@@ -2492,9 +2492,7 @@
             templateId: tmpl.id,
             rarity,
             name: tmpl.name,
-            desc: typeof raw.desc === 'string'
-              ? raw.desc
-              : tmpl.desc.replace(/\{n\}/g, formatNum(target)),
+            desc: tmpl.desc.replace(/\{n\}/g, formatNum(target)),
             stat: tmpl.stat,
             target,
             baseline: Math.max(0, Math.floor(raw.baseline || 0)),
