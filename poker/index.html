@@ -308,11 +308,102 @@
     border-color:#3a3558;
   }
   .rail-tab[data-panel="table"].is-active{border-color:rgba(139,127,255,0.5); color:var(--peg);}
+  .rail-tab[data-panel="welcome"].is-active{border-color:rgba(46,138,110,0.5); color:var(--felt-bright);}
   .rail-tab[data-panel="upgrades"].is-active{border-color:rgba(46,138,110,0.45); color:var(--felt-bright);}
   .rail-tab[data-panel="quests"].is-active{border-color:rgba(126,200,163,0.45); color:#7EC8A3;}
   .rail-tab[data-panel="achievements"].is-active{border-color:rgba(240,215,140,0.45); color:#F0D78C;}
   .rail-tab[data-panel="vip"].is-active{border-color:rgba(230,195,92,0.5); color:#E6C35C;}
   .rail-tab[data-panel="settings"].is-active{border-color:#3a3558; color:var(--ink);}
+  .welcome-panel{
+    flex:1 1 auto;
+    justify-content:center;
+    align-items:center;
+    min-height:100%;
+    padding:8px 4px 18px;
+  }
+  .welcome{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    gap:14px;
+    width:100%;
+    max-width:280px;
+    margin:0 auto;
+  }
+  .welcome-chip{
+    width:156px;
+    height:156px;
+    animation:welcomeChipIn .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .welcome-chip img{
+    width:100%;
+    height:100%;
+    display:block;
+    object-fit:contain;
+    animation:welcomeChipIdle 5.5s ease-in-out infinite;
+    transform-origin:50% 50%;
+    filter:drop-shadow(0 16px 24px rgba(0,0,0,0.55));
+  }
+  .welcome-brand{
+    margin:0;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:28px;
+    font-weight:700;
+    letter-spacing:-0.03em;
+    color:var(--ink);
+    line-height:1.05;
+    animation:welcomeFadeUp .55s ease .12s both;
+  }
+  .welcome-hint{
+    margin:0;
+    max-width:16em;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:0.01em;
+    line-height:1.35;
+    color:var(--felt-bright);
+    animation:welcomeFadeUp .55s ease .22s both, welcomeHintPulse 2.4s ease-in-out 1s infinite;
+  }
+  .welcome-hint-click{display:none;}
+  @media (hover:hover) and (pointer:fine){
+    .welcome-hint-tap{display:none;}
+    .welcome-hint-click{display:inline;}
+  }
+  .welcome-cta{
+    margin-top:4px;
+    background:var(--felt-bright);
+    color:#04140f;
+    border:none;
+    border-radius:10px;
+    padding:12px 18px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    animation:welcomeFadeUp .55s ease .32s both;
+  }
+  .welcome-cta:hover{filter:brightness(1.06);}
+  @media (min-width:1000px){
+    .welcome-cta{display:none !important;}
+  }
+  @keyframes welcomeChipIn{
+    from{opacity:0; transform:translateY(18px) scale(.86);}
+    to{opacity:1; transform:translateY(0) scale(1);}
+  }
+  @keyframes welcomeChipIdle{
+    0%,100%{transform:rotate(-3deg);}
+    50%{transform:rotate(3deg);}
+  }
+  @keyframes welcomeFadeUp{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  @keyframes welcomeHintPulse{
+    0%,100%{opacity:1;}
+    50%{opacity:0.62;}
+  }
   .rail-tab-badge{
     position:absolute;
     top:2px;
@@ -1248,6 +1339,20 @@
 
   <aside class="rails" aria-label="Shop">
     <div class="rail-body" id="railBody">
+      <section class="rail-panel welcome-panel" id="panelWelcome" data-panel="welcome" aria-label="Welcome">
+        <div class="welcome">
+          <div class="welcome-chip" aria-hidden="true">
+            <img src="welcome-chip.png" width="384" height="384" alt="">
+          </div>
+          <h2 class="welcome-brand">Plinko Poker</h2>
+          <p class="welcome-hint">
+            <span class="welcome-hint-tap">Tap anywhere on the board to drop</span>
+            <span class="welcome-hint-click">Click anywhere on the board to drop</span>
+          </p>
+          <button type="button" class="welcome-cta" id="welcomeToTable">Open table</button>
+        </div>
+      </section>
+
       <section class="rail-panel shop" id="panelUpgrades" data-panel="upgrades" aria-label="Upgrades">
         <div class="shop-head">
           <h2>Upgrades</h2>
@@ -1298,6 +1403,9 @@
       <button type="button" class="rail-tab desktop-hide is-active" data-panel="table" aria-selected="true">
         <span class="rail-tab-label">Table</span>
       </button>
+      <button type="button" class="rail-tab" data-panel="welcome" aria-selected="false">
+        <span class="rail-tab-label">Welcome</span>
+      </button>
       <button type="button" class="rail-tab" data-panel="upgrades" aria-selected="false" hidden>
         <span class="rail-tab-label">Upgrades</span>
         <span class="rail-tab-badge" id="badgeUpgrades" hidden>0</span>
@@ -1306,7 +1414,7 @@
         <span class="rail-tab-label">Quests</span>
         <span class="rail-tab-badge" id="badgeQuests" hidden>0</span>
       </button>
-      <button type="button" class="rail-tab" data-panel="achievements" aria-selected="false">
+      <button type="button" class="rail-tab" data-panel="achievements" aria-selected="false" hidden>
         <span class="rail-tab-label">Achieves</span>
         <span class="rail-tab-badge" id="badgeAchievements" hidden>0</span>
       </button>
@@ -2138,6 +2246,18 @@
     return (stats.hands || 0) > 0;
   }
 
+  function welcomeTabUnlocked(){
+    // First-run home until the shop opens.
+    return !upgradesTabUnlocked();
+  }
+
+  function achievementsTabUnlocked(){
+    // Stay hidden until the first achievement is earned (complete or claimed).
+    return ACHIEVEMENT_DEFS.some(def =>
+      achievementIsClaimed(def) || achievementComplete(def)
+    );
+  }
+
   function vipTabUnlocked(){
     // Cash Out / VIP Lounge opens at run Lv 8; stays once you've ever reached it.
     return highestRunLevelReached() >= MIN_CASH_OUT_LEVEL
@@ -2147,7 +2267,9 @@
   function defaultShopPanel(){
     if(upgradesTabUnlocked()) return 'upgrades';
     if(vipTabUnlocked()) return 'vip';
-    return 'achievements';
+    if(achievementsTabUnlocked()) return 'achievements';
+    if(welcomeTabUnlocked()) return 'welcome';
+    return 'settings';
   }
 
   function maxQuestRarityIndex(){
@@ -3043,6 +3165,9 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    // Reset is launched from Settings (always unlocked), so tab gating alone
+    // won't leave FTUE — jump back to the first-run default panel.
+    setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
   }
 
   function cashOut(){
@@ -5008,12 +5133,17 @@
   const stageEl = document.getElementById('panelTable');
   const railTabs = Array.from(document.querySelectorAll('.rail-tab'));
   const railPanels = Array.from(document.querySelectorAll('.rail-panel'));
+  const welcomeTabEl = document.querySelector('.rail-tab[data-panel="welcome"]');
   const upgradesTabEl = document.querySelector('.rail-tab[data-panel="upgrades"]');
   const questsTabEl = document.querySelector('.rail-tab[data-panel="quests"]');
+  const achievementsTabEl = document.querySelector('.rail-tab[data-panel="achievements"]');
   const vipTabEl = document.querySelector('.rail-tab[data-panel="vip"]');
+  const welcomePanelEl = document.getElementById('panelWelcome');
   const upgradesPanelEl = document.getElementById('panelUpgrades');
   const questsPanelEl = document.getElementById('panelQuests');
+  const achievementsPanelEl = document.getElementById('panelAchievements');
   const vipPanelEl = document.getElementById('panelVip');
+  const welcomeToTableBtn = document.getElementById('welcomeToTable');
   const desktopMq = window.matchMedia('(min-width:1000px)');
   const tabBadges = {
     upgrades: document.getElementById('badgeUpgrades'),
@@ -5051,18 +5181,24 @@
   }
 
   function panelTabUnlocked(panel){
+    if(panel === 'welcome') return welcomeTabUnlocked();
     if(panel === 'upgrades') return upgradesTabUnlocked();
     if(panel === 'quests') return questsTabUnlocked();
+    if(panel === 'achievements') return achievementsTabUnlocked();
     if(panel === 'vip') return vipTabUnlocked();
     return true;
   }
 
   function updateRailTabAvailability(){
+    if(welcomeTabEl) welcomeTabEl.hidden = !welcomeTabUnlocked();
     if(upgradesTabEl) upgradesTabEl.hidden = !upgradesTabUnlocked();
     if(questsTabEl) questsTabEl.hidden = !questsTabUnlocked();
+    if(achievementsTabEl) achievementsTabEl.hidden = !achievementsTabUnlocked();
     if(vipTabEl) vipTabEl.hidden = !vipTabUnlocked();
+    if(welcomePanelEl && !welcomeTabUnlocked()) welcomePanelEl.classList.remove('is-active');
     if(upgradesPanelEl && !upgradesTabUnlocked()) upgradesPanelEl.classList.remove('is-active');
     if(questsPanelEl && !questsTabUnlocked()) questsPanelEl.classList.remove('is-active');
+    if(achievementsPanelEl && !achievementsTabUnlocked()) achievementsPanelEl.classList.remove('is-active');
     if(vipPanelEl && !vipTabUnlocked()) vipPanelEl.classList.remove('is-active');
     if(!panelTabUnlocked(activeRailPanel)){
       setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
@@ -5101,6 +5237,9 @@
 
   for(const tab of railTabs){
     tab.addEventListener('click', ()=>setRailPanel(tab.dataset.panel));
+  }
+  if(welcomeToTableBtn){
+    welcomeToTableBtn.addEventListener('click', ()=>setRailPanel('table'));
   }
   desktopMq.addEventListener('change', ()=>{
     if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
@@ -5293,6 +5432,7 @@
     // Keep buyable upgrades up top; sink completed ones.
     orderUpgradeButtons(upgradesEl, active.concat(maxedList));
     setTabBadge('upgrades', affordableCount);
+    updateRailTabAvailability();
   }
 
   function updateCashOutUI(){
