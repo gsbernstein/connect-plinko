@@ -209,6 +209,35 @@ Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a r
 
 That new `id` lights the Settings badge and highlights only that entry (and any other unseen ids) for returning saves. Do not reuse or renumber old ids. Render path: `openSettingsChangelog` / `renderChangelog` → `#changelogList`; badge: `updateSettingsChangelogBadge`.
 
+### Changelog merge conflicts (fast path)
+
+Most rebase/merge conflicts against `master` are only the top of `CHANGELOG` plus `poker/version.json`. Treat them as an id-assignment problem, not a content merge:
+
+1. **Prefer master’s list.** Take `origin/master`’s `CHANGELOG` array as the base (keep every existing entry and its `id` untouched).
+2. **Keep your new entry’s copy.** From the conflict, salvage only *your* new object(s) — title/items/date — not the `id` you assigned while the branch was open.
+3. **Renumber yours to `max + 1`.** Read the highest `id` now on master (or `poker/version.json` `"v"` on master — same number). Set your entry’s `id` to that + 1. If you added multiple entries, assign consecutive ids above master’s max. Never renumber or rewrite master’s entries; never reuse an id that already shipped.
+4. **Prepend, newest-first.** Place your renumbered object(s) at the top of the array, then the untouched master list.
+5. **Sync `poker/version.json`.** Set `"v"` to the new max id (same as your newest entry). `CHANGELOG_LATEST_ID` / `APP_RELEASE` derive from the array — no separate constant to edit.
+6. **Finish the rebase/merge** and continue. If non-changelog hunks also conflict, resolve those normally; do not let a version.json “ours/theirs” pick overwrite the max-id rule above.
+
+**Prevention (cheap):** rebase onto latest `master` *before* writing the changelog entry and bumping `version.json`, or add the changelog last (right before opening/updating the PR). Parallel agent PRs almost always collide on the same next id.
+
+**Sanity check after resolve:**
+
+```bash
+# top CHANGELOG id must equal version.json v and be unique / monotonic
+python3 - <<'PY'
+import json,re
+html=open('poker/index.html').read()
+ids=[int(x) for x in re.findall(r"id:\s*(\d+)", html.split("const CHANGELOG")[1].split("const CHANGELOG_LATEST_ID")[0])]
+v=json.load(open('poker/version.json'))["v"]
+assert ids==sorted(ids, reverse=True), ids
+assert len(ids)==len(set(ids)), ids
+assert ids[0]==v, (ids[0], v)
+print("ok", v, "entries", len(ids))
+PY
+```
+
 ### Release poll (refresh banner)
 
 Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes (wall-clock via `releaseCheckDue` / `lastReleaseCheckAt`) and when the tab resumes (`visibilitychange`, `pageshow`, `window` `focus` → `resumeReleaseCheck`). The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`**; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
@@ -245,6 +274,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 - **Base branch:** `master` (also the Pages deploy branch).
 - **Feature branches:** `cursor/<short-description>-<suffix>` (cloud agents use suffix `65f3`).
 - **Before you commit:** see `.cursor/rules/agent-workflow.mdc` — especially the merged-branch check.
+- **Changelog conflicts on rebase:** see **Changelog merge conflicts (fast path)** above — almost always “keep master list, renumber your entry to max+1, sync `version.json`”.
 - Open PRs against `master`. Merged PRs deploy automatically via Pages.
 
 ### Check if a branch is already merged

@@ -30,6 +30,17 @@ List merged remote cursor branches for a quick scan:
 git branch -r --merged origin/master | grep 'origin/cursor/'
 ```
 
+## Changelog conflicts (usually the only conflict)
+
+Player-visible Poker PRs all prepend to `CHANGELOG` and bump `poker/version.json`, so parallel branches collide on the same next `id`. Fast resolve:
+
+1. Keep **master’s** `CHANGELOG` entries and ids as-is.
+2. Keep **your** new entry text; set its `id` to `max(master ids) + 1`.
+3. Prepend yours (newest-first); set `poker/version.json` `"v"` to that new max.
+4. Never renumber or drop master’s entries; never reuse a shipped id.
+
+Full recipe + sanity-check script: **AGENTS.md → “Changelog merge conflicts (fast path)”**. Rebase onto latest `master` before writing the changelog (or add the entry last) to avoid the collision.
+
 ## Other defaults
 
 - Base branch for PRs: `master`.
