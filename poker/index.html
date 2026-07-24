@@ -5036,20 +5036,36 @@
     const color = SUIT_COLOR[card.suit];
     const pulse = 1 + fx.pulseAmp*Math.sin(elapsedFrac*Math.PI*fx.pulseHz);
     const r = 32 * pulse;
+    const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * fx.pulseHz));
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.shadowColor = juiceTier === 'huge' ? '#FFE08A' : color;
-    ctx.shadowBlur = fx.blur;
+    // Warm rim glow — keep blur modest so chips don't blow out to white.
+    ctx.shadowColor = juiceTier === 'huge'
+      ? 'rgba(255,208,96,' + (0.45 * heat) + ')'
+      : ('rgba(' + (color === SUIT_COLOR['♥'] || color === SUIT_COLOR['♦']
+          ? '255,140,90'
+          : '200,190,255') + ',' + (0.4 * heat) + ')');
+    if(color === SUIT_COLOR['♥'] || color === SUIT_COLOR['♦']){
+      ctx.shadowColor = 'rgba(255,140,90,' + (0.42 * heat) + ')';
+    } else if(color === SUIT_COLOR['♠']){
+      ctx.shadowColor = 'rgba(200,194,232,' + (0.42 * heat) + ')';
+    } else {
+      ctx.shadowColor = 'rgba(126,200,163,' + (0.42 * heat) + ')';
+    }
+    if(juiceTier === 'huge'){
+      ctx.shadowColor = 'rgba(255,208,96,' + (0.5 * heat) + ')';
+    }
+    ctx.shadowBlur = Math.min(28, 10 + fx.blur * 0.18);
     ensureChipTextures();
     const tex = chipTextures[card.suit];
     if(tex) ctx.drawImage(tex, -r, -r, r * 2, r * 2);
     ctx.shadowBlur = 0;
-    // Hot flash wash over the textured chip
+    // Soft warm wash — felt texture should still read underneath.
     ctx.beginPath();
     ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
     ctx.fillStyle = juiceTier === 'huge'
-      ? 'rgba(255,244,194,0.72)'
-      : 'rgba(255,255,255,0.62)';
+      ? ('rgba(255,220,140,' + (0.22 + 0.14 * heat) + ')')
+      : ('rgba(255,236,200,' + (0.16 + 0.12 * heat) + ')');
     ctx.fill();
     ctx.lineWidth = juiceTier === 'normal' ? 3 : 3.5;
     ctx.strokeStyle = color;
@@ -5060,16 +5076,13 @@
       ctx.beginPath();
       ctx.arc(0, 0, 38 * pulse, 0, Math.PI * 2);
       ctx.strokeStyle = juiceTier === 'huge'
-        ? 'rgba(255,224,138,0.55)'
-        : 'rgba(255,255,255,0.35)';
+        ? 'rgba(255,224,138,0.45)'
+        : 'rgba(255,236,200,0.28)';
       ctx.lineWidth = 2;
       ctx.stroke();
     }
     ctx.rotate(card.angle || 0);
-    drawChipGlyphs(ctx, card, r * 0.92, {
-      rankFill: '#1a1408',
-      suitFill: juiceTier === 'huge' ? '#8A6A28' : color
-    });
+    drawChipGlyphs(ctx, card, r * 0.92);
     ctx.restore();
   }
 
