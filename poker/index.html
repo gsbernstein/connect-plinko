@@ -1644,11 +1644,9 @@
     prestigeCount += 1;
     applyRunStartBonuses();
     // Allow unlock flashes again on the next table.
-    if(typeof seenUnlockFlash !== 'undefined'){
-      seenUnlockFlash.clear();
-      for(const def of UPGRADE_DEFS){
-        if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
-      }
+    seenUnlockFlash.clear();
+    for(const def of UPGRADE_DEFS){
+      if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
     }
     persistSave();
     updateScoreUI();
