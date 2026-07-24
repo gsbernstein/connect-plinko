@@ -130,7 +130,12 @@
     height:auto;
     max-width:100%;
     max-height:100%;
-    aspect-ratio:630 / 860;
+    /* Keep display ratio locked to the bitmap (W×H). A stale 630/860 here
+       was squashing circles after PEG_ZONE grew the canvas to 630×960. */
+    aspect-ratio:var(--board-aspect, 630 / 960);
+    flex:0 1 auto;
+    min-width:0;
+    min-height:0;
     border-radius:10px;
   }
   .banner{
@@ -1229,7 +1234,7 @@
     </div>
 
     <div class="board-frame">
-      <canvas id="board" width="630" height="860"></canvas>
+      <canvas id="board" width="630" height="960"></canvas>
       <div class="banner" id="banner">
         <h2 id="bannerText">Nice hand!</h2>
         <button id="playAgain">Play again</button>
@@ -1356,6 +1361,8 @@
   const W = COLS*CELL, H = PEG_ZONE + ROWS*CELL;
   const canvas = document.getElementById('board');
   canvas.width = W; canvas.height = H;
+  // Drive CSS aspect-ratio from the live bitmap so layout can't drift again.
+  canvas.style.setProperty('--board-aspect', W + ' / ' + H);
   const ctx = canvas.getContext('2d');
   const nextPreview = document.getElementById('nextPreview');
   const nextCtx = nextPreview.getContext('2d');
