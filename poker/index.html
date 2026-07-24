@@ -6066,10 +6066,13 @@
         const factor = cardCountingFactor();
         const baseMeta = runMetaMultiplier();
         const totalMeta = effectiveMetaMultiplier();
-        let text = cards + ' = ' + formatMultShort(factor);
-        if(baseMeta > 1 && factor > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
-        else if(baseMeta > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
-        return text;
+        const total = baseMeta > 1
+          ? formatMultShort(totalMeta) + ' mult'
+          : formatMultShort(factor);
+        const breakdown = baseMeta > 1
+          ? cards + ' = ' + formatMultShort(factor)
+          : cards;
+        return total + ' (' + breakdown + ')';
       }
       case 'pinSplit':
         if(!lvl) return 'Normal drops';
