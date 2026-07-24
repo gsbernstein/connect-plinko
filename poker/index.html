@@ -1605,11 +1605,11 @@
     g.fillRect(0, 0, size, size);
     g.restore();
 
-    // Soft face rim highlight
+    // Soft face rim highlight (kept quiet so type stays the focus)
     g.beginPath();
     g.arc(cx, cy, faceR, 0, Math.PI * 2);
-    g.strokeStyle = 'rgba(247,231,168,0.28)';
-    g.lineWidth = 2;
+    g.strokeStyle = 'rgba(247,231,168,0.16)';
+    g.lineWidth = 1.5;
     g.stroke();
 
     // Classic 8 edge spots
@@ -1632,15 +1632,10 @@
       g.restore();
     }
 
-    // Inner gold ring (chip well)
+    // Open center well — no inner gold ring (it fought the rank/suit).
     g.beginPath();
-    g.arc(cx, cy, R * 0.46, 0, Math.PI * 2);
-    g.strokeStyle = '#F0D78C';
-    g.lineWidth = 2.8;
-    g.stroke();
-    g.beginPath();
-    g.arc(cx, cy, R * 0.40, 0, Math.PI * 2);
-    g.fillStyle = 'rgba(11,10,20,0.22)';
+    g.arc(cx, cy, R * 0.52, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(8,6,16,0.18)';
     g.fill();
 
     return c;
@@ -4955,21 +4950,34 @@
     }
     target.shadowBlur = 0;
 
-    // Embossed rank + suit in the chip well
+    // Bold outlined rank + suit — larger and higher-contrast on the felt.
     target.textAlign = 'center';
     target.textBaseline = 'middle';
-    const rankSize = Math.max(8, Math.round(radius * 0.58));
-    const suitSize = Math.max(8, Math.round(radius * 0.52));
-    target.font = `bold ${rankSize}px 'Space Grotesk', sans-serif`;
-    target.fillStyle = 'rgba(0,0,0,0.35)';
-    target.fillText(rankLabel(card.rank), 0.6, -radius * 0.26 + 0.8);
-    target.fillStyle = '#F7E7A8';
-    target.fillText(rankLabel(card.rank), 0, -radius * 0.26);
-    target.font = `${suitSize}px 'Space Grotesk', sans-serif`;
-    target.fillStyle = 'rgba(0,0,0,0.3)';
-    target.fillText(card.suit, 0.6, radius * 0.34 + 0.8);
-    target.fillStyle = color;
-    target.fillText(card.suit, 0, radius * 0.34);
+    const rankSize = Math.max(9, Math.round(radius * 0.72));
+    const suitSize = Math.max(9, Math.round(radius * 0.64));
+    const strokeW = Math.max(1.5, radius * 0.08);
+    function stampGlyph(text, y, fill, font){
+      target.font = font;
+      target.lineJoin = 'round';
+      target.miterLimit = 2;
+      target.lineWidth = strokeW;
+      target.strokeStyle = 'rgba(8,6,16,0.85)';
+      target.strokeText(text, 0, y);
+      target.fillStyle = fill;
+      target.fillText(text, 0, y);
+    }
+    stampGlyph(
+      rankLabel(card.rank),
+      -radius * 0.22,
+      '#FFF6D6',
+      `bold ${rankSize}px 'Space Grotesk', sans-serif`
+    );
+    stampGlyph(
+      card.suit,
+      radius * 0.34,
+      color,
+      `bold ${suitSize}px 'Space Grotesk', sans-serif`
+    );
 
     if(highlight){
       target.beginPath();
