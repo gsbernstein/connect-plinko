@@ -355,12 +355,10 @@
   //  - open on both sides: full hill (low → high → low)
   //  - touches left wall:  half-arc (high at wall → low at open end)
   //  - touches right wall: half-arc (low at open end → high at wall)
-  //  - full-width:         shallow crown, ends stay high so neither
-  //                        slope drives balls into a wall
+  //  - full-width:         flat bar (an arch against both walls makes
+  //                        corner pockets that trap pucks forever)
   function bumperRise(t, edgeLeft, edgeRight){
-    if(edgeLeft && edgeRight){
-      return 0.85 + 0.15*Math.sin(Math.PI*t);
-    }
+    if(edgeLeft && edgeRight) return 0.35; // low flat shield across the mouth
     if(edgeLeft){
       // right half of a hill: peak at t=0, down to base at t=1
       return Math.cos(0.5*Math.PI*t);
@@ -374,11 +372,14 @@
   }
 
   function addBumperRun(startCol, endCol){
-    const leftX = startCol*CELL + 8;
-    const rightX = (endCol+1)*CELL - 8;
-    const span = rightX - leftX;
     const edgeLeft = startCol === 0;
     const edgeRight = endCol === COLS-1;
+    // Inset from the walls on a full-width run so bumper+wall can't form
+    // a wedge that pins stranded plinko pucks in the corner.
+    const wallPad = (edgeLeft && edgeRight) ? (BUMPER_R + BALL_RADIUS + 6) : 8;
+    const leftX = startCol*CELL + (edgeLeft && edgeRight ? wallPad : 8);
+    const rightX = (endCol+1)*CELL - (edgeLeft && edgeRight ? wallPad : 8);
+    const span = rightX - leftX;
     const samples = Math.max(6, Math.round(span / 14));
     const path = [];
     const pathBumpers = [];
@@ -802,15 +803,9 @@
       if(!resolving) maybeStartResolve();
     }
 
-    // Peg-zone orphans with nowhere to land (board full) would bounce
-    // forever and freeze a resolve wait — cull them after a grace period.
-    if(boardIsFull() && balls.length){
-      const stuckPeg = balls.filter(b => b.phase==='peg' && b.frameSafety > SAFETY_LIMIT);
-      if(stuckPeg.length){
-        const cull = new Set(stuckPeg);
-        balls = balls.filter(b => !cull.has(b));
-      }
-    }
+    // Board packed solid: any puck still in the pegs has nowhere to land.
+    // Pop them so they can't wedge under the bumper and freeze play.
+    if(boardIsFull()) purgeStrandedPegBalls();
 
     draw();
 
@@ -1032,6 +1027,21 @@
     return colHeights.every(h=>h>=ROWS);
   }
 
+  // When every column is already committed, peg-zone pucks can never enter
+  // the grid — they just pin under the bumper forever and block resolves.
+  // Pop them out of play (no score) so detonate-mode can take over.
+  function purgeStrandedPegBalls(){
+    if(!boardIsFull()) return false;
+    const stranded = balls.filter(b => b.phase==='peg');
+    if(!stranded.length) return false;
+    for(const b of stranded){
+      spawnExplosion(b.x, b.y, b.player);
+    }
+    balls = balls.filter(b => b.phase!=='peg');
+    startLoop(); // keep debris animating
+    return true;
+  }
+
   let detonateAnim = false;
   function startDetonateAnim(){
     if(detonateAnim) return;
@@ -1045,6 +1055,7 @@
   }
 
   function enterDetonateMode(){
+    purgeStrandedPegBalls();
     detonateMode = true;
     detonateHover = null;
     gameOver = false;
@@ -1092,12 +1103,14 @@
     const groups = findMatches();
     if(groups.length>0){
       beginResolveChain(groups);
+    } else if(boardIsFull()){
+      // Pop any peg-zone leftovers that can never land, then wait until
+      // in-column pucks have seated before offering the detonate pick.
+      purgeStrandedPegBalls();
+      if(balls.length===0) enterDetonateMode();
+      else refreshButtons();
     } else {
-      if(boardIsFull()){
-        enterDetonateMode();
-      } else {
-        afterBoardQuiet();
-      }
+      afterBoardQuiet();
     }
   }
 
@@ -1137,7 +1150,8 @@
     } else {
       resolving = false;
       chainStep = 0;
-      if(boardIsFull()){
+      purgeStrandedPegBalls();
+      if(boardIsFull() && balls.length===0){
         // Still packed after the blast — other player picks the next piece.
         if(detonateConsumesTurn){
           current = current === 1 ? 2 : 1;
@@ -1145,6 +1159,10 @@
           updateTurnUI();
         }
         enterDetonateMode();
+      } else if(boardIsFull()){
+        // Grid pucks still seating into the last slots — tick will hand
+        // off to detonate mode once they land.
+        refreshButtons();
       } else {
         afterBoardQuiet();
       }
@@ -1192,15 +1210,23 @@
         // they may still be bouncing around in the pegs. Also force-seat
         // any grid puck that wedged (so a stuck pair can't freeze input).
         forceSeatStuckGridBalls();
+        // If the board packed solid during this cascade, stranded peg pucks
+        // can never seat — purge them immediately instead of waiting forever.
+        if(boardIsFull()) purgeStrandedPegBalls();
         if(balls.length===0){
+          finishResolveOrChain();
+        } else if(balls.every(b => b.phase==='grid' && b.landed)){
+          const landedNow = balls.filter(b=>b.landed);
+          balls = [];
+          for(const b of landedNow) finalizeDrop(b);
           finishResolveOrChain();
         } else if(elapsed > 8000){
           // Absolute failsafe: seat or discard whatever is left and move on
           for(const b of balls){
             if(b.phase==='grid' && b.targetCol!=null && b.row!=null) seatBall(b);
           }
-          balls = balls.filter(b => b.phase==='grid'); // drop peg orphans
-          // tick will finalize seated balls; if none left, finish now
+          purgeStrandedPegBalls();
+          balls = balls.filter(b => b.phase==='grid');
           if(balls.every(b=>b.landed) || balls.length===0){
             const landedNow = balls.filter(b=>b.landed);
             balls = balls.filter(b=>!b.landed);
