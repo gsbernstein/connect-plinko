@@ -41,6 +41,21 @@
     align-items:center;
     gap:16px;
   }
+  .play-row{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:16px;
+  }
+  .stage{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:16px;
+    min-width:0;
+  }
   h1{
     font-family:'Space Grotesk', sans-serif;
     font-weight:700;
@@ -227,6 +242,7 @@
     display:flex;
     flex-direction:column;
     gap:10px;
+    min-width:0;
   }
   .shop-head{
     display:flex;
@@ -254,6 +270,29 @@
   }
   @media (min-width:560px){
     .upgrades{grid-template-columns:1fr 1fr;}
+  }
+  /* Board (~660) + shop rail (~300) + gap — side-by-side when it fits. */
+  @media (min-width:1000px){
+    .wrap{max-width:1020px;}
+    .play-row{
+      flex-direction:row;
+      align-items:flex-start;
+      gap:18px;
+    }
+    .stage{
+      flex:1 1 660px;
+      max-width:660px;
+    }
+    .shop{
+      flex:0 0 300px;
+      width:300px;
+      position:sticky;
+      top:16px;
+      max-height:calc(100vh - 32px);
+      overflow:auto;
+      padding-right:2px;
+    }
+    .upgrades{grid-template-columns:1fr;}
   }
   .upgrade{
     display:flex;
@@ -359,23 +398,27 @@
     </div>
   </div>
 
-  <div class="cols" id="cols"></div>
+  <div class="play-row">
+    <div class="stage">
+      <div class="cols" id="cols"></div>
 
-  <div class="board-frame">
-    <canvas id="board" width="630" height="860"></canvas>
-    <div class="banner" id="banner">
-      <h2 id="bannerText">Nice hand!</h2>
-      <button id="playAgain">Play again</button>
+      <div class="board-frame">
+        <canvas id="board" width="630" height="860"></canvas>
+        <div class="banner" id="banner">
+          <h2 id="bannerText">Nice hand!</h2>
+          <button id="playAgain">Play again</button>
+        </div>
+      </div>
     </div>
+
+    <section class="shop" aria-label="Upgrades">
+      <div class="shop-head">
+        <h2>Upgrades</h2>
+        <div class="shop-meta">Lifetime earned&nbsp;<b id="lifetimeVal">0</b></div>
+      </div>
+      <div class="upgrades" id="upgrades"></div>
+    </section>
   </div>
-
-  <section class="shop" aria-label="Upgrades">
-    <div class="shop-head">
-      <h2>Upgrades</h2>
-      <div class="shop-meta">Lifetime earned&nbsp;<b id="lifetimeVal">0</b></div>
-    </div>
-    <div class="upgrades" id="upgrades"></div>
-  </section>
 
   <div class="footer-row">
     <span class="hint">Buy Auto Dealer to idle · dotted guides show near hands</span>
