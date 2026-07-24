@@ -5,7 +5,7 @@
 <title>Plinko Poker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0B0A14;
@@ -1743,6 +1743,13 @@
   const SUITS = ['♠','♥','♦','♣'];
   const SUIT_COLOR = {'♠':SPADE,'♥':HEART,'♦':DIAMOND,'♣':CLUB};
   const SUIT_INK = {'♠':'#1a1630','♥':'#5a1020','♦':'#5a2810','♣':'#0e2a22'};
+  // Deep felt faces per suit — welcome-chip aesthetic, readable under gold type.
+  const SUIT_FELT = {
+    '♠': { hi:'#6E68A0', mid:'#3A3558', lo:'#1A1630' },
+    '♥': { hi:'#C43A55', mid:'#7A1830', lo:'#3A0C18' },
+    '♦': { hi:'#D0704A', mid:'#8A4824', lo:'#3A2010' },
+    '♣': { hi:'#4A9A78', mid:'#1F5A46', lo:'#0E2A22' }
+  };
   const RANKS = [1,2,3,4,5,6,7,8,9,10,11,12,13];
   function rankLabel(r){
     if(r===1) return 'A';
@@ -1757,6 +1764,120 @@
     const n = parseInt(hex.slice(1), 16);
     const r = (n>>16)&255, g = (n>>8)&255, b = n&255;
     return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  // Pre-baked circular chip shells (rim + felt + edge spots). Rank/suit glyphs
+  // stay dynamic so we only pay for 4 textures instead of a 52-card sheet.
+  const CHIP_TEX_SIZE = 128;
+  const chipTextures = Object.create(null);
+  let feltNoiseCanvas = null;
+
+  function getFeltNoise(){
+    if(feltNoiseCanvas) return feltNoiseCanvas;
+    const size = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    const id = g.createImageData(size, size);
+    for(let i = 0; i < id.data.length; i += 4){
+      const v = (Math.random() * 255) | 0;
+      id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
+      id.data[i + 3] = 28 + ((Math.random() * 36) | 0);
+    }
+    g.putImageData(id, 0, 0);
+    feltNoiseCanvas = c;
+    return c;
+  }
+
+  function bakeChipTexture(suit){
+    const size = CHIP_TEX_SIZE;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    const cx = size / 2;
+    const cy = size / 2;
+    const R = size / 2 - 1;
+    const felt = SUIT_FELT[suit] || SUIT_FELT['♠'];
+    const accent = SUIT_COLOR[suit] || '#F0D78C';
+
+    // Suit-colored outer rim (not a gold donut — that ate the in-flight suit glow).
+    const rim = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R);
+    rim.addColorStop(0, felt.mid);
+    rim.addColorStop(0.55, accent);
+    rim.addColorStop(1, felt.lo);
+    g.beginPath();
+    g.arc(cx, cy, R, 0, Math.PI * 2);
+    g.fillStyle = rim;
+    g.fill();
+
+    // Suit felt face
+    const faceR = R * 0.82;
+    const face = g.createRadialGradient(
+      cx - faceR * 0.32, cy - faceR * 0.38, faceR * 0.08,
+      cx, cy, faceR
+    );
+    face.addColorStop(0, felt.hi);
+    face.addColorStop(0.55, felt.mid);
+    face.addColorStop(1, felt.lo);
+    g.beginPath();
+    g.arc(cx, cy, faceR, 0, Math.PI * 2);
+    g.fillStyle = face;
+    g.fill();
+
+    // Felt nap / grain
+    g.save();
+    g.beginPath();
+    g.arc(cx, cy, faceR, 0, Math.PI * 2);
+    g.clip();
+    g.globalCompositeOperation = 'overlay';
+    g.globalAlpha = 0.55;
+    g.drawImage(getFeltNoise(), 0, 0, size, size);
+    g.globalAlpha = 0.18;
+    g.globalCompositeOperation = 'soft-light';
+    g.fillStyle = accent;
+    g.fillRect(0, 0, size, size);
+    g.restore();
+
+    // Quiet face rim
+    g.beginPath();
+    g.arc(cx, cy, faceR, 0, Math.PI * 2);
+    g.strokeStyle = 'rgba(255,255,255,0.12)';
+    g.lineWidth = 1.5;
+    g.stroke();
+
+    // Classic edge spots — gold accents on the suit rim, not a full gold ring
+    for(let i = 0; i < 8; i++){
+      g.save();
+      g.translate(cx, cy);
+      g.rotate((i * Math.PI) / 4);
+      const spotGrad = g.createLinearGradient(-4, -R + 1, 4, -R + R * 0.14);
+      spotGrad.addColorStop(0, '#F7E7A8');
+      spotGrad.addColorStop(0.55, '#E6C35C');
+      spotGrad.addColorStop(1, '#9A742C');
+      g.fillStyle = spotGrad;
+      g.beginPath();
+      if(typeof g.roundRect === 'function'){
+        g.roundRect(-3.2, -R + 1.6, 6.4, R * 0.13, 1.6);
+      } else {
+        g.rect(-3.2, -R + 1.6, 6.4, R * 0.13);
+      }
+      g.fill();
+      g.restore();
+    }
+
+    // Slightly darker center well for type
+    g.beginPath();
+    g.arc(cx, cy, R * 0.52, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(8,6,16,0.16)';
+    g.fill();
+
+    return c;
+  }
+
+  function ensureChipTextures(){
+    for(const suit of SUITS){
+      if(!chipTextures[suit]) chipTextures[suit] = bakeChipTexture(suit);
+    }
   }
 
   function shuffle(arr){
@@ -5087,48 +5208,80 @@
   }
 
   // ---- drawing ----
+  // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
+  function drawChipGlyphs(target, card, radius){
+    const color = SUIT_COLOR[card.suit];
+    target.textAlign = 'center';
+    target.textBaseline = 'middle';
+    const suitSize = Math.max(10, Math.round(radius * 0.74));
+    const rankSize = Math.max(10, Math.round(radius * 0.70));
+    const strokeW = Math.max(1.4, radius * 0.075);
+    const suitX = radius * 0.12;
+    const suitY = radius * 0.14;
+    const rankX = -radius * 0.14;
+    const rankY = -radius * 0.20;
+    function stampGlyph(text, x, y, fill, font, lineW){
+      target.font = font;
+      target.lineJoin = 'round';
+      target.miterLimit = 2;
+      target.lineWidth = lineW;
+      target.strokeStyle = 'rgba(8,6,16,0.85)';
+      target.strokeText(text, x, y);
+      target.fillStyle = fill;
+      target.fillText(text, x, y);
+    }
+
+    // Suit underneath (drawn first)
+    stampGlyph(
+      card.suit,
+      suitX,
+      suitY,
+      color,
+      `bold ${suitSize}px 'Space Grotesk', sans-serif`,
+      Math.max(1.6, radius * 0.09)
+    );
+    // Rank on top, diagonally offset — Fraunces has a clearer Q tick.
+    stampGlyph(
+      rankLabel(card.rank),
+      rankX,
+      rankY,
+      '#FFF6D6',
+      `700 ${rankSize}px Fraunces, Georgia, serif`,
+      strokeW
+    );
+  }
+
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
     const color = SUIT_COLOR[card.suit];
-    const ink = SUIT_INK[card.suit];
+    ensureChipTextures();
+    const tex = chipTextures[card.suit];
+    const d = radius * 2;
     target.save();
     target.translate(cx, cy);
     target.rotate(angle || 0);
 
-    target.beginPath();
-    target.arc(0, 0, radius, 0, Math.PI*2);
-    const grad = target.createRadialGradient(-radius*0.35, -radius*0.4, radius*0.1, 0, 0, radius);
-    grad.addColorStop(0, '#ffffff');
-    grad.addColorStop(0.55, '#f3efe6');
-    grad.addColorStop(1, color);
-    target.fillStyle = grad;
-    if(isBall){ target.shadowColor = color; target.shadowBlur = 14; }
-    target.fill();
+    // Suit-colored glow in flight — rim is suit-colored again, so this reads
+    // as suit light rather than a gold bloom.
+    if(isBall){
+      target.shadowColor = color;
+      target.shadowBlur = Math.max(5, radius * 0.22);
+    }
+    if(tex){
+      target.drawImage(tex, -radius, -radius, d, d);
+    } else {
+      // Fallback if a texture failed to bake.
+      target.beginPath();
+      target.arc(0, 0, radius, 0, Math.PI * 2);
+      target.fillStyle = color;
+      target.fill();
+    }
     target.shadowBlur = 0;
-    target.lineWidth = Math.max(2, radius*0.1);
-    target.strokeStyle = ink;
-    target.stroke();
-
-    // inner chip ring
-    target.beginPath();
-    target.arc(0, 0, radius*0.78, 0, Math.PI*2);
-    target.strokeStyle = `rgba(0,0,0,0.12)`;
-    target.lineWidth = 1.5;
-    target.stroke();
-
-    target.fillStyle = ink;
-    target.textAlign = 'center';
-    target.textBaseline = 'middle';
-    // Keep rank and suit apart so Q's tail (and similar) don't collide.
-    target.font = `bold ${Math.round(radius*0.62)}px 'Space Grotesk', sans-serif`;
-    target.fillText(rankLabel(card.rank), 0, -radius*0.30);
-    target.font = `${Math.round(radius*0.58)}px 'Space Grotesk', sans-serif`;
-    target.fillStyle = color;
-    target.fillText(card.suit, 0, radius*0.36);
+    drawChipGlyphs(target, card, radius);
 
     if(highlight){
       target.beginPath();
-      target.arc(0,0,radius+2,0,Math.PI*2);
-      target.strokeStyle = `rgba(255,255,255,${0.25 + 0.55*highlight})`;
+      target.arc(0, 0, radius + 2, 0, Math.PI * 2);
+      target.strokeStyle = `rgba(255,255,255,${0.25 + 0.55 * highlight})`;
       target.lineWidth = 3;
       target.stroke();
     }
@@ -5141,28 +5294,31 @@
 
   function drawFlashPiece(cx, cy, card, elapsedFrac){
     const color = SUIT_COLOR[card.suit];
-    const pulse = 1 + 0.18*Math.sin(elapsedFrac*Math.PI*7);
-    ctx.beginPath();
-    ctx.arc(cx,cy,32*pulse,0,Math.PI*2);
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 30;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = color;
-    ctx.stroke();
+    // Uniform flash (rank juice lives in score text). Tiny scale + suit pulse.
+    const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * 7);
+    const r = 32 * pulse;
+    const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * 7));
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(card.angle||0);
-    ctx.fillStyle = SUIT_INK[card.suit];
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = "bold 16px 'Space Grotesk', sans-serif";
-    ctx.fillText(rankLabel(card.rank), 0, -9);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12 * (0.65 + 0.35 * heat);
+    ensureChipTextures();
+    const tex = chipTextures[card.suit];
+    if(tex) ctx.drawImage(tex, -r, -r, r * 2, r * 2);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.22 + 0.18 * heat;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2);
     ctx.fillStyle = color;
-    ctx.font = "16px 'Space Grotesk', sans-serif";
-    ctx.fillText(card.suit, 0, 12);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.rotate(card.angle || 0);
+    drawChipGlyphs(ctx, card, 32 * 0.92);
     ctx.restore();
   }
 
@@ -6553,6 +6709,7 @@
   for(const def of UPGRADE_DEFS){
     if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
   }
+  ensureChipTextures();
   buildShop();
   buildSuitBombUI();
   freshState();
