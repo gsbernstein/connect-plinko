@@ -18,9 +18,10 @@ Then visit `http://localhost:8080`.
 
 ## Hosting
 
-This repo deploys to [GitHub Pages](https://pages.github.com/) via `.github/workflows/deploy-pages.yml` on every push to `master`.
+Published with GitHub Pages **Deploy from a branch**: `master` / `/` (repo root).
 
 If the site is not live yet, enable Pages once:
 
 1. Repo **Settings → Pages**
-2. **Source**: GitHub Actions
+2. **Source**: Deploy from a branch
+3. **Branch**: `master` / `/` (root)
