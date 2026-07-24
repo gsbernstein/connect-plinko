@@ -1464,6 +1464,8 @@
         ? {name:'ROYAL FLUSH', points:12}
         : {name:'STRAIGHT FLUSH', points:8};
     }
+    // Multi-deck shoe can deal five of one rank.
+    if(n>=5 && counts[0]>=5) return {name:'FIVE OF A KIND', points:14};
     if(n>=4 && counts[0]>=4) return {name:'FOUR OF A KIND', points:6};
     if(n===5 && counts[0]===3 && counts[1]===2) return {name:'FULL HOUSE', points:5};
     if(n===5 && flush) return {name:'FLUSH', points:4};
@@ -1516,7 +1518,7 @@
   const MAX_IN_FLIGHT = 14;
   const MAX_CASCADE_BALLS = 42;
   const MAX_POPUPS = 36;
-  const MAX_PARTICLES = 180;
+  const MAX_PARTICLES = 280;
   const MAX_RUN_LEVEL = 40;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
   const MIN_CASH_OUT_LEVEL = 8;
@@ -1666,6 +1668,7 @@
   // reward.runComps → Cash Out credit; reward.prestige / reward.upgrade as level bonuses.
   const HAND_STAT = {
     'ROYAL FLUSH': 'royalFlushes',
+    'FIVE OF A KIND': 'fiveKinds',
     'STRAIGHT FLUSH': 'straightFlushes',
     'FOUR OF A KIND': 'fourKinds',
     'FULL HOUSE': 'fullHouses',
@@ -1676,6 +1679,7 @@
   };
   const RUN_HAND_STAT = {
     'ROYAL FLUSH': 'runRoyalFlushes',
+    'FIVE OF A KIND': 'runFiveKinds',
     'STRAIGHT FLUSH': 'runStraightFlushes',
     'FOUR OF A KIND': 'runFourKinds',
     'FULL HOUSE': 'runFullHouses',
@@ -1979,14 +1983,15 @@
   let activeQuests = []; // rolled run quests in slots
   let questUidSeq = 1;
   const EMPTY_STATS = {
-    hands: 0, royalFlushes: 0, straightFlushes: 0, fourKinds: 0,
+    hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
     runFlushes: 0, runStraights: 0, runFullHouses: 0, runFourKinds: 0,
-    runThreeKinds: 0, runTwoPairs: 0, runRoyalFlushes: 0, runStraightFlushes: 0
+    runFiveKinds: 0, runThreeKinds: 0, runTwoPairs: 0, runRoyalFlushes: 0,
+    runStraightFlushes: 0
   };
   let stats = Object.assign({}, EMPTY_STATS);
 
@@ -3265,8 +3270,14 @@
     chainStep = 0;
     pendingChain = 0;
     flashCells = null;
+    flashCellJuice = null;
     particles = [];
     popups = [];
+    resolveFlashMs = FLASH_MS;
+    resolveExplodeMs = EXPLODE_MS;
+    resolveJuice = 'normal';
+    shakeMag = 0;
+    bloomAlpha = 0;
     pendingSuitBomb = null;
     lastAutoDropAt = performance.now();
     stopHoldDrop();
@@ -3475,9 +3486,79 @@
   let chainStep = 0;
   let pendingChain = 0;
   let flashCells = null;
+  let flashCellJuice = null; // cell key -> juice tier for this resolve
   let particles = [];
   let popups = [];
   const FLASH_MS = 480, EXPLODE_MS = 280;
+  let resolveFlashMs = FLASH_MS;
+  let resolveExplodeMs = EXPLODE_MS;
+  let resolveJuice = 'normal';
+  let shakeMag = 0;
+  let bloomAlpha = 0;
+  let bloomColor = '255,255,255';
+
+  // Hand clear feel — 2-pair / trips stay calm; premium hands get louder FX.
+  const JUICE_RANK = { normal: 0, medium: 1, big: 2, huge: 3 };
+  const JUICE = {
+    normal: {
+      flashMult: 1, explodeMult: 1,
+      pulseAmp: 0.18, pulseHz: 7, blur: 30,
+      sparks: 12, flares: 3, spd: 1, size: 1,
+      popupDuration: 1100, popupFont: 16, popupFloat: 30, bigPopup: false,
+      shake: 0, bloom: 0, bloomRGB: '255,255,255'
+    },
+    medium: {
+      flashMult: 1.18, explodeMult: 1.12,
+      pulseAmp: 0.28, pulseHz: 9, blur: 48,
+      sparks: 20, flares: 5, spd: 1.22, size: 1.18,
+      popupDuration: 1350, popupFont: 20, popupFloat: 38, bigPopup: false,
+      shake: 2.5, bloom: 0.1, bloomRGB: '255,255,255'
+    },
+    big: {
+      flashMult: 1.4, explodeMult: 1.28,
+      pulseAmp: 0.42, pulseHz: 12, blur: 72,
+      sparks: 32, flares: 9, spd: 1.5, size: 1.4,
+      popupDuration: 1650, popupFont: 26, popupFloat: 48, bigPopup: true,
+      shake: 6, bloom: 0.2, bloomRGB: '255,236,210'
+    },
+    huge: {
+      flashMult: 1.7, explodeMult: 1.5,
+      pulseAmp: 0.58, pulseHz: 15, blur: 110,
+      sparks: 48, flares: 16, spd: 1.85, size: 1.7,
+      popupDuration: 2100, popupFont: 34, popupFloat: 62, bigPopup: true,
+      shake: 11, bloom: 0.34, bloomRGB: '255,220,120'
+    }
+  };
+
+  function handJuiceTier(name){
+    switch(name){
+      case 'ROYAL FLUSH':
+      case 'FIVE OF A KIND':
+        return 'huge';
+      case 'FOUR OF A KIND':
+      case 'STRAIGHT FLUSH':
+        return 'big';
+      case 'FLUSH':
+      case 'STRAIGHT':
+      case 'FULL HOUSE':
+        return 'medium';
+      default:
+        return 'normal';
+    }
+  }
+
+  function maxJuiceTier(a, b){
+    return (JUICE_RANK[a]||0) >= (JUICE_RANK[b]||0) ? a : b;
+  }
+
+  function triggerJuiceBurst(tier){
+    const fx = JUICE[tier] || JUICE.normal;
+    if(fx.shake > shakeMag) shakeMag = fx.shake;
+    if(fx.bloom > bloomAlpha){
+      bloomAlpha = fx.bloom;
+      bloomColor = fx.bloomRGB;
+    }
+  }
 
   function refreshButtons(){
     // Column drop buttons removed — tap/hold the board to deal.
@@ -4137,12 +4218,17 @@
       const x = avgC*CELL+CELL/2;
       const y = PEG_ZONE + avgR*CELL + CELL/2;
       const pts = Math.floor(g.points * chainMult * mult);
+      const tier = handJuiceTier(g.name);
+      const fx = JUICE[tier] || JUICE.normal;
       pushPopup({
         x, y,
         text: g.name + ' +' + pts,
         color: g.color || '#ffffff',
         t0:now,
-        duration:1100
+        duration: fx.popupDuration,
+        fontSize: fx.popupFont,
+        floatBoost: fx.popupFloat,
+        big: fx.bigPopup
       });
     }
     if(chainMult>1){
@@ -4161,36 +4247,37 @@
     }
   }
 
-  function spawnExplosion(x, y, card){
+  function spawnExplosion(x, y, card, juiceTier){
     if(particles.length >= MAX_PARTICLES) return;
+    const fx = JUICE[juiceTier] || JUICE.normal;
     const color = card ? SUIT_COLOR[card.suit] : '#ffffff';
     const budget = Math.max(0, MAX_PARTICLES - particles.length);
-    const sparks = Math.min(12, budget);
+    const sparks = Math.min(fx.sparks, budget);
     for(let i=0;i<sparks;i++){
       const ang = Math.random()*Math.PI*2;
-      const spd = 2.2 + Math.random()*6.5;
+      const spd = (2.2 + Math.random()*6.5) * fx.spd;
       particles.push({
         x, y,
         vx: Math.cos(ang)*spd,
-        vy: Math.sin(ang)*spd - 3.5,
-        r: 2.5 + Math.random()*5,
+        vy: Math.sin(ang)*spd - 3.5 * fx.spd,
+        r: (2.5 + Math.random()*5) * fx.size,
         color,
         life: 1,
-        decay: 0.018 + Math.random()*0.025
+        decay: 0.016 + Math.random()*0.024
       });
     }
-    const flares = Math.min(3, Math.max(0, MAX_PARTICLES - particles.length));
+    const flares = Math.min(fx.flares, Math.max(0, MAX_PARTICLES - particles.length));
     for(let i=0;i<flares;i++){
       const ang = -Math.PI/2 + (Math.random()-0.5)*1.4;
-      const spd = 5 + Math.random()*5;
+      const spd = (5 + Math.random()*5) * fx.spd;
       particles.push({
         x, y,
         vx: Math.cos(ang)*spd,
         vy: Math.sin(ang)*spd,
-        r: 5 + Math.random()*4,
-        color: '#ffffff',
+        r: (5 + Math.random()*4) * fx.size,
+        color: juiceTier === 'huge' ? '#FFE08A' : '#ffffff',
         life: 1,
-        decay: 0.03 + Math.random()*0.02
+        decay: 0.028 + Math.random()*0.02
       });
     }
   }
@@ -4234,12 +4321,20 @@
 
   function applyExplosionClear(groups){
     const cleared = new Set();
+    const cellTier = flashCellJuice || new Map();
     for(const g of groups) for(const [c,r] of g.cells) cleared.add(c+','+r);
 
     for(const key of cleared){
       const [c,r] = key.split(',').map(Number);
       const card = grid[c][r];
-      if(card) spawnExplosion(c*CELL+CELL/2, PEG_ZONE+r*CELL+CELL/2, card);
+      if(card){
+        spawnExplosion(
+          c*CELL+CELL/2,
+          PEG_ZONE+r*CELL+CELL/2,
+          card,
+          cellTier.get(key) || resolveJuice || 'normal'
+        );
+      }
     }
 
     for(let c=0;c<COLS;c++){
@@ -4267,7 +4362,8 @@
               spawnExplosion(
                 c*CELL+CELL/2,
                 PEG_ZONE+oldRow*CELL+CELL/2,
-                entry.card
+                entry.card,
+                resolveJuice
               );
             }
             continue;
@@ -4331,6 +4427,11 @@
       color: first ? SUIT_COLOR[first.suit] : '#ffffff'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
+    flashCellJuice = new Map();
+    for(const [c,r] of cells) flashCellJuice.set(c+','+r, 'normal');
+    resolveJuice = 'normal';
+    resolveFlashMs = FLASH_MS;
+    resolveExplodeMs = EXPLODE_MS;
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     noteFloorClear();
@@ -4362,6 +4463,11 @@
       color: SUIT_COLOR[suit] || '#ffffff'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
+    flashCellJuice = new Map();
+    for(const [c,r] of cells) flashCellJuice.set(c+','+r, 'normal');
+    resolveJuice = 'normal';
+    resolveFlashMs = FLASH_MS;
+    resolveExplodeMs = EXPLODE_MS;
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     refreshButtons();
@@ -4456,7 +4562,22 @@
     chainStep++;
     currentGroups = groups;
     flashCells = new Set();
-    for(const g of groups) for(const [c,r] of g.cells) flashCells.add(c+','+r);
+    flashCellJuice = new Map();
+    let tier = 'normal';
+    for(const g of groups){
+      const gTier = handJuiceTier(g.name);
+      tier = maxJuiceTier(tier, gTier);
+      for(const [c,r] of g.cells){
+        const key = c+','+r;
+        flashCells.add(key);
+        const prev = flashCellJuice.get(key);
+        flashCellJuice.set(key, prev ? maxJuiceTier(prev, gTier) : gTier);
+      }
+    }
+    resolveJuice = tier;
+    const fx = JUICE[tier] || JUICE.normal;
+    resolveFlashMs = FLASH_MS * fx.flashMult;
+    resolveExplodeMs = EXPLODE_MS * fx.explodeMult;
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
   }
@@ -4485,8 +4606,8 @@
     tryAutoDrop(now);
     tryHoldDrop(now);
     const speed = Math.min(physicsSpeed(), 2.8);
-    const flashMs = FLASH_MS / speed;
-    const explodeMs = EXPLODE_MS / speed;
+    const flashMs = resolveFlashMs / speed;
+    const explodeMs = resolveExplodeMs / speed;
     if(resolving){
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
@@ -4517,8 +4638,10 @@
               big: true
             });
           }
+          triggerJuiceBurst(resolveJuice);
           applyExplosionClear(currentGroups);
           flashCells = null;
+          flashCellJuice = null;
           resolvePhase = 'explode';
           resolvePhaseStart = now;
         }
@@ -4592,19 +4715,29 @@
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
-  function drawFlashPiece(cx, cy, card, elapsedFrac){
+  function drawFlashPiece(cx, cy, card, elapsedFrac, juiceTier){
+    const fx = JUICE[juiceTier] || JUICE.normal;
     const color = SUIT_COLOR[card.suit];
-    const pulse = 1 + 0.18*Math.sin(elapsedFrac*Math.PI*7);
+    const pulse = 1 + fx.pulseAmp*Math.sin(elapsedFrac*Math.PI*fx.pulseHz);
     ctx.beginPath();
     ctx.arc(cx,cy,32*pulse,0,Math.PI*2);
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 30;
+    ctx.fillStyle = juiceTier === 'huge' ? '#FFF4C2' : '#ffffff';
+    ctx.shadowColor = juiceTier === 'huge' ? '#FFE08A' : color;
+    ctx.shadowBlur = fx.blur;
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = juiceTier === 'normal' ? 3 : 3.5;
     ctx.strokeStyle = color;
     ctx.stroke();
+    if(JUICE_RANK[juiceTier] >= JUICE_RANK.big){
+      ctx.beginPath();
+      ctx.arc(cx, cy, 38 * pulse, 0, Math.PI*2);
+      ctx.strokeStyle = juiceTier === 'huge'
+        ? 'rgba(255,224,138,0.55)'
+        : 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(card.angle||0);
@@ -4625,6 +4758,13 @@
 
   function draw(){
     ctx.clearRect(0,0,W,H);
+    ctx.save();
+    if(shakeMag > 0.05){
+      ctx.translate((Math.random()-0.5)*shakeMag*2, (Math.random()-0.5)*shakeMag*2);
+      shakeMag *= 0.88;
+    } else {
+      shakeMag = 0;
+    }
 
     const grad = ctx.createLinearGradient(0,0,0,PEG_ZONE);
     grad.addColorStop(0, '#1a1630');
@@ -4703,7 +4843,9 @@
     ctx.fillStyle = BG;
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
-    const flashElapsed = resolvePhase==='flash' ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS) : 0;
+    const flashElapsed = resolvePhase==='flash'
+      ? Math.min(1,(performance.now()-resolvePhaseStart)/Math.max(1, resolveFlashMs))
+      : 0;
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const val = grid[c][r];
@@ -4711,7 +4853,8 @@
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
         const key = c+','+r;
         if(flashCells && flashCells.has(key)){
-          drawFlashPiece(cx,cy,val,flashElapsed);
+          const tier = (flashCellJuice && flashCellJuice.get(key)) || resolveJuice || 'normal';
+          drawFlashPiece(cx,cy,val,flashElapsed, tier);
         } else {
           drawPiece(cx,cy,val, false);
         }
@@ -4787,13 +4930,15 @@
     for(const p of popups){
       const t = (nowP - p.t0) / p.duration;
       const alpha = t < 0.7 ? 1 : Math.max(0, 1-(t-0.7)/0.3);
-      const dy = -30*t;
+      const floatDist = p.floatBoost || (p.big ? 40 : 30);
+      const dy = -floatDist*t;
+      const fontSize = p.fontSize || (p.big ? 26 : 16);
       ctx.globalAlpha = alpha;
-      ctx.font = (p.big ? 'bold 26px' : 'bold 16px') + " 'Space Grotesk', sans-serif";
+      ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
       ctx.textAlign = 'center';
       ctx.fillStyle = p.color;
       ctx.shadowColor = p.color;
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = p.big ? 14 : 8;
       ctx.fillText(p.text, p.x, p.y+dy);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
@@ -4814,6 +4959,15 @@
       // tiny spinning preview of the next card at the drop point
       drawCardFace(ctx, aimX, 38, nextCard, performance.now()/400, 12, false, 0);
     }
+
+    if(bloomAlpha > 0.01){
+      ctx.fillStyle = 'rgba(' + bloomColor + ',' + bloomAlpha + ')';
+      ctx.fillRect(0, 0, W, H);
+      bloomAlpha *= 0.84;
+    } else {
+      bloomAlpha = 0;
+    }
+    ctx.restore();
   }
 
   // ---- UI wiring ----
