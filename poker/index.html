@@ -41,6 +41,21 @@
     align-items:center;
     gap:16px;
   }
+  .play-row{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:16px;
+  }
+  .stage{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:16px;
+    min-width:0;
+  }
   h1{
     font-family:'Space Grotesk', sans-serif;
     font-weight:700;
@@ -63,7 +78,7 @@
   .hud{
     width:100%;
     display:flex;
-    flex-wrap:nowrap;
+    flex-wrap:wrap;
     justify-content:space-between;
     align-items:center;
     gap:8px;
@@ -222,38 +237,307 @@
     border-color:var(--peg);
     background:rgba(139,127,255,0.12);
   }
+  .shop{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-width:0;
+  }
+  .shop-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .shop-head h2{
+    margin:0;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .shop-meta{
+    color:var(--ink-dim);
+    font-size:12px;
+  }
+  .shop-meta b{color:var(--felt-bright);font-weight:600;}
+  .upgrades{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  @media (min-width:560px){
+    .upgrades{grid-template-columns:1fr 1fr;}
+  }
+  /* Board (~660) + shop rail (~320) + gap — side-by-side when it fits. */
+  @media (min-width:1000px){
+    .wrap{max-width:1040px;}
+    .play-row{
+      flex-direction:row;
+      align-items:flex-start;
+      gap:18px;
+    }
+    .stage{
+      flex:1 1 660px;
+      max-width:660px;
+    }
+    .shop{
+      flex:0 0 320px;
+      width:320px;
+      position:sticky;
+      top:16px;
+      max-height:calc(100vh - 32px);
+      overflow:hidden;
+      padding-right:0;
+    }
+    .upgrades{
+      grid-template-columns:1fr;
+      flex:1 1 auto;
+      min-height:0;
+      overflow-x:hidden;
+      overflow-y:auto;
+      padding-right:10px;
+      scrollbar-gutter:stable;
+    }
+    .upgrades::-webkit-scrollbar{width:8px;}
+    .upgrades::-webkit-scrollbar-track{background:transparent;}
+    .upgrades::-webkit-scrollbar-thumb{
+      background:#3a3558;
+      border-radius:999px;
+    }
+  }
+  .upgrade{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+    text-align:left;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:12px;
+    padding:12px 14px 14px;
+    color:var(--ink);
+    font-family:'IBM Plex Mono',monospace;
+    cursor:pointer;
+    overflow:hidden;
+    transition:border-color .15s ease, background .15s ease, transform .08s ease;
+  }
+  .upgrade-progress{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:3px;
+    background:rgba(255,255,255,0.06);
+  }
+  .upgrade-progress > span{
+    display:block;
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+    transition:width .2s ease;
+  }
+  .upgrade.maxed .upgrade-progress > span{
+    background:linear-gradient(90deg, #463d7a, var(--peg));
+  }
+  .upgrade:hover:not(:disabled){
+    border-color:#463d7a;
+    background:var(--panel-2);
+    transform:translateY(-1px);
+  }
+  .upgrade:disabled{
+    opacity:0.55;
+    cursor:not-allowed;
+  }
+  .upgrade.affordable{
+    border-color:rgba(46,138,110,0.55);
+    box-shadow:0 0 0 1px rgba(46,138,110,0.15);
+  }
+  .upgrade.maxed{
+    opacity:0.75;
+    border-color:#3a3558;
+  }
+  .upgrade-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+  }
+  .upgrade-name{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:14px;
+  }
+  .upgrade-lvl{
+    color:var(--ink-dim);
+    font-size:11px;
+    white-space:nowrap;
+  }
+  .upgrade-desc{
+    color:var(--ink-dim);
+    font-size:11px;
+    line-height:1.35;
+    margin:0;
+  }
+  .upgrade-effect{
+    color:var(--felt-bright);
+    font-size:11px;
+  }
+  .upgrade-cost{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .upgrade-cost.too-much{color:var(--heart);}
+  .upgrade-cost.max{color:var(--ink-dim);font-weight:500;}
+  .idle-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:10px;
+    padding:8px 12px;
+    font-size:12px;
+    color:var(--ink-dim);
+    white-space:nowrap;
+  }
+  .idle-pill b{
+    color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+  }
+  .idle-pill.on{color:var(--felt-bright);border-color:rgba(46,138,110,0.4);}
+  .suit-bomb{
+    width:100%;
+    display:none;
+    flex-direction:column;
+    gap:8px;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:12px;
+    padding:10px 12px;
+  }
+  .suit-bomb.show{display:flex;}
+  .suit-bomb-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:8px;
+    font-size:12px;
+    color:var(--ink-dim);
+  }
+  .suit-bomb-head b{
+    color:var(--ink);
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+  }
+  .suit-bomb-head .ready{color:var(--felt-bright);}
+  .suit-bomb-head .auto{color:var(--peg);}
+  .suit-bomb-btns{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:6px;
+  }
+  .suit-btn{
+    position:relative;
+    overflow:hidden;
+    border:1px solid #2a2545;
+    background:var(--panel-2);
+    border-radius:10px;
+    padding:10px 0;
+    cursor:pointer;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:20px;
+    line-height:1;
+    color:var(--ink);
+    transition:transform .08s ease, border-color .15s ease, opacity .15s ease;
+  }
+  .suit-btn:hover:not(:disabled){
+    transform:translateY(-1px);
+    border-color:#463d7a;
+  }
+  .suit-btn:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  .suit-btn.gone{display:none;}
+  .suit-btn .cd-fill{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height:0%;
+    background:rgba(139,127,255,0.22);
+    pointer-events:none;
+    transition:height .1s linear;
+  }
+  .suit-btn.charging .cd-fill{height:var(--cd, 0%);}
+  .suit-btn.queued{
+    opacity:1;
+    border-color:var(--peg);
+    box-shadow:0 0 0 1px rgba(139,127,255,0.35);
+  }
+  .suit-btn[data-suit="♥"]{color:var(--heart);}
+  .suit-btn[data-suit="♦"]{color:var(--diamond);}
+  .suit-btn[data-suit="♠"]{color:var(--spade);}
+  .suit-btn[data-suit="♣"]{color:var(--club);}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Plinko Poker</h1>
-  <div class="tagline">Drop spinning cards through the pegs. Land a poker hand in a line and it explodes — full board? the bottom row blows out automatically.</div>
+  <div class="tagline">Drop cards, cash hands, and spend chips on upgrades that deal for you — an idle plinko poker table.</div>
   <div class="game-switch">
     <a href="../">Classic</a>
     <a class="current" href="./" aria-current="page">Poker</a>
   </div>
 
-  <div class="hud">
-    <div class="score active" id="scoreBox">Score&nbsp;<b id="scoreVal">0</b></div>
-    <div class="next-card">
-      <canvas id="nextPreview" width="72" height="72"></canvas>
-      <div>Next&nbsp;<b id="nextLabel">—</b></div>
-    </div>
-  </div>
+  <div class="play-row">
+    <div class="stage">
+      <div class="hud">
+        <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
+        <div class="idle-pill" id="autoStatus">Auto&nbsp;<b id="autoStatusVal">off</b></div>
+        <div class="next-card">
+          <canvas id="nextPreview" width="72" height="72"></canvas>
+          <div>Next&nbsp;<b id="nextLabel">—</b></div>
+        </div>
+      </div>
 
-  <div class="cols" id="cols"></div>
+      <div class="suit-bomb" id="suitBombBar" aria-label="Suit Purge">
+        <div class="suit-bomb-head">
+          <b>Suit Purge</b>
+          <span id="suitBombStatus">ready</span>
+        </div>
+        <div class="suit-bomb-btns" id="suitBombBtns"></div>
+      </div>
 
-  <div class="board-frame">
-    <canvas id="board" width="630" height="860"></canvas>
-    <div class="banner" id="banner">
-      <h2 id="bannerText">Nice hand!</h2>
-      <button id="playAgain">Play again</button>
+      <div class="cols" id="cols"></div>
+
+      <div class="board-frame">
+        <canvas id="board" width="630" height="860"></canvas>
+        <div class="banner" id="banner">
+          <h2 id="bannerText">Nice hand!</h2>
+          <button id="playAgain">Play again</button>
+        </div>
+      </div>
     </div>
+
+    <section class="shop" aria-label="Upgrades">
+      <div class="shop-head">
+        <h2>Upgrades</h2>
+        <div class="shop-meta">Lifetime earned&nbsp;<b id="lifetimeVal">0</b></div>
+      </div>
+      <div class="upgrades" id="upgrades"></div>
+    </section>
   </div>
 
   <div class="footer-row">
-    <span class="hint">Dotted guides show near hands · board full? bottom row blows out</span>
-    <button class="reset" id="resetScores">Reset score</button>
+    <span class="hint">Buy Auto Dealer to idle · dotted guides show near hands</span>
+    <button class="reset" id="resetScores">Reset progress</button>
   </div>
 </div>
 
@@ -318,9 +602,22 @@
     }
     return arr;
   }
+
+  // Suit Exile removes these in order, always leaving at least two suits.
+  const SUIT_CUT_ORDER = ['♣','♦'];
+
   function makeDeck(){
     const d = [];
-    for(const s of SUITS) for(const r of RANKS) d.push({suit:s, rank:r});
+    const suits = activeSuits();
+    for(const s of suits){
+      for(const r of RANKS){
+        if(!rankAllowed(r)) continue;
+        d.push({suit:s, rank:r});
+      }
+    }
+    if(!d.length){
+      for(const s of SUITS) for(const r of RANKS) d.push({suit:s, rank:r});
+    }
     return shuffle(d);
   }
 
@@ -398,6 +695,7 @@
   // grid[col][row] = 0 | {suit, rank, angle}
   let grid, colHeights, gameOver;
   let score = 0;
+  let lifetime = 0;
   let nextCard = null;
 
   // Per-column stack of occupants, bottom-to-top: {type:'piece', card, angle}
@@ -405,6 +703,455 @@
   // clear/gravity pass shift an in-flight ball's target row along with
   // everything else.
   let stack;
+
+  // ---- idle upgrades ----
+  const SAVE_KEY = 'plinkoPokerIdle_v1';
+  const MAX_IN_FLIGHT = 14;
+  const MAX_CASCADE_BALLS = 42;
+  const MAX_POPUPS = 36;
+  const MAX_PARTICLES = 180;
+  const UPGRADE_DEFS = [
+    {
+      id: 'autoDealer',
+      name: 'Auto Dealer',
+      desc: 'Automatically drop cards. Higher levels deal faster.',
+      baseCost: 15,
+      costScale: 1.55,
+      maxLevel: 30
+    },
+    {
+      id: 'multiDeal',
+      name: 'Multi Deal',
+      desc: 'Drop extra cards each auto tick.',
+      baseCost: 80,
+      costScale: 2.05,
+      maxLevel: 8
+    },
+    {
+      id: 'bigBlind',
+      name: 'Big Blind',
+      desc: '+25% chips from every scored hand.',
+      baseCost: 25,
+      costScale: 1.65,
+      maxLevel: 40
+    },
+    {
+      id: 'hotStreak',
+      name: 'Hot Streak',
+      desc: '+1 effective chain multiplier per level.',
+      baseCost: 120,
+      costScale: 2.0,
+      maxLevel: 10
+    },
+    {
+      id: 'bumperPayout',
+      name: 'Rail Tax',
+      desc: 'Earn chips whenever a card hits a bumper arch.',
+      baseCost: 50,
+      costScale: 1.7,
+      maxLevel: 25
+    },
+    {
+      id: 'pinPayout',
+      name: 'Pin Tip',
+      desc: 'Earn chips whenever a card bounces off a peg.',
+      baseCost: 120,
+      costScale: 1.8,
+      maxLevel: 25
+    },
+    {
+      id: 'floorPayout',
+      name: 'Sweep Stakes',
+      desc: 'Earn chips when a full-board floor clear fires.',
+      baseCost: 90,
+      costScale: 1.8,
+      maxLevel: 20
+    },
+    {
+      id: 'highCut',
+      name: 'High Cut',
+      desc: 'Remove the lowest ranks from the shoe. Aces always stay.',
+      baseCost: 100,
+      costScale: 1.9,
+      maxLevel: 8
+    },
+    {
+      id: 'suitBomb',
+      name: 'Suit Purge',
+      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait.',
+      baseCost: 400,
+      costScale: 1.85,
+      maxLevel: 12
+    },
+    {
+      id: 'suitCut',
+      name: 'Suit Exile',
+      desc: 'Ban a suit from the shoe each level. Stops at two suits left.',
+      baseCost: 6000,
+      costScale: 3.5,
+      maxLevel: 2
+    },
+    {
+      id: 'autoSuitBomb',
+      name: 'Auto Purge',
+      desc: 'Automatically cast Suit Purge on the most crowded suit when charged.',
+      baseCost: 1800,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'cardSense',
+      name: 'Card Sense',
+      desc: 'Auto-drops aim toward near-miss columns.',
+      baseCost: 200,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'feltGrease',
+      name: 'Felt Grease',
+      desc: 'Balls fall and settle faster.',
+      baseCost: 50,
+      costScale: 1.8,
+      maxLevel: 12
+    }
+  ];
+
+  let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
+  let lastAutoDropAt = 0;
+  let suitBombReadyAt = 0;
+  let pendingSuitBomb = null;
+  let saveTimer = 0;
+
+  function upgradeLevel(id){ return upgrades[id] || 0; }
+
+  function upgradeCost(def){
+    const lvl = upgradeLevel(def.id);
+    if(lvl >= def.maxLevel) return Infinity;
+    return Math.floor(def.baseCost * Math.pow(def.costScale, lvl));
+  }
+
+  function autoDropIntervalMs(){
+    const lvl = upgradeLevel('autoDealer');
+    if(lvl <= 0) return Infinity;
+    // Steep curve: ~3.2s at Lv1, sub-second by Lv5, floors at 150ms.
+    return Math.max(150, Math.floor(3200 * Math.pow(0.72, lvl - 1)));
+  }
+
+  function autoDropCount(){
+    return 1 + upgradeLevel('multiDeal');
+  }
+
+  function scoreMultiplier(){
+    return 1 + 0.25 * upgradeLevel('bigBlind');
+  }
+
+  function chainBonus(){
+    return upgradeLevel('hotStreak');
+  }
+
+  function physicsSpeed(){
+    return 1 + 0.22 * upgradeLevel('feltGrease');
+  }
+
+  function pinHitPayout(){
+    return upgradeLevel('pinPayout');
+  }
+
+  function bumperHitPayout(){
+    const lvl = upgradeLevel('bumperPayout');
+    return lvl ? lvl * 2 : 0;
+  }
+
+  function floorClearPayout(){
+    const lvl = upgradeLevel('floorPayout');
+    // Full-board clears are rare — pay enough to matter at each level.
+    return lvl ? Math.floor(lvl * 75 * scoreMultiplier()) : 0;
+  }
+
+  function suitBombCooldownMs(){
+    const lvl = upgradeLevel('suitBomb');
+    if(lvl <= 0) return Infinity;
+    // ~45s at Lv1, under 20s by Lv5, floors at 8s near max.
+    return Math.max(8000, Math.floor(45000 * Math.pow(0.85, lvl - 1)));
+  }
+
+  function suitBombUnlocked(){
+    return upgradeLevel('suitBomb') > 0;
+  }
+
+  function suitBombReady(now){
+    return suitBombUnlocked() && now >= suitBombReadyAt;
+  }
+
+  // Lowest non-ace rank still in the shoe. Lv0 => 2 (full ranks), Lv8 => 10.
+  function minKeptRank(){
+    return 2 + upgradeLevel('highCut');
+  }
+
+  function rankAllowed(r){
+    if(r === 1) return true; // Aces always dealt
+    return r >= minKeptRank();
+  }
+
+  function activeSuits(){
+    const cut = upgradeLevel('suitCut');
+    const removed = new Set(SUIT_CUT_ORDER.slice(0, cut));
+    return SUITS.filter(s => !removed.has(s));
+  }
+
+  function cardAllowed(card){
+    return !!(card && rankAllowed(card.rank) && activeSuits().includes(card.suit));
+  }
+
+  function reshapeShoe(){
+    shoe = shoe.filter(cardAllowed);
+    if(shoe.length < 8) shoe = shoe.concat(makeDeck());
+    if(!cardAllowed(nextCard)){
+      nextCard = dealCard();
+      updateNextUI();
+    }
+  }
+
+  let shopUiTimer = 0;
+  let scoreUiTimer = 0;
+  let scoreUiDirty = false;
+  function flushScoreUI(){
+    scoreUiTimer = 0;
+    if(!scoreUiDirty) return;
+    scoreUiDirty = false;
+    updateScoreUI();
+  }
+  function awardChips(amount){
+    amount = Math.floor(amount);
+    if(amount <= 0) return 0;
+    score += amount;
+    lifetime += amount;
+    scheduleSave();
+    // Peg/bumper hits can fire often — batch score + shop DOM updates.
+    scoreUiDirty = true;
+    if(!scoreUiTimer) scoreUiTimer = setTimeout(flushScoreUI, 80);
+    clearTimeout(shopUiTimer);
+    shopUiTimer = setTimeout(updateShopUI, 150);
+    return amount;
+  }
+
+  let lastHitPopupAt = 0;
+  function pushPopup(popup){
+    popups.push(popup);
+    if(popups.length > MAX_POPUPS){
+      popups.splice(0, popups.length - MAX_POPUPS);
+    }
+  }
+  function spawnHitPopup(x, y, text, color){
+    const now = performance.now();
+    // Peg traffic is dense — keep chip awards, but don't flood the canvas.
+    if(now - lastHitPopupAt < 90) return;
+    lastHitPopupAt = now;
+    pushPopup({
+      x, y: y - 8,
+      text,
+      color: color || '#ffffff',
+      t0: now,
+      duration: 650
+    });
+    if(!resolving && !looping) startLoop();
+  }
+
+  function formatNum(n){
+    if(!Number.isFinite(n)) return '—';
+    if(n < 1000) return String(Math.floor(n));
+    if(n < 10000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k';
+    if(n < 1e6) return Math.floor(n/1000) + 'k';
+    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
+    return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
+  }
+
+  function formatInterval(ms){
+    if(!Number.isFinite(ms)) return 'off';
+    if(ms >= 1000) return (ms/1000).toFixed(ms >= 2500 ? 1 : 2).replace(/\.0$/,'') + 's';
+    return Math.round(ms) + 'ms';
+  }
+
+  function upgradeEffectText(def){
+    const lvl = upgradeLevel(def.id);
+    switch(def.id){
+      case 'autoDealer':
+        return lvl ? ('Every ' + formatInterval(autoDropIntervalMs())) : 'Manual only';
+      case 'multiDeal':
+        return (1 + lvl) + ' card' + (1+lvl === 1 ? '' : 's') + '/tick';
+      case 'bigBlind':
+        return '×' + scoreMultiplier().toFixed(2).replace(/\.00$/,'');
+      case 'hotStreak':
+        return lvl ? ('+' + lvl + ' chain') : 'No bonus';
+      case 'pinPayout':
+        return lvl ? ('+' + pinHitPayout() + ' / peg') : 'No payout';
+      case 'bumperPayout':
+        return lvl ? ('+' + bumperHitPayout() + ' / bumper') : 'No payout';
+      case 'floorPayout':
+        return lvl ? ('+' + floorClearPayout() + ' / clear') : 'No payout';
+      case 'highCut': {
+        if(!lvl) return 'All ranks';
+        // Lv1 burns 2s, Lv2 burns 2–3, … Lv8 burns 2–9.
+        const hi = 1 + lvl;
+        if(lvl === 1) return '2s removed';
+        if(lvl === 2) return '2s and 3s removed';
+        return '2–' + hi + ' removed';
+      }
+      case 'suitCut': {
+        if(!lvl) return 'All four suits';
+        const left = activeSuits().join('');
+        const gone = SUIT_CUT_ORDER.slice(0, lvl).join('');
+        return 'Out ' + gone + ' · In ' + left;
+      }
+      case 'suitBomb':
+        return lvl
+          ? ('Cooldown ' + formatInterval(suitBombCooldownMs()))
+          : 'Locked';
+      case 'autoSuitBomb':
+        return lvl ? 'Auto-casting' : (upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge');
+      case 'cardSense':
+        return lvl ? 'Aiming near hands' : 'Random columns';
+      case 'feltGrease':
+        return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
+      default:
+        return '';
+    }
+  }
+
+  function persistSave(){
+    try{
+      const now = performance.now();
+      const cdLeft = Math.max(0, suitBombReadyAt - now);
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        score, lifetime, upgrades, suitBombCdLeft: cdLeft, v: 1
+      }));
+    }catch(_){ /* private mode / quota */ }
+  }
+
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persistSave, 200);
+  }
+
+  function loadSave(){
+    try{
+      const raw = localStorage.getItem(SAVE_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || typeof data !== 'object') return;
+      if(typeof data.score === 'number' && data.score >= 0) score = Math.floor(data.score);
+      if(typeof data.lifetime === 'number' && data.lifetime >= 0) lifetime = Math.floor(data.lifetime);
+      if(data.upgrades && typeof data.upgrades === 'object'){
+        for(const def of UPGRADE_DEFS){
+          const v = data.upgrades[def.id];
+          if(typeof v === 'number' && v >= 0){
+            upgrades[def.id] = Math.min(def.maxLevel, Math.floor(v));
+          }
+        }
+      }
+      if(typeof data.suitBombCdLeft === 'number' && data.suitBombCdLeft > 0){
+        suitBombReadyAt = performance.now() + data.suitBombCdLeft;
+      } else {
+        suitBombReadyAt = performance.now();
+      }
+    }catch(_){ /* corrupt save */ }
+  }
+
+  function resetProgress(){
+    score = 0;
+    lifetime = 0;
+    upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
+    lastAutoDropAt = 0;
+    suitBombReadyAt = 0;
+    pendingSuitBomb = null;
+    persistSave();
+    updateScoreUI();
+    updateShopUI();
+    updateAutoStatus();
+    updateSuitBombUI(performance.now(), true);
+  }
+
+  function buyUpgrade(id){
+    const def = UPGRADE_DEFS.find(u => u.id === id);
+    if(!def) return;
+    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return;
+    const lvl = upgradeLevel(id);
+    if(lvl >= def.maxLevel) return;
+    const cost = upgradeCost(def);
+    if(score < cost) return;
+    score -= cost;
+    upgrades[id] = lvl + 1;
+    if(id === 'highCut' || id === 'suitCut') reshapeShoe();
+    if(id === 'suitBomb' && lvl === 0){
+      suitBombReadyAt = performance.now();
+    }
+    scheduleSave();
+    updateScoreUI();
+    updateShopUI();
+    updateAutoStatus();
+    updateSuitBombUI(performance.now(), true);
+  }
+
+  function columnReservations(){
+    const reserved = Array(COLS).fill(0);
+    for(const b of balls){
+      if(b.targetCol != null) reserved[b.targetCol]++;
+      else if(b.phase === 'peg' && b.autoCol != null) reserved[b.autoCol]++;
+    }
+    return reserved;
+  }
+
+  function pickAutoColumn(reserved){
+    const open = [];
+    for(let c=0;c<COLS;c++){
+      if(colHeights[c] + reserved[c] < ROWS) open.push(c);
+    }
+    if(!open.length) return -1;
+    if(!upgradeLevel('cardSense')){
+      return open[(Math.random()*open.length)|0];
+    }
+    // Prefer columns that sit on a near-miss empty cell, then any open col.
+    const hints = findNearMisses();
+    const scores = Object.fromEntries(open.map(c => [c, Math.random()*0.3]));
+    for(const h of hints){
+      for(const [c, r] of h.cells){
+        if(grid[c][r]) continue;
+        const nextRow = colHeights[c] + reserved[c];
+        if(nextRow !== r) continue;
+        if(scores[c] === undefined) continue;
+        scores[c] += 2 + (h.priority || 0) * 0.15;
+      }
+    }
+    let best = open[0], bestScore = -1;
+    for(const c of open){
+      if(scores[c] > bestScore){ bestScore = scores[c]; best = c; }
+    }
+    return best;
+  }
+
+  function tryAutoDrop(now){
+    const interval = autoDropIntervalMs();
+    if(!Number.isFinite(interval)) return;
+    if(gameOver) return;
+    // Keep dealing through flash/explode — freeDrop balls already support it.
+    if(now - lastAutoDropAt < interval) return;
+    if(balls.length >= MAX_IN_FLIGHT) return;
+    if(colHeights.every(h => h >= ROWS)) return;
+
+    const count = Math.min(autoDropCount(), MAX_IN_FLIGHT - balls.length);
+    const reserved = columnReservations();
+    let dropped = 0;
+    for(let i=0;i<count;i++){
+      if(balls.length >= MAX_IN_FLIGHT) break;
+      const col = pickAutoColumn(reserved);
+      if(col < 0) break;
+      dropAt(col*CELL + CELL/2, {autoCol: col});
+      reserved[col]++;
+      dropped++;
+    }
+    if(dropped > 0) lastAutoDropAt = now;
+  }
 
   function freshState(){
     grid = Array.from({length:COLS}, ()=>Array(ROWS).fill(0));
@@ -420,6 +1167,8 @@
     flashCells = null;
     particles = [];
     popups = [];
+    pendingSuitBomb = null;
+    lastAutoDropAt = performance.now();
     shoe = makeDeck().concat(makeDeck());
     nextCard = dealCard();
     updateNextUI();
@@ -601,6 +1350,13 @@
       if(rail.edgeRight) ball.vx = Math.min(ball.vx, -2.4);
       ball.vy = Math.min(ball.vy, -1.5);
       impartSpin(ball, kx, ky);
+      if(!rail.hit){
+        const payout = bumperHitPayout();
+        if(payout > 0){
+          awardChips(payout);
+          spawnHitPopup(ball.x, ball.y, '+' + payout, PEG);
+        }
+      }
       rail.hit = 14;
     }
   }
@@ -646,6 +1402,7 @@
   // ---- balls / animation state ----
   let balls = [];
   let looping = false;
+  let resolveLooping = false;
   let aimX = W/2;
 
   const BALL_RADIUS = 14;
@@ -654,10 +1411,10 @@
 
   function dropInColumn(col){
     if(inputBlocked()) return;
-    dropAt(col*CELL + CELL/2);
+    dropAt(col*CELL + CELL/2, {autoCol: col});
   }
 
-  function dropAt(x){
+  function dropAt(x, opts){
     if(gameOver) return;
     if(colHeights.every(h=>h>=ROWS)) return;
     if(!nextCard) nextCard = dealCard();
@@ -672,6 +1429,7 @@
       radius: BALL_RADIUS,
       phase: 'peg',
       targetCol: null,
+      autoCol: opts && opts.autoCol != null ? opts.autoCol : null,
       row: null,
       card,
       angle: Math.random()*Math.PI*2,
@@ -700,6 +1458,13 @@
     if(!looping){
       looping = true;
       requestAnimationFrame(tick);
+    }
+  }
+
+  function startResolveLoop(){
+    if(!resolveLooping){
+      resolveLooping = true;
+      requestAnimationFrame(resolveTick);
     }
   }
 
@@ -745,6 +1510,13 @@
           if(p.x < CELL*0.75) ball.vx = Math.max(ball.vx, 1.1);
           if(p.x > W - CELL*0.75) ball.vx = Math.min(ball.vx, -1.1);
           impartSpin(ball, nx, ny);
+          if(!p.hit){
+            const payout = pinHitPayout();
+            if(payout > 0){
+              awardChips(payout);
+              spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
+            }
+          }
           p.hit = 10;
         }
       }
@@ -940,15 +1712,26 @@
   }
 
   function tick(){
-    const gravity = 0.42;
+    const now = performance.now();
+    tryAutoDrop(now);
+    tryAutoSuitBomb(now);
+    updateSuitBombUI(now);
+
+    const speed = physicsSpeed();
+    const gravity = 0.42 * Math.min(speed, 3.2);
+    // Ease off multi-step when the peg zone is crowded.
+    const busy = balls.length > 18 ? 1 : Math.max(1, Math.min(3, Math.round(speed)));
+    const steps = busy;
     for(const p of pegs){ if(p.hit) p.hit--; }
     for(const path of bumperPaths){ if(path.hit) path.hit--; }
 
-    for(const ball of balls){
-      stepBall(ball, gravity);
+    for(let s=0;s<steps;s++){
+      for(const ball of balls){
+        stepBall(ball, gravity / steps);
+      }
+      resolveBallCollisions();
+      forceSeatStuckGridBalls();
     }
-    resolveBallCollisions();
-    forceSeatStuckGridBalls();
     stepParticles();
 
     const landed = balls.filter(b=>b.landed);
@@ -964,7 +1747,12 @@
 
     draw();
 
-    if(balls.length>0 || particles.length>0){
+    const nowEnd = performance.now();
+    const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
+    const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
+    const bombAuto = upgradeLevel('autoSuitBomb') > 0 && suitBombUnlocked();
+    if(balls.length>0 || particles.length>0 || popupsAlive || resolving
+      || Number.isFinite(autoDropIntervalMs()) || bombCharging || bombAuto){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -1250,15 +2038,16 @@
     return pts * chainMultiplier;
   }
 
-  function spawnPopups(groups){
+  function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
+    const mult = scoreMultiplier();
     for(const g of groups){
       const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
       const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
       const x = avgC*CELL+CELL/2;
       const y = PEG_ZONE + avgR*CELL + CELL/2;
-      const pts = g.points * chainStep;
-      popups.push({
+      const pts = Math.floor(g.points * chainMult * mult);
+      pushPopup({
         x, y,
         text: g.name + ' +' + pts,
         color: g.color || '#ffffff',
@@ -1266,16 +2055,16 @@
         duration:1100
       });
     }
-    if(chainStep>1){
-      popups.push({
+    if(chainMult>1){
+      pushPopup({
         x:W/2, y:PEG_ZONE*0.4,
-        text:'CHAIN ×'+chainStep+'!',
+        text:'CHAIN ×'+chainMult+'!',
         color:'#ffffff', t0:now, duration:1200, big:true
       });
     }
     if(groups.length>1){
-      popups.push({
-        x:W/2, y:PEG_ZONE*0.4 + (chainStep>1?34:0),
+      pushPopup({
+        x:W/2, y:PEG_ZONE*0.4 + (chainMult>1?34:0),
         text:'COMBO ×'+groups.length,
         color: PEG, t0:now, duration:1200
       });
@@ -1283,8 +2072,11 @@
   }
 
   function spawnExplosion(x, y, card){
+    if(particles.length >= MAX_PARTICLES) return;
     const color = card ? SUIT_COLOR[card.suit] : '#ffffff';
-    for(let i=0;i<16;i++){
+    const budget = Math.max(0, MAX_PARTICLES - particles.length);
+    const sparks = Math.min(12, budget);
+    for(let i=0;i<sparks;i++){
       const ang = Math.random()*Math.PI*2;
       const spd = 2.2 + Math.random()*6.5;
       particles.push({
@@ -1297,7 +2089,8 @@
         decay: 0.018 + Math.random()*0.025
       });
     }
-    for(let i=0;i<4;i++){
+    const flares = Math.min(3, Math.max(0, MAX_PARTICLES - particles.length));
+    for(let i=0;i<flares;i++){
       const ang = -Math.PI/2 + (Math.random()-0.5)*1.4;
       const spd = 5 + Math.random()*5;
       particles.push({
@@ -1324,6 +2117,7 @@
   }
 
   function launchPuckFromCell(col, row, card, angle, stackPos, fromClearIndex){
+    if(balls.length >= MAX_CASCADE_BALLS) return false;
     const x = col*CELL + CELL/2 + (Math.random()*10-5);
     const y = PEG_ZONE + row*CELL + CELL/2;
     const heightBoost = Math.max(0, stackPos - fromClearIndex);
@@ -1345,6 +2139,7 @@
       cascadeBall: true
     };
     balls.push(ball);
+    return true;
   }
 
   function applyExplosionClear(groups){
@@ -1376,7 +2171,16 @@
         }
         if(lowestClearedIdx !== Infinity && i > lowestClearedIdx){
           if(entry.type==='piece'){
-            launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx);
+            // Cap cascade bodies for perf, but never leave pieces parked in
+            // the column — that made floor clears strand the bottom rows.
+            if(!launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx)){
+              spawnExplosion(
+                c*CELL+CELL/2,
+                PEG_ZONE+oldRow*CELL+CELL/2,
+                entry.card
+              );
+            }
+            continue;
           } else if(entry.type==='ball'){
             const b = entry.ball;
             b.vx += (Math.random()-0.5)*6;
@@ -1390,8 +2194,10 @@
             b.gridAge = 0;
             b.cascadeBall = true;
             b.freeDrop = false;
+            continue;
+          } else {
+            continue;
           }
-          continue;
         }
         survivors.push(entry);
       }
@@ -1438,7 +2244,90 @@
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     refreshButtons();
-    requestAnimationFrame(resolveTick);
+    startResolveLoop();
+  }
+
+  function findSuitCells(suit){
+    const cells = [];
+    for(let c=0;c<COLS;c++){
+      for(let r=0;r<ROWS;r++){
+        const card = grid[c][r];
+        if(card && card.suit === suit) cells.push([c, r]);
+      }
+    }
+    return cells;
+  }
+
+  function beginSuitBomb(suit, cells){
+    resolving = true;
+    resolveEpoch++;
+    pendingChain = 0;
+    chainStep = 0;
+    currentGroups = [{
+      name: 'SUIT PURGE ' + suit,
+      points: Math.max(1, cells.length),
+      cells,
+      suitBomb: true,
+      color: SUIT_COLOR[suit] || '#ffffff'
+    }];
+    flashCells = new Set(cells.map(([c,r]) => c+','+r));
+    resolvePhase = 'flash';
+    resolvePhaseStart = performance.now();
+    refreshButtons();
+    updateSuitBombUI(performance.now(), true);
+    startResolveLoop();
+  }
+
+  function castSuitBomb(suit){
+    const now = performance.now();
+    if(!suitBombReady(now) || gameOver) return false;
+    if(!SUITS.includes(suit)) return false;
+    const cells = findSuitCells(suit);
+    if(cells.length < 1) return false;
+    // Spend the charge immediately so a mid-clear click still counts.
+    suitBombReadyAt = now + suitBombCooldownMs();
+    scheduleSave();
+    if(resolving){
+      pendingSuitBomb = suit;
+      updateSuitBombUI(performance.now(), true);
+      return true;
+    }
+    beginSuitBomb(suit, cells);
+    return true;
+  }
+
+  function flushPendingSuitBomb(){
+    if(!pendingSuitBomb || resolving || gameOver) return;
+    const suit = pendingSuitBomb;
+    pendingSuitBomb = null;
+    const cells = findSuitCells(suit);
+    if(cells.length < 1){
+      updateSuitBombUI(performance.now(), true);
+      return;
+    }
+    beginSuitBomb(suit, cells);
+  }
+
+  function pickAutoSuitBombTarget(){
+    let best = null, bestCount = 0;
+    for(const s of SUITS){
+      const n = findSuitCells(s).length;
+      if(n > bestCount){
+        bestCount = n;
+        best = s;
+      }
+    }
+    // Don't waste a charge on a lonely singleton.
+    if(bestCount < 2) return null;
+    return best;
+  }
+
+  function tryAutoSuitBomb(now){
+    if(!upgradeLevel('autoSuitBomb') || !suitBombReady(now)) return;
+    if(resolving || gameOver) return;
+    const suit = pickAutoSuitBombTarget();
+    if(!suit) return;
+    castSuitBomb(suit);
   }
 
   function maybeStartResolve(){
@@ -1468,7 +2357,7 @@
     pendingChain = 0;
     refreshButtons();
     enterFlash(groups);
-    requestAnimationFrame(resolveTick);
+    startResolveLoop();
   }
 
   function enterFlash(groups){
@@ -1493,28 +2382,42 @@
         beginFloorClear();
       } else {
         refreshButtons();
+        flushPendingSuitBomb();
+        if(!resolving) updateSuitBombUI(performance.now(), true);
       }
     }
   }
 
   function resolveTick(){
     const now = performance.now();
+    tryAutoDrop(now);
+    const speed = Math.min(physicsSpeed(), 2.8);
+    const flashMs = FLASH_MS / speed;
+    const explodeMs = EXPLODE_MS / speed;
     if(resolving){
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
-        if(elapsed >= FLASH_MS){
+        if(elapsed >= flashMs){
           const isFloorClear = currentGroups.some(g => g.floorClear);
           if(!isFloorClear){
-            const pts = scoreGroups(currentGroups, chainStep);
-            score += pts;
-            updateScoreUI();
-            spawnPopups(currentGroups);
+            const chainMult = Math.max(1, chainStep + chainBonus());
+            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
+            awardChips(pts);
+            clearTimeout(shopUiTimer);
+            flushScoreUI();
+            updateShopUI();
+            spawnPopups(currentGroups, pts, chainMult);
           } else {
-            popups.push({
+            const floorPts = floorClearPayout();
+            if(floorPts > 0) awardChips(floorPts);
+            clearTimeout(shopUiTimer);
+            flushScoreUI();
+            updateShopUI();
+            pushPopup({
               x: W/2,
               y: PEG_ZONE + (ROWS-1)*CELL + CELL/2,
-              text: 'FLOOR CLEAR!',
-              color: '#ffffff',
+              text: floorPts > 0 ? ('FLOOR CLEAR +' + floorPts) : 'FLOOR CLEAR!',
+              color: floorPts > 0 ? (getCSS('--felt-bright') || '#2d8a6e') : '#ffffff',
               t0: performance.now(),
               duration: 900,
               big: true
@@ -1526,16 +2429,19 @@
           resolvePhaseStart = now;
         }
       } else if(resolvePhase==='explode'){
-        if(elapsed >= EXPLODE_MS){
+        if(elapsed >= explodeMs){
           for(const b of balls) b.cascadeBall = false;
           finishResolveOrChain();
         }
       }
     }
-    draw();
-    const popupsAlive = popups.some(p => performance.now()-p.t0 < p.duration);
-    if(resolving || popupsAlive){
+    // Physics tick already paints when it's running — avoid double draws.
+    if(!looping) draw();
+    if(resolving){
       requestAnimationFrame(resolveTick);
+    } else {
+      resolveLooping = false;
+      startLoop();
     }
   }
 
@@ -1571,12 +2477,12 @@
     target.fillStyle = ink;
     target.textAlign = 'center';
     target.textBaseline = 'middle';
-    const label = rankLabel(card.rank);
-    target.font = `bold ${Math.round(radius*0.72)}px 'Space Grotesk', sans-serif`;
-    target.fillText(label, 0, -radius*0.18);
-    target.font = `${Math.round(radius*0.7)}px 'Space Grotesk', sans-serif`;
+    // Keep rank and suit apart so Q's tail (and similar) don't collide.
+    target.font = `bold ${Math.round(radius*0.62)}px 'Space Grotesk', sans-serif`;
+    target.fillText(rankLabel(card.rank), 0, -radius*0.30);
+    target.font = `${Math.round(radius*0.58)}px 'Space Grotesk', sans-serif`;
     target.fillStyle = color;
-    target.fillText(card.suit, 0, radius*0.32);
+    target.fillText(card.suit, 0, radius*0.36);
 
     if(highlight){
       target.beginPath();
@@ -1611,11 +2517,11 @@
     ctx.fillStyle = SUIT_INK[card.suit];
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = "bold 18px 'Space Grotesk', sans-serif";
-    ctx.fillText(rankLabel(card.rank), 0, -6);
+    ctx.font = "bold 16px 'Space Grotesk', sans-serif";
+    ctx.fillText(rankLabel(card.rank), 0, -9);
     ctx.fillStyle = color;
-    ctx.font = "18px 'Space Grotesk', sans-serif";
-    ctx.fillText(card.suit, 0, 10);
+    ctx.font = "16px 'Space Grotesk', sans-serif";
+    ctx.fillText(card.suit, 0, 12);
     ctx.restore();
   }
 
@@ -1718,8 +2624,20 @@
       }
     }
 
+    // Grid-zone balls (seating + cascade launches still below the peg line)
+    // must paint under the plate so upward flights don't cover the overlay.
     for(const b of balls){
-      if(b.phase==='grid') drawBall(b);
+      if(b.y < PEG_ZONE && b.phase !== 'grid') continue;
+      for(let i=0;i<b.trail.length;i++){
+        const t = b.trail[i];
+        if(t.y < PEG_ZONE) continue;
+        const alpha = (i+1)/b.trail.length * 0.25;
+        ctx.beginPath();
+        ctx.arc(t.x,t.y,20,0,Math.PI*2);
+        ctx.fillStyle = trailRGBA(b.card, alpha);
+        ctx.fill();
+      }
+      drawBall(b);
     }
 
     plateCtx.clearRect(0,PEG_ZONE,W,H-PEG_ZONE);
@@ -1757,20 +2675,6 @@
     // Near-miss guides sit on top of the plate so the dotted bridges stay
     // readable between holes (pairs, flush/straight draws).
     drawNearMissHints();
-
-    for(const b of balls){
-      if(b.phase==='grid' || b.y < PEG_ZONE) continue;
-      for(let i=0;i<b.trail.length;i++){
-        const t = b.trail[i];
-        if(t.y < PEG_ZONE) continue;
-        const alpha = (i+1)/b.trail.length * 0.25;
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,20,0,Math.PI*2);
-        ctx.fillStyle = trailRGBA(b.card, alpha);
-        ctx.fill();
-      }
-      drawBall(b);
-    }
 
     for(const p of particles){
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
@@ -1820,12 +2724,177 @@
 
   // ---- UI wiring ----
   const scoreValEl = document.getElementById('scoreVal');
+  const lifetimeValEl = document.getElementById('lifetimeVal');
+  const autoStatusEl = document.getElementById('autoStatus');
+  const autoStatusValEl = document.getElementById('autoStatusVal');
+  const upgradesEl = document.getElementById('upgrades');
   const nextLabel = document.getElementById('nextLabel');
   const banner = document.getElementById('banner');
   const bannerText = document.getElementById('bannerText');
+  const upgradeButtons = {};
 
   function updateScoreUI(){
-    scoreValEl.textContent = score;
+    scoreValEl.textContent = formatNum(score);
+    if(lifetimeValEl) lifetimeValEl.textContent = formatNum(lifetime);
+  }
+
+  function updateAutoStatus(){
+    const interval = autoDropIntervalMs();
+    const on = Number.isFinite(interval);
+    autoStatusEl.classList.toggle('on', on);
+    if(!on){
+      autoStatusValEl.textContent = 'off';
+      return;
+    }
+    const n = autoDropCount();
+    autoStatusValEl.textContent = formatInterval(interval) + (n > 1 ? ' ×' + n : '');
+    startLoop();
+  }
+
+  function updateShopUI(){
+    const active = [];
+    const maxedList = [];
+    for(const def of UPGRADE_DEFS){
+      const btn = upgradeButtons[def.id];
+      if(!btn) continue;
+      const lvl = upgradeLevel(def.id);
+      const maxed = lvl >= def.maxLevel;
+      const locked = def.id === 'autoSuitBomb' && !suitBombUnlocked();
+      const cost = upgradeCost(def);
+      const canAfford = !maxed && !locked && score >= cost;
+      btn.disabled = maxed || locked || !canAfford;
+      btn.classList.toggle('affordable', canAfford);
+      btn.classList.toggle('maxed', maxed);
+      btn.querySelector('.upgrade-lvl').textContent = maxed
+        ? 'MAX'
+        : ('Lv ' + lvl + '/' + def.maxLevel);
+      const fill = btn.querySelector('.upgrade-progress > span');
+      if(fill){
+        const pct = def.maxLevel <= 0 ? 0 : Math.min(100, (lvl / def.maxLevel) * 100);
+        fill.style.width = pct + '%';
+      }
+      btn.querySelector('.upgrade-effect').textContent = upgradeEffectText(def);
+      const costEl = btn.querySelector('.upgrade-cost');
+      if(maxed){
+        costEl.textContent = 'Maxed';
+        costEl.className = 'upgrade-cost max';
+      } else if(locked){
+        costEl.textContent = 'Needs Suit Purge';
+        costEl.className = 'upgrade-cost max';
+      } else {
+        costEl.textContent = formatNum(cost) + ' chips';
+        costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
+      }
+      (maxed ? maxedList : active).push(btn);
+    }
+    // Keep buyable upgrades up top; sink completed ones.
+    for(const btn of active.concat(maxedList)) upgradesEl.appendChild(btn);
+  }
+
+  function buildShop(){
+    upgradesEl.innerHTML = '';
+    for(const def of UPGRADE_DEFS){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'upgrade';
+      btn.dataset.id = def.id;
+      btn.innerHTML =
+        '<div class="upgrade-top">' +
+          '<span class="upgrade-name"></span>' +
+          '<span class="upgrade-lvl"></span>' +
+        '</div>' +
+        '<p class="upgrade-desc"></p>' +
+        '<div class="upgrade-effect"></div>' +
+        '<div class="upgrade-cost"></div>' +
+        '<div class="upgrade-progress" aria-hidden="true"><span></span></div>';
+      btn.querySelector('.upgrade-name').textContent = def.name;
+      btn.querySelector('.upgrade-desc').textContent = def.desc;
+      btn.addEventListener('click', ()=>buyUpgrade(def.id));
+      upgradesEl.appendChild(btn);
+      upgradeButtons[def.id] = btn;
+    }
+    updateShopUI();
+  }
+
+  const suitBombBar = document.getElementById('suitBombBar');
+  const suitBombStatus = document.getElementById('suitBombStatus');
+  const suitBombBtnsEl = document.getElementById('suitBombBtns');
+  const suitBombButtons = {};
+
+  function buildSuitBombUI(){
+    suitBombBtnsEl.innerHTML = '';
+    for(const s of SUITS){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'suit-btn';
+      btn.dataset.suit = s;
+      btn.setAttribute('aria-label', 'Purge ' + s);
+      btn.innerHTML = '<span class="cd-fill"></span><span class="suit-glyph"></span>';
+      btn.querySelector('.suit-glyph').textContent = s;
+      btn.addEventListener('click', ()=>castSuitBomb(s));
+      suitBombBtnsEl.appendChild(btn);
+      suitBombButtons[s] = btn;
+    }
+  }
+
+  let lastSuitBombUiAt = 0;
+  function updateSuitBombUI(now, force){
+    if(!suitBombBar) return;
+    now = now || performance.now();
+    // Hot path: tick/idle used to thrash the DOM every frame.
+    if(!force && now - lastSuitBombUiAt < 120) return;
+    lastSuitBombUiAt = now;
+    const unlocked = suitBombUnlocked();
+    suitBombBar.classList.toggle('show', unlocked);
+    if(!unlocked) return;
+
+    const cd = suitBombCooldownMs();
+    const ready = suitBombReady(now);
+    const auto = upgradeLevel('autoSuitBomb') > 0;
+    if(ready){
+      suitBombStatus.textContent = auto ? 'ready · auto' : 'ready';
+      suitBombStatus.className = auto ? 'ready auto' : 'ready';
+    } else {
+      const left = Math.max(0, suitBombReadyAt - now);
+      suitBombStatus.textContent = formatInterval(left) + (auto ? ' · auto' : '');
+      suitBombStatus.className = auto ? 'auto' : '';
+    }
+
+    const charge = ready ? 1 : Math.max(0, Math.min(1, 1 - (suitBombReadyAt - now) / cd));
+    // One board scan for all suits instead of four.
+    const counts = {'♠':0,'♥':0,'♦':0,'♣':0};
+    for(let c=0;c<COLS;c++){
+      for(let r=0;r<ROWS;r++){
+        const card = grid[c][r];
+        if(card) counts[card.suit] = (counts[card.suit]||0) + 1;
+      }
+    }
+    const inShoe = new Set(activeSuits());
+    let visible = 0;
+    for(const s of SUITS){
+      const btn = suitBombButtons[s];
+      if(!btn) continue;
+      const count = counts[s] || 0;
+      const queued = pendingSuitBomb === s;
+      // Exiled suits disappear once the board is clear of them.
+      const gone = !inShoe.has(s) && count === 0 && !queued;
+      btn.classList.toggle('gone', gone);
+      if(gone) continue;
+      visible++;
+      // Stay clickable during hand clears — cast queues until the board is free.
+      const canCast = ready && !gameOver && count > 0;
+      btn.disabled = !canCast && !queued;
+      btn.classList.toggle('charging', !ready && !queued);
+      btn.classList.toggle('queued', queued);
+      btn.style.setProperty('--cd', Math.round((queued ? 1 : charge) * 100) + '%');
+      btn.title = queued
+        ? ('Queued purge ' + s)
+        : count
+          ? ('Purge ' + count + ' × ' + s)
+          : ('No ' + s + ' on board');
+    }
+    suitBombBtnsEl.style.gridTemplateColumns =
+      'repeat(' + Math.max(1, visible) + ', 1fr)';
   }
 
   function updateNextUI(){
@@ -1846,8 +2915,11 @@
     draw();
   });
   document.getElementById('resetScores').addEventListener('click', ()=>{
-    score = 0;
-    updateScoreUI();
+    if(!confirm('Reset chips, upgrades, and the board?')) return;
+    resetProgress();
+    freshState();
+    refreshButtons();
+    draw();
   });
 
   function canvasPos(evt){
@@ -1895,17 +2967,36 @@
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
 
-  // Keep the aim preview gently spinning even when idle
+  // Lightweight keeper: only runs work when the physics/resolve loops are idle.
   function idleSpin(){
-    if(!looping && !resolving) draw();
+    const now = performance.now();
+    if(!looping && !resolveLooping){
+      updateSuitBombUI(now);
+      tryAutoDrop(now);
+      tryAutoSuitBomb(now);
+      const needLoop = balls.length || particles.length || resolving
+        || Number.isFinite(autoDropIntervalMs())
+        || (suitBombUnlocked() && (
+          upgradeLevel('autoSuitBomb') > 0 || !suitBombReady(now)
+        ));
+      if(needLoop) startLoop();
+      else draw();
+    }
     requestAnimationFrame(idleSpin);
   }
 
+  loadSave();
+  buildShop();
+  buildSuitBombUI();
   freshState();
   updateScoreUI();
+  updateAutoStatus();
+  updateShopUI();
+  updateSuitBombUI();
   refreshButtons();
   draw();
   requestAnimationFrame(idleSpin);
+  window.addEventListener('beforeunload', persistSave);
 })();
 </script>
 </body>
