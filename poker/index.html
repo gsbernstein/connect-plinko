@@ -1133,7 +1133,8 @@
   function tryAutoDrop(now){
     const interval = autoDropIntervalMs();
     if(!Number.isFinite(interval)) return;
-    if(gameOver || resolving) return;
+    if(gameOver) return;
+    // Keep dealing through flash/explode — freeDrop balls already support it.
     if(now - lastAutoDropAt < interval) return;
     if(balls.length >= MAX_IN_FLIGHT) return;
     if(colHeights.every(h => h >= ROWS)) return;
@@ -2389,6 +2390,7 @@
 
   function resolveTick(){
     const now = performance.now();
+    tryAutoDrop(now);
     const speed = Math.min(physicsSpeed(), 2.8);
     const flashMs = FLASH_MS / speed;
     const explodeMs = EXPLODE_MS / speed;
