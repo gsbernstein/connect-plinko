@@ -80,6 +80,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `upgradeEffectText` / `payoutMultLabels` | Shop effect line; Blind / payout / combo mults on Pin Tip, Rail Tax, Sweep Stakes, Hot Streak, Big Blind |
 | `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (Multiway uses step 1) |
 | `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
+| `achievementName` | Multiway (`a_max_combo`) tier title: C-Combo, C-C-Combo… from active tier target |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
 | `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
