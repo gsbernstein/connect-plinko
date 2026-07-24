@@ -441,6 +441,11 @@
     transition:height .1s linear;
   }
   .suit-btn.charging .cd-fill{height:var(--cd, 0%);}
+  .suit-btn.queued{
+    opacity:1;
+    border-color:var(--peg);
+    box-shadow:0 0 0 1px rgba(139,127,255,0.35);
+  }
   .suit-btn[data-suit="♥"]{color:var(--heart);}
   .suit-btn[data-suit="♦"]{color:var(--diamond);}
   .suit-btn[data-suit="♠"]{color:var(--spade);}
@@ -777,6 +782,7 @@
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let lastAutoDropAt = 0;
   let suitBombReadyAt = 0;
+  let pendingSuitBomb = null;
   let saveTimer = 0;
 
   function upgradeLevel(id){ return upgrades[id] || 0; }
@@ -827,8 +833,8 @@
   function suitBombCooldownMs(){
     const lvl = upgradeLevel('suitBomb');
     if(lvl <= 0) return Infinity;
-    // ~45s at Lv1, under 20s by Lv6, floors at 8s.
-    return Math.max(8000, Math.floor(45000 * Math.pow(0.88, lvl - 1)));
+    // ~45s at Lv1, under 20s by Lv5, floors at 8s near max.
+    return Math.max(8000, Math.floor(45000 * Math.pow(0.85, lvl - 1)));
   }
 
   function suitBombUnlocked(){
@@ -1002,6 +1008,7 @@
     upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
     lastAutoDropAt = 0;
     suitBombReadyAt = 0;
+    pendingSuitBomb = null;
     persistSave();
     updateScoreUI();
     updateShopUI();
@@ -2188,14 +2195,32 @@
 
   function castSuitBomb(suit){
     const now = performance.now();
-    if(!suitBombReady(now) || resolving || gameOver) return false;
+    if(!suitBombReady(now) || gameOver) return false;
     if(!SUITS.includes(suit)) return false;
     const cells = findSuitCells(suit);
     if(cells.length < 1) return false;
+    // Spend the charge immediately so a mid-clear click still counts.
     suitBombReadyAt = now + suitBombCooldownMs();
     scheduleSave();
+    if(resolving){
+      pendingSuitBomb = suit;
+      updateSuitBombUI();
+      return true;
+    }
     beginSuitBomb(suit, cells);
     return true;
+  }
+
+  function flushPendingSuitBomb(){
+    if(!pendingSuitBomb || resolving || gameOver) return;
+    const suit = pendingSuitBomb;
+    pendingSuitBomb = null;
+    const cells = findSuitCells(suit);
+    if(cells.length < 1){
+      updateSuitBombUI();
+      return;
+    }
+    beginSuitBomb(suit, cells);
   }
 
   function pickAutoSuitBombTarget(){
@@ -2272,6 +2297,8 @@
         beginFloorClear();
       } else {
         refreshButtons();
+        flushPendingSuitBomb();
+        if(!resolving) updateSuitBombUI();
       }
     }
   }
@@ -2736,13 +2763,18 @@
       const btn = suitBombButtons[s];
       if(!btn) continue;
       const count = findSuitCells(s).length;
-      const canCast = ready && !resolving && !gameOver && count > 0;
-      btn.disabled = !canCast;
-      btn.classList.toggle('charging', !ready);
-      btn.style.setProperty('--cd', Math.round(charge * 100) + '%');
-      btn.title = count
-        ? ('Purge ' + count + ' × ' + s)
-        : ('No ' + s + ' on board');
+      const queued = pendingSuitBomb === s;
+      // Stay clickable during hand clears — cast queues until the board is free.
+      const canCast = ready && !gameOver && count > 0;
+      btn.disabled = !canCast && !queued;
+      btn.classList.toggle('charging', !ready && !queued);
+      btn.classList.toggle('queued', queued);
+      btn.style.setProperty('--cd', Math.round((queued ? 1 : charge) * 100) + '%');
+      btn.title = queued
+        ? ('Queued purge ' + s)
+        : count
+          ? ('Purge ' + count + ' × ' + s)
+          : ('No ' + s + ' on board');
     }
   }
 
