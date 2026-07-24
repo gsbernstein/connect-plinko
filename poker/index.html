@@ -309,6 +309,7 @@
     }
   }
   .upgrade{
+    position:relative;
     display:flex;
     flex-direction:column;
     align-items:stretch;
@@ -317,11 +318,30 @@
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:12px;
-    padding:12px 14px;
+    padding:12px 14px 14px;
     color:var(--ink);
     font-family:'IBM Plex Mono',monospace;
     cursor:pointer;
+    overflow:hidden;
     transition:border-color .15s ease, background .15s ease, transform .08s ease;
+  }
+  .upgrade-progress{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:3px;
+    background:rgba(255,255,255,0.06);
+  }
+  .upgrade-progress > span{
+    display:block;
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+    transition:width .2s ease;
+  }
+  .upgrade.maxed .upgrade-progress > span{
+    background:linear-gradient(90deg, #463d7a, var(--peg));
   }
   .upgrade:hover:not(:disabled){
     border-color:#463d7a;
@@ -2746,6 +2766,11 @@
       btn.querySelector('.upgrade-lvl').textContent = maxed
         ? 'MAX'
         : ('Lv ' + lvl + '/' + def.maxLevel);
+      const fill = btn.querySelector('.upgrade-progress > span');
+      if(fill){
+        const pct = def.maxLevel <= 0 ? 0 : Math.min(100, (lvl / def.maxLevel) * 100);
+        fill.style.width = pct + '%';
+      }
       btn.querySelector('.upgrade-effect').textContent = upgradeEffectText(def);
       const costEl = btn.querySelector('.upgrade-cost');
       if(maxed){
@@ -2778,7 +2803,8 @@
         '</div>' +
         '<p class="upgrade-desc"></p>' +
         '<div class="upgrade-effect"></div>' +
-        '<div class="upgrade-cost"></div>';
+        '<div class="upgrade-cost"></div>' +
+        '<div class="upgrade-progress" aria-hidden="true"><span></span></div>';
       btn.querySelector('.upgrade-name').textContent = def.name;
       btn.querySelector('.upgrade-desc').textContent = def.desc;
       btn.addEventListener('click', ()=>buyUpgrade(def.id));
