@@ -5030,12 +5030,17 @@
     ctx.rotate(card.angle || 0);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = "bold 16px 'Space Grotesk', sans-serif";
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = 'rgba(8,6,16,0.8)';
+    ctx.font = "bold 22px 'Space Grotesk', sans-serif";
+    ctx.strokeText(rankLabel(card.rank), 0, -7);
     ctx.fillStyle = '#1a1408';
-    ctx.fillText(rankLabel(card.rank), 0, -9);
+    ctx.fillText(rankLabel(card.rank), 0, -7);
+    ctx.font = "bold 20px 'Space Grotesk', sans-serif";
+    ctx.strokeText(card.suit, 0, 13);
     ctx.fillStyle = juiceTier === 'huge' ? '#8A6A28' : color;
-    ctx.font = "16px 'Space Grotesk', sans-serif";
-    ctx.fillText(card.suit, 0, 12);
+    ctx.fillText(card.suit, 0, 13);
     ctx.restore();
   }
 
