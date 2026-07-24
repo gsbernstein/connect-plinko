@@ -1019,6 +1019,62 @@
   .suit-bomb.show{display:flex;}
   .suit-bomb.picker-hidden{padding-bottom:8px;}
   .suit-bomb.picker-hidden .suit-bomb-btns{display:none;}
+  .suit-bomb-charge{
+    display:none;
+    height:4px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    overflow:hidden;
+  }
+  .suit-bomb.picker-hidden .suit-bomb-charge{display:block;}
+  .suit-bomb-charge > span{
+    display:block;
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+    transition:width .08s linear, background .2s ease;
+  }
+  .suit-bomb[data-target-suit="♥"] .suit-bomb-charge > span{
+    background:linear-gradient(90deg, #7A1830, var(--heart));
+  }
+  .suit-bomb[data-target-suit="♦"] .suit-bomb-charge > span{
+    background:linear-gradient(90deg, #8A4824, var(--diamond));
+  }
+  .suit-bomb[data-target-suit="♠"] .suit-bomb-charge > span{
+    background:linear-gradient(90deg, #3A3558, var(--spade));
+  }
+  .suit-bomb[data-target-suit="♣"] .suit-bomb-charge > span{
+    background:linear-gradient(90deg, #1F5A46, var(--club));
+  }
+  .suit-bomb.picker-hidden.suit-bomb-flash{
+    animation:suitBombTargetFlash .85s ease-in-out infinite;
+  }
+  .suit-bomb[data-target-suit="♥"].picker-hidden.suit-bomb-flash{
+    --suit-bomb-glow:rgba(255,77,109,0.42);
+    --suit-bomb-border:rgba(196,58,85,0.72);
+  }
+  .suit-bomb[data-target-suit="♦"].picker-hidden.suit-bomb-flash{
+    --suit-bomb-glow:rgba(255,138,91,0.42);
+    --suit-bomb-border:rgba(208,112,74,0.72);
+  }
+  .suit-bomb[data-target-suit="♠"].picker-hidden.suit-bomb-flash{
+    --suit-bomb-glow:rgba(200,194,232,0.38);
+    --suit-bomb-border:rgba(110,104,160,0.72);
+  }
+  .suit-bomb[data-target-suit="♣"].picker-hidden.suit-bomb-flash{
+    --suit-bomb-glow:rgba(126,200,163,0.4);
+    --suit-bomb-border:rgba(74,154,120,0.72);
+  }
+  @keyframes suitBombTargetFlash{
+    0%,100%{
+      border-color:#2a2545;
+      box-shadow:none;
+    }
+    50%{
+      border-color:var(--suit-bomb-border, rgba(46,138,110,0.55));
+      box-shadow:0 0 18px var(--suit-bomb-glow, rgba(46,138,110,0.28));
+    }
+  }
   .suit-bomb-head{
     display:flex;
     justify-content:space-between;
@@ -1963,6 +2019,7 @@
         <b>Suit Purge</b>
         <span id="suitBombStatus">ready</span>
       </div>
+      <div class="suit-bomb-charge" aria-hidden="true"><span id="suitBombChargeFill"></span></div>
       <div class="suit-bomb-btns" id="suitBombBtns"></div>
     </div>
 
@@ -8329,6 +8386,7 @@
 
   const suitBombBar = document.getElementById('suitBombBar');
   const suitBombStatus = document.getElementById('suitBombStatus');
+  const suitBombChargeFill = document.getElementById('suitBombChargeFill');
   const suitBombBtnsEl = document.getElementById('suitBombBtns');
   const suitBombButtons = {};
 
@@ -8401,14 +8459,34 @@
     lastSuitBombUiAt = now;
     const unlocked = suitBombUnlocked();
     const showPicker = suitBombUiVisible();
+    const minimized = unlocked && !showPicker;
     suitBombBar.classList.toggle('show', unlocked);
-    suitBombBar.classList.toggle('picker-hidden', unlocked && !showPicker);
-    if(!unlocked) return;
+    suitBombBar.classList.toggle('picker-hidden', minimized);
+    if(!unlocked){
+      suitBombBar.removeAttribute('data-target-suit');
+      suitBombBar.classList.remove('suit-bomb-flash');
+      if(suitBombChargeFill) suitBombChargeFill.style.width = '0%';
+      return;
+    }
 
     const cd = suitBombCooldownMs();
     const ready = suitBombReady(now);
     const autoOwned = prestigeLevel('autoSuitBomb') > 0;
     const auto = autoOwned && isAutoEnabled('autoSuitBomb');
+    const autoTarget = auto ? pickAutoSuitBombTarget() : null;
+    if(minimized){
+      if(autoTarget) suitBombBar.dataset.targetSuit = autoTarget;
+      else suitBombBar.removeAttribute('data-target-suit');
+      suitBombBar.classList.toggle('suit-bomb-flash', ready && !!autoTarget);
+      if(suitBombChargeFill){
+        const charge = ready ? 1 : Math.max(0, Math.min(1, 1 - (suitBombReadyAt - now) / cd));
+        suitBombChargeFill.style.width = (charge * 100) + '%';
+      }
+    } else {
+      suitBombBar.removeAttribute('data-target-suit');
+      suitBombBar.classList.remove('suit-bomb-flash');
+      if(suitBombChargeFill) suitBombChargeFill.style.width = '0%';
+    }
     if(ready){
       suitBombStatus.textContent = auto
         ? 'ready · auto'
