@@ -1188,14 +1188,23 @@
         ctx.stroke();
       }
 
-      // Tiny label nudged off the line so it doesn't sit on a rank glyph
+      // Odd-length spans (3, 5, …) have their geometric midpoint on a puck —
+      // park the label in a gap between two neighboring cells instead.
       const a = pts[0], b = pts[pts.length-1];
-      const mx = (a.x + b.x) / 2;
-      const my = (a.y + b.y) / 2;
       const dx = b.x - a.x, dy = b.y - a.y;
       const len = Math.hypot(dx, dy) || 1;
-      const ox = (-dy / len) * 14;
-      const oy = (dx / len) * 14;
+      let mx, my;
+      if(pts.length >= 3 && pts.length % 2 === 1){
+        const m = (pts.length/2)|0;
+        mx = (pts[m-1].x + pts[m].x) / 2;
+        my = (pts[m-1].y + pts[m].y) / 2;
+      } else {
+        mx = (a.x + b.x) / 2;
+        my = (a.y + b.y) / 2;
+      }
+      // Slight sideways nudge off the dash itself
+      const ox = (-dy / len) * 8;
+      const oy = (dx / len) * 8;
       ctx.globalAlpha = Math.min(0.75, alpha * 1.35);
       ctx.shadowBlur = 0;
       ctx.font = "600 11px 'IBM Plex Mono', monospace";
