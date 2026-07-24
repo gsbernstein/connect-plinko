@@ -5040,20 +5040,14 @@
     ctx.save();
     ctx.translate(cx, cy);
     // Warm rim glow — keep blur modest so chips don't blow out to white.
-    ctx.shadowColor = juiceTier === 'huge'
-      ? 'rgba(255,208,96,' + (0.45 * heat) + ')'
-      : ('rgba(' + (color === SUIT_COLOR['♥'] || color === SUIT_COLOR['♦']
-          ? '255,140,90'
-          : '200,190,255') + ',' + (0.4 * heat) + ')');
-    if(color === SUIT_COLOR['♥'] || color === SUIT_COLOR['♦']){
+    if(juiceTier === 'huge'){
+      ctx.shadowColor = 'rgba(255,208,96,' + (0.5 * heat) + ')';
+    } else if(card.suit === '♥' || card.suit === '♦'){
       ctx.shadowColor = 'rgba(255,140,90,' + (0.42 * heat) + ')';
-    } else if(color === SUIT_COLOR['♠']){
+    } else if(card.suit === '♠'){
       ctx.shadowColor = 'rgba(200,194,232,' + (0.42 * heat) + ')';
     } else {
       ctx.shadowColor = 'rgba(126,200,163,' + (0.42 * heat) + ')';
-    }
-    if(juiceTier === 'huge'){
-      ctx.shadowColor = 'rgba(255,208,96,' + (0.5 * heat) + ')';
     }
     ctx.shadowBlur = Math.min(28, 10 + fx.blur * 0.18);
     ensureChipTextures();
