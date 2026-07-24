@@ -672,6 +672,9 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const MAX_IN_FLIGHT = 14;
+  const MAX_CASCADE_BALLS = 28;
+  const MAX_POPUPS = 36;
+  const MAX_PARTICLES = 180;
   const UPGRADE_DEFS = [
     {
       id: 'autoDealer',
@@ -875,26 +878,41 @@
   }
 
   let shopUiTimer = 0;
+  let scoreUiTimer = 0;
+  let scoreUiDirty = false;
+  function flushScoreUI(){
+    scoreUiTimer = 0;
+    if(!scoreUiDirty) return;
+    scoreUiDirty = false;
+    updateScoreUI();
+  }
   function awardChips(amount){
     amount = Math.floor(amount);
     if(amount <= 0) return 0;
     score += amount;
     lifetime += amount;
     scheduleSave();
-    updateScoreUI();
-    // Peg/bumper hits can fire often — debounce shop affordability refresh.
+    // Peg/bumper hits can fire often — batch score + shop DOM updates.
+    scoreUiDirty = true;
+    if(!scoreUiTimer) scoreUiTimer = setTimeout(flushScoreUI, 80);
     clearTimeout(shopUiTimer);
-    shopUiTimer = setTimeout(updateShopUI, 120);
+    shopUiTimer = setTimeout(updateShopUI, 150);
     return amount;
   }
 
   let lastHitPopupAt = 0;
+  function pushPopup(popup){
+    popups.push(popup);
+    if(popups.length > MAX_POPUPS){
+      popups.splice(0, popups.length - MAX_POPUPS);
+    }
+  }
   function spawnHitPopup(x, y, text, color){
     const now = performance.now();
     // Peg traffic is dense — keep chip awards, but don't flood the canvas.
     if(now - lastHitPopupAt < 90) return;
     lastHitPopupAt = now;
-    popups.push({
+    pushPopup({
       x, y: y - 8,
       text,
       color: color || '#ffffff',
@@ -1077,7 +1095,7 @@
   function tryAutoDrop(now){
     const interval = autoDropIntervalMs();
     if(!Number.isFinite(interval)) return;
-    if(gameOver) return;
+    if(gameOver || resolving) return;
     if(now - lastAutoDropAt < interval) return;
     if(balls.length >= MAX_IN_FLIGHT) return;
     if(colHeights.every(h => h >= ROWS)) return;
@@ -1345,6 +1363,7 @@
   // ---- balls / animation state ----
   let balls = [];
   let looping = false;
+  let resolveLooping = false;
   let aimX = W/2;
 
   const BALL_RADIUS = 14;
@@ -1400,6 +1419,13 @@
     if(!looping){
       looping = true;
       requestAnimationFrame(tick);
+    }
+  }
+
+  function startResolveLoop(){
+    if(!resolveLooping){
+      resolveLooping = true;
+      requestAnimationFrame(resolveTick);
     }
   }
 
@@ -1654,7 +1680,9 @@
 
     const speed = physicsSpeed();
     const gravity = 0.42 * Math.min(speed, 3.2);
-    const steps = Math.max(1, Math.min(3, Math.round(speed)));
+    // Ease off multi-step when the peg zone is crowded.
+    const busy = balls.length > 18 ? 1 : Math.max(1, Math.min(3, Math.round(speed)));
+    const steps = busy;
     for(const p of pegs){ if(p.hit) p.hit--; }
     for(const path of bumperPaths){ if(path.hit) path.hit--; }
 
@@ -1684,7 +1712,7 @@
     const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
     const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
     const bombAuto = upgradeLevel('autoSuitBomb') > 0 && suitBombUnlocked();
-    if(balls.length>0 || particles.length>0 || popupsAlive
+    if(balls.length>0 || particles.length>0 || popupsAlive || resolving
       || Number.isFinite(autoDropIntervalMs()) || bombCharging || bombAuto){
       requestAnimationFrame(tick);
     } else {
@@ -1980,7 +2008,7 @@
       const x = avgC*CELL+CELL/2;
       const y = PEG_ZONE + avgR*CELL + CELL/2;
       const pts = Math.floor(g.points * chainMult * mult);
-      popups.push({
+      pushPopup({
         x, y,
         text: g.name + ' +' + pts,
         color: g.color || '#ffffff',
@@ -1989,14 +2017,14 @@
       });
     }
     if(chainMult>1){
-      popups.push({
+      pushPopup({
         x:W/2, y:PEG_ZONE*0.4,
         text:'CHAIN ×'+chainMult+'!',
         color:'#ffffff', t0:now, duration:1200, big:true
       });
     }
     if(groups.length>1){
-      popups.push({
+      pushPopup({
         x:W/2, y:PEG_ZONE*0.4 + (chainMult>1?34:0),
         text:'COMBO ×'+groups.length,
         color: PEG, t0:now, duration:1200
@@ -2005,8 +2033,11 @@
   }
 
   function spawnExplosion(x, y, card){
+    if(particles.length >= MAX_PARTICLES) return;
     const color = card ? SUIT_COLOR[card.suit] : '#ffffff';
-    for(let i=0;i<16;i++){
+    const budget = Math.max(0, MAX_PARTICLES - particles.length);
+    const sparks = Math.min(12, budget);
+    for(let i=0;i<sparks;i++){
       const ang = Math.random()*Math.PI*2;
       const spd = 2.2 + Math.random()*6.5;
       particles.push({
@@ -2019,7 +2050,8 @@
         decay: 0.018 + Math.random()*0.025
       });
     }
-    for(let i=0;i<4;i++){
+    const flares = Math.min(3, Math.max(0, MAX_PARTICLES - particles.length));
+    for(let i=0;i<flares;i++){
       const ang = -Math.PI/2 + (Math.random()-0.5)*1.4;
       const spd = 5 + Math.random()*5;
       particles.push({
@@ -2046,6 +2078,7 @@
   }
 
   function launchPuckFromCell(col, row, card, angle, stackPos, fromClearIndex){
+    if(balls.length >= MAX_CASCADE_BALLS) return false;
     const x = col*CELL + CELL/2 + (Math.random()*10-5);
     const y = PEG_ZONE + row*CELL + CELL/2;
     const heightBoost = Math.max(0, stackPos - fromClearIndex);
@@ -2067,6 +2100,7 @@
       cascadeBall: true
     };
     balls.push(ball);
+    return true;
   }
 
   function applyExplosionClear(groups){
@@ -2098,7 +2132,11 @@
         }
         if(lowestClearedIdx !== Infinity && i > lowestClearedIdx){
           if(entry.type==='piece'){
-            launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx);
+            // Cap cascade launches so floor clears can't flood the peg zone.
+            if(launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx)){
+              continue;
+            }
+            // Over cap: keep the piece and let column rebuild settle it down.
           } else if(entry.type==='ball'){
             const b = entry.ball;
             b.vx += (Math.random()-0.5)*6;
@@ -2112,8 +2150,10 @@
             b.gridAge = 0;
             b.cascadeBall = true;
             b.freeDrop = false;
+            continue;
+          } else {
+            continue;
           }
-          continue;
         }
         survivors.push(entry);
       }
@@ -2160,7 +2200,7 @@
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     refreshButtons();
-    requestAnimationFrame(resolveTick);
+    startResolveLoop();
   }
 
   function findSuitCells(suit){
@@ -2190,8 +2230,8 @@
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     refreshButtons();
-    updateSuitBombUI();
-    requestAnimationFrame(resolveTick);
+    updateSuitBombUI(performance.now(), true);
+    startResolveLoop();
   }
 
   function castSuitBomb(suit){
@@ -2273,7 +2313,7 @@
     pendingChain = 0;
     refreshButtons();
     enterFlash(groups);
-    requestAnimationFrame(resolveTick);
+    startResolveLoop();
   }
 
   function enterFlash(groups){
@@ -2319,14 +2359,16 @@
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
             awardChips(pts);
             clearTimeout(shopUiTimer);
+            flushScoreUI();
             updateShopUI();
             spawnPopups(currentGroups, pts, chainMult);
           } else {
             const floorPts = floorClearPayout();
             if(floorPts > 0) awardChips(floorPts);
             clearTimeout(shopUiTimer);
+            flushScoreUI();
             updateShopUI();
-            popups.push({
+            pushPopup({
               x: W/2,
               y: PEG_ZONE + (ROWS-1)*CELL + CELL/2,
               text: floorPts > 0 ? ('FLOOR CLEAR +' + floorPts) : 'FLOOR CLEAR!',
@@ -2348,11 +2390,12 @@
         }
       }
     }
-    draw();
-    const popupsAlive = popups.some(p => performance.now()-p.t0 < p.duration);
-    if(resolving || popupsAlive){
+    // Physics tick already paints when it's running — avoid double draws.
+    if(!looping) draw();
+    if(resolving){
       requestAnimationFrame(resolveTick);
-    } else if(Number.isFinite(autoDropIntervalMs())){
+    } else {
+      resolveLooping = false;
       startLoop();
     }
   }
@@ -2745,9 +2788,13 @@
     }
   }
 
-  function updateSuitBombUI(now){
+  let lastSuitBombUiAt = 0;
+  function updateSuitBombUI(now, force){
     if(!suitBombBar) return;
     now = now || performance.now();
+    // Hot path: tick/idle used to thrash the DOM every frame.
+    if(!force && now - lastSuitBombUiAt < 120) return;
+    lastSuitBombUiAt = now;
     const unlocked = suitBombUnlocked();
     suitBombBar.classList.toggle('show', unlocked);
     if(!unlocked) return;
@@ -2765,10 +2812,18 @@
     }
 
     const charge = ready ? 1 : Math.max(0, Math.min(1, 1 - (suitBombReadyAt - now) / cd));
+    // One board scan for all suits instead of four.
+    const counts = {'♠':0,'♥':0,'♦':0,'♣':0};
+    for(let c=0;c<COLS;c++){
+      for(let r=0;r<ROWS;r++){
+        const card = grid[c][r];
+        if(card) counts[card.suit] = (counts[card.suit]||0) + 1;
+      }
+    }
     for(const s of SUITS){
       const btn = suitBombButtons[s];
       if(!btn) continue;
-      const count = findSuitCells(s).length;
+      const count = counts[s] || 0;
       const queued = pendingSuitBomb === s;
       // Stay clickable during hand clears — cast queues until the board is free.
       const canCast = ready && !gameOver && count > 0;
@@ -2854,21 +2909,20 @@
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
 
-  // Keep the aim preview gently spinning even when idle, and
-  // wake the physics loop whenever the auto-dealer is armed.
+  // Lightweight keeper: only runs work when the physics/resolve loops are idle.
   function idleSpin(){
     const now = performance.now();
-    updateSuitBombUI(now);
-    if(!looping && !resolving){
+    if(!looping && !resolveLooping){
+      updateSuitBombUI(now);
       tryAutoDrop(now);
       tryAutoSuitBomb(now);
-      const needLoop = balls.length || particles.length
+      const needLoop = balls.length || particles.length || resolving
         || Number.isFinite(autoDropIntervalMs())
         || (suitBombUnlocked() && (
           upgradeLevel('autoSuitBomb') > 0 || !suitBombReady(now)
         ));
       if(needLoop) startLoop();
-      draw();
+      else draw();
     }
     requestAnimationFrame(idleSpin);
   }
