@@ -1637,7 +1637,7 @@
   const MAX_IN_FLIGHT = 14;
   const MAX_CASCADE_BALLS = 42;
   const MAX_POPUPS = 36;
-  const MAX_PARTICLES = 280;
+  const MAX_PARTICLES = 180;
   const MAX_RUN_LEVEL = 40;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
   const MIN_CASH_OUT_LEVEL = 8;
@@ -3408,14 +3408,8 @@
     chainStep = 0;
     pendingChain = 0;
     flashCells = null;
-    flashCellJuice = null;
     particles = [];
     popups = [];
-    resolveFlashMs = FLASH_MS;
-    resolveExplodeMs = EXPLODE_MS;
-    resolveJuice = 'normal';
-    shakeMag = 0;
-    bloomAlpha = 0;
     pendingSuitBomb = null;
     lastAutoDropAt = performance.now();
     stopHoldDrop();
@@ -3624,51 +3618,35 @@
   let chainStep = 0;
   let pendingChain = 0;
   let flashCells = null;
-  let flashCellJuice = null; // cell key -> juice tier for this resolve
   let particles = [];
   let popups = [];
   const FLASH_MS = 480, EXPLODE_MS = 280;
-  let resolveFlashMs = FLASH_MS;
-  let resolveExplodeMs = EXPLODE_MS;
-  let resolveJuice = 'normal';
-  let shakeMag = 0;
-  let bloomAlpha = 0;
-  let bloomColor = '255,255,255';
 
-  // Hand clear feel — 2-pair / trips stay calm; premium hands get louder FX.
-  const JUICE_RANK = { normal: 0, medium: 1, big: 2, huge: 3 };
-  const JUICE = {
+  // Flash/explode FX stay uniform — rank intensity lives in the score text.
+  const TEXT_JUICE = {
     normal: {
-      flashMult: 1, explodeMult: 1,
-      pulseAmp: 0.18, pulseHz: 7, blur: 30,
-      sparks: 12, flares: 3, spd: 1, size: 1,
-      popupDuration: 1100, popupFont: 16, popupFloat: 30, bigPopup: false,
-      shake: 0, bloom: 0, bloomRGB: '255,255,255'
+      fontSize: 18, duration: 1100, float: 34,
+      bangs: 0, tilt: 0.05, slam: 1.4, slamMs: 140,
+      glow: 10, bright: 0, big: false
     },
     medium: {
-      flashMult: 1.18, explodeMult: 1.12,
-      pulseAmp: 0.28, pulseHz: 9, blur: 48,
-      sparks: 20, flares: 5, spd: 1.22, size: 1.18,
-      popupDuration: 1350, popupFont: 20, popupFloat: 38, bigPopup: false,
-      shake: 2.5, bloom: 0.1, bloomRGB: '255,255,255'
+      fontSize: 24, duration: 1400, float: 44,
+      bangs: 1, tilt: 0.12, slam: 1.85, slamMs: 170,
+      glow: 18, bright: 0.18, big: false
     },
     big: {
-      flashMult: 1.4, explodeMult: 1.28,
-      pulseAmp: 0.42, pulseHz: 12, blur: 72,
-      sparks: 32, flares: 9, spd: 1.5, size: 1.4,
-      popupDuration: 1650, popupFont: 26, popupFloat: 48, bigPopup: true,
-      shake: 6, bloom: 0.2, bloomRGB: '255,236,210'
+      fontSize: 32, duration: 1750, float: 56,
+      bangs: 2, tilt: 0.2, slam: 2.35, slamMs: 200,
+      glow: 26, bright: 0.32, big: true
     },
     huge: {
-      flashMult: 1.7, explodeMult: 1.5,
-      pulseAmp: 0.58, pulseHz: 15, blur: 110,
-      sparks: 48, flares: 16, spd: 1.85, size: 1.7,
-      popupDuration: 2100, popupFont: 34, popupFloat: 62, bigPopup: true,
-      shake: 11, bloom: 0.34, bloomRGB: '255,220,120'
+      fontSize: 40, duration: 2300, float: 72,
+      bangs: 3, tilt: 0.28, slam: 2.9, slamMs: 240,
+      glow: 36, bright: 0.5, big: true
     }
   };
 
-  function handJuiceTier(name){
+  function handTextTier(name){
     switch(name){
       case 'ROYAL FLUSH':
       case 'FIVE OF A KIND':
@@ -3685,17 +3663,30 @@
     }
   }
 
-  function maxJuiceTier(a, b){
-    return (JUICE_RANK[a]||0) >= (JUICE_RANK[b]||0) ? a : b;
+  function brightenColor(hex, amount){
+    if(!hex || hex[0] !== '#' || (hex.length !== 7 && hex.length !== 4)) return hex || '#ffffff';
+    let r, g, b;
+    if(hex.length === 4){
+      r = parseInt(hex[1]+hex[1], 16);
+      g = parseInt(hex[2]+hex[2], 16);
+      b = parseInt(hex[3]+hex[3], 16);
+    } else {
+      r = parseInt(hex.slice(1,3), 16);
+      g = parseInt(hex.slice(3,5), 16);
+      b = parseInt(hex.slice(5,7), 16);
+    }
+    const a = Math.max(0, Math.min(1, amount || 0));
+    r = Math.round(r + (255 - r) * a);
+    g = Math.round(g + (255 - g) * a);
+    b = Math.round(b + (255 - b) * a);
+    return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
   }
 
-  function triggerJuiceBurst(tier){
-    const fx = JUICE[tier] || JUICE.normal;
-    if(fx.shake > shakeMag) shakeMag = fx.shake;
-    if(fx.bloom > bloomAlpha){
-      bloomAlpha = fx.bloom;
-      bloomColor = fx.bloomRGB;
-    }
+  function easeOutBack(t){
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    const u = Math.max(0, Math.min(1, t));
+    return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
   }
 
   function refreshButtons(){
@@ -4356,66 +4347,73 @@
       const x = avgC*CELL+CELL/2;
       const y = PEG_ZONE + avgR*CELL + CELL/2;
       const pts = Math.floor(g.points * chainMult * mult);
-      const tier = handJuiceTier(g.name);
-      const fx = JUICE[tier] || JUICE.normal;
+      const tier = handTextTier(g.name);
+      const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
+      const bangs = '!'.repeat(fx.bangs);
+      const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + ' +' + pts,
-        color: g.color || '#ffffff',
-        t0:now,
-        duration: fx.popupDuration,
-        fontSize: fx.popupFont,
-        floatBoost: fx.popupFloat,
-        big: fx.bigPopup
+        text: g.name + bangs + ' +' + pts,
+        color: brightenColor(g.color || '#ffffff', fx.bright),
+        t0: now,
+        duration: fx.duration,
+        fontSize: fx.fontSize,
+        floatBoost: fx.float,
+        tilt: fx.tilt * sign,
+        slam: fx.slam,
+        slamMs: fx.slamMs,
+        glow: fx.glow,
+        big: fx.big
       });
     }
     if(chainMult>1){
       pushPopup({
         x:W/2, y:PEG_ZONE*0.4,
         text:'CHAIN ×'+chainMult+'!',
-        color:'#ffffff', t0:now, duration:1200, big:true
+        color:'#ffffff', t0:now, duration:1200, big:true,
+        fontSize: 26, floatBoost: 40, tilt: 0.1, slam: 1.8, slamMs: 160, glow: 16
       });
     }
     if(groups.length>1){
       pushPopup({
         x:W/2, y:PEG_ZONE*0.4 + (chainMult>1?34:0),
-        text:'COMBO ×'+groups.length,
-        color: PEG, t0:now, duration:1200
+        text:'COMBO ×'+groups.length+'!',
+        color: PEG, t0:now, duration:1200,
+        fontSize: 20, floatBoost: 36, tilt: -0.08, slam: 1.55, slamMs: 150, glow: 12
       });
     }
   }
 
-  function spawnExplosion(x, y, card, juiceTier){
+  function spawnExplosion(x, y, card){
     if(particles.length >= MAX_PARTICLES) return;
-    const fx = JUICE[juiceTier] || JUICE.normal;
     const color = card ? SUIT_COLOR[card.suit] : '#ffffff';
     const budget = Math.max(0, MAX_PARTICLES - particles.length);
-    const sparks = Math.min(fx.sparks, budget);
+    const sparks = Math.min(12, budget);
     for(let i=0;i<sparks;i++){
       const ang = Math.random()*Math.PI*2;
-      const spd = (2.2 + Math.random()*6.5) * fx.spd;
+      const spd = 2.2 + Math.random()*6.5;
       particles.push({
         x, y,
         vx: Math.cos(ang)*spd,
-        vy: Math.sin(ang)*spd - 3.5 * fx.spd,
-        r: (2.5 + Math.random()*5) * fx.size,
+        vy: Math.sin(ang)*spd - 3.5,
+        r: 2.5 + Math.random()*5,
         color,
         life: 1,
-        decay: 0.016 + Math.random()*0.024
+        decay: 0.018 + Math.random()*0.025
       });
     }
-    const flares = Math.min(fx.flares, Math.max(0, MAX_PARTICLES - particles.length));
+    const flares = Math.min(3, Math.max(0, MAX_PARTICLES - particles.length));
     for(let i=0;i<flares;i++){
       const ang = -Math.PI/2 + (Math.random()-0.5)*1.4;
-      const spd = (5 + Math.random()*5) * fx.spd;
+      const spd = 5 + Math.random()*5;
       particles.push({
         x, y,
         vx: Math.cos(ang)*spd,
         vy: Math.sin(ang)*spd,
-        r: (5 + Math.random()*4) * fx.size,
-        color: juiceTier === 'huge' ? '#FFE08A' : '#ffffff',
+        r: 5 + Math.random()*4,
+        color: '#ffffff',
         life: 1,
-        decay: 0.028 + Math.random()*0.02
+        decay: 0.03 + Math.random()*0.02
       });
     }
   }
@@ -4459,20 +4457,12 @@
 
   function applyExplosionClear(groups){
     const cleared = new Set();
-    const cellTier = flashCellJuice || new Map();
     for(const g of groups) for(const [c,r] of g.cells) cleared.add(c+','+r);
 
     for(const key of cleared){
       const [c,r] = key.split(',').map(Number);
       const card = grid[c][r];
-      if(card){
-        spawnExplosion(
-          c*CELL+CELL/2,
-          PEG_ZONE+r*CELL+CELL/2,
-          card,
-          cellTier.get(key) || resolveJuice || 'normal'
-        );
-      }
+      if(card) spawnExplosion(c*CELL+CELL/2, PEG_ZONE+r*CELL+CELL/2, card);
     }
 
     for(let c=0;c<COLS;c++){
@@ -4500,8 +4490,7 @@
               spawnExplosion(
                 c*CELL+CELL/2,
                 PEG_ZONE+oldRow*CELL+CELL/2,
-                entry.card,
-                resolveJuice
+                entry.card
               );
             }
             continue;
@@ -4565,11 +4554,6 @@
       color: first ? SUIT_COLOR[first.suit] : '#ffffff'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
-    flashCellJuice = new Map();
-    for(const [c,r] of cells) flashCellJuice.set(c+','+r, 'normal');
-    resolveJuice = 'normal';
-    resolveFlashMs = FLASH_MS;
-    resolveExplodeMs = EXPLODE_MS;
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     noteFloorClear();
@@ -4601,11 +4585,6 @@
       color: SUIT_COLOR[suit] || '#ffffff'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
-    flashCellJuice = new Map();
-    for(const [c,r] of cells) flashCellJuice.set(c+','+r, 'normal');
-    resolveJuice = 'normal';
-    resolveFlashMs = FLASH_MS;
-    resolveExplodeMs = EXPLODE_MS;
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     refreshButtons();
@@ -4700,22 +4679,7 @@
     chainStep++;
     currentGroups = groups;
     flashCells = new Set();
-    flashCellJuice = new Map();
-    let tier = 'normal';
-    for(const g of groups){
-      const gTier = handJuiceTier(g.name);
-      tier = maxJuiceTier(tier, gTier);
-      for(const [c,r] of g.cells){
-        const key = c+','+r;
-        flashCells.add(key);
-        const prev = flashCellJuice.get(key);
-        flashCellJuice.set(key, prev ? maxJuiceTier(prev, gTier) : gTier);
-      }
-    }
-    resolveJuice = tier;
-    const fx = JUICE[tier] || JUICE.normal;
-    resolveFlashMs = FLASH_MS * fx.flashMult;
-    resolveExplodeMs = EXPLODE_MS * fx.explodeMult;
+    for(const g of groups) for(const [c,r] of g.cells) flashCells.add(c+','+r);
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
   }
@@ -4744,8 +4708,8 @@
     tryAutoDrop(now);
     tryHoldDrop(now);
     const speed = Math.min(physicsSpeed(), 2.8);
-    const flashMs = resolveFlashMs / speed;
-    const explodeMs = resolveExplodeMs / speed;
+    const flashMs = FLASH_MS / speed;
+    const explodeMs = EXPLODE_MS / speed;
     if(resolving){
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
@@ -4773,13 +4737,12 @@
               color: floorPts > 0 ? (getCSS('--felt-bright') || '#2d8a6e') : '#ffffff',
               t0: performance.now(),
               duration: 900,
-              big: true
+              big: true,
+              fontSize: 26, floatBoost: 40, tilt: 0.08, slam: 1.7, slamMs: 160, glow: 14
             });
           }
-          triggerJuiceBurst(resolveJuice);
           applyExplosionClear(currentGroups);
           flashCells = null;
-          flashCellJuice = null;
           resolvePhase = 'explode';
           resolvePhaseStart = now;
         }
@@ -4853,29 +4816,19 @@
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
-  function drawFlashPiece(cx, cy, card, elapsedFrac, juiceTier){
-    const fx = JUICE[juiceTier] || JUICE.normal;
+  function drawFlashPiece(cx, cy, card, elapsedFrac){
     const color = SUIT_COLOR[card.suit];
-    const pulse = 1 + fx.pulseAmp*Math.sin(elapsedFrac*Math.PI*fx.pulseHz);
+    const pulse = 1 + 0.18*Math.sin(elapsedFrac*Math.PI*7);
     ctx.beginPath();
     ctx.arc(cx,cy,32*pulse,0,Math.PI*2);
-    ctx.fillStyle = juiceTier === 'huge' ? '#FFF4C2' : '#ffffff';
-    ctx.shadowColor = juiceTier === 'huge' ? '#FFE08A' : color;
-    ctx.shadowBlur = fx.blur;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 30;
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.lineWidth = juiceTier === 'normal' ? 3 : 3.5;
+    ctx.lineWidth = 3;
     ctx.strokeStyle = color;
     ctx.stroke();
-    if(JUICE_RANK[juiceTier] >= JUICE_RANK.big){
-      ctx.beginPath();
-      ctx.arc(cx, cy, 38 * pulse, 0, Math.PI*2);
-      ctx.strokeStyle = juiceTier === 'huge'
-        ? 'rgba(255,224,138,0.55)'
-        : 'rgba(255,255,255,0.35)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(card.angle||0);
@@ -4896,13 +4849,6 @@
 
   function draw(){
     ctx.clearRect(0,0,W,H);
-    ctx.save();
-    if(shakeMag > 0.05){
-      ctx.translate((Math.random()-0.5)*shakeMag*2, (Math.random()-0.5)*shakeMag*2);
-      shakeMag *= 0.88;
-    } else {
-      shakeMag = 0;
-    }
 
     const grad = ctx.createLinearGradient(0,0,0,PEG_ZONE);
     grad.addColorStop(0, '#1a1630');
@@ -4983,7 +4929,7 @@
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
     const flashElapsed = resolvePhase==='flash'
-      ? Math.min(1,(performance.now()-resolvePhaseStart)/Math.max(1, resolveFlashMs))
+      ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS)
       : 0;
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
@@ -4992,8 +4938,7 @@
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
         const key = c+','+r;
         if(flashCells && flashCells.has(key)){
-          const tier = (flashCellJuice && flashCellJuice.get(key)) || resolveJuice || 'normal';
-          drawFlashPiece(cx,cy,val,flashElapsed, tier);
+          drawFlashPiece(cx,cy,val,flashElapsed);
         } else {
           drawPiece(cx,cy,val, false);
         }
@@ -5067,20 +5012,50 @@
     const nowP = performance.now();
     popups = popups.filter(p => nowP - p.t0 < p.duration);
     for(const p of popups){
-      const t = (nowP - p.t0) / p.duration;
+      const age = nowP - p.t0;
+      const t = age / p.duration;
       const alpha = t < 0.7 ? 1 : Math.max(0, 1-(t-0.7)/0.3);
       const floatDist = p.floatBoost || (p.big ? 40 : 30);
       const dy = -floatDist*t;
       const fontSize = p.fontSize || (p.big ? 26 : 16);
+      const slamMs = p.slamMs || 120;
+      const slamFrom = p.slam || (p.big ? 1.35 : 1.15);
+      const slamT = easeOutBack(Math.min(1, age / slamMs));
+      const scale = slamFrom + (1 - slamFrom) * slamT;
+      // Settle from a wilder entry tilt into the resting angle.
+      const restTilt = p.tilt || 0;
+      const entryTilt = restTilt * 1.85;
+      const tilt = entryTilt + (restTilt - entryTilt) * slamT;
+      const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
+
+      ctx.save();
+      ctx.translate(p.x, p.y + dy);
+      ctx.rotate(tilt);
+      ctx.scale(scale, scale);
       ctx.globalAlpha = alpha;
       ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // Dark outline so labels stay readable over suit-colored pucks.
+      ctx.lineWidth = Math.max(4, fontSize * 0.18);
+      ctx.strokeStyle = 'rgba(8,6,16,0.92)';
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+      ctx.strokeText(p.text, 0, 0);
       ctx.fillStyle = p.color;
       ctx.shadowColor = p.color;
-      ctx.shadowBlur = p.big ? 14 : 8;
-      ctx.fillText(p.text, p.x, p.y+dy);
+      ctx.shadowBlur = glow;
+      ctx.fillText(p.text, 0, 0);
+      // Hot white core on premium pops — reads brighter without changing hue much.
+      if(glow >= 24){
+        ctx.shadowBlur = glow * 0.35;
+        ctx.globalAlpha = alpha * 0.55;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(p.text, 0, 0);
+      }
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     if(!gameOver && nextCard){
@@ -5098,15 +5073,6 @@
       // tiny spinning preview of the next card at the drop point
       drawCardFace(ctx, aimX, 38, nextCard, performance.now()/400, 12, false, 0);
     }
-
-    if(bloomAlpha > 0.01){
-      ctx.fillStyle = 'rgba(' + bloomColor + ',' + bloomAlpha + ')';
-      ctx.fillRect(0, 0, W, H);
-      bloomAlpha *= 0.84;
-    } else {
-      bloomAlpha = 0;
-    }
-    ctx.restore();
   }
 
   // ---- UI wiring ----
