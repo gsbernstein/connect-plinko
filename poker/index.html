@@ -5,7 +5,7 @@
 <title>Plinko Poker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0B0A14;
@@ -4920,21 +4920,18 @@
   }
 
   // ---- drawing ----
-  // Suit is the hero mark; rank sits on top, diagonally offset so it doesn't
-  // bury the suit. Queens are path-drawn — Space Grotesk's Q tick drops
-  // straight under the bowl and reads as O when the chip spins.
+  // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
   function drawChipGlyphs(target, card, radius){
     const color = SUIT_COLOR[card.suit];
     target.textAlign = 'center';
     target.textBaseline = 'middle';
-    // Suit larger / more central; rank smaller and NW of it.
-    const suitSize = Math.max(10, Math.round(radius * 0.78));
-    const rankSize = Math.max(8, Math.round(radius * 0.52));
+    const suitSize = Math.max(10, Math.round(radius * 0.74));
+    const rankSize = Math.max(10, Math.round(radius * 0.70));
     const strokeW = Math.max(1.4, radius * 0.075);
-    const suitX = radius * 0.10;
-    const suitY = radius * 0.10;
-    const rankX = -radius * 0.16;
-    const rankY = -radius * 0.22;
+    const suitX = radius * 0.12;
+    const suitY = radius * 0.14;
+    const rankX = -radius * 0.14;
+    const rankY = -radius * 0.20;
     function stampGlyph(text, x, y, fill, font, lineW){
       target.font = font;
       target.lineJoin = 'round';
@@ -4944,27 +4941,6 @@
       target.strokeText(text, x, y);
       target.fillStyle = fill;
       target.fillText(text, x, y);
-    }
-    function stampQueen(x, y, fill, size){
-      // Bowl + long SE diagonal tick (never a bottom-center nub).
-      const rr = size * 0.34;
-      const thick = Math.max(2, size * 0.145);
-      const tick = size * 0.42;
-      function strokeQ(style, width){
-        target.strokeStyle = style;
-        target.lineWidth = width;
-        target.lineCap = 'round';
-        target.lineJoin = 'round';
-        target.beginPath();
-        target.arc(x, y, rr, 0, Math.PI * 2);
-        target.stroke();
-        target.beginPath();
-        target.moveTo(x + rr * 0.18, y + rr * 0.18);
-        target.lineTo(x + rr * 0.18 + tick * 0.62, y + rr * 0.18 + tick * 0.78);
-        target.stroke();
-      }
-      strokeQ('rgba(8,6,16,0.85)', thick + strokeW * 1.1);
-      strokeQ(fill, thick);
     }
 
     // Suit underneath (drawn first)
@@ -4976,19 +4952,15 @@
       `bold ${suitSize}px 'Space Grotesk', sans-serif`,
       Math.max(1.6, radius * 0.09)
     );
-    // Rank on top, diagonally offset
-    if(card.rank === 12){
-      stampQueen(rankX, rankY, '#FFF6D6', rankSize);
-    } else {
-      stampGlyph(
-        rankLabel(card.rank),
-        rankX,
-        rankY,
-        '#FFF6D6',
-        `bold ${rankSize}px 'Space Grotesk', sans-serif`,
-        strokeW
-      );
-    }
+    // Rank on top, diagonally offset — Fraunces has a clearer Q tick.
+    stampGlyph(
+      rankLabel(card.rank),
+      rankX,
+      rankY,
+      '#FFF6D6',
+      `700 ${rankSize}px Fraunces, Georgia, serif`,
+      strokeW
+    );
   }
 
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
@@ -5035,7 +5007,8 @@
   function drawFlashPiece(cx, cy, card, elapsedFrac, juiceTier){
     const fx = JUICE[juiceTier] || JUICE.normal;
     const color = SUIT_COLOR[card.suit];
-    const pulse = 1 + fx.pulseAmp*Math.sin(elapsedFrac*Math.PI*fx.pulseHz);
+    // Keep scale pulse tiny — heat/glow carries the flash, not chip inflate.
+    const pulse = 1 + fx.pulseAmp * 0.22 * Math.sin(elapsedFrac * Math.PI * fx.pulseHz);
     const r = 32 * pulse;
     const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * fx.pulseHz));
     ctx.save();
@@ -5060,7 +5033,7 @@
     ctx.stroke();
     if(JUICE_RANK[juiceTier] >= JUICE_RANK.big){
       ctx.beginPath();
-      ctx.arc(0, 0, 38 * pulse, 0, Math.PI * 2);
+      ctx.arc(0, 0, 34 + 4 * pulse, 0, Math.PI * 2);
       ctx.strokeStyle = juiceTier === 'huge'
         ? 'rgba(255,224,138,0.4)'
         : ('rgba(255,255,255,' + (0.2 + 0.15 * heat) + ')');
@@ -5068,7 +5041,7 @@
       ctx.stroke();
     }
     ctx.rotate(card.angle || 0);
-    drawChipGlyphs(ctx, card, r * 0.92);
+    drawChipGlyphs(ctx, card, 32 * 0.92);
     ctx.restore();
   }
 
