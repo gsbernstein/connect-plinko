@@ -4640,6 +4640,7 @@
     ctx.fillRect(0,0,W,PEG_ZONE);
 
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
     for(let c=1;c<COLS;c++){
       ctx.beginPath();
       ctx.moveTo(c*CELL,0);
