@@ -13,11 +13,11 @@ Each page has a Classic / Poker switch to jump between them.
 
 ### Plinko Four
 
-Drop colored pucks through pegs into a Connect Four–style grid. Get 4+ in a row to score and explode — cascades chain for more points. Full board? click a piece to blow it up.
+Drop colored pucks through pegs into a Connect Four–style grid. Get 4+ in a row to score and explode — cascades chain for more points. If the board packs solid, the bottom row blows out automatically and everything above gets flung back into the pegs.
 
 ### Plinko Poker
 
-Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes. Near-miss guides show when you’re close.
+Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes. Near-miss guides show when you’re close. Full board triggers the same automatic floor clear.
 
 ## Local
 

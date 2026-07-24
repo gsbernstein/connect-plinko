@@ -246,7 +246,7 @@
 <body>
 <div class="wrap">
   <h1>Plinko Four</h1>
-  <div class="tagline">Press and drag on the board to aim, release to drop — full columns raise an arched bumper. Matches explode, and if the board packs solid you click one piece to blow it up.</div>
+  <div class="tagline">Press and drag on the board to aim, release to drop — full columns raise an arched bumper. Matches explode, and if the board packs solid the bottom row blows out automatically.</div>
   <div class="game-switch">
     <a class="current" href="./" aria-current="page">Classic</a>
     <a href="./poker/">Poker</a>
@@ -275,7 +275,7 @@
   </div>
 
   <div class="footer-row">
-    <span class="hint">4+ in a row scores &amp; explodes — board full? click a piece to blow it up</span>
+    <span class="hint">4+ in a row scores &amp; explodes — board full? bottom row blows out</span>
     <button class="reset" id="resetScores">Reset scores</button>
   </div>
 </div>
@@ -312,9 +312,6 @@
 
   // ---- board state ----
   let grid, colHeights, current, gameOver;
-  let detonateMode = false;        // board full: click a piece to blow it up
-  let detonateHover = null;        // {col,row} under the cursor while choosing
-  let detonateConsumesTurn = false; // after a detonation settles, pass the turn
   let scores = {1:0, 2:0};
   let vsComputerEnabled = false;
 
@@ -332,9 +329,6 @@
     stack = Array.from({length:COLS}, ()=>[]);
     current = 1;
     gameOver = false;
-    detonateMode = false;
-    detonateHover = null;
-    detonateConsumesTurn = false;
     aiMoveId++;
     balls = [];
     resolving = false;
@@ -557,14 +551,10 @@
     buttons.push(b);
   }
 
-  // Placement stays open during match resolve — only detonate-mode / AI turn
-  // / game-over should steal the controls.
+  // Placement stays open during match resolve — only AI turn / game-over
+  // should steal the controls.
   function inputBlocked(){
-    return gameOver || detonateMode || (vsComputerEnabled && current===2);
-  }
-
-  function canChooseDetonate(){
-    return detonateMode && !resolving && !gameOver && !(vsComputerEnabled && current===2);
+    return gameOver || (vsComputerEnabled && current===2);
   }
 
   // ---- match resolution (clear + cascade) state ----
@@ -606,7 +596,7 @@
 
   // continuous drop: x can be anywhere along the top, not snapped to a column
   function dropAt(x){
-    if(gameOver || detonateMode) return;
+    if(gameOver) return;
     if(colHeights.every(h=>h>=ROWS)) return; // board already fully committed
     aiMoveId++; // cancel any pending AI timeout; we'll re-schedule below if needed
     const ball = {
@@ -932,9 +922,9 @@
       if(!resolving) maybeStartResolve();
     }
 
-    // Board packed solid: any puck still in the pegs has nowhere to land.
-    // Pop them so they can't wedge under the bumper and freeze play.
-    if(boardIsFull()) purgeStrandedPegBalls();
+    // Board packed solid with nothing left seating in-column: blow the floor
+    // even while peg-zone pucks are still bouncing — they'll fall in after.
+    if(!resolving && boardIsFull() && !hasGridBalls()) beginFloorClear();
 
     draw();
 
@@ -1159,77 +1149,31 @@
     return colHeights.every(h=>h>=ROWS);
   }
 
-  // When every column is already committed, peg-zone pucks can never enter
-  // the grid — they just pin under the bumper forever and block resolves.
-  // Pop them out of play (no score) so detonate-mode can take over.
-  function purgeStrandedPegBalls(){
-    if(!boardIsFull()) return false;
-    const stranded = balls.filter(b => b.phase==='peg');
-    if(!stranded.length) return false;
-    for(const b of stranded){
-      spawnExplosion(b.x, b.y, b.player);
+  function hasGridBalls(){
+    return balls.some(b => b.phase==='grid');
+  }
+
+  // Board-full escape hatch: nuke the entire bottom row (no points). Pieces
+  // above get flung back into the pegs — same blast as a match clear.
+  // Peg-zone pucks are left alone; once columns open they'll fall in.
+  function beginFloorClear(){
+    if(resolving || gameOver || !boardIsFull()) return;
+    const row = ROWS - 1;
+    const cells = [];
+    for(let c=0;c<COLS;c++){
+      if(grid[c][row]) cells.push([c, row]);
     }
-    balls = balls.filter(b => b.phase!=='peg');
-    startLoop(); // keep debris animating
-    return true;
-  }
-
-  let detonateAnim = false;
-  function startDetonateAnim(){
-    if(detonateAnim) return;
-    detonateAnim = true;
-    const step = ()=>{
-      if(!detonateMode){ detonateAnim = false; return; }
-      draw();
-      requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }
-
-  function enterDetonateMode(){
-    purgeStrandedPegBalls();
-    detonateMode = true;
-    detonateHover = null;
-    gameOver = false;
-    banner.classList.remove('show');
-    refreshButtons();
-    updateTurnUI();
-    startDetonateAnim();
-    maybeTriggerAIDetonate();
-  }
-
-  // Board-full escape hatch: blow up one settled piece (no points), flinging
-  // everything above it back into physics — same blast as a match clear.
-  function beginDetonate(col, row){
-    if(!detonateMode || resolving) return;
-    if(col<0 || col>=COLS || row<0 || row>=ROWS) return;
-    if(!grid[col][row]) return;
-    detonateMode = false;
-    detonateHover = null;
-    detonateConsumesTurn = true;
+    if(!cells.length) return;
     resolving = true;
     resolveEpoch++;
     pendingChain = 0;
     chainStep = 0;
-    currentGroups = [{player: grid[col][row], cells:[[col,row]], detonate:true}];
-    flashCells = new Set([col+','+row]);
+    currentGroups = [{player: grid[cells[0][0]][row], cells, floorClear:true}];
+    flashCells = new Set(cells.map(([c,r]) => c+','+r));
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
     refreshButtons();
     requestAnimationFrame(resolveTick);
-  }
-
-  function cellAtCanvasPos(x, y){
-    if(y < PEG_ZONE) return null;
-    const col = Math.floor(x / CELL);
-    const row = Math.floor((y - PEG_ZONE) / CELL);
-    if(col<0 || col>=COLS || row<0 || row>=ROWS) return null;
-    if(!grid[col][row]) return null;
-    // require a click near the puck itself, not just anywhere in the cell
-    const cx = col*CELL + CELL/2;
-    const cy = PEG_ZONE + row*CELL + CELL/2;
-    if(Math.hypot(x-cx, y-cy) > HOLE_R) return null;
-    return {col, row};
   }
 
   function maybeStartResolve(){
@@ -1238,12 +1182,11 @@
     if(groups.length>0){
       beginResolveChain(groups);
     } else if(boardIsFull()){
-      // Pop any peg-zone leftovers that can never land, then wait until
-      // in-column pucks have seated before offering the detonate pick.
-      purgeStrandedPegBalls();
-      if(balls.length===0){
+      // Blow the floor once in-column pucks have seated. Peg-zone pucks can
+      // keep bouncing — the clear opens columns for them to fall into.
+      if(!hasGridBalls()){
         pendingChain = 0;
-        enterDetonateMode();
+        beginFloorClear();
       } else {
         refreshButtons();
       }
@@ -1253,14 +1196,8 @@
     }
   }
 
-  // Shared end-of-cascade bookkeeping: pass the turn if a detonation was
-  // the action that got us here, then let the next player drop (or AI).
+  // Shared end-of-cascade bookkeeping: let the next player drop (or AI).
   function afterBoardQuiet(){
-    if(detonateConsumesTurn){
-      current = current === 1 ? 2 : 1;
-      detonateConsumesTurn = false;
-      updateTurnUI();
-    }
     refreshButtons();
     maybeTriggerAI();
   }
@@ -1297,19 +1234,13 @@
       pendingChain = balls.length > 0 ? chainStep : 0;
       resolving = false;
       chainStep = 0;
-      purgeStrandedPegBalls();
-      if(boardIsFull() && balls.length===0){
+      if(boardIsFull() && !hasGridBalls()){
         pendingChain = 0;
-        // Still packed after the blast — other player picks the next piece.
-        if(detonateConsumesTurn){
-          current = current === 1 ? 2 : 1;
-          detonateConsumesTurn = false;
-          updateTurnUI();
-        }
-        enterDetonateMode();
+        // Still packed after the blast — clear the floor again.
+        beginFloorClear();
       } else if(boardIsFull()){
         // Grid pucks still seating into the last slots — tick will hand
-        // off to detonate mode once they land.
+        // off to a floor clear once they land.
         refreshButtons();
       } else {
         afterBoardQuiet();
@@ -1323,19 +1254,17 @@
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
         if(elapsed >= FLASH_MS){
-          const isDetonate = currentGroups.some(g => g.detonate);
-          if(!isDetonate){
+          const isFloorClear = currentGroups.some(g => g.floorClear);
+          if(!isFloorClear){
             const pts = scoreGroups(currentGroups, chainStep);
             scores[1]+=pts[1]; scores[2]+=pts[2];
             updateScoreUI();
             spawnPopups(currentGroups);
           } else {
-            const g = currentGroups[0];
-            const [c,r] = g.cells[0];
             popups.push({
-              x: c*CELL+CELL/2,
-              y: PEG_ZONE + r*CELL + CELL/2,
-              text: 'BOOM!',
+              x: W/2,
+              y: PEG_ZONE + (ROWS-1)*CELL + CELL/2,
+              text: 'FLOOR CLEAR!',
               color: '#ffffff',
               t0: performance.now(),
               duration: 900,
@@ -1411,52 +1340,18 @@
 
   let aiMoveId = 0;
   function maybeTriggerAI(){
-    // AI may drop during resolve just like a human — only detonate-mode
-    // and turn ownership should block it.
-    if(!vsComputerEnabled || gameOver || detonateMode || current!==2) return;
+    // AI may drop during resolve just like a human — only turn ownership
+    // should block it.
+    if(!vsComputerEnabled || gameOver || current!==2) return;
     const id = ++aiMoveId;
     const delay = 450 + Math.random()*550;
     setTimeout(()=>{
       if(id !== aiMoveId) return;
-      if(!vsComputerEnabled || gameOver || detonateMode || current!==2) return;
+      if(!vsComputerEnabled || gameOver || current!==2) return;
       const col = chooseAiColumn();
       if(col===null) return;
       const x = col*CELL + CELL/2 + (Math.random()*36-18);
       dropAt(x);
-    }, delay);
-  }
-
-  // Prefer blowing up the opponent's pieces that have a tall stack above
-  // them — more chaos, better chance the board opens up for the computer.
-  function chooseAiDetonateCell(){
-    const picks = [];
-    for(let c=0;c<COLS;c++){
-      for(let r=0;r<ROWS;r++){
-        if(!grid[c][r]) continue;
-        const above = r; // rows above this cell (0 = top)
-        const oppBonus = grid[c][r] === 1 ? 2.5 : 1;
-        const weight = (1 + above*1.4) * oppBonus;
-        picks.push({c, r, weight});
-      }
-    }
-    if(!picks.length) return null;
-    const total = picks.reduce((s,p)=>s+p.weight, 0);
-    let roll = Math.random()*total;
-    for(const p of picks){
-      roll -= p.weight;
-      if(roll <= 0) return p;
-    }
-    return picks[picks.length-1];
-  }
-
-  function maybeTriggerAIDetonate(){
-    if(!vsComputerEnabled || !detonateMode || resolving || gameOver || current!==2) return;
-    const delay = 550 + Math.random()*700;
-    setTimeout(()=>{
-      if(!vsComputerEnabled || !detonateMode || resolving || gameOver || current!==2) return;
-      const pick = chooseAiDetonateCell();
-      if(!pick) return;
-      beginDetonate(pick.c, pick.r);
     }, delay);
   }
 
@@ -1559,7 +1454,6 @@
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
     const flashElapsed = resolvePhase==='flash' ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS) : 0;
-    const detonatePulse = detonateMode ? 0.5 + 0.5*Math.sin(performance.now()/180) : 0;
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const val = grid[c][r];
@@ -1569,8 +1463,7 @@
         if(flashCells && flashCells.has(key)){
           drawFlashPiece(cx,cy,val,flashElapsed);
         } else {
-          const hovered = detonateMode && detonateHover && detonateHover.col===c && detonateHover.row===r;
-          drawPiece(cx,cy,val, false, hovered ? 1 : detonatePulse*0.35);
+          drawPiece(cx,cy,val, false);
         }
       }
     }
@@ -1664,7 +1557,7 @@
     }
 
     // aim marker — shows exactly where the next drop will start
-    if(!gameOver && !detonateMode){
+    if(!gameOver){
       const c = current===1 ? P1 : P2;
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
@@ -1676,36 +1569,6 @@
       ctx.shadowBlur = 10;
       ctx.fill();
       ctx.shadowBlur = 0;
-    }
-
-    // board-full prompt: pick a piece to detonate
-    if(detonateMode && !resolving){
-      const who = current===1 ? 'Red' : (vsComputerEnabled ? 'Computer' : 'Yellow');
-      const msg = (vsComputerEnabled && current===2)
-        ? 'Board full — Computer is picking a piece…'
-        : `Board full — ${who}, click a piece to blow up`;
-      ctx.save();
-      ctx.font = "bold 18px 'Space Grotesk', sans-serif";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const tw = ctx.measureText(msg).width;
-      const px = W/2, py = PEG_ZONE * 0.42;
-      ctx.fillStyle = 'rgba(11,10,20,0.72)';
-      ctx.beginPath();
-      // rounded pill behind the prompt
-      const rw = tw/2 + 18, rh = 18;
-      ctx.moveTo(px-rw+rh, py-rh);
-      ctx.arcTo(px+rw, py-rh, px+rw, py+rh, rh);
-      ctx.arcTo(px+rw, py+rh, px-rw, py+rh, rh);
-      ctx.arcTo(px-rw, py+rh, px-rw, py-rh, rh);
-      ctx.arcTo(px-rw, py-rh, px+rw, py-rh, rh);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = current===1 ? P1 : P2;
-      ctx.shadowBlur = 12;
-      ctx.fillText(msg, px, py);
-      ctx.restore();
     }
   }
 
@@ -1798,7 +1661,6 @@
     updateTurnUI();
     refreshButtons();
     maybeTriggerAI(); // in case it's already the computer's turn
-    maybeTriggerAIDetonate();
   });
 
   // ---- continuous aim/drop on the canvas ----
@@ -1815,16 +1677,6 @@
   function canvasX(evt){ return canvasPos(evt).x; }
 
   canvas.addEventListener('mousemove', (e)=>{
-    if(canChooseDetonate()){
-      const {x,y} = canvasPos(e);
-      const cell = cellAtCanvasPos(x,y);
-      const same = (!cell && !detonateHover) ||
-        (cell && detonateHover && cell.col===detonateHover.col && cell.row===detonateHover.row);
-      detonateHover = cell;
-      canvas.style.cursor = cell ? 'crosshair' : 'default';
-      if(!same) draw();
-      return;
-    }
     if(inputBlocked() || pointerDown) return;
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
     canvas.style.cursor = 'pointer';
@@ -1832,19 +1684,7 @@
   });
 
   let pointerDown = false;
-  let pointerDetonate = false;
   canvas.addEventListener('pointerdown', (e)=>{
-    if(canChooseDetonate()){
-      const {x,y} = canvasPos(e);
-      const cell = cellAtCanvasPos(x,y);
-      if(cell){
-        pointerDetonate = true;
-        detonateHover = cell;
-        canvas.setPointerCapture(e.pointerId);
-        draw();
-      }
-      return;
-    }
     if(inputBlocked()) return;
     pointerDown = true;
     canvas.setPointerCapture(e.pointerId);
@@ -1852,29 +1692,12 @@
     draw();
   });
   canvas.addEventListener('pointermove', (e)=>{
-    if(pointerDetonate){
-      e.preventDefault();
-      const {x,y} = canvasPos(e);
-      detonateHover = cellAtCanvasPos(x,y);
-      draw();
-      return;
-    }
     if(!pointerDown) return;
     e.preventDefault();
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
     draw();
   });
-  function releasePointer(e){
-    if(pointerDetonate){
-      pointerDetonate = false;
-      if(canChooseDetonate()){
-        const {x,y} = canvasPos(e || {clientX:0,clientY:0, touches:null});
-        // prefer the hovered cell from last move; fall back to event pos
-        const cell = detonateHover || (e ? cellAtCanvasPos(x,y) : null);
-        if(cell) beginDetonate(cell.col, cell.row);
-      }
-      return;
-    }
+  function releasePointer(){
     if(!pointerDown) return;
     pointerDown = false;
     if(!inputBlocked()) dropAt(aimX);
@@ -1882,7 +1705,6 @@
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', ()=>{
     pointerDown = false;
-    pointerDetonate = false;
   });
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
