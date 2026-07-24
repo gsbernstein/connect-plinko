@@ -1469,15 +1469,24 @@
     }
     ctx.shadowBlur = 0;
 
-    // bumpers — continuous arched rails over runs of full columns
+    // bumpers — smooth circular-arc rails over runs of full columns
     const BUMPER_COLOR = '#FF6B4D';
-    for(const path of bumperPaths){
-      const pts = path.points;
-      if(pts.length < 2) continue;
-      const hit = path.hit > 0;
+    function strokeBumperPath(path){
       ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      if(path.arc){
+        const {cx, cy, r, a0, a1} = path.arc;
+        ctx.arc(cx, cy, r, a0, a1, a1 < a0);
+      } else {
+        const pts = path.points;
+        if(pts.length < 2) return;
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      }
+    }
+    for(const path of bumperPaths){
+      if(!path.points.length) continue;
+      const hit = path.hit > 0;
+      strokeBumperPath(path);
       ctx.strokeStyle = hit ? '#ffffff' : BUMPER_COLOR;
       ctx.lineWidth = BUMPER_R * 2;
       ctx.lineCap = 'round';
@@ -1486,9 +1495,7 @@
       ctx.shadowBlur = hit ? 28 : 12;
       ctx.stroke();
       // inner highlight so the rail reads as a solid bumper, not a flat stroke
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      strokeBumperPath(path);
       ctx.strokeStyle = hit ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
       ctx.lineWidth = BUMPER_R * 0.7;
       ctx.shadowBlur = 0;
