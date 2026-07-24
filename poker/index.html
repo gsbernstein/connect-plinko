@@ -673,7 +673,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const MAX_IN_FLIGHT = 14;
-  const MAX_CASCADE_BALLS = 42;
+  const MAX_CASCADE_BALLS = 28;
   const MAX_POPUPS = 36;
   const MAX_PARTICLES = 180;
   const UPGRADE_DEFS = [
@@ -2135,11 +2135,16 @@
         }
         if(lowestClearedIdx !== Infinity && i > lowestClearedIdx){
           if(entry.type==='piece'){
-            // Cap cascade launches so floor clears can't flood the peg zone.
-            if(launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx)){
-              continue;
+            // Cap cascade bodies for perf, but never leave pieces parked in
+            // the column — that made floor clears strand the bottom rows.
+            if(!launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx)){
+              spawnExplosion(
+                c*CELL+CELL/2,
+                PEG_ZONE+oldRow*CELL+CELL/2,
+                entry.card
+              );
             }
-            // Over cap: keep the piece and let column rebuild settle it down.
+            continue;
           } else if(entry.type==='ball'){
             const b = entry.ball;
             b.vx += (Math.random()-0.5)*6;
