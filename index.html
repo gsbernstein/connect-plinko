@@ -311,6 +311,7 @@
     resolvePhase = null;
     currentGroups = [];
     chainStep = 0;
+    pendingChain = 0;
     flashCells = null;
     particles = [];
     popups = [];
@@ -538,21 +539,16 @@
 
   // ---- match resolution (clear + cascade) state ----
   let resolving = false;
-  let resolvePhase = null;   // 'flash' | 'explode' | 'wait'
+  let resolvePhase = null;   // 'flash' | 'explode'
   let resolvePhaseStart = 0;
   let resolveEpoch = 0;      // bumps each new resolve; free drops tag themselves with it
   let currentGroups = [];
   let chainStep = 0;
+  let pendingChain = 0;      // carry multiplier while blast physics is still in flight
   let flashCells = null;     // Set of "col,row" currently flashing before clear
   let particles = [];        // explosion debris from cleared pucks
   let popups = [];           // floating score/chain text
   const FLASH_MS = 480, EXPLODE_MS = 280;
-
-  // Only pucks blasted by the clear itself hold up the cascade wait —
-  // unrelated in-flight drops keep moving and resolve on their own land.
-  function cascadePendingBalls(){
-    return balls.filter(b => b.cascadeBall);
-  }
 
   function refreshButtons(){
     const blocked = inputBlocked();
@@ -1065,7 +1061,7 @@
       frameSafety: 0,
       trail: [],
       stackEntry: null,
-      cascadeBall: true // holds up resolve wait until this one reseats
+      cascadeBall: true // from a clear — lands can continue the chain multiplier
     };
     balls.push(ball);
   }
@@ -1183,6 +1179,7 @@
     detonateConsumesTurn = true;
     resolving = true;
     resolveEpoch++;
+    pendingChain = 0;
     chainStep = 0;
     currentGroups = [{player: grid[col][row], cells:[[col,row]], detonate:true}];
     flashCells = new Set([col+','+row]);
@@ -1206,7 +1203,7 @@
   }
 
   function maybeStartResolve(){
-    if(gameOver) return;
+    if(gameOver || resolving) return;
     const groups = findMatches();
     if(groups.length>0){
       beginResolveChain(groups);
@@ -1214,9 +1211,14 @@
       // Pop any peg-zone leftovers that can never land, then wait until
       // in-column pucks have seated before offering the detonate pick.
       purgeStrandedPegBalls();
-      if(balls.length===0) enterDetonateMode();
-      else refreshButtons();
+      if(balls.length===0){
+        pendingChain = 0;
+        enterDetonateMode();
+      } else {
+        refreshButtons();
+      }
     } else {
+      if(balls.length===0) pendingChain = 0;
       afterBoardQuiet();
     }
   }
@@ -1236,7 +1238,10 @@
   function beginResolveChain(groups){
     resolving = true;
     resolveEpoch++;
-    chainStep = 0;
+    // Continue a cascade multiplier if blasted pucks from the previous
+    // clear are what just seated into this match.
+    chainStep = pendingChain;
+    pendingChain = 0;
     refreshButtons();
     enterFlash(groups);
     requestAnimationFrame(resolveTick);
@@ -1256,10 +1261,15 @@
     if(nextGroups.length>0){
       enterFlash(nextGroups);
     } else {
+      // Don't sit around for blasted pucks to reseat — hand control back
+      // and let their landings start the next resolve. Keep the chain
+      // multiplier alive while any of that physics is still in flight.
+      pendingChain = balls.length > 0 ? chainStep : 0;
       resolving = false;
       chainStep = 0;
       purgeStrandedPegBalls();
       if(boardIsFull() && balls.length===0){
+        pendingChain = 0;
         // Still packed after the blast — other player picks the next piece.
         if(detonateConsumesTurn){
           current = current === 1 ? 2 : 1;
@@ -1308,36 +1318,10 @@
           resolvePhaseStart = now;
         }
       } else if(resolvePhase==='explode'){
-        // brief beat for the blast to read, then wait on physics
+        // Brief beat for the blast to read, then continue immediately —
+        // do not wait for launched pucks to settle before the next resolve.
         if(elapsed >= EXPLODE_MS){
-          resolvePhase = 'wait';
-          resolvePhaseStart = now;
-        }
-      } else if(resolvePhase==='wait'){
-        // Wait only on cascade pucks — fresh drops during this resolve are
-        // tagged freeDrop+dropEpoch and settle independently.
-        forceSeatStuckGridBalls();
-        if(boardIsFull()) purgeStrandedPegBalls();
-        const pending = cascadePendingBalls();
-        if(pending.length===0){
-          finishResolveOrChain();
-        } else if(pending.every(b => b.landed)){
-          for(const b of pending) finalizeDrop(b);
-          const done = new Set(pending);
-          balls = balls.filter(b => !done.has(b));
-          finishResolveOrChain();
-        } else if(elapsed > 8000){
-          // Absolute failsafe: seat or discard cascade leftovers and move on
-          for(const b of pending){
-            if(b.phase==='grid' && b.targetCol!=null && b.row!=null){
-              seatBall(b);
-              finalizeDrop(b);
-            } else if(b.phase==='peg'){
-              spawnExplosion(b.x, b.y, b.player);
-            }
-          }
-          const done = new Set(pending);
-          balls = balls.filter(b => !done.has(b));
+          for(const b of balls) b.cascadeBall = false;
           finishResolveOrChain();
         }
       }
