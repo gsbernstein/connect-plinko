@@ -271,9 +271,9 @@
   @media (min-width:560px){
     .upgrades{grid-template-columns:1fr 1fr;}
   }
-  /* Board (~660) + shop rail (~300) + gap — side-by-side when it fits. */
+  /* Board (~660) + shop rail (~320) + gap — side-by-side when it fits. */
   @media (min-width:1000px){
-    .wrap{max-width:1020px;}
+    .wrap{max-width:1040px;}
     .play-row{
       flex-direction:row;
       align-items:flex-start;
@@ -284,15 +284,29 @@
       max-width:660px;
     }
     .shop{
-      flex:0 0 300px;
-      width:300px;
+      flex:0 0 320px;
+      width:320px;
       position:sticky;
       top:16px;
       max-height:calc(100vh - 32px);
-      overflow:auto;
-      padding-right:2px;
+      overflow:hidden;
+      padding-right:0;
     }
-    .upgrades{grid-template-columns:1fr;}
+    .upgrades{
+      grid-template-columns:1fr;
+      flex:1 1 auto;
+      min-height:0;
+      overflow-x:hidden;
+      overflow-y:auto;
+      padding-right:10px;
+      scrollbar-gutter:stable;
+    }
+    .upgrades::-webkit-scrollbar{width:8px;}
+    .upgrades::-webkit-scrollbar-track{background:transparent;}
+    .upgrades::-webkit-scrollbar-thumb{
+      background:#3a3558;
+      border-radius:999px;
+    }
   }
   .upgrade{
     display:flex;
