@@ -5,7 +5,7 @@
 <title>Plinko Poker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0B0A14;
@@ -1561,24 +1561,18 @@
     const felt = SUIT_FELT[suit] || SUIT_FELT['♠'];
     const accent = SUIT_COLOR[suit] || '#F0D78C';
 
-    // Metallic gold rim
-    const rim = g.createLinearGradient(0, 0, size, size);
-    rim.addColorStop(0, '#F7E7A8');
-    rim.addColorStop(0.42, '#E6C35C');
-    rim.addColorStop(1, '#8A6A28');
+    // Suit-colored outer rim (not a gold donut — that ate the in-flight suit glow).
+    const rim = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R);
+    rim.addColorStop(0, felt.mid);
+    rim.addColorStop(0.55, accent);
+    rim.addColorStop(1, felt.lo);
     g.beginPath();
     g.arc(cx, cy, R, 0, Math.PI * 2);
     g.fillStyle = rim;
     g.fill();
 
-    // Dark band that holds the edge spots
-    g.beginPath();
-    g.arc(cx, cy, R * 0.88, 0, Math.PI * 2);
-    g.fillStyle = '#120e1c';
-    g.fill();
-
     // Suit felt face
-    const faceR = R * 0.78;
+    const faceR = R * 0.82;
     const face = g.createRadialGradient(
       cx - faceR * 0.32, cy - faceR * 0.38, faceR * 0.08,
       cx, cy, faceR
@@ -1605,37 +1599,37 @@
     g.fillRect(0, 0, size, size);
     g.restore();
 
-    // Soft face rim highlight (kept quiet so type stays the focus)
+    // Quiet face rim
     g.beginPath();
     g.arc(cx, cy, faceR, 0, Math.PI * 2);
-    g.strokeStyle = 'rgba(247,231,168,0.16)';
+    g.strokeStyle = 'rgba(255,255,255,0.12)';
     g.lineWidth = 1.5;
     g.stroke();
 
-    // Classic 8 edge spots
+    // Classic edge spots — gold accents on the suit rim, not a full gold ring
     for(let i = 0; i < 8; i++){
       g.save();
       g.translate(cx, cy);
       g.rotate((i * Math.PI) / 4);
-      const spotGrad = g.createLinearGradient(-4, -R + 2, 4, -R + R * 0.16);
+      const spotGrad = g.createLinearGradient(-4, -R + 1, 4, -R + R * 0.14);
       spotGrad.addColorStop(0, '#F7E7A8');
       spotGrad.addColorStop(0.55, '#E6C35C');
       spotGrad.addColorStop(1, '#9A742C');
       g.fillStyle = spotGrad;
       g.beginPath();
       if(typeof g.roundRect === 'function'){
-        g.roundRect(-3.6, -R + 2.2, 7.2, R * 0.15, 1.8);
+        g.roundRect(-3.2, -R + 1.6, 6.4, R * 0.13, 1.6);
       } else {
-        g.rect(-3.6, -R + 2.2, 7.2, R * 0.15);
+        g.rect(-3.2, -R + 1.6, 6.4, R * 0.13);
       }
       g.fill();
       g.restore();
     }
 
-    // Open center well — no inner gold ring (it fought the rank/suit).
+    // Slightly darker center well for type
     g.beginPath();
     g.arc(cx, cy, R * 0.52, 0, Math.PI * 2);
-    g.fillStyle = 'rgba(8,6,16,0.18)';
+    g.fillStyle = 'rgba(8,6,16,0.16)';
     g.fill();
 
     return c;
@@ -4926,33 +4920,35 @@
   }
 
   // ---- drawing ----
-  // Chip ranks use Fraunces (clearer serifs). Queens are path-drawn: Space
-  // Grotesk's Q tick drops straight under the bowl and reads as O when spun.
-  function drawChipGlyphs(target, card, radius, opts){
-    opts = opts || {};
-    const color = opts.suitColor || SUIT_COLOR[card.suit];
-    const rankFill = opts.rankFill || '#FFF6D6';
-    const suitFill = opts.suitFill || color;
+  // Suit is the hero mark; rank sits on top, diagonally offset so it doesn't
+  // bury the suit. Queens are path-drawn — Space Grotesk's Q tick drops
+  // straight under the bowl and reads as O when the chip spins.
+  function drawChipGlyphs(target, card, radius){
+    const color = SUIT_COLOR[card.suit];
     target.textAlign = 'center';
     target.textBaseline = 'middle';
-    const rankSize = Math.max(9, Math.round(radius * 0.72));
-    const suitSize = Math.max(9, Math.round(radius * 0.64));
-    const strokeW = Math.max(1.5, radius * 0.08);
+    // Suit larger / more central; rank smaller and NW of it.
+    const suitSize = Math.max(10, Math.round(radius * 0.78));
+    const rankSize = Math.max(8, Math.round(radius * 0.52));
+    const strokeW = Math.max(1.4, radius * 0.075);
+    const suitX = radius * 0.10;
+    const suitY = radius * 0.10;
+    const rankX = -radius * 0.16;
     const rankY = -radius * 0.22;
-    function stampGlyph(text, y, fill, font){
+    function stampGlyph(text, x, y, fill, font, lineW){
       target.font = font;
       target.lineJoin = 'round';
       target.miterLimit = 2;
-      target.lineWidth = strokeW;
+      target.lineWidth = lineW;
       target.strokeStyle = 'rgba(8,6,16,0.85)';
-      target.strokeText(text, 0, y);
+      target.strokeText(text, x, y);
       target.fillStyle = fill;
-      target.fillText(text, 0, y);
+      target.fillText(text, x, y);
     }
-    function stampQueen(y, fill, size){
+    function stampQueen(x, y, fill, size){
       // Bowl + long SE diagonal tick (never a bottom-center nub).
       const rr = size * 0.34;
-      const thick = Math.max(2.2, size * 0.145);
+      const thick = Math.max(2, size * 0.145);
       const tick = size * 0.42;
       function strokeQ(style, width){
         target.strokeStyle = style;
@@ -4960,32 +4956,39 @@
         target.lineCap = 'round';
         target.lineJoin = 'round';
         target.beginPath();
-        target.arc(0, y, rr, 0, Math.PI * 2);
+        target.arc(x, y, rr, 0, Math.PI * 2);
         target.stroke();
         target.beginPath();
-        target.moveTo(rr * 0.18, y + rr * 0.18);
-        target.lineTo(rr * 0.18 + tick * 0.62, y + rr * 0.18 + tick * 0.78);
+        target.moveTo(x + rr * 0.18, y + rr * 0.18);
+        target.lineTo(x + rr * 0.18 + tick * 0.62, y + rr * 0.18 + tick * 0.78);
         target.stroke();
       }
-      strokeQ('rgba(8,6,16,0.85)', thick + strokeW * 1.15);
+      strokeQ('rgba(8,6,16,0.85)', thick + strokeW * 1.1);
       strokeQ(fill, thick);
     }
+
+    // Suit underneath (drawn first)
+    stampGlyph(
+      card.suit,
+      suitX,
+      suitY,
+      color,
+      `bold ${suitSize}px 'Space Grotesk', sans-serif`,
+      Math.max(1.6, radius * 0.09)
+    );
+    // Rank on top, diagonally offset
     if(card.rank === 12){
-      stampQueen(rankY, rankFill, rankSize);
+      stampQueen(rankX, rankY, '#FFF6D6', rankSize);
     } else {
       stampGlyph(
         rankLabel(card.rank),
+        rankX,
         rankY,
-        rankFill,
-        `700 ${rankSize}px Fraunces, Georgia, serif`
+        '#FFF6D6',
+        `bold ${rankSize}px 'Space Grotesk', sans-serif`,
+        strokeW
       );
     }
-    stampGlyph(
-      card.suit,
-      radius * 0.34,
-      suitFill,
-      `bold ${suitSize}px 'Space Grotesk', sans-serif`
-    );
   }
 
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
@@ -4997,12 +5000,11 @@
     target.translate(cx, cy);
     target.rotate(angle || 0);
 
-    // Soft contact shadow only — suit-colored blur bloomed the gold rim into
-    // a big yellow halo in the peg zone that settled column chips never had.
+    // Suit-colored glow in flight — rim is suit-colored again, so this reads
+    // as suit light rather than a gold bloom.
     if(isBall){
-      target.shadowColor = 'rgba(0,0,0,0.45)';
-      target.shadowBlur = Math.max(3, radius * 0.14);
-      target.shadowOffsetY = Math.max(1, radius * 0.06);
+      target.shadowColor = color;
+      target.shadowBlur = Math.max(5, radius * 0.22);
     }
     if(tex){
       target.drawImage(tex, -radius, -radius, d, d);
@@ -5014,7 +5016,6 @@
       target.fill();
     }
     target.shadowBlur = 0;
-    target.shadowOffsetY = 0;
     drawChipGlyphs(target, card, radius);
 
     if(highlight){
@@ -5039,28 +5040,19 @@
     const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * fx.pulseHz));
     ctx.save();
     ctx.translate(cx, cy);
-    // Warm rim glow — keep blur modest so chips don't blow out to white.
-    if(juiceTier === 'huge'){
-      ctx.shadowColor = 'rgba(255,208,96,' + (0.5 * heat) + ')';
-    } else if(card.suit === '♥' || card.suit === '♦'){
-      ctx.shadowColor = 'rgba(255,140,90,' + (0.42 * heat) + ')';
-    } else if(card.suit === '♠'){
-      ctx.shadowColor = 'rgba(200,194,232,' + (0.42 * heat) + ')';
-    } else {
-      ctx.shadowColor = 'rgba(126,200,163,' + (0.42 * heat) + ')';
-    }
-    ctx.shadowBlur = Math.min(28, 10 + fx.blur * 0.18);
+    // Pulse the suit rim — no white/cream wash, glyphs stay normal colors.
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.min(22, 8 + fx.blur * 0.12) * (0.65 + 0.35 * heat);
     ensureChipTextures();
     const tex = chipTextures[card.suit];
     if(tex) ctx.drawImage(tex, -r, -r, r * 2, r * 2);
     ctx.shadowBlur = 0;
-    // Soft warm wash — felt texture should still read underneath.
+    ctx.globalAlpha = 0.22 + 0.18 * heat;
     ctx.beginPath();
-    ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
-    ctx.fillStyle = juiceTier === 'huge'
-      ? ('rgba(255,220,140,' + (0.22 + 0.14 * heat) + ')')
-      : ('rgba(255,236,200,' + (0.16 + 0.12 * heat) + ')');
+    ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2);
+    ctx.fillStyle = color;
     ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.lineWidth = juiceTier === 'normal' ? 3 : 3.5;
     ctx.strokeStyle = color;
     ctx.beginPath();
@@ -5070,8 +5062,8 @@
       ctx.beginPath();
       ctx.arc(0, 0, 38 * pulse, 0, Math.PI * 2);
       ctx.strokeStyle = juiceTier === 'huge'
-        ? 'rgba(255,224,138,0.45)'
-        : 'rgba(255,236,200,0.28)';
+        ? 'rgba(255,224,138,0.4)'
+        : ('rgba(255,255,255,' + (0.2 + 0.15 * heat) + ')');
       ctx.lineWidth = 2;
       ctx.stroke();
     }
