@@ -524,12 +524,13 @@
   .upgrade.maxed .upgrade-progress > span{
     background:linear-gradient(90deg, #463d7a, var(--peg));
   }
-  .upgrade:hover:not(:disabled){
+  .upgrade:hover:not(.is-disabled):not(.buy-blocked){
     border-color:#463d7a;
     background:var(--panel-2);
     transform:translateY(-1px);
   }
-  .upgrade:disabled{
+  .upgrade:disabled,
+  .upgrade.is-disabled{
     opacity:0.55;
     cursor:not-allowed;
   }
@@ -541,16 +542,60 @@
     opacity:0.75;
     border-color:#3a3558;
   }
+  .upgrade.buy-blocked{
+    cursor:default;
+  }
+  .upgrade.buy-blocked:hover{
+    transform:none;
+  }
   .upgrade-top{
     display:flex;
     justify-content:space-between;
-    align-items:baseline;
+    align-items:center;
     gap:8px;
   }
   .upgrade-name{
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
+  }
+  .upgrade-top-right{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .upgrade-toggle{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:11px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    border-radius:999px;
+    padding:3px 9px;
+    border:1px solid rgba(46,138,110,0.55);
+    background:rgba(46,138,110,0.18);
+    color:var(--felt-bright);
+    cursor:pointer;
+    line-height:1.2;
+  }
+  .upgrade-toggle:hover{
+    filter:brightness(1.08);
+  }
+  .upgrade-toggle.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.04);
+    color:var(--ink-dim);
+  }
+  .upgrade.prestige-upgrade .upgrade-toggle{
+    border-color:rgba(230,195,92,0.55);
+    background:rgba(230,195,92,0.16);
+    color:#F0D78C;
+  }
+  .upgrade.prestige-upgrade .upgrade-toggle.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.04);
+    color:var(--ink-dim);
   }
   .upgrade-lvl{
     color:var(--ink-dim);
@@ -1467,7 +1512,7 @@
 
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
-  const SAVE_VERSION = 6;
+  const SAVE_VERSION = 7;
   const MAX_IN_FLIGHT = 14;
   const MAX_CASCADE_BALLS = 42;
   const MAX_POPUPS = 36;
@@ -1482,11 +1527,12 @@
     {
       id: 'autoDealer',
       name: 'Auto Dealer',
-      desc: 'Automatically drop cards. Higher levels deal faster.',
+      desc: 'Automatically drop cards. Higher levels deal faster. Toggle On/Off anytime.',
       baseCost: 15,
       costScale: 1.55,
       maxLevel: 30,
-      unlockAt: 1
+      unlockAt: 1,
+      toggleable: true
     },
     {
       id: 'multiDeal',
@@ -1581,11 +1627,12 @@
     {
       id: 'autoSuitBomb',
       name: 'Auto Purge',
-      desc: 'Automatically cast Suit Purge on the most crowded suit when charged.',
+      desc: 'Automatically cast Suit Purge on the most crowded suit when charged. Toggle On/Off anytime.',
       baseCost: 1800,
       costScale: 1,
       maxLevel: 1,
-      unlockAt: 13
+      unlockAt: 13,
+      toggleable: true
     },
     {
       id: 'suitCut',
@@ -1893,23 +1940,28 @@
     {
       id: 'questDesk',
       name: 'Quest Desk',
-      desc: 'Automatically claim completed table quests and roll replacements.',
+      desc: 'Automatically claim completed table quests and roll replacements. Toggle On/Off anytime.',
       baseCost: 5,
       costScale: 1,
-      maxLevel: 1
+      maxLevel: 1,
+      toggleable: true
     },
     {
       id: 'pitBoss',
       name: 'Pit Boss',
-      desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick.',
+      desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick. Toggle On/Off anytime.',
       baseCost: 12,
       costScale: 2.4,
-      maxLevel: 5
+      maxLevel: 5,
+      toggleable: true
     }
   ];
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
+  // Pause switches for auto systems — ownership stays; automation can be muted.
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'questDesk', 'pitBoss'];
+  let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
   let runLevel = 1;
@@ -1940,6 +1992,25 @@
 
   function purchasedLevel(id){ return upgrades[id] || 0; }
   function prestigeLevel(id){ return prestigeUpgrades[id] || 0; }
+
+  function isAutoEnabled(id){
+    return autoEnabled[id] !== false;
+  }
+
+  function setAutoEnabled(id, on){
+    if(AUTO_TOGGLE_IDS.indexOf(id) < 0) return;
+    autoEnabled[id] = !!on;
+    scheduleSave();
+    updateShopUI();
+    updatePrestigeUI();
+    updateAutoStatus();
+    updateSuitBombUI(performance.now(), true);
+    if(on && id === 'pitBoss') maybeAutoBuy(performance.now());
+    if(on && id === 'questDesk') maybeAutoClaimQuests(performance.now());
+    if(on && (id === 'autoDealer' || id === 'autoSuitBomb') && !resolving && !looping){
+      startLoop();
+    }
+  }
 
   // Permanent VIP bonus levels for a table skill (do not affect buy cost).
   function prestigeBonusLevels(id){
@@ -2268,7 +2339,7 @@
   }
 
   function tryAutoClaimQuests(){
-    if(prestigeLevel('questDesk') <= 0) return 0;
+    if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
     const claimed = [];
     // Cap passes so a bad roll can never spin forever.
     for(let guard = 0; guard < MAX_QUEST_SLOTS; guard++){
@@ -2308,7 +2379,7 @@
 
   let lastAutoClaimAt = 0;
   function maybeAutoClaimQuests(now){
-    if(prestigeLevel('questDesk') <= 0) return 0;
+    if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
     now = now || performance.now();
     if(now - lastAutoClaimAt < 180) return 0;
     if(!activeQuests.some(q => activeQuestComplete(q))) return 0;
@@ -2428,7 +2499,7 @@
 
   function autoDropIntervalMs(){
     const lvl = upgradeLevel('autoDealer');
-    if(lvl <= 0) return Infinity;
+    if(lvl <= 0 || !isAutoEnabled('autoDealer')) return Infinity;
     // Steep through the teens (~3.2s → ~86ms by Lv12), then a gentler
     // cut so Lv13–30 still matter, flooring at 40ms near the top.
     const early = 3200 * Math.pow(0.72, Math.min(lvl, 12) - 1);
@@ -2701,7 +2772,10 @@
     const lvl = upgradeLevel(def.id);
     switch(def.id){
       case 'autoDealer':
-        return lvl ? ('Every ' + formatInterval(autoDropIntervalMs())) : 'Manual only';
+        if(!lvl) return 'Manual only';
+        return isAutoEnabled('autoDealer')
+          ? ('Every ' + formatInterval(autoDropIntervalMs()))
+          : 'Paused';
       case 'multiDeal':
         return (1 + lvl) + ' card' + (1+lvl === 1 ? '' : 's') + '/tick';
       case 'bigBlind':
@@ -2733,7 +2807,8 @@
           ? ('Cooldown ' + formatInterval(suitBombCooldownMs()))
           : 'Locked';
       case 'autoSuitBomb':
-        return lvl ? 'Auto-casting' : (upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge');
+        if(!lvl) return upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge';
+        return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
       case 'cardSense':
         return lvl ? 'Aiming near hands' : 'Random columns';
       case 'feltGrease':
@@ -2774,9 +2849,13 @@
         return lvl ? ('Up to ' + label) : 'Common quests only';
       }
       case 'questDesk':
-        return lvl ? 'Auto-claiming' : 'Manual claims';
+        if(!lvl) return 'Manual claims';
+        return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
       case 'pitBoss':
-        return lvl ? ('Auto-buys ×' + lvl + ' / tick') : 'Manual buys only';
+        if(!lvl) return 'Manual buys only';
+        return isAutoEnabled('pitBoss')
+          ? ('Auto-buys ×' + lvl + ' / tick')
+          : 'Paused';
       default:
         return '';
     }
@@ -2809,6 +2888,7 @@
         questClaimed,
         activeQuests,
         questUidSeq,
+        autoEnabled,
         suitBombCdLeft: cdLeft,
         v: SAVE_VERSION
       }));
@@ -2859,6 +2939,11 @@
       // Purchased levels can't push effective skill past max once VIP bonus applies.
       for(const def of UPGRADE_DEFS){
         upgrades[def.id] = Math.min(purchasedLevel(def.id), maxPurchasableLevel(def.id));
+      }
+      if(data.autoEnabled && typeof data.autoEnabled === 'object'){
+        for(const id of AUTO_TOGGLE_IDS){
+          if(typeof data.autoEnabled[id] === 'boolean') autoEnabled[id] = data.autoEnabled[id];
+        }
       }
       runLevel = runLevelFromLifetime(lifetime);
       if(typeof data.runCompCredit === 'number' && data.runCompCredit >= 0){
@@ -2926,6 +3011,7 @@
     runCompCredit = 0;
     upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
     prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
+    autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
     stats = Object.assign({}, EMPTY_STATS);
     questClaimed = Object.create(null);
     activeQuests = [];
@@ -3011,7 +3097,7 @@
 
   function tryAutoBuyUpgrades(){
     const batch = prestigeLevel('pitBoss');
-    if(batch <= 0) return 0;
+    if(batch <= 0 || !isAutoEnabled('pitBoss')) return 0;
     let bought = 0;
     for(let i = 0; i < batch; i++){
       let bestId = null;
@@ -3037,7 +3123,7 @@
 
   let lastAutoBuyAt = 0;
   function maybeAutoBuy(now){
-    if(prestigeLevel('pitBoss') <= 0) return 0;
+    if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return 0;
     now = now || performance.now();
     if(now - lastAutoBuyAt < 220) return 0;
     const bought = tryAutoBuyUpgrades();
@@ -3752,7 +3838,9 @@
     const nowEnd = performance.now();
     const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
     const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
-    const bombAuto = upgradeLevel('autoSuitBomb') > 0 && suitBombUnlocked();
+    const bombAuto = upgradeLevel('autoSuitBomb') > 0
+      && isAutoEnabled('autoSuitBomb')
+      && suitBombUnlocked();
     if(balls.length>0 || particles.length>0 || popupsAlive || resolving
       || Number.isFinite(autoDropIntervalMs()) || bombCharging || bombAuto){
       requestAnimationFrame(tick);
@@ -4327,7 +4415,7 @@
   }
 
   function tryAutoSuitBomb(now){
-    if(!upgradeLevel('autoSuitBomb') || !suitBombReady(now)) return;
+    if(!upgradeLevel('autoSuitBomb') || !isAutoEnabled('autoSuitBomb') || !suitBombReady(now)) return;
     if(resolving || gameOver) return;
     const suit = pickAutoSuitBombTarget();
     if(!suit) return;
@@ -4913,9 +5001,15 @@
       return;
     }
     now = now == null ? performance.now() : now;
+    const enabled = isAutoEnabled('autoDealer');
     const interval = autoDropIntervalMs();
-    const on = Number.isFinite(interval);
+    const on = enabled && Number.isFinite(interval);
     autoStatusEl.classList.toggle('on', on);
+    if(!enabled){
+      if(autoStatusValEl) autoStatusValEl.textContent = 'paused';
+      if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
+      return;
+    }
     if(!on){
       if(autoStatusValEl) autoStatusValEl.textContent = 'off';
       if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
@@ -4940,8 +5034,15 @@
     const maxed = !!opts.maxed || effective >= def.maxLevel;
     const locked = !!opts.locked;
     const canAfford = !!opts.canAfford;
-    btn.disabled = maxed || locked || !canAfford;
-    btn.classList.toggle('affordable', canAfford);
+    const canToggle = !!opts.canToggle;
+    // Keep the card clickable when a pause toggle is present (maxed/unaffordable
+    // still block buys via the purchase helpers).
+    const disabled = locked || (!canToggle && (maxed || !canAfford));
+    btn.classList.toggle('is-disabled', disabled);
+    btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    if('disabled' in btn) btn.disabled = disabled;
+    btn.classList.toggle('buy-blocked', canToggle && !locked && (maxed || !canAfford));
+    btn.classList.toggle('affordable', canAfford && !maxed && !locked);
     btn.classList.toggle('maxed', maxed);
     btn.classList.toggle('has-bonus', bonus > 0);
     const lvlEl = btn.querySelector('.upgrade-lvl');
@@ -4949,6 +5050,16 @@
       if(maxed) lvlEl.textContent = 'MAX';
       else if(bonus > 0) lvlEl.textContent = 'Lv ' + bought + '+' + bonus + '/' + def.maxLevel;
       else lvlEl.textContent = 'Lv ' + effective + '/' + def.maxLevel;
+    }
+    const toggle = btn.querySelector('.upgrade-toggle');
+    if(toggle){
+      toggle.hidden = !canToggle;
+      if(canToggle){
+        const on = isAutoEnabled(def.id);
+        toggle.textContent = on ? 'On' : 'Off';
+        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+        toggle.classList.toggle('is-off', !on);
+      }
     }
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
     const boughtFill = btn.querySelector('.upgrade-progress-bought');
@@ -4994,6 +5105,7 @@
       // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
       fillUpgradeButton(btn, def, {
         bought, bonus, maxed, locked: !revealed, cost, canAfford,
+        canToggle: !!(def.toggleable && lvl > 0),
         effect: upgradeEffectText(def),
         costLabel: 'Unlocks at Lv ' + (def.unlockAt || 1),
         unit: 'chips'
@@ -5061,6 +5173,7 @@
         if(canAfford) vipReady++;
         fillUpgradeButton(btn, def, {
           bought: lvl, bonus: 0, maxed, locked: false, cost, canAfford,
+          canToggle: !!(def.toggleable && lvl > 0),
           effect: prestigeEffectText(def),
           costLabel: '',
           unit: 'comps'
@@ -5074,14 +5187,21 @@
   }
 
   function makeUpgradeButton(def, onBuy, prestige){
-    const btn = document.createElement('button');
-    btn.type = 'button';
+    // Div (not <button>) so an On/Off control can nest without invalid HTML.
+    const btn = document.createElement('div');
     btn.className = 'upgrade' + (prestige ? ' prestige-upgrade' : '');
     btn.dataset.id = def.id;
+    btn.setAttribute('role', 'button');
+    btn.tabIndex = 0;
     btn.innerHTML =
       '<div class="upgrade-top">' +
         '<span class="upgrade-name"></span>' +
-        '<span class="upgrade-lvl"></span>' +
+        '<span class="upgrade-top-right">' +
+          (def.toggleable
+            ? '<button type="button" class="upgrade-toggle" hidden>On</button>'
+            : '') +
+          '<span class="upgrade-lvl"></span>' +
+        '</span>' +
       '</div>' +
       '<p class="upgrade-desc"></p>' +
       '<div class="upgrade-effect"></div>' +
@@ -5092,7 +5212,28 @@
       '</div>';
     btn.querySelector('.upgrade-name').textContent = def.name;
     btn.querySelector('.upgrade-desc').textContent = def.desc;
-    btn.addEventListener('click', ()=>onBuy(def.id));
+    const toggle = btn.querySelector('.upgrade-toggle');
+    if(toggle){
+      toggle.addEventListener('click', (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        setAutoEnabled(def.id, !isAutoEnabled(def.id));
+      });
+    }
+    const tryBuy = ()=>{
+      if(btn.classList.contains('is-disabled')) return;
+      onBuy(def.id);
+    };
+    btn.addEventListener('click', (e)=>{
+      if(e.target.closest('.upgrade-toggle')) return;
+      tryBuy();
+    });
+    btn.addEventListener('keydown', (e)=>{
+      if(e.key !== 'Enter' && e.key !== ' ') return;
+      if(e.target.closest('.upgrade-toggle')) return;
+      e.preventDefault();
+      tryBuy();
+    });
     return btn;
   }
 
@@ -5362,13 +5503,17 @@
 
     const cd = suitBombCooldownMs();
     const ready = suitBombReady(now);
-    const auto = upgradeLevel('autoSuitBomb') > 0;
+    const autoOwned = upgradeLevel('autoSuitBomb') > 0;
+    const auto = autoOwned && isAutoEnabled('autoSuitBomb');
     if(ready){
-      suitBombStatus.textContent = auto ? 'ready · auto' : 'ready';
+      suitBombStatus.textContent = auto
+        ? 'ready · auto'
+        : (autoOwned ? 'ready · paused' : 'ready');
       suitBombStatus.className = auto ? 'ready auto' : 'ready';
     } else {
       const left = Math.max(0, suitBombReadyAt - now);
-      suitBombStatus.textContent = formatInterval(left) + (auto ? ' · auto' : '');
+      suitBombStatus.textContent = formatInterval(left)
+        + (auto ? ' · auto' : (autoOwned ? ' · paused' : ''));
       suitBombStatus.className = auto ? 'auto' : '';
     }
 
@@ -5645,12 +5790,14 @@
       maybeAutoClaimQuests(now);
       const needLoop = balls.length || particles.length || resolving
         || holdDropping
-        || prestigeLevel('pitBoss') > 0
+        || (prestigeLevel('pitBoss') > 0 && isAutoEnabled('pitBoss'))
         || (prestigeLevel('questDesk') > 0
+          && isAutoEnabled('questDesk')
           && activeQuests.some(q => activeQuestComplete(q)))
         || Number.isFinite(autoDropIntervalMs())
         || (suitBombUnlocked() && (
-          upgradeLevel('autoSuitBomb') > 0 || !suitBombReady(now)
+          (upgradeLevel('autoSuitBomb') > 0 && isAutoEnabled('autoSuitBomb'))
+          || !suitBombReady(now)
         ));
       if(needLoop) startLoop();
       else draw();
