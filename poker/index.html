@@ -487,9 +487,22 @@
     }
     return arr;
   }
+
+  // Suit Exile removes these in order, always leaving at least spades.
+  const SUIT_CUT_ORDER = ['♣','♦','♥'];
+
   function makeDeck(){
     const d = [];
-    for(const s of SUITS) for(const r of RANKS) d.push({suit:s, rank:r});
+    const suits = activeSuits();
+    for(const s of suits){
+      for(const r of RANKS){
+        if(!rankAllowed(r)) continue;
+        d.push({suit:s, rank:r});
+      }
+    }
+    if(!d.length){
+      for(const s of SUITS) for(const r of RANKS) d.push({suit:s, rank:r});
+    }
     return shuffle(d);
   }
 
@@ -637,6 +650,22 @@
       maxLevel: 20
     },
     {
+      id: 'highCut',
+      name: 'High Cut',
+      desc: 'Burn the lowest ranks from the shoe. Aces always stay.',
+      baseCost: 100,
+      costScale: 1.9,
+      maxLevel: 8
+    },
+    {
+      id: 'suitCut',
+      name: 'Suit Exile',
+      desc: 'Ban a suit from the shoe each level.',
+      baseCost: 250,
+      costScale: 2.4,
+      maxLevel: 3
+    },
+    {
       id: 'cardSense',
       name: 'Card Sense',
       desc: 'Auto-drops aim toward near-miss columns.',
@@ -703,6 +732,35 @@
     return lvl ? lvl * 15 : 0;
   }
 
+  // Lowest non-ace rank still in the shoe. Lv0 => 2 (full ranks), Lv8 => 10.
+  function minKeptRank(){
+    return 2 + upgradeLevel('highCut');
+  }
+
+  function rankAllowed(r){
+    if(r === 1) return true; // Aces always dealt
+    return r >= minKeptRank();
+  }
+
+  function activeSuits(){
+    const cut = upgradeLevel('suitCut');
+    const removed = new Set(SUIT_CUT_ORDER.slice(0, cut));
+    return SUITS.filter(s => !removed.has(s));
+  }
+
+  function cardAllowed(card){
+    return !!(card && rankAllowed(card.rank) && activeSuits().includes(card.suit));
+  }
+
+  function reshapeShoe(){
+    shoe = shoe.filter(cardAllowed);
+    if(shoe.length < 8) shoe = shoe.concat(makeDeck());
+    if(!cardAllowed(nextCard)){
+      nextCard = dealCard();
+      updateNextUI();
+    }
+  }
+
   let shopUiTimer = 0;
   function awardChips(amount){
     amount = Math.floor(amount);
@@ -765,6 +823,18 @@
         return lvl ? ('+' + bumperHitPayout() + ' / bumper') : 'No payout';
       case 'floorPayout':
         return lvl ? ('+' + floorClearPayout() + ' / clear') : 'No payout';
+      case 'highCut': {
+        if(!lvl) return 'Ranks A–K';
+        const minR = minKeptRank();
+        if(minR >= 10) return 'A, 10–K only';
+        return 'A, ' + minR + '–K';
+      }
+      case 'suitCut': {
+        if(!lvl) return 'All four suits';
+        const left = activeSuits().join('');
+        const gone = SUIT_CUT_ORDER.slice(0, lvl).join('');
+        return 'Out ' + gone + ' · In ' + left;
+      }
       case 'cardSense':
         return lvl ? 'Aiming near hands' : 'Random columns';
       case 'feltGrease':

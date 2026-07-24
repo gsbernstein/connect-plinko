@@ -17,7 +17,7 @@ Drop colored pucks through pegs into a Connect Four–style grid. Get 4+ in a ro
 
 ### Plinko Poker
 
-Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes for **chips**. Spend chips on idle upgrades — Auto Dealer drops cards for you, Multi Deal piles on extras, Big Blind multiplies payouts, and Pin Tip / Rail Tax / Sweep Stakes pay out on peg hits, bumper hits, and floor clears. Progress saves in the browser. Near-miss guides show when you’re close; a full board still triggers the automatic floor clear.
+Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes for **chips**. Spend chips on idle upgrades — Auto Dealer drops cards for you, Multi Deal piles on extras, Big Blind multiplies payouts, Pin Tip / Rail Tax / Sweep Stakes pay out on peg hits, bumper hits, and floor clears, and High Cut / Suit Exile thin the shoe toward stronger hands. Progress saves in the browser. Near-miss guides show when you’re close; a full board still triggers the automatic floor clear.
 
 ## Local
 
