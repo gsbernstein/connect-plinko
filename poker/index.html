@@ -3087,6 +3087,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 68,
+      date: 'Jul 27, 2026',
+      title: 'Multi Deal mid-game',
+      items: [
+        'Multi Deal now unlocks at run Lv 8 (was Lv 4) and costs more up front — a mid-table spike for extra auto deals, not an early rush.',
+      ]
+    },
+    {
       id: 67,
       date: 'Jul 27, 2026',
       title: 'Hand resolve lines',
@@ -3676,10 +3684,10 @@
       id: 'multiDeal',
       name: 'Multi Deal',
       desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.',
-      baseCost: 280,
+      baseCost: 1500,
       costScale: 2.35,
       maxLevel: 6,
-      unlockAt: 4
+      unlockAt: 8
     },
     {
       id: 'bigBlind',
