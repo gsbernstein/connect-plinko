@@ -1,30 +1,36 @@
-# Plinko Poker
+# Connect Plinko
 
-A browser Plinko game where spinning playing-card pucks drop into a Connect Four–style grid. Line up a poker hand (flush, straight, three of a kind, …) and it explodes — cascades can chain for bigger scores.
+Browser Plinko games published from this repo.
 
 ## Play
 
-**https://gsbernstein.github.io/connect-plinko/**
+| Game | URL |
+|------|-----|
+| **Plinko Four** (classic) | https://gsbernstein.github.io/connect-plinko/ |
+| **Plinko Poker** | https://gsbernstein.github.io/connect-plinko/poker/ |
 
-## How to play
+Each page has a Classic / Poker switch to jump between them.
 
-1. Press and drag on the board to aim, release to drop the next card.
-2. Cards tumble and spin through the pegs into columns.
-3. Contiguous lines that form a poker hand flash and explode.
-4. Pieces above a blast get flung back into the pegs.
-5. If the board packs solid, click any card to detonate it (no points) and open space.
+### Plinko Four
 
-**Scoring hands:** two pair · three of a kind · straight · flush · full house · four of a kind · straight flush · royal flush. Combos and chain reactions multiply your score.
+Drop colored pucks through pegs into a Connect Four–style grid. Get 4+ in a row to score and explode — cascades chain for more points. Full board? click a piece to blow it up.
+
+### Plinko Poker
+
+Same plinko physics, but pucks are spinning playing cards. Line up a poker hand (flush, straight, three of a kind, …) and it explodes. Near-miss guides show when you’re close.
 
 ## Local
 
-Open `index.html` in a browser, or serve the repo root:
+Serve the repo root:
 
 ```bash
 python3 -m http.server 8080
 ```
 
-Then visit `http://localhost:8080`.
+Then visit:
+
+- Classic: `http://localhost:8080/`
+- Poker: `http://localhost:8080/poker/`
 
 ## Hosting
 
