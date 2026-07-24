@@ -3425,14 +3425,29 @@
     ball.spin = Math.max(-0.55, Math.min(0.55, ball.spin));
   }
 
+  // Playable-side normal at a rail point. Arc centers sit below the rail, so
+  // radial-out is the topside; flat full-width bars just face up.
+  function bumperTopNormal(closest, rail){
+    if(rail.arc){
+      let nx = closest.x - rail.arc.cx;
+      let ny = closest.y - rail.arc.cy;
+      const len = Math.hypot(nx, ny) || 1;
+      return {nx: nx/len, ny: ny/len};
+    }
+    return {nx: 0, ny: -1};
+  }
+
   function collideBallWithBumpers(ball){
     for(const rail of bumperPaths){
       const closest = closestPointOnBumper(ball.x, ball.y, rail);
+      const {nx, ny} = bumperTopNormal(closest, rail);
       const dx = ball.x - closest.x, dy = ball.y - closest.y;
-      const dist = Math.hypot(dx, dy);
+      const signed = dx*nx + dy*ny;
       const minDist = ball.radius + BUMPER_R;
-      if(dist >= minDist || dist <= 0.0001) continue;
-      const nx = dx/dist, ny = dy/dist;
+      // One-sided capsule: never accept the underside. Two-sided separation
+      // used to push stranded pucks further down while vy was forced upward,
+      // trapping them in an oscillation under the rail.
+      if(signed >= minDist) continue;
       ball.x = closest.x + nx*minDist;
       ball.y = closest.y + ny*minDist;
       let kx = nx, ky = ny;
