@@ -70,21 +70,24 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 |--------|---------|
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, …) — order = shop order |
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, …) |
-| `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; use instead of `evaluateCards` for board scoring |
+| `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
 | `boardDuplicateExtras` / `cardCountingMultiplier` / `handPayoutMultiplier` | Card Counting duplicate extras → hand payout mult |
 | `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels) |
 | `upgradeEffectText` / `payoutMultLabels` | Shop effect line; Blind / payout / combo mults on Pin Tip, Rail Tax, Sweep Stakes, Hot Streak, Big Blind |
-| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias) |
+| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0` |
 | `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
 | `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
+| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
 | `APP_RELEASE` | Alias of `CHANGELOG_LATEST_ID`; must match `poker/version.json` `v` |
+| `appRelease` | Last stamped `APP_RELEASE` in the save; `loadSave` bumps `versionUpgrades` when newer |
 | `RELEASE_URL` / `startReleasePolling` | Polls `poker/version.json` (cache-bust); shows `#updateBanner` when remote `v` is newer |
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
+| `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
 
 ### Progression model (high level)
 
