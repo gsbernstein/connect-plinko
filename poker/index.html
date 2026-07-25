@@ -2463,7 +2463,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 8;
+  const SAVE_VERSION = 9;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2616,7 +2616,7 @@
     15: { comps: 2, prestige: 'seedStack', label: '+2 comps · VIP +1 Seed Stack' },
     18: { comps: 2, upgrade: { id: 'bigBlind', n: 1 }, label: '+2 comps · +1 Big Blind' },
     20: { comps: 3, prestige: 'houseEdge', label: '+3 comps · VIP +1 House Edge' },
-    25: { comps: 4, prestige: 'holdDeal', label: '+4 comps · VIP +1 Hold Deal' },
+    25: { comps: 4, label: '+4 Cash Out comps' },
     30: { comps: 5, prestige: 'rackDiscount', label: '+5 comps · VIP +1 Rack Discount' },
     35: { comps: 6, prestige: 'compCard', label: '+6 comps · VIP +1 Comp Card' },
     40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' }
@@ -2870,14 +2870,6 @@
       maxLevel: 8
     },
     {
-      id: 'holdDeal',
-      name: 'Hold Deal',
-      desc: 'Hold on the board or a column to keep dropping cards as fast as you can tap. Always available.',
-      baseCost: 8,
-      costScale: 1,
-      maxLevel: 1
-    },
-    {
       id: 'quickDeal',
       name: 'Quick Deal',
       desc: '+1 Auto Dealer level permanently (does not raise Auto Dealer’s buy cost). Capped at Auto Dealer max.',
@@ -2937,9 +2929,6 @@
   let suitBombReadyAt = 0;
   let pendingSuitBomb = null;
   let saveTimer = 0;
-  let holdDropping = false;
-  let holdDropCol = null; // null = aim at aimX; number = fixed column
-  let lastHoldDropAt = 0;
   let levelToastTimer = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
@@ -3627,14 +3616,6 @@
       && Number.isFinite(autoDropIntervalMs());
   }
 
-  function holdDealUnlocked(){
-    return prestigeLevel('holdDeal') > 0;
-  }
-
-  function holdDropIntervalMs(){
-    return holdDealUnlocked() ? 0 : Infinity;
-  }
-
   function tableScoreMultiplier(){
     return 1 + 0.25 * upgradeLevel('bigBlind');
   }
@@ -4226,8 +4207,6 @@
           : 'Full price';
       case 'compCard':
         return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
-      case 'holdDeal':
-        return lvl ? 'Hold to deal fast' : 'Click to drop';
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
@@ -4320,14 +4299,6 @@
             prestigeUpgrades[def.id] = Math.min(def.maxLevel, Math.floor(v));
           }
         }
-      }
-      // Migrate retired table Hold Deal into the VIP Hold Deal perk.
-      if(data.upgrades && typeof data.upgrades.holdDeal === 'number' && data.upgrades.holdDeal > 0){
-        const migrated = Math.min(
-          PRESTIGE_DEFS.find(u => u.id === 'holdDeal').maxLevel,
-          Math.floor(data.upgrades.holdDeal)
-        );
-        if(migrated > prestigeLevel('holdDeal')) prestigeUpgrades.holdDeal = migrated;
       }
       // Retired Multi Deal — each level becomes one Auto Dealer level.
       if(data.upgrades && typeof data.upgrades.multiDeal === 'number' && data.upgrades.multiDeal > 0){
@@ -4559,7 +4530,6 @@
     updateAutoStatus();
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
     if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
-    if(id === 'holdDeal' && !resolving && !looping) startLoop();
   }
 
   function markHintsDirty(){
@@ -4637,39 +4607,6 @@
     autoDropTicks = 0;
   }
 
-  function stopHoldDrop(){
-    holdDropping = false;
-    holdDropCol = null;
-  }
-
-  function startHoldDrop(col){
-    if(!holdDealUnlocked() || inputBlocked()) return false;
-    holdDropping = true;
-    holdDropCol = col == null ? null : col;
-    lastHoldDropAt = 0; // fire immediately on press
-    tryHoldDrop(performance.now());
-    startLoop();
-    return true;
-  }
-
-  function tryHoldDrop(now){
-    if(!holdDropping || !holdDealUnlocked()) return;
-    if(gameOver){ stopHoldDrop(); return; }
-    const interval = holdDropIntervalMs();
-    if(!Number.isFinite(interval)) return;
-    if(now - lastHoldDropAt < interval) return;
-    if(balls.length >= MAX_IN_FLIGHT) return;
-    if(colHeights.every(h => h >= ROWS)) return;
-
-    if(holdDropCol != null){
-      if(colHeights[holdDropCol] >= ROWS) return;
-      dropAt(holdDropCol * CELL + CELL / 2, {autoCol: holdDropCol});
-    } else {
-      dropAt(aimX);
-    }
-    lastHoldDropAt = now;
-  }
-
   function freshState(){
     grid = Array.from({length:COLS}, ()=>Array(ROWS).fill(0));
     colHeights = Array(COLS).fill(0);
@@ -4693,7 +4630,6 @@
     fpsFrameCount = 0;
     lastFpsSampleTime = 0;
     lastPhysicsSteps = 0;
-    stopHoldDrop();
     markHintsDirty();
     shoe = makeDeck().concat(makeDeck());
     nextCard = dealCard();
@@ -4972,7 +4908,7 @@
   }
 
   function refreshButtons(){
-    // Column drop buttons removed — tap/hold the board to deal.
+    // Column drop buttons removed — tap the board to deal.
   }
 
   // ---- balls / animation state ----
@@ -5335,7 +5271,6 @@
 
   function tick(){
     const now = performance.now();
-    tryHoldDrop(now);
     tryAutoSuitBomb(now);
     maybeAutoBuy(now);
     maybeAutoClaimQuests(now);
@@ -6155,7 +6090,6 @@
 
   function resolveTick(){
     const now = performance.now();
-    tryHoldDrop(now);
     const speed = Math.min(physicsSpeed(), 2.8);
     const flashMs = FLASH_MS / speed;
     const explodeMs = EXPLODE_MS / speed;
@@ -7841,11 +7775,7 @@
     pointerDown = true;
     canvas.setPointerCapture(e.pointerId);
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
-    if(holdDealUnlocked()){
-      startHoldDrop(null);
-    } else {
-      draw();
-    }
+    draw();
   });
   canvas.addEventListener('pointermove', (e)=>{
     if(!pointerDown) return;
@@ -7856,16 +7786,11 @@
   function releasePointer(){
     if(!pointerDown) return;
     pointerDown = false;
-    if(holdDealUnlocked()){
-      stopHoldDrop();
-      return;
-    }
     if(!inputBlocked()) dropAt(aimX);
   }
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', ()=>{
     pointerDown = false;
-    stopHoldDrop();
   });
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
@@ -7876,12 +7801,10 @@
     if(upgradeLevel('autoDealer') > 0) updateAutoStatus(now);
     if(!looping && !resolveLooping){
       updateSuitBombUI(now);
-      tryHoldDrop(now);
       tryAutoSuitBomb(now);
       maybeAutoBuy(now);
       maybeAutoClaimQuests(now);
       const needLoop = balls.length || particles.length || resolving
-        || holdDropping
         || autoDealerActive()
         || (prestigeLevel('pitBoss') > 0 && isAutoEnabled('pitBoss'))
         || (prestigeLevel('questDesk') > 0
