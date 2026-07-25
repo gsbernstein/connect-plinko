@@ -2828,31 +2828,40 @@
 
   // Ace Up Your Sleeve: board cards in the window + one invisible Ace, then the
   // best normal poker hand of at most 5 cards (never a 6-card evaluate).
+  // Sets sleeveUsed when the ghost Ace strictly improves (or creates) the hand.
   function evaluateHandSlice(cards){
     let best = evaluateCards(cards);
-    if(!cards || !cards.length || prestigeLevel('aceSleeve') <= 0) return best;
+    let sleeveUsed = false;
+    if(!cards || !cards.length || prestigeLevel('aceSleeve') <= 0){
+      if(best) best.sleeveUsed = false;
+      return best;
+    }
 
-    function consider(hand){
+    function consider(hand, fromSleeve){
       if(!hand) return;
-      if(!best || hand.points > best.points) best = hand;
+      if(!best || hand.points > best.points){
+        best = hand;
+        sleeveUsed = !!fromSleeve;
+      }
     }
 
     function considerPool(pool){
       if(pool.length <= 5){
-        consider(evaluateCards(pool));
+        consider(evaluateCards(pool), true);
         return;
       }
       // Best 5 of 6: try every way to drop one card.
       for(let drop = 0; drop < pool.length; drop++){
         const subset = [];
         for(let i = 0; i < pool.length; i++) if(i !== drop) subset.push(pool[i]);
-        consider(evaluateCards(subset));
+        consider(evaluateCards(subset), true);
       }
     }
 
     for(const suit of SUITS){
       considerPool(cards.concat([{suit, rank: 1}]));
     }
+    if(best) best.sleeveUsed = sleeveUsed;
     return best;
   }
 
@@ -2896,7 +2905,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 18;
+  const SAVE_VERSION = 19;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2908,6 +2917,15 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 19,
+      date: 'Jul 25, 2026',
+      title: 'More achievements',
+      items: [
+        'New achievements: sleeve Ace hands, VIP perks purchased, and opening Settings.',
+        'Secret achievement for updating Poker to a new version — hidden until you unlock it.'
+      ]
+    },
     {
       id: 18,
       date: 'Jul 25, 2026',
@@ -3517,6 +3535,47 @@
         { target: 50, reward: { comps: 3 } },
         { target: 200, reward: { comps: 5 } }
       ]
+    },
+    {
+      id: 'a_sleeve', kind: 'achievement', name: 'Ace in the Hole',
+      desc: 'Score {n} hands that used the sleeve Ace.',
+      stat: 'sleeveHands', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 150, chipGrowth: 1.3, compCap: 30 },
+      tiers: [
+        { target: 1, reward: { chips: 250, comps: 1 } },
+        { target: 10, reward: { comps: 2 } },
+        { target: 50, reward: { comps: 4 } },
+        { target: 200, reward: { comps: 6 } }
+      ]
+    },
+    {
+      id: 'a_perks', kind: 'achievement', name: 'Lounge Regular',
+      desc: 'Buy {n} VIP perks.',
+      stat: 'prestigeBought', unlockAt: 8, infinite: true,
+      scale: { targetGrowth: 1.9, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 1, reward: { comps: 1 } },
+        { target: 5, reward: { comps: 2 } },
+        { target: 15, reward: { comps: 4 } },
+        { target: 40, reward: { comps: 6 } }
+      ]
+    },
+    {
+      id: 'a_settings', kind: 'achievement', name: 'House Rules',
+      desc: 'Open Settings for the first time.',
+      stat: 'settingsOpened', unlockAt: 1,
+      tiers: [{ target: 1, reward: { chips: 50 } }]
+    },
+    {
+      id: 'a_version', kind: 'achievement', name: 'Stay Current',
+      desc: 'Update Poker to a new version {n} times.',
+      stat: 'versionUpgrades', secret: true, infinite: true,
+      scale: { targetGrowth: 1.8, compPerLevel: 1, compCap: 25 },
+      tiers: [
+        { target: 1, reward: { comps: 1 } },
+        { target: 3, reward: { comps: 2 } },
+        { target: 10, reward: { comps: 5 } }
+      ]
     }
   ];
   // Map retired one-shot achievement ids to { groupId, tier } for save migration.
@@ -3704,11 +3763,14 @@
   };
   // Highest CHANGELOG entry id the player has opened in Settings (0 = none).
   let seenChangelogId = 0;
+  // Last APP_RELEASE stamped into the save — used for the Stay Current achievement.
+  let appRelease = APP_RELEASE;
   const EMPTY_STATS = {
     hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
+    sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
     runFlushes: 0, runStraights: 0, runFullHouses: 0, runFourKinds: 0,
@@ -4540,6 +4602,7 @@
       if(runKey) bumpStat(runKey, 1);
       for(const alsoKey of (HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
       for(const alsoKey of (RUN_HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
+      if(g.sleeveUsed) bumpStat('sleeveHands', 1);
     }
   }
 
@@ -5609,6 +5672,7 @@
         suitBombCdLeft: cdLeft,
         seenUnlocks,
         seenChangelogId,
+        appRelease,
         v: SAVE_VERSION
       }));
     }catch(_){ /* private mode / quota */ }
@@ -5775,6 +5839,30 @@
       } else {
         seenChangelogId = 0;
       }
+      // Stay Current: count a version upgrade when the hosted build is newer than
+      // the last stamped release. Pre-appRelease saves count once on migration.
+      let versionDirty = false;
+      if(typeof data.appRelease === 'number' && data.appRelease >= 1){
+        if(APP_RELEASE > data.appRelease){
+          bumpStat('versionUpgrades', 1);
+          versionDirty = true;
+        }
+      } else if(data.v != null){
+        bumpStat('versionUpgrades', 1);
+        versionDirty = true;
+      }
+      // Backfill perk purchases from owned VIP levels (pre-stat saves).
+      if((data.v || 0) < 19 && (stats.prestigeBought || 0) === 0){
+        let bought = 0;
+        for(const def of PRESTIGE_DEFS) bought += prestigeLevel(def.id);
+        if(bought > 0){
+          stats.prestigeBought = bought;
+          versionDirty = true;
+        }
+      }
+      appRelease = APP_RELEASE;
+      // Stamp immediately so a refresh before the next gameplay save can't double-count.
+      if(versionDirty || data.appRelease !== APP_RELEASE) scheduleSave();
     }catch(_){ /* corrupt save */ }
   }
 
@@ -5802,6 +5890,7 @@
     };
     // Reset is launched from Settings — keep changelog marked seen.
     seenChangelogId = CHANGELOG_LATEST_ID;
+    appRelease = APP_RELEASE;
     persistSave();
     updateScoreUI();
     updateShopUI();
@@ -5961,6 +6050,7 @@
     if(comps < cost) return;
     comps -= cost;
     prestigeUpgrades[id] = lvl + 1;
+    bumpStat('prestigeBought', 1);
     // First Auto Purge unlock: collapse the manual picker (minimized charge bar).
     if(id === 'autoSuitBomb' && lvl === 0) autoEnabled.suitBomb = false;
     // VIP skill bonuses may cap purchasable room — clamp bought levels.
@@ -6837,6 +6927,7 @@
                 name: hand.name,
                 points: hand.points,
                 cardMult,
+                sleeveUsed: !!hand.sleeveUsed,
                 cells: cells.slice(i, i+len)
               });
             }
@@ -6852,6 +6943,7 @@
               name: cand.name,
               points: cand.points,
               cardMult: cand.cardMult,
+              sleeveUsed: !!cand.sleeveUsed,
               cells: cand.cells,
               color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
             });
@@ -8209,11 +8301,18 @@
     updateSettingsChangelogBadge();
   }
 
+  function noteSettingsOpened(){
+    if((stats.settingsOpened || 0) > 0) return;
+    bumpStat('settingsOpened', 1);
+    scheduleSave();
+  }
+
   function openSettingsChangelog(){
     // Capture pre-open floor so New highlights survive markChangelogSeen.
     changelogHighlightFloor = seenChangelogId | 0;
     renderChangelog();
     markChangelogSeen();
+    noteSettingsOpened();
   }
 
   function renderChangelog(){
