@@ -2905,7 +2905,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 20;
+  const SAVE_VERSION = 21;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2917,6 +2917,14 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 28,
+      date: 'Jul 25, 2026',
+      title: 'Highest combo achievements',
+      items: [
+        'New achievement track for your biggest COMBO — clear more hands at once to climb the tiers.'
+      ]
+    },
     {
       id: 27,
       date: 'Jul 25, 2026',
@@ -3548,6 +3556,17 @@
       ]
     },
     {
+      id: 'a_max_combo', kind: 'achievement', name: 'Multiway',
+      desc: 'Reach COMBO ×{n}.',
+      stat: 'maxCombo', unlockAt: 1,
+      tiers: [
+        { target: 2, reward: { chips: 200 } },
+        { target: 3, reward: { comps: 2 } },
+        { target: 4, reward: { comps: 4 } },
+        { target: 5, reward: { comps: 8 } }
+      ]
+    },
+    {
       id: 'a_floor', kind: 'achievement', name: 'Janitor',
       desc: 'Trigger {n} floor clears lifetime.',
       stat: 'floorClears', unlockAt: 1, infinite: true,
@@ -3859,6 +3878,7 @@
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
+    maxCombo: 0,
     sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
@@ -4724,6 +4744,10 @@
     if(n > 1){
       bumpStat('multiHandClears', 1);
       bumpStat('runMultiClears', 1);
+    }
+    if(n > (stats.maxCombo || 0)){
+      stats.maxCombo = n;
+      scheduleContractsUI();
     }
     if(chainMult > 1){
       bumpStat('chainClears', 1);
@@ -6014,6 +6038,11 @@
           stats.prestigeBought = bought;
           versionDirty = true;
         }
+      }
+      // Pre-maxCombo saves: any multi-hand clear means at least COMBO ×2.
+      if((data.v || 0) < 21 && (stats.maxCombo || 0) < 2 && (stats.multiHandClears || 0) > 0){
+        stats.maxCombo = 2;
+        versionDirty = true;
       }
       appRelease = APP_RELEASE;
       // Stamp immediately so a refresh before the next gameplay save can't double-count.
