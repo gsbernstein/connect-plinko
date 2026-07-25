@@ -4146,6 +4146,8 @@
     clearFlyingChips();
     pendingSuitBomb = null;
     lastAutoDropAt = performance.now();
+    lastPhysicsTime = 0;
+    physicsAccumulator = 0;
     stopHoldDrop();
     markHintsDirty();
     shoe = makeDeck().concat(makeDeck());
@@ -4433,6 +4435,11 @@
   let looping = false;
   let resolveLooping = false;
   let aimX = W/2;
+  const PHYSICS_HZ = 60;
+  const PHYSICS_DT = 1 / PHYSICS_HZ;
+  const MAX_PHYSICS_STEPS = 10; // catch-up cap per frame after a hitch
+  let lastPhysicsTime = 0;
+  let physicsAccumulator = 0;
 
   const BALL_RADIUS = 14;
   const HOLE_R = 29;
@@ -4752,18 +4759,21 @@
 
     const speed = physicsSpeed();
     const gravity = 0.42 * Math.min(speed, 3.2);
-    // Ease off multi-step when the peg zone is crowded.
-    const busy = balls.length > 18 ? 1 : Math.max(1, Math.min(3, Math.round(speed)));
-    const steps = busy;
     for(const p of pegs){ if(p.hit) p.hit--; }
     for(const path of bumperPaths){ if(path.hit) path.hit--; }
-
-    for(let s=0;s<steps;s++){
+    if(!lastPhysicsTime) lastPhysicsTime = now;
+    const frameDt = Math.min((now - lastPhysicsTime) / 1000, 0.05);
+    lastPhysicsTime = now;
+    physicsAccumulator += frameDt;
+    let physicsSteps = 0;
+    while(physicsAccumulator >= PHYSICS_DT && physicsSteps < MAX_PHYSICS_STEPS){
       for(const ball of balls){
-        stepBall(ball, gravity / steps);
+        stepBall(ball, gravity);
       }
       resolveBallCollisions();
       forceSeatStuckGridBalls();
+      physicsAccumulator -= PHYSICS_DT;
+      physicsSteps++;
     }
     stepParticles();
 
