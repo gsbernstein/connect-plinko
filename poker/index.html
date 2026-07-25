@@ -8034,23 +8034,26 @@
       // Dark outline so labels stay readable over suit-colored pucks.
       const lineW = Math.max(4, fontSize * 0.18);
       // Re-clamp with this frame's scale so peak slam never clips the frame.
+      // If the label is wider than the board even centered, shrink the draw
+      // scale so a Royal Flush still fits instead of spilling ~10px off each side.
       const tw = ctx.measureText(p.text).width;
       const hw0 = tw * 0.5 + lineW;
       const hh0 = fontSize * 0.55 + lineW;
       const cos = Math.cos(tilt);
       const sin = Math.sin(tilt);
       const pad = glow * 0.25 + 4;
-      const halfW = (Math.abs(hw0 * cos) + Math.abs(hh0 * sin)) * scale + pad;
-      const halfH = (Math.abs(hw0 * sin) + Math.abs(hh0 * cos)) * scale + pad;
-      const minX = Math.min(halfW, W * 0.5);
-      const maxX = Math.max(W - halfW, W * 0.5);
-      const minY = Math.min(halfH, H * 0.5);
-      const maxY = Math.max(H - halfH, H * 0.5);
-      const drawX = Math.max(minX, Math.min(maxX, p.x));
-      const drawY = Math.max(minY, Math.min(maxY, p.y + dy));
+      const baseW = Math.abs(hw0 * cos) + Math.abs(hh0 * sin);
+      const baseH = Math.abs(hw0 * sin) + Math.abs(hh0 * cos);
+      const maxScaleX = baseW > 0 ? (W * 0.5 - pad) / baseW : scale;
+      const maxScaleY = baseH > 0 ? (H * 0.5 - pad) / baseH : scale;
+      const drawScale = Math.max(0.55, Math.min(scale, maxScaleX, maxScaleY));
+      const halfW = baseW * drawScale + pad;
+      const halfH = baseH * drawScale + pad;
+      const drawX = Math.max(halfW, Math.min(W - halfW, p.x));
+      const drawY = Math.max(halfH, Math.min(H - halfH, p.y + dy));
       ctx.translate(drawX, drawY);
       ctx.rotate(tilt);
-      ctx.scale(scale, scale);
+      ctx.scale(drawScale, drawScale);
       ctx.globalAlpha = alpha;
       ctx.lineWidth = lineW;
       ctx.strokeStyle = 'rgba(8,6,16,0.92)';
