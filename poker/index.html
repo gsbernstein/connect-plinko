@@ -4248,7 +4248,7 @@
     const extra = level - seeds.length;
     const scale = def.scale || {};
     let target;
-    // Linear every-N steps (e.g. COMBO ×2, ×4, ×6…) when targetStep is set.
+    // Linear +N steps (e.g. COMBO ×2, ×3, ×4… with targetStep: 1) when set.
     if(scale.targetStep != null && scale.targetStep > 0){
       target = last.target + Math.floor(scale.targetStep) * extra;
     } else {
