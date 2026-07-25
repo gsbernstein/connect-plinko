@@ -2023,24 +2023,14 @@
   function cardFace(card){ return rankLabel(card.rank) + card.suit; }
   const CARD_TIER_LABELS = ['', 'Silver', 'Gold', 'Diamond'];
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
-  const CARD_TIER_METAL = [
+  // Premium cards only swap the chip shell to a tier-colored felt; glyphs stay normal.
+  const CARD_TIER_FELT = [
     null,
-    {
-      fill: ['#FFFFFF', '#D8E2EE', '#9AAABE', '#EEF2F8', '#6E7E92'],
-      stroke: ['#E8EEF6', '#7E90A6'],
-      rim: '#3E4A58'
-    },
-    {
-      fill: ['#FFF9D0', '#F3D878', '#B88418', '#F8E8A8', '#7A5810'],
-      stroke: ['#FFF0B0', '#9A742C'],
-      rim: '#3E2A08'
-    },
-    {
-      fill: ['#FFFFFF', '#D8F8FF', '#5EC0F0', '#E8FAFF', '#2E78A8'],
-      stroke: ['#D8F8FF', '#48A0D0'],
-      rim: '#144060'
-    }
+    { hi:'#D8E2EE', mid:'#9AAABE', lo:'#5A6478' },
+    { hi:'#FFF9D0', mid:'#F3D878', lo:'#7A5810' },
+    { hi:'#D8F8FF', mid:'#5EC0F0', lo:'#2E78A8' }
   ];
+  const CARD_TIER_ACCENT = ['', '#C8D4E4', '#E6C35C', '#7ED8FF'];
   function cardTier(card){
     const t = card && card.tier;
     return (typeof t === 'number' && t >= 1 && t <= 3) ? (t | 0) : 0;
@@ -2090,6 +2080,7 @@
   // stay dynamic so we only pay for 4 textures instead of a 52-card sheet.
   const CHIP_TEX_SIZE = 128;
   const chipTextures = Object.create(null);
+  const chipTierTextures = Object.create(null);
   let feltNoiseCanvas = null;
 
   function getFeltNoise(){
@@ -2109,7 +2100,7 @@
     return c;
   }
 
-  function bakeChipTexture(suit){
+  function bakeChipTexture(felt, accent){
     const size = CHIP_TEX_SIZE;
     const c = document.createElement('canvas');
     c.width = c.height = size;
@@ -2117,8 +2108,6 @@
     const cx = size / 2;
     const cy = size / 2;
     const R = size / 2 - 1;
-    const felt = SUIT_FELT[suit] || SUIT_FELT['♠'];
-    const accent = SUIT_COLOR[suit] || '#F0D78C';
 
     // Suit-colored outer rim (not a gold donut — that ate the in-flight suit glow).
     const rim = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R);
@@ -2196,8 +2185,34 @@
 
   function ensureChipTextures(){
     for(const suit of SUITS){
-      if(!chipTextures[suit]) chipTextures[suit] = bakeChipTexture(suit);
+      if(!chipTextures[suit]){
+        chipTextures[suit] = bakeChipTexture(
+          SUIT_FELT[suit] || SUIT_FELT['♠'],
+          SUIT_COLOR[suit] || '#F0D78C'
+        );
+      }
     }
+  }
+
+  function ensureTierChipTextures(){
+    for(let tier = 1; tier <= 3; tier++){
+      if(!chipTierTextures[tier]){
+        chipTierTextures[tier] = bakeChipTexture(
+          CARD_TIER_FELT[tier],
+          CARD_TIER_ACCENT[tier]
+        );
+      }
+    }
+  }
+
+  function chipTextureForCard(card){
+    const tier = cardTier(card);
+    if(tier){
+      ensureTierChipTextures();
+      return chipTierTextures[tier];
+    }
+    ensureChipTextures();
+    return chipTextures[card.suit];
   }
 
   function shuffle(arr){
@@ -6025,28 +6040,8 @@
 
   // ---- drawing ----
   // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
-  function fontSizeFromCss(font){
-    const m = /(\d+(?:\.\d+)?)\s*px/.exec(font);
-    return m ? parseFloat(m[1]) : NaN;
-  }
-
-  function metalGlyphGradient(target, stops, x, y, size){
-    const span = size * 1.1;
-    const grad = target.createLinearGradient(
-      x - span * 0.32, y - span * 0.52,
-      x + span * 0.34, y + span * 0.48
-    );
-    const last = Math.max(1, stops.length - 1);
-    for(let i = 0; i < stops.length; i++){
-      grad.addColorStop(i / last, stops[i]);
-    }
-    return grad;
-  }
-
   function drawChipGlyphs(target, card, radius){
     const color = SUIT_COLOR[card.suit];
-    const tier = cardTier(card);
-    const metal = CARD_TIER_METAL[tier];
     target.textAlign = 'center';
     target.textBaseline = 'middle';
     const suitSize = Math.max(10, Math.round(radius * 0.74));
@@ -6066,43 +6061,7 @@
       target.fillStyle = fill;
       target.fillText(text, x, y);
     }
-    function stampMetalGlyph(text, x, y, font, lineW){
-      // Rank fonts use "700 Npx …" — parseInt(font) wrongly reads the weight (700).
-      const size = Math.min(radius * 1.4, fontSizeFromCss(font) || Math.round(lineW * 12));
-      const rimW = lineW * (1.25 + tier * 0.08);
-      const foilW = lineW * (0.9 + tier * 0.05);
-      const lite = perfLite();
 
-      target.save();
-      target.font = font;
-      target.lineJoin = 'round';
-      target.miterLimit = 2;
-
-      target.lineWidth = rimW;
-      target.strokeStyle = metal.rim;
-      target.strokeText(text, x, y);
-
-      target.lineWidth = foilW;
-      // Gradient strokes on text are flaky on iOS Safari — solid foil, gradient fill.
-      target.strokeStyle = lite ? metal.stroke[1] : metal.stroke[Math.floor(metal.stroke.length / 2)];
-      target.strokeText(text, x, y);
-
-      target.fillStyle = lite
-        ? metal.fill[Math.floor(metal.fill.length / 2)]
-        : metalGlyphGradient(target, metal.fill, x, y, size);
-      target.fillText(text, x, y);
-
-      // Specular shine — offset is chip-relative, never font-weight-sized.
-      if(!lite){
-        target.globalAlpha = tier === 3 ? 0.72 : 0.58;
-        target.lineWidth = Math.max(1, lineW * 0.38);
-        target.strokeStyle = 'rgba(255,255,255,0.95)';
-        target.strokeText(text, x - radius * 0.04, y - radius * 0.07);
-      }
-      target.restore();
-    }
-
-    // Suit stays suit-colored; only the rank gets the metallic foil + shine.
     stampGlyph(
       card.suit,
       suitX,
@@ -6111,30 +6070,19 @@
       `bold ${suitSize}px 'Space Grotesk', sans-serif`,
       Math.max(1.6, radius * 0.09)
     );
-    if(metal){
-      stampMetalGlyph(
-        rankLabel(card.rank),
-        rankX,
-        rankY,
-        `700 ${rankSize}px Fraunces, Georgia, serif`,
-        strokeW
-      );
-    } else {
-      stampGlyph(
-        rankLabel(card.rank),
-        rankX,
-        rankY,
-        '#FFF6D6',
-        `700 ${rankSize}px Fraunces, Georgia, serif`,
-        strokeW
-      );
-    }
+    stampGlyph(
+      rankLabel(card.rank),
+      rankX,
+      rankY,
+      '#FFF6D6',
+      `700 ${rankSize}px Fraunces, Georgia, serif`,
+      strokeW
+    );
   }
 
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
     const color = SUIT_COLOR[card.suit];
-    ensureChipTextures();
-    const tex = chipTextures[card.suit];
+    const tex = chipTextureForCard(card);
     const d = radius * 2;
     target.save();
     target.translate(cx, cy);
@@ -6182,8 +6130,7 @@
     ctx.translate(cx, cy);
     ctx.shadowColor = color;
     ctx.shadowBlur = 12 * (0.65 + 0.35 * heat);
-    ensureChipTextures();
-    const tex = chipTextures[card.suit];
+    const tex = chipTextureForCard(card);
     if(tex) ctx.drawImage(tex, -r, -r, r * 2, r * 2);
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 0.22 + 0.18 * heat;
