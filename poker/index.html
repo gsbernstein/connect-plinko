@@ -2671,24 +2671,24 @@
     8:  { comps: 1, label: '+1 Cash Out comp · Cash Out unlocked' },
     10: { comps: 1, upgrade: { id: 'autoDealer', n: 1 }, label: '+1 Cash Out comp · +1 Auto Dealer' },
     12: { comps: 2, label: '+2 Cash Out comps' },
-    15: { comps: 2, prestige: 'seedStack', label: '+2 comps · VIP +1 Seed Stack' },
+    15: { comps: 2, label: '+2 Cash Out comps' },
     18: { comps: 2, upgrade: { id: 'bigBlind', n: 1 }, label: '+2 comps · +1 Big Blind' },
-    20: { comps: 3, prestige: 'houseEdge', label: '+3 comps · VIP +1 House Edge' },
+    20: { comps: 3, label: '+3 Cash Out comps' },
     25: { comps: 4, label: '+4 Cash Out comps' },
-    30: { comps: 5, prestige: 'rackDiscount', label: '+5 comps · VIP +1 Rack Discount' },
-    35: { comps: 6, prestige: 'compCard', label: '+6 comps · VIP +1 Comp Card' },
-    40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' },
-    50: { comps: 10, prestige: 'pinPrivilege', label: '+10 comps · VIP +1 Pin Privilege' },
+    30: { comps: 5, label: '+5 Cash Out comps' },
+    35: { comps: 6, label: '+6 Cash Out comps' },
+    40: { comps: 8, label: '+8 Cash Out comps' },
+    50: { comps: 10, metaMult: 0.05, label: '+10 comps · ×1.05 payout multipliers' },
     60: { comps: 12, label: '+12 Cash Out comps' },
-    70: { comps: 14, prestige: 'feltWax', label: '+14 comps · VIP +1 Felt Wax' },
-    80: { comps: 16, label: '+16 Cash Out comps' },
-    90: { comps: 18, prestige: 'blindSpread', label: '+18 comps · VIP +1 Open Blind' },
-    100: { comps: 20, prestige: 'questInk', label: '+20 comps · VIP +1 Quest Ink' },
-    120: { comps: 24, label: '+24 Cash Out comps' },
-    140: { comps: 28, prestige: 'houseEdge', label: '+28 comps · VIP +1 House Edge' },
-    160: { comps: 32, label: '+32 Cash Out comps' },
-    180: { comps: 36, prestige: 'quickDeal', label: '+36 comps · VIP +1 Quick Deal' },
-    200: { comps: 50, prestige: 'compCard', label: '+50 comps · VIP +1 Comp Card' }
+    70: { comps: 14, chainExp: 0.08, label: '+14 comps · +8% chain exponent' },
+    80: { comps: 16, metaMult: 0.05, label: '+16 comps · ×1.05 payout multipliers' },
+    90: { comps: 18, label: '+18 Cash Out comps' },
+    100: { comps: 20, metaMult: 0.08, chainExp: 0.08, label: '+20 comps · ×1.08 mults · +8% chain exp' },
+    120: { comps: 24, metaMult: 0.08, label: '+24 comps · ×1.08 payout multipliers' },
+    140: { comps: 28, chainExp: 0.1, label: '+28 comps · +10% chain exponent' },
+    160: { comps: 32, metaMult: 0.1, label: '+32 comps · ×1.10 payout multipliers' },
+    180: { comps: 36, chainExp: 0.12, label: '+36 comps · +12% chain exponent' },
+    200: { comps: 50, metaMult: 0.15, chainExp: 0.15, label: '+50 comps · ×1.15 mults · +15% chain exp' }
   };
 
   // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
@@ -2727,7 +2727,7 @@
   };
   const MAX_QUEST_SLOTS = 5;
   // Quest slots unlock at these run levels (spread across the full climb).
-  const QUEST_SLOT_UNLOCK_LEVELS = [2, 50, 100, 150, 200];
+  const QUEST_SLOT_UNLOCK_LEVELS = [2, 20, 45, 75, 110];
   const QUEST_CLAIM_ANIM_MS = 360;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
@@ -4029,24 +4029,56 @@
     return upgradeLevel('hotStreak');
   }
 
+  function runLevelBonusTotal(field){
+    let total = 0;
+    for(let L = 2; L <= runLevel; L++){
+      const bonus = LEVEL_BONUSES[L];
+      if(bonus && bonus[field]) total += bonus[field];
+    }
+    return total;
+  }
+
+  function runMetaMultiplier(){
+    return 1 + runLevelBonusTotal('metaMult');
+  }
+
+  function chainExponentBonus(){
+    return runLevelBonusTotal('chainExp');
+  }
+
+  function computeChainMult(chainStep){
+    const linear = Math.max(1, chainStep + chainBonus());
+    const exp = chainExponentBonus();
+    if(exp <= 0) return linear;
+    return Math.max(1, Math.floor(Math.pow(linear, 1 + exp)));
+  }
+
+  function formatMetaMultBonus(v){
+    return '×' + (1 + v).toFixed(2).replace(/\.?0+$/, '') + ' payout multipliers';
+  }
+
+  function formatChainExpBonus(v){
+    return '+' + Math.round(v * 100) + '% chain exponent';
+  }
+
   function physicsSpeed(){
     return 1 + 0.22 * upgradeLevel('feltGrease');
   }
 
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? Math.floor(lvl * blindMultiplier('pin')) : 0;
+    return lvl ? Math.floor(lvl * blindMultiplier('pin') * runMetaMultiplier()) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper')) : 0;
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * runMetaMultiplier()) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
-    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor')) : 0;
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * runMetaMultiplier()) : 0;
   }
 
   function suitBombCooldownMs(){
@@ -4188,13 +4220,11 @@
           }
         }
       }
-      if(bonus.prestige){
-        const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
-        if(pDef){
-          if(preview || prestigeLevel(pDef.id) < pDef.maxLevel){
-            parts.push('VIP +1 ' + pDef.name);
-          }
-        }
+      if(bonus.metaMult){
+        parts.push(formatMetaMultBonus(bonus.metaMult));
+      }
+      if(bonus.chainExp){
+        parts.push(formatChainExpBonus(bonus.chainExp));
       }
       if(bonus.label && !parts.length) parts.push(bonus.label);
     }
@@ -4236,15 +4266,6 @@
             if(uDef.id === 'suitBomb' && beforeEff === 0){
               suitBombReadyAt = performance.now();
             }
-          }
-        }
-      }
-      if(bonus.prestige){
-        const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
-        if(pDef){
-          const before = prestigeLevel(pDef.id);
-          if(before < pDef.maxLevel){
-            prestigeUpgrades[pDef.id] = before + 1;
           }
         }
       }
@@ -6299,7 +6320,7 @@
   }
 
   function spawnHandChipFlies(groups, chainMult){
-    const mult = scoreMultiplier();
+    const mult = scoreMultiplier() * runMetaMultiplier();
     for(const g of groups){
       const pts = Math.floor(g.points * (g.cardMult || 1) * chainMult * mult);
       if(pts <= 0 || !g.cells || !g.cells.length) continue;
@@ -6348,7 +6369,7 @@
 
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
-    const mult = scoreMultiplier();
+    const mult = scoreMultiplier() * runMetaMultiplier();
     for(const g of groups){
       const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
       const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
@@ -6774,8 +6795,8 @@
         if(elapsed >= flashMs){
           const isFloorClear = currentGroups.some(g => g.floorClear);
           if(!isFloorClear){
-            const chainMult = Math.max(1, chainStep + chainBonus());
-            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
+            const chainMult = computeChainMult(chainStep);
+            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier() * runMetaMultiplier());
             noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
