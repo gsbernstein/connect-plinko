@@ -2918,6 +2918,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 24,
+      date: 'Jul 25, 2026',
+      title: 'Softer chain pops',
+      items: [
+        'CHAIN banners ease in gentler now — rapid-fire combos still stack, without the hard slam.'
+      ]
+    },
+    {
       id: 23,
       date: 'Jul 25, 2026',
       title: 'Chain pops rapid-fire on combos',
@@ -7306,20 +7314,21 @@
   const CHAIN_POP_STAGGER_MS = 95;
 
   function pushChainBanner(mult, t0, stackIndex){
+    // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
     pushPopup({
       x: W/2,
       y: PEG_ZONE * 0.4 - stackIndex * 12,
       text: 'CHAIN ×' + mult + '!',
       color: '#ffffff',
       t0,
-      duration: 1200,
+      duration: 1100,
       big: true,
-      fontSize: Math.min(40, 26 + Math.max(0, mult - 2) * 2),
-      floatBoost: 40,
-      tilt: 0.1,
-      slam: Math.min(2.6, 1.8 + Math.max(0, mult - 2) * 0.12),
-      slamMs: 160,
-      glow: Math.min(28, 16 + Math.max(0, mult - 2) * 2)
+      fontSize: 26,
+      floatBoost: 36,
+      tilt: 0.06,
+      slam: 1.35,
+      slamMs: 180,
+      glow: 14
     });
   }
 
