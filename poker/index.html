@@ -166,8 +166,6 @@
     padding:8px;
     box-shadow:0 20px 50px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02);
     overflow:hidden;
-    transform-origin:center center;
-    will-change:transform;
   }
   canvas#board{
     display:block;
@@ -2512,7 +2510,7 @@
   let saveTimer = 0;
   let holdDropping = false;
   let holdDropCol = null; // null = aim at aimX; number = fixed column
-  // Gyro tilt: -1..1 lean, mapped to ±MAX_TILT_DEG visual + peg gravity.
+  // Gyro tilt: -1..1 lean, mapped to ±MAX_TILT_DEG peg-zone gravity only.
   const MAX_TILT_DEG = 10;
   let boardTilt = 0;
   let lastHoldDropAt = 0;
@@ -6956,8 +6954,7 @@
   });
 
   // ---- gyro board tilt (DeviceOrientation when available) ----
-  // Portrait gamma / landscape beta → lean the frame and bias peg-zone gravity.
-  const boardFrame = document.querySelector('.board-frame');
+  // Portrait gamma / landscape beta → bias peg-zone gravity only (no artwork rotate).
   const TILT_GAMMA_RANGE = 30; // degrees of device lean that maps to full board tilt
   let gyroEnabled = false;
   let gyroPrompted = false;
@@ -6980,18 +6977,12 @@
     return e.gamma;
   }
 
-  function applyBoardTiltVisual(){
-    if(!boardFrame) return;
-    boardFrame.style.transform = 'rotate(' + (boardTilt * MAX_TILT_DEG).toFixed(2) + 'deg)';
-  }
-
   function onDeviceOrientation(e){
     const lean = deviceLeanX(e);
     if(lean == null || Number.isNaN(lean)) return;
     if(gyroBaseline == null) gyroBaseline = lean;
     const raw = Math.max(-1, Math.min(1, (lean - gyroBaseline) / TILT_GAMMA_RANGE));
     boardTilt += (raw - boardTilt) * 0.2;
-    applyBoardTiltVisual();
   }
 
   function enableGyro(){
