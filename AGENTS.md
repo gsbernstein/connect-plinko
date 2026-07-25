@@ -157,7 +157,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 
 **Chain carryover:** `chainStep` / `pendingChain` keep the heater alive while blast pucks are still in flight (`finishResolveOrChain` → `beginResolveChain`). `enterFlash` advances `chainStep` by `groups.length` (COMBO ×N steps the heater N times). Suit Purge preserves `pendingChain` and scores with chain mult `1` (no CHAIN banner) so Hot Streak alone does not flash a fake low ×N; the next real hand restores the carryover via `finishResolveOrChain`.
 
-**Combo popups:** `comboPopupJuice(n)` / `spawnPopups` — COMBO ×N banner size/slam/glow scale with simultaneous hands.
+**Combo popups:** `comboPopupJuice(n)` / `spawnPopups` — COMBO ×N banner size/slam/glow scale with simultaneous hands. Multi-hand clears call `spawnStaggeredChainPopups` (`CHAIN_POP_STAGGER_MS`) so each heater step gets its own delayed CHAIN slam (`t0` in the future; draw skips `age < 0`).
 
 ### Saves
 

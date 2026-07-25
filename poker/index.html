@@ -2918,6 +2918,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 23,
+      date: 'Jul 25, 2026',
+      title: 'Chain pops rapid-fire on combos',
+      items: [
+        'Multi-hand clears slam CHAIN ×N banners in quick succession — one pop per heater step, not a single jump.'
+      ]
+    },
+    {
       id: 22,
       date: 'Jul 25, 2026',
       title: 'Bigger combos, hotter heaters',
@@ -7294,6 +7302,39 @@
     };
   }
 
+  // Multi-hand clears fire one CHAIN slam per heater step, staggered.
+  const CHAIN_POP_STAGGER_MS = 95;
+
+  function pushChainBanner(mult, t0, stackIndex){
+    pushPopup({
+      x: W/2,
+      y: PEG_ZONE * 0.4 - stackIndex * 12,
+      text: 'CHAIN ×' + mult + '!',
+      color: '#ffffff',
+      t0,
+      duration: 1200,
+      big: true,
+      fontSize: Math.min(40, 26 + Math.max(0, mult - 2) * 2),
+      floatBoost: 40,
+      tilt: 0.1,
+      slam: Math.min(2.6, 1.8 + Math.max(0, mult - 2) * 0.12),
+      slamMs: 160,
+      glow: Math.min(28, 16 + Math.max(0, mult - 2) * 2)
+    });
+  }
+
+  // Replay the steps that just landed: endStep-steps+1 … endStep.
+  function spawnStaggeredChainPopups(steps, endStep, now){
+    const startStep = endStep - steps + 1;
+    let shown = 0;
+    for(let s = startStep; s <= endStep; s++){
+      const mult = computeChainMult(s);
+      if(mult <= 1) continue;
+      pushChainBanner(mult, now + shown * CHAIN_POP_STAGGER_MS, shown);
+      shown++;
+    }
+  }
+
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
     const mult = handPayoutMultiplier();
@@ -7321,13 +7362,9 @@
         big: fx.big
       });
     }
-    if(chainMult>1){
-      pushPopup({
-        x:W/2, y:PEG_ZONE*0.4,
-        text:'CHAIN ×'+chainMult+'!',
-        color:'#ffffff', t0:now, duration:1200, big:true,
-        fontSize: 26, floatBoost: 40, tilt: 0.1, slam: 1.8, slamMs: 160, glow: 16
-      });
+    if(chainMult > 1){
+      // COMBO ×N → N rapid CHAIN slams (rising ×); single hand → one banner.
+      spawnStaggeredChainPopups(Math.max(1, groups.length), chainStep, now);
     }
     if(groups.length>1){
       const comboPos = comboPopupPosition(groups);
@@ -8191,6 +8228,8 @@
     }
     for(const p of popups){
       const age = nowP - p.t0;
+      // Future t0 = staggered chain pops waiting to slam in.
+      if(age < 0) continue;
       const t = age / p.duration;
       const alpha = t < 0.7 ? 1 : Math.max(0, 1-(t-0.7)/0.3);
       const floatDist = p.floatBoost || (p.big ? 40 : 30);
