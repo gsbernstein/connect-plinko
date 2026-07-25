@@ -2927,7 +2927,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 19;
+  const SAVE_VERSION = 20;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2940,12 +2940,38 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 25,
+      id: 28,
       date: 'Jul 25, 2026',
       title: 'Premium rim polish',
       items: [
         'Silver, Gold, and Diamond cards keep a metallic rim — the center stays suit felt.',
         'Suit glyphs sit lower on the chip; grid windows open a bit so premium rims stay visible.'
+      ]
+    },
+    {
+      id: 27,
+      date: 'Jul 25, 2026',
+      title: 'Storm the Beaches VIP perk',
+      items: [
+        'New expensive VIP perk: Storm the Beaches — Auto Dealer runs ~3× faster, but cards can randomly explode on pins.',
+        'Toggle On/Off anytime.'
+      ]
+    },
+    {
+      id: 26,
+      date: 'Jul 25, 2026',
+      title: 'Pin Split VIP perk',
+      items: [
+        'New expensive VIP perk: Pin Split — drops come ~10× slower, but cards bifurcate on every pin.',
+        'Split chips shrink each bounce, then snap back to full size when they enter a column. Toggle On/Off anytime.'
+      ]
+    },
+    {
+      id: 25,
+      date: 'Jul 25, 2026',
+      title: 'Heater survives refresh',
+      items: [
+        'Your Hot Streak chain is saved with the run — refreshing or updating no longer resets the heater.'
       ]
     },
     {
@@ -3798,13 +3824,31 @@
       baseCost: 6,
       costScale: 1.9,
       maxLevel: 8
+    },
+    {
+      id: 'pinSplit',
+      name: 'Pin Split',
+      desc: 'Drops come ~10× slower, but cards bifurcate when they hit a pin — shrinking each bounce, then snapping back to full size in the columns. Toggle On/Off anytime.',
+      baseCost: 75,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'stormBeaches',
+      name: 'Storm the Beaches',
+      desc: 'Auto Dealer runs ~3× faster, but cards can randomly explode when they hit a pin. High volume, high casualties. Toggle On/Off anytime.',
+      baseCost: 75,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
     }
   ];
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -3812,6 +3856,7 @@
   let runCompCredit = 0; // Cash Out comps banked by level/quest rewards; paid out on Cash Out
   let autoDropTicks = 0;
   let lastAutoDropAt = 0;
+  let lastManualDropAt = 0;
   let lastIdleDrawAt = 0;
   let nearMissCache = null;
   let hintsDirty = true;
@@ -3838,6 +3883,8 @@
   let seenChangelogId = 0;
   // Last APP_RELEASE stamped into the save — used for the Stay Current achievement.
   let appRelease = APP_RELEASE;
+  // Heater steps loaded from save; applied to pendingChain after freshState on boot.
+  let resumeHeaterChain = 0;
   const EMPTY_STATS = {
     hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
@@ -3925,6 +3972,7 @@
     if(on && id === 'pitBoss') maybeAutoBuy(performance.now());
     if(on && id === 'questDesk') maybeAutoClaimQuests(performance.now());
     if(on && id === 'autoDealer') lastAutoDropAt = performance.now();
+    if(on && id === 'pinSplit') lastManualDropAt = performance.now();
     if(on && (id === 'autoDealer' || id === 'autoSuitBomb') && !resolving && !looping){
       startLoop();
     }
@@ -3932,6 +3980,50 @@
       if(on) activateTableTilt(true);
       else deactivateTableTilt();
     }
+  }
+
+  function pinSplitUnlocked(){
+    return prestigeLevel('pinSplit') > 0;
+  }
+
+  function pinSplitActive(){
+    return pinSplitUnlocked() && isAutoEnabled('pinSplit');
+  }
+
+  // Pin Split: rare drops, but each pin strike can bifurcate a falling card.
+  const PIN_SPLIT_SPAWN_MULT = 10;
+  const PIN_SPLIT_MAX_GEN = 3; // gen 0 → 3 ⇒ up to 8 chips from one drop
+  const PIN_SPLIT_SCALE = 0.72;
+  const PIN_SPLIT_MIN_R = 5;
+  const PIN_SPLIT_LOCK_FRAMES = 12;
+  const PIN_SPLIT_MANUAL_COOLDOWN_MS = 2400;
+
+  function pinSplitSpawnMult(){
+    return pinSplitActive() ? PIN_SPLIT_SPAWN_MULT : 1;
+  }
+
+  function manualDropCooldownMs(){
+    return pinSplitActive() ? PIN_SPLIT_MANUAL_COOLDOWN_MS : 0;
+  }
+
+  function stormBeachesUnlocked(){
+    return prestigeLevel('stormBeaches') > 0;
+  }
+
+  function stormBeachesActive(){
+    return stormBeachesUnlocked() && isAutoEnabled('stormBeaches');
+  }
+
+  // Storm the Beaches: flood the table, but pins can shell falling cards.
+  const STORM_BEACHES_SPAWN_MULT = 1 / 3; // ~3× faster Auto Dealer
+  const STORM_BEACHES_EXPLODE_CHANCE = 0.22;
+
+  function stormBeachesSpawnMult(){
+    return stormBeachesActive() ? STORM_BEACHES_SPAWN_MULT : 1;
+  }
+
+  function dropSpawnMult(){
+    return pinSplitSpawnMult() * stormBeachesSpawnMult();
   }
 
   function tableTiltUnlocked(){
@@ -4720,7 +4812,8 @@
     const lvl = upgradeLevel('autoDealer');
     if(lvl <= 0 || !isAutoEnabled('autoDealer')) return Infinity;
     // ~2.4s at Lv1 → ~34ms by Lv12 (2 physics ticks at 60Hz).
-    return Math.floor(2400 * Math.pow(0.68, lvl - 1));
+    // Pin Split / Storm the Beaches stretch or compress cadence via dropSpawnMult().
+    return Math.floor(2400 * Math.pow(0.68, lvl - 1) * dropSpawnMult());
   }
 
   function autoDropIntervalTicks(){
@@ -5708,6 +5801,14 @@
         if(!extras) return '+' + pct + '% per duplicate';
         return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingMultiplier());
       }
+      case 'pinSplit':
+        if(!lvl) return 'Normal drops';
+        if(!isAutoEnabled('pinSplit')) return 'Paused';
+        return '×' + PIN_SPLIT_SPAWN_MULT + ' slower · split on pins';
+      case 'stormBeaches':
+        if(!lvl) return 'Steady landings';
+        if(!isAutoEnabled('stormBeaches')) return 'Paused';
+        return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% pin shells';
       default:
         return '';
     }
@@ -5721,8 +5822,13 @@
     runCompCredit = 0;
     autoDropTicks = 0;
     lastAutoDropAt = 0;
+    lastManualDropAt = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
+    // Cash Out persists before freshState — clear heater so it can't revive on reload.
+    chainStep = 0;
+    pendingChain = 0;
+    resumeHeaterChain = 0;
   }
 
   function persistSave(){
@@ -5743,6 +5849,7 @@
         questUidSeq,
         autoEnabled,
         suitBombCdLeft: cdLeft,
+        heaterChain: heaterChainForSave(),
         seenUnlocks,
         seenChangelogId,
         appRelease,
@@ -5890,6 +5997,12 @@
       } else {
         suitBombReadyAt = performance.now();
       }
+      // Heater carryover — applied to pendingChain after freshState on boot.
+      if(typeof data.heaterChain === 'number' && data.heaterChain > 0){
+        resumeHeaterChain = Math.floor(data.heaterChain);
+      } else {
+        resumeHeaterChain = 0;
+      }
       if(data.seenUnlocks && typeof data.seenUnlocks === 'object'){
         seenUnlocks.tabs.quests = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.quests);
         seenUnlocks.tabs.achievements = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.achievements);
@@ -5955,8 +6068,12 @@
     questUidSeq = 1;
     autoDropTicks = 0;
     lastAutoDropAt = 0;
+    lastManualDropAt = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
+    chainStep = 0;
+    pendingChain = 0;
+    resumeHeaterChain = 0;
     seenUnlocks = {
       tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
       upgrades: []
@@ -6212,9 +6329,9 @@
     if(col < 0){
       // Board packed — still deal into the peg zone; pucks bounce until
       // a floor clear or hand resolve opens a slot.
-      dropAt(Math.random() * (W - 28) + 14);
+      dropAt(Math.random() * (W - 28) + 14, {auto: true});
     } else {
-      dropAt(col*CELL + CELL/2, {autoCol: col});
+      dropAt(col*CELL + CELL/2, {auto: true, autoCol: col});
     }
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
@@ -6231,12 +6348,14 @@
     currentGroups = [];
     chainStep = 0;
     pendingChain = 0;
+    heaterHoldUntilUse = false;
     flashCells = null;
     particles = [];
     popups = [];
     pendingSuitBomb = null;
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
+    lastManualDropAt = 0;
     lastPhysicsTime = 0;
     physicsAccumulator = 0;
     fpsDisplay = 0;
@@ -6448,6 +6567,19 @@
   let currentGroups = [];
   let chainStep = 0;
   let pendingChain = 0;
+  // After load, board is empty so idle expire would kill a restored heater —
+  // hold until the next hand actually advances the chain once.
+  let heaterHoldUntilUse = false;
+  // Persist active heater across refresh / update (board itself stays session-only).
+  function heaterChainForSave(){
+    if(resolving && currentGroups && currentGroups.some(g => g.floorClear)) return 0;
+    // Suit Purge keeps the heater in pendingChain; hand resolves use chainStep.
+    if(resolving && currentGroups && currentGroups.some(g => g.suitBomb)){
+      return Math.max(0, pendingChain | 0);
+    }
+    if(resolving) return Math.max(0, chainStep | 0);
+    return Math.max(0, pendingChain | 0);
+  }
   let flashCells = null;
   let particles = [];
   let popups = [];
@@ -6545,13 +6677,108 @@
   const HOLE_R = 34;
   const SAFETY_LIMIT = 420;
 
+  function splitRadiusForGen(gen){
+    return Math.max(PIN_SPLIT_MIN_R, BALL_RADIUS * Math.pow(PIN_SPLIT_SCALE, gen || 0));
+  }
+
+  function splitDrawRadiusForGen(gen){
+    return Math.max(8, 32 * Math.pow(PIN_SPLIT_SCALE, gen || 0));
+  }
+
+  function canSplitBall(ball){
+    if(!pinSplitActive()) return false;
+    if(!ball || ball.phase !== 'peg') return false;
+    if(ball.cascadeBall) return false;
+    if((ball.splitGen || 0) >= PIN_SPLIT_MAX_GEN) return false;
+    if((ball.splitLock || 0) > 0) return false;
+    if(balls.length >= MAX_AUTO_DROP_BALLS) return false;
+    return true;
+  }
+
+  function spawnSplitTwin(parent, nx, ny){
+    const gen = (parent.splitGen || 0) + 1;
+    parent.splitGen = gen;
+    parent.radius = splitRadiusForGen(gen);
+    parent.splitLock = PIN_SPLIT_LOCK_FRAMES;
+
+    const twin = {
+      x: parent.x,
+      y: parent.y,
+      vx: parent.vx,
+      vy: parent.vy,
+      radius: parent.radius,
+      phase: 'peg',
+      targetCol: null,
+      autoCol: null,
+      row: null,
+      card: cloneCard(parent.card),
+      angle: parent.angle + (Math.random() * 0.8 - 0.4),
+      spin: -parent.spin || (Math.random() - 0.5) * 0.25,
+      frameSafety: 0,
+      trail: [],
+      freeDrop: !!parent.freeDrop,
+      dropEpoch: parent.dropEpoch,
+      splitGen: gen,
+      splitLock: PIN_SPLIT_LOCK_FRAMES,
+      splitChild: true
+    };
+
+    // Peel apart along the contact tangent so they don't re-collide the same pin.
+    const tx = -ny, ty = nx;
+    const sep = parent.radius * 0.9 + 2;
+    parent.x -= tx * sep;
+    parent.y -= ty * sep;
+    twin.x += tx * sep;
+    twin.y += ty * sep;
+    parent.vx -= tx * 1.8;
+    parent.vy -= ty * 0.55;
+    twin.vx += tx * 1.8;
+    twin.vy += ty * 0.55;
+    parent.spin -= 0.12;
+    twin.spin += 0.12;
+    balls.push(twin);
+  }
+
+  function detonateFallingBall(ball){
+    if(!ball || ball.exploded) return;
+    ball.exploded = true;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.spin = 0;
+    spawnExplosion(ball.x, ball.y, ball.card);
+    if(ball.stackEntry != null && ball.targetCol != null){
+      const col = ball.targetCol;
+      const idx = stack[col].indexOf(ball.stackEntry);
+      if(idx >= 0){
+        stack[col].splice(idx, 1);
+        rebuildColumnFromStack(col);
+        recomputeBumpers();
+      }
+      ball.stackEntry = null;
+      ball.targetCol = null;
+      ball.row = null;
+    }
+  }
+
+  function sweepExplodedBalls(){
+    if(!balls.some(b => b.exploded)) return;
+    balls = balls.filter(b => !b.exploded);
+  }
+
   function dropInColumn(col){
     if(inputBlocked()) return;
     dropAt(col*CELL + CELL/2, {autoCol: col});
   }
 
   function dropAt(x, opts){
+    opts = opts || {};
     if(gameOver) return;
+    if(!opts.auto){
+      const now = performance.now();
+      const cd = manualDropCooldownMs();
+      if(cd > 0 && lastManualDropAt > 0 && now - lastManualDropAt < cd) return;
+      lastManualDropAt = now;
+    }
     if(!nextCard) nextCard = dealCard();
     const card = nextCard;
     nextCard = dealCard();
@@ -6564,7 +6791,7 @@
       radius: BALL_RADIUS,
       phase: 'peg',
       targetCol: null,
-      autoCol: opts && opts.autoCol != null ? opts.autoCol : null,
+      autoCol: opts.autoCol != null ? opts.autoCol : null,
       row: null,
       card,
       angle: Math.random()*Math.PI*2,
@@ -6572,7 +6799,9 @@
       frameSafety: 0,
       trail: [],
       freeDrop: resolving,
-      dropEpoch: resolveEpoch
+      dropEpoch: resolveEpoch,
+      splitGen: 0,
+      splitLock: 0
     };
     balls.push(ball);
     noteCardDropped();
@@ -6605,11 +6834,13 @@
   }
 
   function stepBall(ball, gravity){
+    if(ball.exploded) return;
     ball.frameSafety++;
     ball.angle += ball.spin;
     ball.spin *= 0.992;
 
     if(ball.phase === 'peg'){
+      if(ball.splitLock > 0) ball.splitLock--;
       // Table Tilt VIP: split gravity along device lean (artwork stays upright).
       const maxDeg = tableTiltActive() ? tableTiltMaxDeg() : 0;
       const tiltRad = boardTilt * maxDeg * Math.PI / 180;
@@ -6650,7 +6881,8 @@
           if(p.x < CELL*0.75) ball.vx = Math.max(ball.vx, 1.1);
           if(p.x > W - CELL*0.75) ball.vx = Math.min(ball.vx, -1.1);
           impartSpin(ball, nx, ny);
-          if(!p.hit){
+          const freshHit = !p.hit;
+          if(freshHit){
             const payout = pinHitPayout();
             if(payout > 0){
               awardChips(payout, ball);
@@ -6658,8 +6890,20 @@
             }
           }
           p.hit = 10;
+          // Storm the Beaches: fresh pin contacts can shell the card mid-fall.
+          if(freshHit && stormBeachesActive() && !ball.cascadeBall
+              && Math.random() < STORM_BEACHES_EXPLODE_CHANCE){
+            detonateFallingBall(ball);
+            break;
+          }
+          // Pin Split: first contact with a pin can bifurcate the card.
+          if(freshHit && canSplitBall(ball)){
+            spawnSplitTwin(ball, nx, ny);
+          }
         }
       }
+
+      if(ball.exploded) return;
 
       collideBallWithBumpers(ball);
 
@@ -6731,6 +6975,10 @@
 
   function enterGridColumn(ball){
     ball.phase = 'grid';
+    // Pin Split chips grow back to full size once they commit to a column.
+    ball.splitGen = 0;
+    ball.splitLock = 0;
+    ball.radius = BALL_RADIUS;
     ball.y = Math.max(ball.y, PEG_ZONE + 1);
     const rawCol = Math.min(COLS-1, Math.max(0, Math.floor(ball.x / CELL)));
     const targetCol = nearestOpenColumn(rawCol);
@@ -6911,6 +7159,7 @@
       for(const ball of balls){
         stepBall(ball, gravity);
       }
+      sweepExplodedBalls();
       resolveBallCollisions();
       forceSeatStuckGridBalls();
       physicsAccumulator -= PHYSICS_DT;
@@ -7739,12 +7988,19 @@
       // keep bouncing — the clear opens columns for them to fall into.
       if(!hasGridBalls()){
         pendingChain = 0;
+        scheduleSave();
         beginFloorClear();
       } else {
         refreshButtons();
       }
     } else {
-      if(balls.length===0) pendingChain = 0;
+      // Empty table normally ends a heater; skip once after restore until a hand fires.
+      if(balls.length===0 && !heaterHoldUntilUse){
+        if(pendingChain !== 0){
+          pendingChain = 0;
+          scheduleSave();
+        }
+      }
       refreshButtons();
     }
   }
@@ -7754,6 +8010,7 @@
     resolveEpoch++;
     chainStep = pendingChain;
     pendingChain = 0;
+    heaterHoldUntilUse = false;
     refreshButtons();
     enterFlash(groups);
     startResolveLoop();
@@ -7793,6 +8050,8 @@
         flushPendingSuitBomb();
         if(!resolving) updateSuitBombUI(performance.now(), true);
       }
+      // Keep heater in the save so a refresh mid-flight doesn't punish the streak.
+      scheduleSave();
     }
   }
 
@@ -8020,7 +8279,10 @@
   }
 
   function drawBall(b){
-    drawCardFace(ctx, b.x, b.y, b.card, b.angle||0, 32, true, 0);
+    const r = (b.phase === 'peg' && (b.splitGen || 0) > 0)
+      ? splitDrawRadiusForGen(b.splitGen)
+      : 32;
+    drawCardFace(ctx, b.x, b.y, b.card, b.angle||0, r, true, 0);
   }
 
   function perfLite(){
@@ -8335,7 +8597,13 @@
     }
 
     if(!gameOver && nextCard){
+      const cd = manualDropCooldownMs();
+      const coolFrac = cd > 0 && lastManualDropAt > 0
+        ? Math.max(0, Math.min(1, (performance.now() - lastManualDropAt) / cd))
+        : 1;
       const c = cardGlowColor(nextCard);
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.65 * coolFrac;
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
       ctx.lineTo(aimX+9, 6);
@@ -8343,11 +8611,12 @@
       ctx.closePath();
       ctx.fillStyle = c;
       ctx.shadowColor = c;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 10 * coolFrac;
       ctx.fill();
       ctx.shadowBlur = 0;
       // tiny spinning preview of the next card at the drop point
       drawCardFace(ctx, aimX, 38, nextCard, performance.now()/400, 12, false, 0);
+      ctx.restore();
     }
 
     drawFpsOverlay();
@@ -10109,6 +10378,13 @@
   buildShop();
   buildSuitBombUI();
   freshState();
+  // Board is session-only; re-apply heater so refresh/update doesn't break a streak.
+  // Hold against idle expire until the next scored hand advances the chain.
+  if(resumeHeaterChain > 0){
+    pendingChain = resumeHeaterChain;
+    resumeHeaterChain = 0;
+    heaterHoldUntilUse = true;
+  }
   renderChangelog();
   updateSettingsChangelogBadge();
   updateScoreUI();
