@@ -2020,8 +2020,29 @@
     if(r===13) return 'K';
     return String(r);
   }
-  function cardFace(card){ return rankLabel(card.rank) + card.suit; }
-  const CARD_TIER_LABELS = ['', 'Silver', 'Gold', 'Diamond'];
+  function cardFace(card){
+    if(isWild(card)) return rankLabel(card.rank) + ' W';
+    return rankLabel(card.rank) + card.suit;
+  }
+  const WILD_SUIT = '★';
+  const WILD_GLOW = '#E8ECF4';
+  const WILD_FELT = { hi:'#3A3A48', mid:'#1A1A24', lo:'#080810' };
+  const WILD_ACCENT = '#C8CCD8';
+  const WILD_ICON_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FDD835'];
+  function isWild(card){ return !!(card && card.wild); }
+  function cardGlowColor(card){
+    return isWild(card) ? WILD_GLOW : (SUIT_COLOR[card.suit] || '#ffffff');
+  }
+  function sliceSharesFlushSuit(cards){
+    const fixed = cards.filter(c => !isWild(c));
+    if(!fixed.length) return true;
+    const s = fixed[0].suit;
+    return fixed.every(c => c.suit === s);
+  }
+  function flushHintColor(cards){
+    const fixed = cards.find(c => !isWild(c));
+    return fixed ? SUIT_COLOR[fixed.suit] : WILD_GLOW;
+  }
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
   const CARD_TIER_METAL = [
     null,
@@ -2047,10 +2068,19 @@
   }
   function cloneCard(card, extra){
     const c = {suit: card.suit, rank: card.rank};
+    if(isWild(card)) c.wild = true;
     const t = cardTier(card);
     if(t) c.tier = t;
     if(extra) Object.assign(c, extra);
     return c;
+  }
+  function wildCardChance(){
+    const lvl = upgradeLevel('wildCard');
+    if(!lvl) return 0;
+    return Math.min(0.22, 0.012 + lvl * 0.014);
+  }
+  function rollWildCard(){
+    return Math.random() < wildCardChance();
   }
   function premiumCutChances(){
     const lvl = upgradeLevel('premiumCut');
@@ -2080,7 +2110,7 @@
     return t === 3 ? '◆' : t === 2 ? '★' : t === 1 ? '✦' : '';
   }
   function trailRGBA(card, alpha){
-    const hex = SUIT_COLOR[card.suit] || '#ffffff';
+    const hex = cardGlowColor(card);
     const n = parseInt(hex.slice(1), 16);
     const r = (n>>16)&255, g = (n>>8)&255, b = n&255;
     return `rgba(${r},${g},${b},${alpha})`;
@@ -2090,6 +2120,7 @@
   // stay dynamic so we only pay for 4 textures instead of a 52-card sheet.
   const CHIP_TEX_SIZE = 128;
   const chipTextures = Object.create(null);
+  let chipWildTexture = null;
   let feltNoiseCanvas = null;
 
   function getFeltNoise(){
@@ -2109,7 +2140,7 @@
     return c;
   }
 
-  function bakeChipTexture(suit){
+  function bakeChipTexture(felt, accent){
     const size = CHIP_TEX_SIZE;
     const c = document.createElement('canvas');
     c.width = c.height = size;
@@ -2117,8 +2148,6 @@
     const cx = size / 2;
     const cy = size / 2;
     const R = size / 2 - 1;
-    const felt = SUIT_FELT[suit] || SUIT_FELT['♠'];
-    const accent = SUIT_COLOR[suit] || '#F0D78C';
 
     // Suit-colored outer rim (not a gold donut — that ate the in-flight suit glow).
     const rim = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R);
@@ -2196,8 +2225,28 @@
 
   function ensureChipTextures(){
     for(const suit of SUITS){
-      if(!chipTextures[suit]) chipTextures[suit] = bakeChipTexture(suit);
+      if(!chipTextures[suit]){
+        chipTextures[suit] = bakeChipTexture(
+          SUIT_FELT[suit] || SUIT_FELT['♠'],
+          SUIT_COLOR[suit] || '#F0D78C'
+        );
+      }
     }
+  }
+
+  function ensureWildChipTexture(){
+    if(!chipWildTexture){
+      chipWildTexture = bakeChipTexture(WILD_FELT, WILD_ACCENT);
+    }
+  }
+
+  function chipTextureForCard(card){
+    if(isWild(card)){
+      ensureWildChipTexture();
+      return chipWildTexture;
+    }
+    ensureChipTextures();
+    return chipTextures[card.suit];
   }
 
   function shuffle(arr){
@@ -2230,8 +2279,13 @@
   function dealCard(){
     if(shoe.length < 8) shoe = shoe.concat(makeDeck());
     const card = shoe.pop();
-    const tier = rollCardTier();
-    if(tier) card.tier = tier;
+    if(rollWildCard()){
+      card.wild = true;
+      card.suit = WILD_SUIT;
+    } else {
+      const tier = rollCardTier();
+      if(tier) card.tier = tier;
+    }
     return card;
   }
 
@@ -2252,11 +2306,10 @@
     const n = cards.length;
     if(n < 3) return null;
     const ranks = cards.map(c=>c.rank);
-    const suits = cards.map(c=>c.suit);
     const rankCounts = {};
     for(const r of ranks) rankCounts[r] = (rankCounts[r]||0)+1;
     const counts = Object.values(rankCounts).sort((a,b)=>b-a);
-    const flush = n>=5 && suits.every(s=>s===suits[0]);
+    const flush = n>=5 && sliceSharesFlushSuit(cards);
     const straight = n===5 && isStraightRanks(ranks);
 
     if(n===5 && flush && straight){
@@ -2375,6 +2428,15 @@
       costScale: 2.0,
       maxLevel: 15,
       unlockAt: 4
+    },
+    {
+      id: 'wildCard',
+      name: 'Wild Card',
+      desc: 'Chance to deal a wild card that counts as any suit for flushes. Higher levels deal them more often.',
+      baseCost: 175,
+      costScale: 2.0,
+      maxLevel: 12,
+      unlockAt: 5
     },
     {
       id: 'bumperPayout',
@@ -3500,7 +3562,9 @@
   }
 
   function cardAllowed(card){
-    return !!(card && rankAllowed(card.rank) && activeSuits().includes(card.suit));
+    if(!card) return false;
+    if(isWild(card)) return rankAllowed(card.rank);
+    return rankAllowed(card.rank) && activeSuits().includes(card.suit);
   }
 
   function reshapeShoe(){
@@ -3975,6 +4039,9 @@
         const pct = n => (n * 100).toFixed(n < 0.01 ? 1 : 0).replace(/\.0$/, '') + '%';
         return pct(silver) + ' silver · ' + pct(gold) + ' gold · ' + pct(diamond) + ' diamond';
       }
+      case 'wildCard':
+        if(!lvl) return 'No wilds';
+        return (wildCardChance() * 100).toFixed(1).replace(/\.0$/, '') + '% wild';
       case 'pinPayout':
         return lvl ? ('+' + pinHitPayout() + ' / peg') : 'No payout';
       case 'bumperPayout':
@@ -5264,7 +5331,7 @@
               points: cand.points,
               cardMult: cand.cardMult,
               cells: cand.cells,
-              color: SUIT_COLOR[cards[cand.i].suit]
+              color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
             });
           }
         }
@@ -5324,13 +5391,13 @@
               const slice = cards.slice(i, i+4);
               const sliceCells = cells.slice(i, i+4);
               if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              const sameSuit = slice.every(card => card.suit === slice[0].suit);
+              const sameSuit = sliceSharesFlushSuit(slice);
               const straightish = canCompleteStraight(slice.map(card => card.rank));
               if(sameSuit && straightish){
                 sfWindows.add('4:'+i);
-                pushHint(sliceCells, 'sf4', 'SF', SUIT_COLOR[slice[0].suit], 50);
+                pushHint(sliceCells, 'sf4', 'SF', flushHintColor(slice), 50);
               } else if(sameSuit){
-                pushHint(sliceCells, 'flush4', 'flush', SUIT_COLOR[slice[0].suit], 40);
+                pushHint(sliceCells, 'flush4', 'flush', flushHintColor(slice), 40);
               } else if(straightish){
                 pushHint(sliceCells, 'straight4', 'straight', PEG, 35);
               }
@@ -5344,12 +5411,12 @@
               if(slice.some((_,k)=>scoringMask[i+k])) continue;
               // Covered by a 4-card SF window that includes this stub
               if(sfWindows.has('4:'+i) || sfWindows.has('4:'+(i-1))) continue;
-              const sameSuit = slice.every(card => card.suit === slice[0].suit);
+              const sameSuit = sliceSharesFlushSuit(slice);
               const straightish = isConnectedStraight3(slice.map(card => card.rank));
               if(sameSuit && straightish){
-                pushHint(sliceCells, 'sf3', 'SF', SUIT_COLOR[slice[0].suit], 28);
+                pushHint(sliceCells, 'sf3', 'SF', flushHintColor(slice), 28);
               } else if(sameSuit){
-                pushHint(sliceCells, 'flush3', 'flush', SUIT_COLOR[slice[0].suit], 18);
+                pushHint(sliceCells, 'flush3', 'flush', flushHintColor(slice), 18);
               } else if(straightish){
                 pushHint(sliceCells, 'straight3', 'straight', '#B8B0E0', 16);
               }
@@ -5364,7 +5431,7 @@
                 cells.slice(i, i+2),
                 'pair',
                 'trips',
-                SUIT_COLOR[cards[i].suit],
+                cardGlowColor(cards[i]),
                 22
               );
             }
@@ -5599,7 +5666,7 @@
 
   function spawnExplosion(x, y, card){
     if(particles.length >= MAX_PARTICLES) return;
-    const color = card ? SUIT_COLOR[card.suit] : '#ffffff';
+    const color = card ? cardGlowColor(card) : '#ffffff';
     const budget = Math.max(0, MAX_PARTICLES - particles.length);
     const sparks = Math.min(12, budget);
     for(let i=0;i<sparks;i++){
@@ -6043,10 +6110,35 @@
     return grad;
   }
 
+  function drawWildIcon(target, x, y, size){
+    const rx = size * 0.42;
+    const ry = size * 0.30;
+    const reach = Math.max(rx, ry) * 1.25;
+    target.save();
+    target.translate(x, y);
+    target.beginPath();
+    target.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    target.clip();
+    for(let i = 0; i < 4; i++){
+      target.beginPath();
+      target.moveTo(0, 0);
+      target.arc(0, 0, reach, i * Math.PI / 2, (i + 1) * Math.PI / 2);
+      target.closePath();
+      target.fillStyle = WILD_ICON_COLORS[i];
+      target.fill();
+    }
+    target.restore();
+    target.beginPath();
+    target.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    target.strokeStyle = 'rgba(255,255,255,0.92)';
+    target.lineWidth = Math.max(1, size * 0.06);
+    target.stroke();
+  }
+
   function drawChipGlyphs(target, card, radius){
-    const color = SUIT_COLOR[card.suit];
+    const color = cardGlowColor(card);
     const tier = cardTier(card);
-    const metal = CARD_TIER_METAL[tier];
+    const metal = isWild(card) ? null : CARD_TIER_METAL[tier];
     target.textAlign = 'center';
     target.textBaseline = 'middle';
     const suitSize = Math.max(10, Math.round(radius * 0.74));
@@ -6102,15 +6194,19 @@
       target.restore();
     }
 
-    // Suit stays suit-colored; only the rank gets the metallic foil + shine.
-    stampGlyph(
-      card.suit,
-      suitX,
-      suitY,
-      color,
-      `bold ${suitSize}px 'Space Grotesk', sans-serif`,
-      Math.max(1.6, radius * 0.09)
-    );
+    // Suit stays suit-colored; wilds get the Uno-style quad icon instead.
+    if(isWild(card)){
+      drawWildIcon(target, suitX, suitY, radius * 0.95);
+    } else {
+      stampGlyph(
+        card.suit,
+        suitX,
+        suitY,
+        color,
+        `bold ${suitSize}px 'Space Grotesk', sans-serif`,
+        Math.max(1.6, radius * 0.09)
+      );
+    }
     if(metal){
       stampMetalGlyph(
         rankLabel(card.rank),
@@ -6132,9 +6228,8 @@
   }
 
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
-    const color = SUIT_COLOR[card.suit];
-    ensureChipTextures();
-    const tex = chipTextures[card.suit];
+    const color = cardGlowColor(card);
+    const tex = chipTextureForCard(card);
     const d = radius * 2;
     target.save();
     target.translate(cx, cy);
@@ -6173,7 +6268,7 @@
   }
 
   function drawFlashPiece(cx, cy, card, elapsedFrac){
-    const color = SUIT_COLOR[card.suit];
+    const color = cardGlowColor(card);
     // Uniform flash (rank juice lives in score text). Tiny scale + suit pulse.
     const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * 7);
     const r = 32 * pulse;
@@ -6182,8 +6277,7 @@
     ctx.translate(cx, cy);
     ctx.shadowColor = color;
     ctx.shadowBlur = 12 * (0.65 + 0.35 * heat);
-    ensureChipTextures();
-    const tex = chipTextures[card.suit];
+    const tex = chipTextureForCard(card);
     if(tex) ctx.drawImage(tex, -r, -r, r * 2, r * 2);
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 0.22 + 0.18 * heat;
@@ -6491,7 +6585,7 @@
     }
 
     if(!gameOver && nextCard){
-      const c = SUIT_COLOR[nextCard.suit];
+      const c = cardGlowColor(nextCard);
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
       ctx.lineTo(aimX+9, 6);
