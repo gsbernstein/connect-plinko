@@ -796,26 +796,21 @@
     overflow:hidden;
   }
   .upgrade-progress-bonus,
-  .upgrade-progress-bought,
-  .upgrade-progress > span{
+  .upgrade-progress-bought{
     position:absolute;
-    left:0;
     top:0;
     bottom:0;
     width:0%;
-    transition:width .2s ease;
+    transition:left .2s ease, width .2s ease;
   }
-  .upgrade-progress-bonus{
-    z-index:0;
-    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
-  }
-  .upgrade-progress-bought,
-  .upgrade-progress > span{
-    z-index:1;
+  .upgrade-progress-bought{
+    left:0;
     background:linear-gradient(90deg, var(--felt), var(--felt-bright));
   }
-  .upgrade.maxed .upgrade-progress-bought,
-  .upgrade.maxed .upgrade-progress > span{
+  .upgrade-progress-bonus{
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+  }
+  .upgrade.maxed .upgrade-progress-bought{
     background:linear-gradient(90deg, #463d7a, var(--peg));
   }
   @media (hover:hover) and (pointer:fine){
@@ -1598,8 +1593,7 @@
     border-color:rgba(230,195,92,0.55);
     box-shadow:0 0 0 1px rgba(230,195,92,0.12);
   }
-  .upgrade.prestige-upgrade .upgrade-progress-bought,
-  .upgrade.prestige-upgrade .upgrade-progress > span{
+  .upgrade.prestige-upgrade .upgrade-progress-bought{
     background:linear-gradient(90deg, #8a6f2a, #E6C35C);
   }
   .upgrade.prestige-upgrade .upgrade-effect{color:#F0D78C;}
@@ -7514,11 +7508,14 @@
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
     const boughtFill = btn.querySelector('.upgrade-progress-bought');
     if(def.maxLevel > 0){
-      if(bonusFill){
-        bonusFill.style.width = Math.min(100, (effective / def.maxLevel) * 100) + '%';
-      }
+      const boughtPct = Math.min(100, (bought / def.maxLevel) * 100);
+      const bonusPct = Math.min(100 - boughtPct, (bonus / def.maxLevel) * 100);
       if(boughtFill){
-        boughtFill.style.width = Math.min(100, (bought / def.maxLevel) * 100) + '%';
+        boughtFill.style.width = boughtPct + '%';
+      }
+      if(bonusFill){
+        bonusFill.style.left = boughtPct + '%';
+        bonusFill.style.width = bonusPct + '%';
       }
     }
     btn.querySelector('.upgrade-effect').textContent = opts.effect || '';
