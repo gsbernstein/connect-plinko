@@ -2533,7 +2533,7 @@
     return fixed ? SUIT_COLOR[fixed.suit] : WILD_GLOW;
   }
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
-  // Premium cards only swap the chip shell to a tier-colored felt; glyphs stay normal.
+  // Premium: metallic rim only (face stays suit felt). Rim stops at faceR in bakeChipTexture.
   const CARD_TIER_FELT = [
     null,
     { hi:'#D8E2EE', mid:'#9AAABE', lo:'#5A6478' },
@@ -2541,6 +2541,12 @@
     { hi:'#D8F8FF', mid:'#5EC0F0', lo:'#2E78A8' }
   ];
   const CARD_TIER_ACCENT = ['', '#C8D4E4', '#E6C35C', '#7ED8FF'];
+  const CARD_TIER_SPOTS = [
+    null,
+    ['#EEF2F8', '#C8D4E4', '#6E7E92'],
+    ['#F7E7A8', '#E6C35C', '#9A742C'],
+    ['#E8FAFF', '#7ED8FF', '#2E78A8']
+  ];
   function cardTier(card){
     const t = card && card.tier;
     return (typeof t === 'number' && t >= 1 && t <= 3) ? (t | 0) : 0;
@@ -2620,7 +2626,7 @@
     return c;
   }
 
-  function bakeChipTexture(felt, accent){
+  function bakeChipTexture(felt, accent, opts){
     const size = CHIP_TEX_SIZE;
     const c = document.createElement('canvas');
     c.width = c.height = size;
@@ -2628,8 +2634,12 @@
     const cx = size / 2;
     const cy = size / 2;
     const R = size / 2 - 1;
+    // Optional split: rim metal / face felt (premium). Same felt for both on normal chips.
+    const faceFelt = (opts && opts.faceFelt) || felt;
+    const faceAccent = (opts && opts.faceAccent) || accent;
+    const spotColors = (opts && opts.spotColors) || ['#F7E7A8', '#E6C35C', '#9A742C'];
 
-    // Suit-colored outer rim (not a gold donut — that ate the in-flight suit glow).
+    // Outer rim — suit-colored normally; metallic tier colors for premium.
     const rim = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R);
     rim.addColorStop(0, felt.mid);
     rim.addColorStop(0.55, accent);
@@ -2639,15 +2649,15 @@
     g.fillStyle = rim;
     g.fill();
 
-    // Suit felt face
+    // Inner face — natural dividing line; premium keeps suit felt here (not metal).
     const faceR = R * 0.82;
     const face = g.createRadialGradient(
       cx - faceR * 0.32, cy - faceR * 0.38, faceR * 0.08,
       cx, cy, faceR
     );
-    face.addColorStop(0, felt.hi);
-    face.addColorStop(0.55, felt.mid);
-    face.addColorStop(1, felt.lo);
+    face.addColorStop(0, faceFelt.hi);
+    face.addColorStop(0.55, faceFelt.mid);
+    face.addColorStop(1, faceFelt.lo);
     g.beginPath();
     g.arc(cx, cy, faceR, 0, Math.PI * 2);
     g.fillStyle = face;
@@ -2663,7 +2673,7 @@
     g.drawImage(getFeltNoise(), 0, 0, size, size);
     g.globalAlpha = 0.18;
     g.globalCompositeOperation = 'soft-light';
-    g.fillStyle = accent;
+    g.fillStyle = faceAccent;
     g.fillRect(0, 0, size, size);
     g.restore();
 
@@ -2674,15 +2684,15 @@
     g.lineWidth = 1.5;
     g.stroke();
 
-    // Classic edge spots — gold accents on the suit rim, not a full gold ring
+    // Classic edge spots on the rim band (gold normally; tier metal on premium)
     for(let i = 0; i < 8; i++){
       g.save();
       g.translate(cx, cy);
       g.rotate((i * Math.PI) / 4);
       const spotGrad = g.createLinearGradient(-4, -R + 1, 4, -R + R * 0.14);
-      spotGrad.addColorStop(0, '#F7E7A8');
-      spotGrad.addColorStop(0.55, '#E6C35C');
-      spotGrad.addColorStop(1, '#9A742C');
+      spotGrad.addColorStop(0, spotColors[0]);
+      spotGrad.addColorStop(0.55, spotColors[1]);
+      spotGrad.addColorStop(1, spotColors[2]);
       g.fillStyle = spotGrad;
       g.beginPath();
       if(typeof g.roundRect === 'function'){
@@ -2714,13 +2724,25 @@
     }
   }
 
+  function tierChipKey(suit, tier){
+    return suit + ':' + tier;
+  }
+
   function ensureTierChipTextures(){
-    for(let tier = 1; tier <= 3; tier++){
-      if(!chipTierTextures[tier]){
-        chipTierTextures[tier] = bakeChipTexture(
-          CARD_TIER_FELT[tier],
-          CARD_TIER_ACCENT[tier]
-        );
+    for(const suit of SUITS){
+      for(let tier = 1; tier <= 3; tier++){
+        const key = tierChipKey(suit, tier);
+        if(!chipTierTextures[key]){
+          chipTierTextures[key] = bakeChipTexture(
+            CARD_TIER_FELT[tier],
+            CARD_TIER_ACCENT[tier],
+            {
+              faceFelt: SUIT_FELT[suit] || SUIT_FELT['♠'],
+              faceAccent: SUIT_COLOR[suit] || '#F0D78C',
+              spotColors: CARD_TIER_SPOTS[tier]
+            }
+          );
+        }
       }
     }
   }
@@ -2739,7 +2761,7 @@
     const tier = cardTier(card);
     if(tier){
       ensureTierChipTextures();
-      return chipTierTextures[tier];
+      return chipTierTextures[tierChipKey(card.suit, tier)];
     }
     ensureChipTextures();
     return chipTextures[card.suit];
@@ -2917,6 +2939,15 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 28,
+      date: 'Jul 25, 2026',
+      title: 'Premium rim polish',
+      items: [
+        'Silver, Gold, and Diamond cards keep a metallic rim — the center stays suit felt.',
+        'Suit glyphs sit lower on the chip; grid windows open a bit so premium rims stay visible.'
+      ]
+    },
     {
       id: 27,
       date: 'Jul 25, 2026',
@@ -6642,7 +6673,8 @@
   let lastFrameMs = 0;
 
   const BALL_RADIUS = 14;
-  const HOLE_R = 29;
+  // Chip draw radius is 32 — open windows a bit so premium rims aren't clipped.
+  const HOLE_R = 34;
   const SAFETY_LIMIT = 420;
 
   function splitRadiusForGen(gen){
@@ -8147,7 +8179,7 @@
     const rankSize = Math.max(10, Math.round(radius * 0.70));
     const strokeW = Math.max(1.4, radius * 0.075);
     const suitX = radius * 0.12;
-    const suitY = radius * 0.14;
+    const suitY = radius * 0.40;
     const rankX = -radius * 0.14;
     const rankY = -radius * 0.20;
     function stampGlyph(text, x, y, fill, font, lineW){
