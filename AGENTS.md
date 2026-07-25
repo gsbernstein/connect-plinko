@@ -151,7 +151,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 
 ### Settings changelog (What’s New)
 
-Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a red-dot badge on the Settings rail tab (`#badgeSettings`, `.rail-tab-badge.is-new`) when `seenChangelogId < CHANGELOG_LATEST_ID`. Opening Settings calls `markChangelogSeen()` (sets `seenChangelogId` to `CHANGELOG_LATEST_ID` and saves). Hard reset keeps the changelog marked seen (reset is launched from Settings).
+Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a red-dot badge on the Settings rail tab (`#badgeSettings`, `.rail-tab-badge.is-new`) when `seenChangelogId < CHANGELOG_LATEST_ID`. Opening Settings calls `openSettingsChangelog()`: it sets `changelogHighlightFloor` from the save’s prior `seenChangelogId`, re-renders so entries with `id > floor` get `.changelog-entry.is-new` + a **New** tag, then `markChangelogSeen()` (sets `seenChangelogId` to `CHANGELOG_LATEST_ID` and saves). Hard reset keeps the changelog marked seen (reset is launched from Settings).
 
 **Agents: keep this updated.** When you ship a player-visible Poker change (new upgrade/perk, progression tweak, notable UX), prepend a new object to `CHANGELOG` with:
 
@@ -160,7 +160,7 @@ Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a r
 3. `title` — one short headline.
 4. `items` — 1–4 concise player-facing bullets (skip pure docs/agent/internal fixes).
 
-That new `id` is what lights the red badge for returning saves. Do not reuse or renumber old ids. Render path: `renderChangelog` → `#changelogList`; badge: `updateSettingsChangelogBadge`.
+That new `id` lights the Settings badge and highlights only that entry (and any other unseen ids) for returning saves. Do not reuse or renumber old ids. Render path: `openSettingsChangelog` / `renderChangelog` → `#changelogList`; badge: `updateSettingsChangelogBadge`.
 
 ## Common agent tasks
 

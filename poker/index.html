@@ -347,11 +347,31 @@
     padding-bottom:0;
     border-bottom:none;
   }
+  .changelog-entry.is-new{
+    margin:0 -6px;
+    padding:10px 10px 12px;
+    border:1px solid rgba(232,93,106,0.35);
+    border-radius:10px;
+    border-bottom-color:rgba(232,93,106,0.35);
+    background:rgba(232,93,106,0.08);
+  }
+  .changelog-entry.is-new + .changelog-entry{
+    margin-top:2px;
+  }
+  .changelog-entry.is-new:last-child{
+    padding-bottom:10px;
+  }
   .changelog-meta{
     display:flex;
     align-items:baseline;
     justify-content:space-between;
     gap:10px;
+  }
+  .changelog-title-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
   }
   .changelog-title{
     margin:0;
@@ -359,6 +379,19 @@
     font-size:13px;
     font-weight:700;
     line-height:1.3;
+  }
+  .changelog-new-tag{
+    flex:0 0 auto;
+    padding:2px 6px;
+    border-radius:999px;
+    background:#e85d6a;
+    color:#1a0c10;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:9px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    line-height:1.2;
   }
   .changelog-date{
     flex:0 0 auto;
@@ -7722,6 +7755,9 @@
   };
   const changelogListEl = document.getElementById('changelogList');
   let activeRailPanel = 'table';
+  // Entries with id > this floor show as New for the current Settings visit.
+  // Set from seenChangelogId when opening Settings (before markChangelogSeen).
+  let changelogHighlightFloor = 0;
 
   function hasUnseenChangelog(){
     return CHANGELOG_LATEST_ID > (seenChangelogId | 0);
@@ -7745,21 +7781,39 @@
     updateSettingsChangelogBadge();
   }
 
+  function openSettingsChangelog(){
+    // Capture pre-open floor so New highlights survive markChangelogSeen.
+    changelogHighlightFloor = seenChangelogId | 0;
+    renderChangelog();
+    markChangelogSeen();
+  }
+
   function renderChangelog(){
     if(!changelogListEl) return;
     changelogListEl.textContent = '';
     for(const entry of CHANGELOG){
+      const isNew = (entry.id | 0) > changelogHighlightFloor;
       const wrap = document.createElement('article');
-      wrap.className = 'changelog-entry';
+      wrap.className = 'changelog-entry' + (isNew ? ' is-new' : '');
+      if(isNew) wrap.setAttribute('aria-label', 'New: ' + entry.title);
       const meta = document.createElement('div');
       meta.className = 'changelog-meta';
+      const titleRow = document.createElement('div');
+      titleRow.className = 'changelog-title-row';
       const title = document.createElement('h3');
       title.className = 'changelog-title';
       title.textContent = entry.title;
+      titleRow.appendChild(title);
+      if(isNew){
+        const tag = document.createElement('span');
+        tag.className = 'changelog-new-tag';
+        tag.textContent = 'New';
+        titleRow.appendChild(tag);
+      }
       const date = document.createElement('span');
       date.className = 'changelog-date';
       date.textContent = entry.date || '';
-      meta.appendChild(title);
+      meta.appendChild(titleRow);
       meta.appendChild(date);
       const list = document.createElement('ul');
       list.className = 'changelog-items';
@@ -7912,7 +7966,7 @@
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     }
     markPanelUnlocksSeen(panel);
-    if(panel === 'settings') markChangelogSeen();
+    if(panel === 'settings') openSettingsChangelog();
   }
 
   for(const tab of railTabs){
