@@ -6025,13 +6025,18 @@
 
   // ---- drawing ----
   // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
+  function fontSizeFromCss(font){
+    const m = /(\d+(?:\.\d+)?)\s*px/.exec(font);
+    return m ? parseFloat(m[1]) : 12;
+  }
+
   function metalGlyphGradient(target, stops, x, y, size){
     const span = size * 1.1;
     const grad = target.createLinearGradient(
       x - span * 0.32, y - span * 0.52,
       x + span * 0.34, y + span * 0.48
     );
-    const last = stops.length - 1;
+    const last = Math.max(1, stops.length - 1);
     for(let i = 0; i < stops.length; i++){
       grad.addColorStop(i / last, stops[i]);
     }
@@ -6062,29 +6067,37 @@
       target.fillText(text, x, y);
     }
     function stampMetalGlyph(text, x, y, font, lineW){
+      // Rank fonts use "700 Npx …" — parseInt(font) wrongly reads the weight.
+      const size = fontSizeFromCss(font) || Math.round(lineW * 12);
+      const rimW = lineW * (1.25 + tier * 0.08);
+      const foilW = lineW * (0.9 + tier * 0.05);
+      const lite = perfLite();
+
+      target.save();
       target.font = font;
       target.lineJoin = 'round';
       target.miterLimit = 2;
-      const size = parseInt(font, 10) || Math.round(lineW * 12);
-      const rimW = lineW * (1.25 + tier * 0.08);
-      const foilW = lineW * (0.9 + tier * 0.05);
 
       target.lineWidth = rimW;
       target.strokeStyle = metal.rim;
       target.strokeText(text, x, y);
 
       target.lineWidth = foilW;
-      target.strokeStyle = metalGlyphGradient(target, metal.stroke, x, y, size);
+      // Gradient strokes on text are flaky on iOS Safari — solid foil, gradient fill.
+      target.strokeStyle = lite ? metal.stroke[1] : metal.stroke[Math.floor(metal.stroke.length / 2)];
       target.strokeText(text, x, y);
 
-      target.fillStyle = metalGlyphGradient(target, metal.fill, x, y, size);
+      target.fillStyle = lite
+        ? metal.fill[Math.floor(metal.fill.length / 2)]
+        : metalGlyphGradient(target, metal.fill, x, y, size);
       target.fillText(text, x, y);
 
-      target.save();
-      target.globalAlpha = tier === 3 ? 0.72 : 0.58;
-      target.lineWidth = Math.max(1, lineW * 0.38);
-      target.strokeStyle = 'rgba(255,255,255,0.95)';
-      target.strokeText(text, x - size * 0.03, y - size * 0.055);
+      if(!lite){
+        target.globalAlpha = tier === 3 ? 0.72 : 0.58;
+        target.lineWidth = Math.max(1, lineW * 0.38);
+        target.strokeStyle = 'rgba(255,255,255,0.95)';
+        target.strokeText(text, x - size * 0.03, y - size * 0.055);
+      }
       target.restore();
     }
     const stamp = metal ? stampMetalGlyph : stampGlyph;
