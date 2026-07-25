@@ -2650,7 +2650,7 @@
     {
       id: 'autoDealer',
       name: 'Auto Dealer',
-      desc: 'Automatically drop cards. Higher levels deal faster. Toggle On/Off anytime.',
+      desc: 'Automatically deal cards.',
       baseCost: 22,
       costScale: 1.58,
       maxLevel: 12,
@@ -2696,7 +2696,7 @@
     {
       id: 'bumperPayout',
       name: 'Rail Tax',
-      desc: 'Earn chips whenever a card hits a bumper arch.',
+      desc: 'Earn chips whenever a card hits the bumper arch for a full column.',
       baseCost: 50,
       costScale: 1.7,
       maxLevel: 25,
@@ -2714,7 +2714,7 @@
     {
       id: 'floorPayout',
       name: 'Sweep Stakes',
-      desc: 'Earn chips when a full-board floor clear fires.',
+      desc: 'Earn chips when a full board triggers a floor clear.',
       baseCost: 90,
       costScale: 1.8,
       maxLevel: 20,
@@ -2732,7 +2732,7 @@
     {
       id: 'shortFuse',
       name: 'Short Fuse',
-      desc: 'Hand clears flash and explode faster.',
+      desc: 'Cards explode faster.',
       baseCost: 80,
       costScale: 1.85,
       maxLevel: 12,
@@ -2741,7 +2741,7 @@
     {
       id: 'highCut',
       name: 'High Cut',
-      desc: 'Remove the lowest ranks from the shoe. Aces always stay.',
+      desc: 'Remove the lowest ranks from the deck.',
       baseCost: 100,
       costScale: 1.9,
       maxLevel: 8,
@@ -2760,7 +2760,7 @@
     {
       id: 'suitCut',
       name: 'Suit Exile',
-      desc: 'Ban a suit from the shoe each level. Stops at two suits left.',
+      desc: 'Remove up to two suits from the deck.',
       baseCost: 6000,
       costScale: 3.5,
       maxLevel: 2,
@@ -3092,7 +3092,7 @@
     {
       id: 'houseEdge',
       name: 'House Edge',
-      desc: '+1 Hot Streak level permanently. Raises Hot Streak’s buy cost like a normal level. Capped at Hot Streak max.',
+      desc: '+1 Hot Streak level permanently. Capped at Hot Streak max.',
       baseCost: 1,
       costScale: 1.65,
       maxLevel: 40
@@ -3100,7 +3100,7 @@
     {
       id: 'seedStack',
       name: 'Seed Stack',
-      desc: 'Start each table with a chip stake after Cash Out.',
+      desc: 'Start with chip after Cash Out.',
       baseCost: 1,
       costScale: 1.55,
       maxLevel: 20
@@ -3132,7 +3132,7 @@
     {
       id: 'tableTilt',
       name: 'Table Tilt',
-      desc: 'Tilt your device to yank gravity up to ±60° through the pegs — just for fun. Asks for motion access when turned on, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
+      desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
       baseCost: 2,
       costScale: 1,
       maxLevel: 1,
@@ -3141,7 +3141,7 @@
     {
       id: 'quickDeal',
       name: 'Quick Deal',
-      desc: '+1 Auto Dealer level permanently. Raises Auto Dealer’s buy cost like a normal level. Capped at Auto Dealer max.',
+      desc: '+1 Auto Dealer level permanently. Capped at Auto Dealer max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3149,7 +3149,7 @@
     {
       id: 'pinPrivilege',
       name: 'Pin Privilege',
-      desc: '+1 Pin Tip level permanently. Raises Pin Tip’s buy cost like a normal level. Capped at Pin Tip max.',
+      desc: '+1 Pin Tip level permanently. Capped at Pin Tip max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3157,7 +3157,7 @@
     {
       id: 'feltWax',
       name: 'Felt Wax',
-      desc: '+1 Felt Grease level permanently. Raises Felt Grease’s buy cost like a normal level. Capped at Felt Grease max.',
+      desc: '+1 Felt Grease level permanently. Capped at Felt Grease max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3181,7 +3181,7 @@
     {
       id: 'autoSuitBomb',
       name: 'Auto Purge',
-      desc: 'Automatically cast Suit Purge on the most crowded suit when charged. Toggle On/Off anytime.',
+      desc: 'Automatically cast Suit Purge on the most crowded suit. Toggle On/Off anytime.',
       baseCost: 8,
       costScale: 1,
       maxLevel: 1,
@@ -3190,7 +3190,7 @@
     {
       id: 'questDesk',
       name: 'Quest Desk',
-      desc: 'Automatically claim completed table quests and roll replacements. Toggle On/Off anytime.',
+      desc: 'Automatically claim completed table quests. Toggle On/Off anytime.',
       baseCost: 5,
       costScale: 1,
       maxLevel: 1,
@@ -3199,7 +3199,7 @@
     {
       id: 'pitBoss',
       name: 'Pit Boss',
-      desc: 'Automatically buy the cheapest affordable table upgrade each tick. Toggle On/Off anytime.',
+      desc: 'Automatically buy the cheapest affordable table upgrade. Toggle On/Off anytime.',
       baseCost: 12,
       costScale: 1,
       maxLevel: 1,
@@ -3283,7 +3283,6 @@
     persistSettings();
     syncSettingsUI();
     if(key === 'nearHandHints') markHintsDirty();
-    if(key === 'chipAnimation' && !gameSettings.chipAnimation) clearFlyingChips();
     startLoop();
   }
 
@@ -4719,17 +4718,6 @@
     el._progPulseTimer = setTimeout(()=>el.classList.remove('prog-pulse'), 340);
   }
 
-  function clearFlyingChips(){
-    for(const c of flyingChips){
-      if(c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el);
-    }
-    flyingChips = [];
-    if(chipFlyRaf){
-      cancelAnimationFrame(chipFlyRaf);
-      chipFlyRaf = 0;
-    }
-  }
-
   function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
   function easeInOutCubic(t){
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -5529,7 +5517,6 @@
     flashCells = null;
     particles = [];
     popups = [];
-    clearFlyingChips();
     pendingSuitBomb = null;
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
