@@ -4143,6 +4143,28 @@
     };
   }
 
+  function tableTabStagePoint(){
+    const tab = document.querySelector('.rail-tab[data-panel="table"]');
+    if(!tab || !chipFxLayer) return scoreBoxTarget();
+    const rect = tab.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    return {
+      x: rect.left - stage.left + rect.width * 0.5,
+      y: rect.top - stage.top + rect.height * 0.38
+    };
+  }
+
+  function isBoardVisible(){
+    return desktopMq.matches || activeRailPanel === 'table';
+  }
+
+  function chipFlyOrigin(cx, cy, opts){
+    opts = opts || {};
+    if(opts.fromStage) return { x: cx, y: cy };
+    if(!isBoardVisible()) return tableTabStagePoint();
+    return canvasToStagePoint(cx, cy);
+  }
+
   function compsBoxTarget(){
     const compsBoxEl = document.getElementById('compsBox');
     if(!compsBoxEl || compsBoxEl.hidden || !chipFxLayer) return scoreBoxTarget();
@@ -4300,9 +4322,7 @@
     // payout can't still fan out into multiple sprites.
     if(amount > 0) count = Math.min(count, amount);
     if(count <= 0) return;
-    const origin = opts.fromStage
-      ? { x: cx, y: cy }
-      : canvasToStagePoint(cx, cy);
+    const origin = chipFlyOrigin(cx, cy, opts);
     const target = scoreBoxTarget();
     const now = performance.now();
     for(let i = 0; i < count; i++){
