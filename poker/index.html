@@ -2922,7 +2922,7 @@
       date: 'Jul 25, 2026',
       title: 'Highest combo achievements',
       items: [
-        'New achievement track for your biggest COMBO — clear more hands at once to climb the tiers.'
+        'New infinite Multiway achievement for your biggest COMBO — clear more hands at once to keep climbing.'
       ]
     },
     {
@@ -3558,7 +3558,8 @@
     {
       id: 'a_max_combo', kind: 'achievement', name: 'Multiway',
       desc: 'Reach COMBO ×{n}.',
-      stat: 'maxCombo', unlockAt: 1,
+      stat: 'maxCombo', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 1.4, compPerLevel: 2, compCap: 40 },
       tiers: [
         { target: 2, reward: { chips: 200 } },
         { target: 3, reward: { comps: 2 } },
