@@ -219,24 +219,42 @@
     display:flex;
     align-items:center;
     gap:10px;
+    /* Fixed size so tier/rank/glyph swaps don't reflow the HUD. */
+    flex:0 0 112px;
+    width:112px;
+    box-sizing:border-box;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
     padding:6px 12px 6px 8px;
     font-size:12px;
     color:var(--ink-dim);
+    white-space:nowrap;
   }
   .next-card .next-card-val{
     display:inline-flex;
     align-items:center;
+    justify-content:flex-end;
     gap:3px;
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
     font-size:14px;
+    flex:1 1 auto;
     min-width:0;
   }
+  .next-card .next-tier{
+    display:inline-block;
+    /* Always reserve a slot so premium marks don't nudge rank + suit. */
+    width:1.1em;
+    text-align:center;
+    flex-shrink:0;
+  }
+  .next-card .next-tier:empty{visibility:hidden;}
   .next-card .next-rank{
     font-variant-numeric:tabular-nums;
+    display:inline-block;
+    min-width:2ch;
+    text-align:right;
   }
   .next-card .next-suit-glyph{
     display:block;
@@ -244,6 +262,11 @@
     height:16px;
     flex-shrink:0;
     pointer-events:none;
+  }
+  .next-card .next-suit-glyph[hidden]{
+    /* Keep glyph slot so empty "—" state matches card width. */
+    display:block !important;
+    visibility:hidden;
   }
   .board-frame{
     position:relative;
@@ -2128,7 +2151,7 @@
       <div class="next-card hud-tile">
         <span class="hud-label">Next</span>
         <b class="hud-val next-card-val" id="nextLabel" aria-label="No next card">
-          <span class="next-tier" id="nextTier" hidden aria-hidden="true"></span>
+          <span class="next-tier" id="nextTier" aria-hidden="true"></span>
           <span class="next-rank" id="nextRank">—</span>
           <canvas class="next-suit-glyph" id="nextSuitGlyph" width="32" height="32" hidden aria-hidden="true"></canvas>
         </b>
@@ -2749,6 +2772,14 @@
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   const CHANGELOG = [
+    {
+      id: 15,
+      date: 'Jul 25, 2026',
+      title: 'Next tile stay put',
+      items: [
+        'The Next HUD tile keeps a steady width when the upcoming card changes, so the header no longer jitters on desktop.'
+      ]
+    },
     {
       id: 14,
       date: 'Jul 25, 2026',
@@ -9020,20 +9051,15 @@
   function updateNextUI(){
     if(!nextCard){
       nextRank.textContent = '—';
-      nextTier.hidden = true;
       nextTier.textContent = '';
+      nextTier.setAttribute('aria-hidden', 'true');
       paintNextSuitGlyph(null);
       nextLabel.setAttribute('aria-label', 'No next card');
       return;
     }
     const tierMark = tierLabelShort(cardTier(nextCard));
-    if(tierMark){
-      nextTier.hidden = false;
-      nextTier.textContent = tierMark;
-    } else {
-      nextTier.hidden = true;
-      nextTier.textContent = '';
-    }
+    nextTier.textContent = tierMark;
+    nextTier.setAttribute('aria-hidden', tierMark ? 'false' : 'true');
     nextRank.textContent = rankLabel(nextCard.rank);
     paintNextSuitGlyph(nextCard);
     nextLabel.setAttribute('aria-label', 'Next card: ' + cardFace(nextCard));
