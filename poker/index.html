@@ -147,12 +147,6 @@
     font-size:12px;
     color:var(--ink-dim);
   }
-  .next-card canvas{
-    width:36px;
-    height:36px;
-    border-radius:50%;
-    display:block;
-  }
   .next-card b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -1056,13 +1050,7 @@
     white-space:nowrap;
   }
   .level-left .hud-label::after{content:'\00a0';}
-  .next-card-meta{
-    display:flex;
-    align-items:baseline;
-    gap:0;
-  }
-  .next-card-meta .hud-label::after{content:'\00a0';}
-  .hud-mobile-only{display:none;}
+  .next-card .hud-label::after{content:'\00a0';}
   .level-pill b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -1233,19 +1221,6 @@
       justify-content:center;
       gap:1px;
       padding:4px 2px;
-    }
-    .hud-mobile-only{display:block;}
-    .hud-desktop-only{display:none;}
-    .next-card-meta{
-      flex-direction:column;
-      align-items:center;
-      min-width:0;
-      width:100%;
-    }
-    .next-card canvas{
-      width:26px;
-      height:26px;
-      flex-shrink:0;
     }
     .next-card b{font-size:10px;max-width:100%;}
   }
@@ -1834,12 +1809,8 @@
         <div class="idle-bar" aria-hidden="true"><span id="autoStatusFill"></span></div>
       </div>
       <div class="next-card hud-tile">
-        <span class="hud-label hud-mobile-only">Next</span>
-        <canvas id="nextPreview" width="72" height="72"></canvas>
-        <div class="next-card-meta">
-          <span class="hud-label hud-desktop-only">Next</span>
-          <b class="hud-val" id="nextLabel">—</b>
-        </div>
+        <span class="hud-label">Next</span>
+        <b class="hud-val" id="nextLabel">—</b>
       </div>
     </div>
     <div class="level-toast" id="levelToast" role="status" aria-live="polite"></div>
@@ -2042,8 +2013,6 @@
   // Drive CSS aspect-ratio from the live bitmap so layout can't drift again.
   canvas.style.setProperty('--board-aspect', W + ' / ' + H);
   const ctx = canvas.getContext('2d');
-  const nextPreview = document.getElementById('nextPreview');
-  const nextCtx = nextPreview.getContext('2d');
 
   const PEG = getCSS('--peg');
   const PANEL = getCSS('--panel');
@@ -7576,13 +7545,10 @@
   function updateNextUI(){
     if(!nextCard){
       nextLabel.textContent = '—';
-      nextCtx.clearRect(0,0,nextPreview.width, nextPreview.height);
       return;
     }
     const tierMark = tierLabelShort(cardTier(nextCard));
     nextLabel.textContent = tierMark ? (tierMark + ' ' + cardFace(nextCard)) : cardFace(nextCard);
-    nextCtx.clearRect(0,0,nextPreview.width, nextPreview.height);
-    drawCardFace(nextCtx, 36, 36, nextCard, 0, 30, false, 0);
   }
 
   document.getElementById('playAgain').addEventListener('click', ()=>{
