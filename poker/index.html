@@ -6662,8 +6662,6 @@
   function beginSuitBomb(suit, cells){
     resolving = true;
     resolveEpoch++;
-    pendingChain = 0;
-    chainStep = 0;
     const inFlight = findSuitBalls(suit).length;
     currentGroups = [{
       name: 'SUIT PURGE ' + suit,
@@ -6788,10 +6786,18 @@
 
   function finishResolveOrChain(){
     const nextGroups = findPokerHands();
+    const suitBombResolve = currentGroups.some(g => g.suitBomb);
     if(nextGroups.length>0){
+      // After Suit Purge, pick up saved chain carryover before the next hand.
+      if(chainStep === 0 && pendingChain > 0){
+        chainStep = pendingChain;
+        pendingChain = 0;
+      }
       enterFlash(nextGroups);
     } else {
-      pendingChain = balls.length > 0 ? chainStep : 0;
+      if(!suitBombResolve){
+        pendingChain = balls.length > 0 ? chainStep : 0;
+      }
       resolving = false;
       chainStep = 0;
       if(boardIsFull() && !hasGridBalls()){
