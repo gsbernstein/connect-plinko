@@ -135,6 +135,35 @@
     font-size:0;
   }
   .fly-spark::after{content:'';}
+  .quest-claim-toast{
+    position:absolute;
+    left:0;
+    top:0;
+    transform:translate(-50%, 0);
+    font:700 13px 'Space Grotesk',sans-serif;
+    letter-spacing:0.02em;
+    white-space:nowrap;
+    text-shadow:
+      0 0 10px rgba(0,0,0,0.95),
+      0 2px 6px rgba(0,0,0,0.85);
+    pointer-events:none;
+    z-index:60;
+    animation:questClaimToastOut 1.35s ease forwards;
+  }
+  @keyframes questClaimToastOut{
+    0%{
+      opacity:0;
+      transform:translate(-50%, 0) scale(0.88);
+    }
+    14%{
+      opacity:1;
+      transform:translate(-50%, 6px) scale(1.04);
+    }
+    100%{
+      opacity:0;
+      transform:translate(-50%, 54px) scale(1);
+    }
+  }
   .comps-pill.comp-pulse{
     animation:compLandPulse 0.32s ease-out;
   }
@@ -3727,7 +3756,7 @@
 
   function pulseQuestTabAutoClaim(){
     spawnRailTabBurst('quests', { count: 6, popSpread: 20 });
-    const tab = questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+    const tab = getQuestsTabEl();
     if(!tab) return;
     const badge = tab.querySelector('.rail-tab-badge');
     if(badge){
@@ -3739,30 +3768,38 @@
     }
   }
 
+  function getQuestsTabEl(){
+    return questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+  }
+
+  function pushQuestClaimToast(quest, stackIndex){
+    const tab = getQuestsTabEl();
+    if(!tab || tab.hidden || !chipFxLayer || !quest) return;
+    const rect = tab.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    const x = rect.left - stage.left + rect.width * 0.5;
+    const y = rect.top - stage.top + rect.height + 6 + (stackIndex || 0) * 26;
+    const el = document.createElement('div');
+    el.className = 'quest-claim-toast';
+    const rarity = QUEST_RARITY[quest.rarity] || QUEST_RARITY.common;
+    el.style.color = rarity.color;
+    el.textContent = 'QUEST · ' + quest.name;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    chipFxLayer.appendChild(el);
+    const cleanup = ()=>{ if(el.parentNode) el.parentNode.removeChild(el); };
+    el.addEventListener('animationend', cleanup, { once: true });
+    setTimeout(cleanup, 1500);
+  }
+
   function pushQuestClaimPopup(claimed){
-    if(claimed.length === 1){
-      const q = claimed[0];
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST · ' + q.name,
-        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
-        t0: performance.now(),
-        duration: 1400,
-        big: true
-      });
-    } else {
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST DESK · ×' + claimed.length,
-        color: '#F0D78C',
-        t0: performance.now(),
-        duration: 1400,
-        big: true
-      });
+    if(!claimed || !claimed.length) return;
+    for(let i = 0; i < claimed.length; i++){
+      const q = claimed[i];
+      const stackIndex = i;
+      if(i === 0) pushQuestClaimToast(q, stackIndex);
+      else setTimeout(() => pushQuestClaimToast(q, stackIndex), i * 140);
     }
-    if(!resolving && !looping) startLoop();
   }
 
   function claimActiveQuest(uid, opts){
@@ -3775,9 +3812,12 @@
     const animateCard = panelOpen && opts.animate !== false && !opts.deferUi;
 
     const finishClaim = ()=>{
+      const flyOrigin = animateCard
+        ? questSlotButtons[idx]
+        : getQuestsTabEl();
       applyContractReward(q.reward, {
-        skipFly: !!animateCard || !!opts.skipRewardFly,
-        originEl: animateCard ? questSlotButtons[idx] : null
+        skipFly: !!opts.skipRewardFly,
+        originEl: opts.skipRewardFly ? null : flyOrigin
       });
       const used = new Set(
         activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
@@ -3824,7 +3864,7 @@
         for(const idx of claimedSlots) playQuestRollIn(questSlotButtons[idx]);
       } else {
         pulseQuestTabAutoClaim();
-        const tab = questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+        const tab = getQuestsTabEl();
         for(const q of claimed){
           if(tab && q.reward) spawnRewardParticles(tab, q.reward);
         }
