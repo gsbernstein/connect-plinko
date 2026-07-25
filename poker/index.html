@@ -779,10 +779,10 @@
     transition:left .2s ease, width .2s ease;
   }
   .upgrade-progress-bought{
-    left:0;
     background:linear-gradient(90deg, var(--felt), var(--felt-bright));
   }
   .upgrade-progress-bonus{
+    left:0;
     background:linear-gradient(90deg, #8a6f2a, #E6C35C);
   }
   .upgrade.maxed .upgrade-progress-bought{
@@ -7551,14 +7551,15 @@
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
     const boughtFill = btn.querySelector('.upgrade-progress-bought');
     if(def.maxLevel > 0){
-      const boughtPct = Math.min(100, (bought / def.maxLevel) * 100);
-      const bonusPct = Math.min(100 - boughtPct, (bonus / def.maxLevel) * 100);
-      if(boughtFill){
-        boughtFill.style.width = boughtPct + '%';
-      }
+      const bonusPct = Math.min(100, (bonus / def.maxLevel) * 100);
+      const boughtPct = Math.min(100 - bonusPct, (bought / def.maxLevel) * 100);
       if(bonusFill){
-        bonusFill.style.left = boughtPct + '%';
+        bonusFill.style.left = '0%';
         bonusFill.style.width = bonusPct + '%';
+      }
+      if(boughtFill){
+        boughtFill.style.left = bonusPct + '%';
+        boughtFill.style.width = boughtPct + '%';
       }
     }
     btn.querySelector('.upgrade-effect').textContent = opts.effect || '';
