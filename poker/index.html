@@ -3092,7 +3092,7 @@
     {
       id: 'houseEdge',
       name: 'House Edge',
-      desc: '+1 Hot Streak level permanently (does not raise Hot Streak’s buy cost). Capped at Hot Streak max.',
+      desc: '+1 Hot Streak level permanently. Raises Hot Streak’s buy cost like a normal level. Capped at Hot Streak max.',
       baseCost: 1,
       costScale: 1.65,
       maxLevel: 40
@@ -3141,7 +3141,7 @@
     {
       id: 'quickDeal',
       name: 'Quick Deal',
-      desc: '+1 Auto Dealer level permanently (does not raise Auto Dealer’s buy cost). Capped at Auto Dealer max.',
+      desc: '+1 Auto Dealer level permanently. Raises Auto Dealer’s buy cost like a normal level. Capped at Auto Dealer max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3149,7 +3149,7 @@
     {
       id: 'pinPrivilege',
       name: 'Pin Privilege',
-      desc: '+1 Pin Tip level permanently (does not raise Pin Tip’s buy cost). Capped at Pin Tip max.',
+      desc: '+1 Pin Tip level permanently. Raises Pin Tip’s buy cost like a normal level. Capped at Pin Tip max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3157,7 +3157,7 @@
     {
       id: 'feltWax',
       name: 'Felt Wax',
-      desc: '+1 Felt Grease level permanently (does not raise Felt Grease’s buy cost). Capped at Felt Grease max.',
+      desc: '+1 Felt Grease level permanently. Raises Felt Grease’s buy cost like a normal level. Capped at Felt Grease max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3348,7 +3348,7 @@
     return prestigeLevel('tableTilt') > 0 ? 60 : 0;
   }
 
-  // Permanent VIP bonus levels for a table skill (do not affect buy cost).
+  // Permanent VIP bonus levels for a table skill (count toward effective level & buy cost).
   function prestigeBonusLevels(id){
     if(id === 'autoDealer') return prestigeLevel('quickDeal');
     if(id === 'pinPayout') return prestigeLevel('pinPrivilege');
@@ -4105,10 +4105,10 @@
   }
 
   function upgradeCost(def){
-    // Cost tracks purchased levels only — prestige bonus levels are free power.
-    if(upgradeLevel(def.id) >= def.maxLevel) return Infinity;
-    const bought = purchasedLevel(def.id);
-    return Math.floor(def.baseCost * Math.pow(def.costScale, bought) * upgradeCostMult());
+    // Cost tracks effective level (purchased + VIP bonus), so perk levels raise the curve.
+    const lvl = upgradeLevel(def.id);
+    if(lvl >= def.maxLevel) return Infinity;
+    return Math.floor(def.baseCost * Math.pow(def.costScale, lvl) * upgradeCostMult());
   }
 
   function prestigeUpgradeCost(def){
@@ -4219,6 +4219,27 @@
   function formatMultFactor(v, noun){
     const text = (v % 1 === 0) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
     return '×' + text + ' ' + noun;
+  }
+
+  function formatMultShort(v){
+    if(v % 1 === 0) return '×' + v;
+    return '×' + v.toFixed(2).replace(/\.?0+$/, '');
+  }
+
+  // Active Blind / payout / chain multipliers for shop effect lines.
+  function payoutMultLabels(category){
+    const parts = [];
+    const blind = blindMultiplier(category);
+    if(blind > 1) parts.push(formatMultShort(blind) + ' Blind');
+    const meta = runMetaMultiplier();
+    if(meta > 1) parts.push(formatMultShort(meta) + ' mult');
+    return parts;
+  }
+
+  function withMultLabels(text, parts, opts){
+    if(!parts.length) return text;
+    const joined = parts.join(' · ');
+    return opts && opts.paren ? text + ' (' + joined + ')' : text + ' · ' + joined;
   }
 
   function formatMetaMultBonus(v){
@@ -4907,10 +4928,21 @@
         return isAutoEnabled('autoDealer')
           ? ('Every ' + formatInterval(autoDropIntervalMs()))
           : 'Paused';
-      case 'bigBlind':
-        return lvl ? blindSpreadEffectText() : 'No bonus';
-      case 'hotStreak':
-        return lvl ? ('+' + lvl + ' chain') : 'No bonus';
+      case 'bigBlind': {
+        if(!lvl) return 'No bonus';
+        const meta = runMetaMultiplier();
+        return withMultLabels(
+          blindSpreadEffectText(),
+          meta > 1 ? [formatMultShort(meta) + ' mult'] : []
+        );
+      }
+      case 'hotStreak': {
+        if(!lvl) return 'No bonus';
+        const parts = [];
+        const chain = runChainMultiplier();
+        if(chain > 1) parts.push(formatMultShort(chain) + ' combo');
+        return withMultLabels('+' + lvl + ' chain', parts);
+      }
       case 'premiumCut': {
         if(!lvl) return 'Standard cards only';
         const {silver, gold, diamond} = premiumCutChances();
@@ -4921,11 +4953,17 @@
         if(!lvl) return 'No wilds';
         return (wildCardChance() * 100).toFixed(1).replace(/\.0$/, '') + '% wild';
       case 'pinPayout':
-        return lvl ? ('+' + pinHitPayout() + ' / peg') : 'No payout';
+        return lvl
+          ? withMultLabels('+' + pinHitPayout() + ' / peg', payoutMultLabels('pin'), { paren: true })
+          : 'No payout';
       case 'bumperPayout':
-        return lvl ? ('+' + bumperHitPayout() + ' / bumper') : 'No payout';
+        return lvl
+          ? withMultLabels('+' + bumperHitPayout() + ' / bumper', payoutMultLabels('bumper'), { paren: true })
+          : 'No payout';
       case 'floorPayout':
-        return lvl ? ('+' + floorClearPayout() + ' / clear') : 'No payout';
+        return lvl
+          ? withMultLabels('+' + floorClearPayout() + ' / clear', payoutMultLabels('floor'), { paren: true })
+          : 'No payout';
       case 'highCut': {
         if(!lvl) return 'All ranks';
         // Lv1 burns 2s, Lv2 burns 2–3, … Lv8 burns 2–9.

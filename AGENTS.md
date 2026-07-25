@@ -69,6 +69,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 |--------|---------|
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, …) — order = shop order |
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out |
+| `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels) |
+| `upgradeEffectText` / `payoutMultLabels` | Shop effect line; Blind / payout / combo mults on Pin Tip, Rail Tax, Sweep Stakes, Hot Streak, Big Blind |
 | `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias) |
 | `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
