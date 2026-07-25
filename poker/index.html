@@ -919,7 +919,11 @@
   .suit-btn .suit-glyph{
     position:relative;
     z-index:1;
-    text-shadow:0 1px 2px rgba(0,0,0,0.45);
+    display:block;
+    width:22px;
+    height:22px;
+    margin:0 auto;
+    pointer-events:none;
   }
   .suit-btn:hover:not(:disabled){
     transform:translateY(-1px);
@@ -6198,6 +6202,76 @@
     target.stroke();
   }
 
+  // Vector suit marks so spades/clubs keep lavender/green instead of emoji black.
+  function suitStemPath(target){
+    target.moveTo(-0.1, 0.18);
+    target.lineTo(-0.12, 0.68);
+    target.lineTo(0.12, 0.68);
+    target.lineTo(0.1, 0.18);
+    target.closePath();
+    target.moveTo(-0.24, 0.66);
+    target.lineTo(0.24, 0.66);
+    target.lineTo(0.18, 0.86);
+    target.lineTo(-0.18, 0.86);
+    target.closePath();
+  }
+
+  function suitIconPath(target, suit){
+    if(suit === '♥'){
+      target.moveTo(0, 0.3);
+      target.bezierCurveTo(0, 0.1, -0.5, -0.1, -0.5, -0.45);
+      target.bezierCurveTo(-0.5, -0.75, 0, -0.85, 0, -0.55);
+      target.bezierCurveTo(0, -0.85, 0.5, -0.75, 0.5, -0.45);
+      target.bezierCurveTo(0.5, -0.1, 0, 0.1, 0, 0.3);
+      target.closePath();
+      return;
+    }
+    if(suit === '♦'){
+      target.moveTo(0, -0.85);
+      target.lineTo(0.55, 0);
+      target.lineTo(0, 0.85);
+      target.lineTo(-0.55, 0);
+      target.closePath();
+      return;
+    }
+    if(suit === '♠'){
+      target.moveTo(0, -0.88);
+      target.bezierCurveTo(0.48, -0.88, 0.68, -0.52, 0.36, -0.14);
+      target.bezierCurveTo(0.68, -0.02, 0.52, 0.36, 0, 0.22);
+      target.bezierCurveTo(-0.52, 0.36, -0.68, -0.02, -0.36, -0.14);
+      target.bezierCurveTo(-0.68, -0.52, -0.48, -0.88, 0, -0.88);
+      target.closePath();
+      suitStemPath(target);
+      return;
+    }
+    if(suit === '♣'){
+      const r = 0.21;
+      target.arc(-0.3, -0.32, r, 0, Math.PI * 2);
+      target.moveTo(0.09, -0.32);
+      target.arc(0.3, -0.32, r, 0, Math.PI * 2);
+      target.moveTo(-0.21, -0.08);
+      target.arc(0, -0.02, r, 0, Math.PI * 2);
+      suitStemPath(target);
+    }
+  }
+
+  function drawSuitIcon(target, suit, x, y, size, color){
+    const scale = size * 0.5;
+    target.save();
+    target.translate(x, y);
+    target.scale(scale, scale);
+    target.beginPath();
+    suitIconPath(target, suit);
+    target.fillStyle = color;
+    target.strokeStyle = 'rgba(8,6,16,0.85)';
+    target.lineJoin = 'round';
+    target.lineCap = 'round';
+    target.lineWidth = Math.max(0.12, 8 / size);
+    target.stroke();
+    target.fill();
+    target.restore();
+  }
+
   function drawChipGlyphs(target, card, radius){
     const color = cardGlowColor(card);
     const tier = cardTier(card);
@@ -6261,14 +6335,7 @@
     if(isWild(card)){
       drawWildIcon(target, suitX, suitY, radius * 0.95);
     } else {
-      stampGlyph(
-        card.suit,
-        suitX,
-        suitY,
-        color,
-        `bold ${suitSize}px 'Space Grotesk', sans-serif`,
-        Math.max(1.6, radius * 0.09)
-      );
+      drawSuitIcon(target, card.suit, suitX, suitY, suitSize * 0.95, color);
     }
     if(metal){
       stampMetalGlyph(
@@ -7493,8 +7560,15 @@
       btn.className = 'suit-btn';
       btn.dataset.suit = s;
       btn.setAttribute('aria-label', 'Purge ' + s);
-      btn.innerHTML = '<span class="cd-fill"></span><span class="suit-glyph"></span>';
-      btn.querySelector('.suit-glyph').textContent = s;
+      const fill = document.createElement('span');
+      fill.className = 'cd-fill';
+      const glyph = document.createElement('canvas');
+      glyph.className = 'suit-glyph';
+      glyph.width = 44;
+      glyph.height = 44;
+      glyph.setAttribute('aria-hidden', 'true');
+      drawSuitIcon(glyph.getContext('2d'), s, 22, 22, 22, SUIT_COLOR[s]);
+      btn.append(fill, glyph);
       btn.addEventListener('click', ()=>castSuitBomb(s));
       suitBombBtnsEl.appendChild(btn);
       suitBombButtons[s] = btn;
