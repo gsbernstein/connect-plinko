@@ -1892,12 +1892,7 @@
   function cardFace(card){ return rankLabel(card.rank) + card.suit; }
   const CARD_TIER_LABELS = ['', 'Silver', 'Gold', 'Diamond'];
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
-  const CARD_TIER_RING = [
-    null,
-    ['#E8EDF4', '#98A4B8'],
-    ['#F7E7A8', '#C9A24A'],
-    ['#E8FAFF', '#6EC8FF']
-  ];
+  const CARD_TIER_INK = [null, '#B8C8DC', '#E8C45C', '#7AD8FF'];
   function cardTier(card){
     const t = card && card.tier;
     return (typeof t === 'number' && t >= 1 && t <= 3) ? (t | 0) : 0;
@@ -5884,6 +5879,8 @@
   // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
   function drawChipGlyphs(target, card, radius){
     const color = SUIT_COLOR[card.suit];
+    const tier = cardTier(card);
+    const tierInk = CARD_TIER_INK[tier];
     target.textAlign = 'center';
     target.textBaseline = 'middle';
     const suitSize = Math.max(10, Math.round(radius * 0.74));
@@ -5897,8 +5894,8 @@
       target.font = font;
       target.lineJoin = 'round';
       target.miterLimit = 2;
-      target.lineWidth = lineW;
-      target.strokeStyle = 'rgba(8,6,16,0.85)';
+      target.lineWidth = tierInk ? lineW * (1 + tier * 0.12) : lineW;
+      target.strokeStyle = tierInk || 'rgba(8,6,16,0.85)';
       target.strokeText(text, x, y);
       target.fillStyle = fill;
       target.fillText(text, x, y);
@@ -5950,30 +5947,6 @@
     }
     target.shadowBlur = 0;
     drawChipGlyphs(target, card, radius);
-
-    const tier = cardTier(card);
-    if(tier){
-      const ring = CARD_TIER_RING[tier];
-      const ringR = radius + (isBall ? 1.5 : 2);
-      const ringGrad = target.createLinearGradient(-ringR, -ringR, ringR, ringR);
-      ringGrad.addColorStop(0, ring[0]);
-      ringGrad.addColorStop(1, ring[1]);
-      target.beginPath();
-      target.arc(0, 0, ringR, 0, Math.PI * 2);
-      target.strokeStyle = ringGrad;
-      target.lineWidth = Math.max(2, radius * 0.11);
-      target.stroke();
-      if(tier === 3){
-        target.shadowColor = '#8EE4FF';
-        target.shadowBlur = Math.max(5, radius * 0.28);
-        target.beginPath();
-        target.arc(0, 0, ringR + 1, 0, Math.PI * 2);
-        target.strokeStyle = 'rgba(180,240,255,0.35)';
-        target.lineWidth = 1.5;
-        target.stroke();
-        target.shadowBlur = 0;
-      }
-    }
 
     if(highlight){
       target.beginPath();
