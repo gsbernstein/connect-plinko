@@ -94,7 +94,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 1. **Chips** — earn from scored poker hands; spend on table upgrades.
 2. **Run level** — rises from chips *earned* this run (`lifetime`); unlocks shop rows and milestone rewards. Resets on Cash Out.
 3. **Quests** — per-run slots (unlock from run Lv 2); Cash Out clears the board. Achievements persist.
-4. **VIP / prestige** — Cash Out (run Lv 8+) banks comps for permanent `PRESTIGE_DEFS` perks.
+4. **VIP / prestige** — Cash Out (run Lv 8+) collects banked VIP comps for permanent `PRESTIGE_DEFS` perks. Achievement/quest `reward.comps` are **instant comps** (added to the VIP balance immediately); `reward.runComps` / level `comps` bank until Cash Out. Player-facing labels: `contractRewardText` (“instant comps” vs “VIP comps”).
 
 Game design detail for players lives in `README.md`.
 
