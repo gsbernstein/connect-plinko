@@ -8377,7 +8377,11 @@
     }
     nextSuitGlyph.hidden = false;
     if(isWild(card)){
-      drawWildIcon(ctx, NEXT_GLYPH_CENTER, NEXT_GLYPH_CENTER, NEXT_GLYPH_SIZE * 0.88);
+      ctx.save();
+      ctx.translate(NEXT_GLYPH_CENTER, NEXT_GLYPH_CENTER);
+      ctx.scale(0.78, 1);
+      drawWildIcon(ctx, 0, 0, 18);
+      ctx.restore();
     } else {
       paintSuitGlyph(ctx, card.suit, NEXT_GLYPH_CENTER, NEXT_GLYPH_CENTER, 14, SUIT_COLOR[card.suit]);
     }
