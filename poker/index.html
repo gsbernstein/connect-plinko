@@ -4554,13 +4554,14 @@
   let aimX = W/2;
   const PHYSICS_HZ = 60;
   const PHYSICS_DT = 1 / PHYSICS_HZ;
-  const MAX_PHYSICS_STEPS = 10; // catch-up cap per frame after a hitch
+  const MAX_PHYSICS_STEPS = 20; // catch-up cap per frame after a hitch
   let lastPhysicsTime = 0;
   let physicsAccumulator = 0;
   let fpsDisplay = 0;
   let fpsFrameCount = 0;
   let lastFpsSampleTime = 0;
   let lastPhysicsSteps = 0;
+  let lastFrameMs = 0;
 
   const BALL_RADIUS = 14;
   const HOLE_R = 29;
@@ -4835,26 +4836,61 @@
   }
 
   function resolveBallCollisions(){
-    for(let i=0;i<balls.length;i++){
-      for(let j=i+1;j<balls.length;j++){
-        const a = balls[i], b = balls[j];
-        if(a.phase==='grid' && b.phase==='grid' && a.targetCol===b.targetCol) continue;
-        const dx = b.x-a.x, dy = b.y-a.y;
-        const dist = Math.hypot(dx,dy);
-        const minDist = a.radius+b.radius;
-        if(dist < minDist && dist > 0.0001){
-          const nx = dx/dist, ny = dy/dist;
-          const overlap = (minDist-dist)/2;
-          a.x -= nx*overlap; a.y -= ny*overlap;
-          b.x += nx*overlap; b.y += ny*overlap;
-          const avn = a.vx*nx + a.vy*ny;
-          const bvn = b.vx*nx + b.vy*ny;
-          a.vx += (bvn-avn)*nx; a.vy += (bvn-avn)*ny;
-          b.vx += (avn-bvn)*nx; b.vy += (avn-bvn)*ny;
-          impartSpin(a, nx, ny);
-          impartSpin(b, -nx, -ny);
+    const n = balls.length;
+    if(n < 2) return;
+    if(n < 18){
+      for(let i=0;i<n;i++){
+        for(let j=i+1;j<n;j++) collideBalls(balls[i], balls[j]);
+      }
+      return;
+    }
+    const cellSize = 72;
+    const buckets = new Map();
+    for(let i=0;i<n;i++){
+      const b = balls[i];
+      const key = ((b.x / cellSize) | 0) + ',' + ((b.y / cellSize) | 0);
+      let bucket = buckets.get(key);
+      if(!bucket){ bucket = []; buckets.set(key, bucket); }
+      bucket.push(i);
+    }
+    const seen = new Set();
+    for(const [key, indices] of buckets){
+      const parts = key.split(',');
+      const cx = +parts[0], cy = +parts[1];
+      for(let ox=-1; ox<=1; ox++){
+        for(let oy=-1; oy<=1; oy++){
+          const neighbor = buckets.get((cx+ox)+','+(cy+oy));
+          if(!neighbor) continue;
+          for(const i of indices){
+            for(const j of neighbor){
+              if(j <= i) continue;
+              const pairKey = i < j ? i+','+j : j+','+i;
+              if(seen.has(pairKey)) continue;
+              seen.add(pairKey);
+              collideBalls(balls[i], balls[j]);
+            }
+          }
         }
       }
+    }
+  }
+
+  function collideBalls(a, b){
+    if(a.phase==='grid' && b.phase==='grid' && a.targetCol===b.targetCol) return;
+    const dx = b.x-a.x, dy = b.y-a.y;
+    const dist = Math.hypot(dx,dy);
+    const minDist = a.radius+b.radius;
+    if(dist < minDist && dist > 0.0001){
+      const nx = dx/dist, ny = dy/dist;
+      const overlap = (minDist-dist)/2;
+      a.x -= nx*overlap; a.y -= ny*overlap;
+      b.x += nx*overlap; b.y += ny*overlap;
+      const avn = a.vx*nx + a.vy*ny;
+      const bvn = b.vx*nx + b.vy*ny;
+      a.vx += (bvn-avn)*nx; a.vy += (bvn-avn)*ny;
+      b.vx += (avn-bvn)*nx; b.vy += (avn-bvn)*ny;
+      impartSpin(a, nx, ny);
+      impartSpin(b, -nx, -ny);
     }
   }
 
@@ -4882,11 +4918,15 @@
     for(const p of pegs){ if(p.hit) p.hit--; }
     for(const path of bumperPaths){ if(path.hit) path.hit--; }
     if(!lastPhysicsTime) lastPhysicsTime = now;
-    const frameDt = Math.min((now - lastPhysicsTime) / 1000, 0.05);
+    const frameDt = Math.min((now - lastPhysicsTime) / 1000, 0.15);
     lastPhysicsTime = now;
     physicsAccumulator += frameDt;
+    const stepBudget = Math.min(
+      MAX_PHYSICS_STEPS,
+      Math.max(2, Math.ceil(frameDt / PHYSICS_DT) + 1)
+    );
     let physicsSteps = 0;
-    while(physicsAccumulator >= PHYSICS_DT && physicsSteps < MAX_PHYSICS_STEPS){
+    while(physicsAccumulator >= PHYSICS_DT && physicsSteps < stepBudget){
       for(const ball of balls){
         stepBall(ball, gravity);
       }
@@ -4912,6 +4952,8 @@
     if(!resolving && boardIsFull() && !hasGridBalls()) beginFloorClear();
 
     draw();
+    lastFrameMs = performance.now() - now;
+    sampleFps(performance.now());
 
     const nowEnd = performance.now();
     const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
@@ -5822,6 +5864,12 @@
     return !desktopMq.matches;
   }
 
+  function shouldDrawTrails(){
+    if(balls.length > 36) return false;
+    if(perfLite() && balls.length > 10) return false;
+    return true;
+  }
+
   function sampleFps(now){
     if(!lastFpsSampleTime) lastFpsSampleTime = now;
     fpsFrameCount++;
@@ -5835,10 +5883,8 @@
 
   function drawFpsOverlay(){
     if(!gameSettings.showFps) return;
-    const now = performance.now();
-    sampleFps(now);
     const lines = [
-      fpsDisplay + ' fps',
+      fpsDisplay + ' fps · ' + Math.round(lastFrameMs) + 'ms',
       lastPhysicsSteps + ' phys · ' + balls.length + ' balls'
     ];
     ctx.save();
@@ -5926,13 +5972,15 @@
 
     for(const b of balls){
       if(b.phase==='grid' || b.y >= PEG_ZONE) continue;
-      for(let i=0;i<b.trail.length;i++){
-        const t = b.trail[i];
-        const alpha = (i+1)/b.trail.length * 0.25;
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,20,0,Math.PI*2);
-        ctx.fillStyle = trailRGBA(b.card, alpha);
-        ctx.fill();
+      if(shouldDrawTrails()){
+        for(let i=0;i<b.trail.length;i++){
+          const t = b.trail[i];
+          const alpha = (i+1)/b.trail.length * 0.25;
+          ctx.beginPath();
+          ctx.arc(t.x,t.y,20,0,Math.PI*2);
+          ctx.fillStyle = trailRGBA(b.card, alpha);
+          ctx.fill();
+        }
       }
     }
 
@@ -5964,14 +6012,16 @@
     // must paint under the plate so upward flights don't cover the overlay.
     for(const b of balls){
       if(b.y < PEG_ZONE && b.phase !== 'grid') continue;
-      for(let i=0;i<b.trail.length;i++){
-        const t = b.trail[i];
-        if(t.y < PEG_ZONE) continue;
-        const alpha = (i+1)/b.trail.length * 0.25;
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,20,0,Math.PI*2);
-        ctx.fillStyle = trailRGBA(b.card, alpha);
-        ctx.fill();
+      if(shouldDrawTrails()){
+        for(let i=0;i<b.trail.length;i++){
+          const t = b.trail[i];
+          if(t.y < PEG_ZONE) continue;
+          const alpha = (i+1)/b.trail.length * 0.25;
+          ctx.beginPath();
+          ctx.arc(t.x,t.y,20,0,Math.PI*2);
+          ctx.fillStyle = trailRGBA(b.card, alpha);
+          ctx.fill();
+        }
       }
       drawBall(b);
     }
@@ -6012,14 +6062,16 @@
     // draw on top of the plastic so the flight out of the column stays visible.
     for(const b of balls){
       if(b.phase==='grid' || b.y < PEG_ZONE) continue;
-      for(let i=0;i<b.trail.length;i++){
-        const t = b.trail[i];
-        if(t.y < PEG_ZONE) continue;
-        const alpha = (i+1)/b.trail.length * 0.25;
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,20,0,Math.PI*2);
-        ctx.fillStyle = trailRGBA(b.card, alpha);
-        ctx.fill();
+      if(shouldDrawTrails()){
+        for(let i=0;i<b.trail.length;i++){
+          const t = b.trail[i];
+          if(t.y < PEG_ZONE) continue;
+          const alpha = (i+1)/b.trail.length * 0.25;
+          ctx.beginPath();
+          ctx.arc(t.x,t.y,20,0,Math.PI*2);
+          ctx.fillStyle = trailRGBA(b.card, alpha);
+          ctx.fill();
+        }
       }
       drawBall(b);
     }
