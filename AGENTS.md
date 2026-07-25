@@ -25,12 +25,13 @@ Each page links to the other via a Classic / Poker toggle.
 ├── poker/
 │   ├── index.html      # Plinko Poker (~8,880 lines) — same pattern
 │   └── welcome-chip.png
+├── version.json        # hosted release id (`v`) polled by both games
 ├── .nojekyll           # required for GitHub Pages
 ├── README.md           # player-facing overview
 └── AGENTS.md           # this file
 ```
 
-There are no other source directories. Almost all work lands in one of the two `index.html` files.
+There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `version.json` when shipping a refresh-worthy deploy).
 
 ## Local dev
 
@@ -78,6 +79,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
+| `APP_RELEASE` | Baked-in build id; must match root `version.json` `v` (also in classic `index.html`) |
+| `RELEASE_URL` / `startReleasePolling` | Polls `version.json` (cache-bust); shows `#updateBanner` when remote `v` is newer |
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`) |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 
@@ -162,6 +165,17 @@ Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a r
 
 That new `id` lights the Settings badge and highlights only that entry (and any other unseen ids) for returning saves. Do not reuse or renumber old ids. Render path: `openSettingsChangelog` / `renderChangelog` → `#changelogList`; badge: `updateSettingsChangelogBadge`.
 
+### Release poll (refresh banner)
+
+Both games poll root **`version.json`** (`{ "v": <int> }`) every 5 minutes and when the tab becomes visible. Each page bakes in `APP_RELEASE`; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload; Poker also `persistSave`s first). Dismiss stores that remote `v` in `localStorage` (`plinkoReleaseDismissed`) so the same release is not re-prompted.
+
+**Agents: bump on player-visible deploys** (or any change you want open tabs to pick up):
+
+1. Increment `v` in `/version.json`.
+2. Set `APP_RELEASE` to the same integer in **both** `index.html` and `poker/index.html`.
+
+Do not renumber downward. Missed bumps only delay the prompt; mismatched page constants can leave one mode silent.
+
 ## Common agent tasks
 
 | Task | Where to edit |
@@ -175,6 +189,7 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 | Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `autoEnabled.suitBomb`, `updateSuitBombUI`; first Auto Purge buy collapses picker; tap bar chrome toggles Hide/Show |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
 | Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
+| Prompt open tabs to refresh after deploy | Bump `version.json` `v` + both `APP_RELEASE` constants; see **Release poll** above |
 | Classic gameplay | `index.html` only |
 
 ## Git & PR workflow

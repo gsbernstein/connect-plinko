@@ -27,7 +27,7 @@ Progression layers:
 
 Full-height layout: the table scales to fit, and the sidebar tabs scroll with the tab bar pinned at the bottom. On narrow screens the table is its own tab. First visit opens a **Welcome** tab (poker-chip logo + tap/click anywhere on the board to drop); it gives way to Upgrades after your first hand, and Reset brings it back. Achievements stay hidden until you earn one. Quests unlock from run Lv 2, VIP at run Lv 8 (or earlier once you earn permanent comps). Badges show affordable upgrades / ready claims.
 
-Saves in the browser. Near-miss guides show when you’re close; a full board still triggers the automatic floor clear. **Settings** lists What’s new; a red badge appears when there are updates since your last save viewed that panel, and those entries are highlighted as New.
+Saves in the browser. Near-miss guides show when you’re close; a full board still triggers the automatic floor clear. **Settings** lists What’s new; a red badge appears when there are updates since your last save viewed that panel, and those entries are highlighted as New. If a new build ships while a tab is still open, both Classic and Poker can show a **Refresh** banner after checking a small `version.json` on the site.
 
 ## Local
 
@@ -45,6 +45,8 @@ Then visit:
 ## Hosting
 
 Published with GitHub Pages **Deploy from a branch**: `master` / `/` (repo root).
+
+`version.json` at the repo root holds the live release id. Open tabs poll it and prompt for a refresh when it advances.
 
 If the site is not live yet, enable Pages once:
 
