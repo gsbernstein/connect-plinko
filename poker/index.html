@@ -7306,24 +7306,33 @@
   }
 
   function findKingMeJump(col, row){
-    const options = [];
+    const longJumps = [];
+    const stomps = [];
     for(const dx of [-1, 1]){
       for(const dy of [-1, 1]){
         const mc = col + dx, mr = row + dy;
-        const tc = col + 2 * dx, tr = row + 2 * dy;
         if(mc < 0 || mc >= COLS || mr < 0 || mr >= ROWS) continue;
-        if(tc < 0 || tc >= COLS || tr < 0 || tr >= ROWS) continue;
         const victim = grid[mc][mr];
         if(!victim || victim.crowned) continue;
-        if(grid[tc][tr]) continue;
-        // Don't land on a cell another jumper is claiming.
-        if(kingJumpers.some(j => j.col === tc && j.row === tr)) continue;
-        options.push({mc, mr, tc, tr, victim});
+        const tc = col + 2 * dx, tr = row + 2 * dy;
+        if(tc >= 0 && tc < COLS && tr >= 0 && tr < ROWS
+            && !grid[tc][tr]
+            && !kingJumpers.some(j => j.col === tc && j.row === tr)){
+          longJumps.push({mc, mr, tc, tr, victim, stomp: false});
+        } else if(!kingJumpers.some(j => j.col === mc && j.row === mr)){
+          // No clear landing two steps out — stomp the diagonal neighbor.
+          stomps.push({mc, mr, tc: mc, tr: mr, victim, stomp: true});
+        }
       }
     }
+    const options = longJumps.length ? longJumps : stomps;
     if(!options.length) return null;
-    // Prefer upward leaps (toward the pegs), then nearer the center.
-    options.sort((a, b) => a.tr - b.tr || Math.abs(a.tc - 3) - Math.abs(b.tc - 3));
+    // Prefer true leaps over stomps, upward (toward pegs), then nearer center.
+    options.sort((a, b) =>
+      (a.stomp === b.stomp ? 0 : a.stomp ? 1 : -1)
+      || a.tr - b.tr
+      || Math.abs(a.tc - 3) - Math.abs(b.tc - 3)
+    );
     return options[0];
   }
 
@@ -7416,6 +7425,7 @@
 
   function finishKingMeLeap(j){
     const mc = j.midCol, mr = j.midRow;
+    const stomping = j.destCol === mc && j.destRow === mr;
     if(mc >= 0 && mr >= 0 && grid[mc][mr]){
       const victim = grid[mc][mr];
       const payout = kingMeJumpPayout(j.jumpsDone + 1);
@@ -7425,7 +7435,7 @@
         pushPopup({
           x: mid.x,
           y: mid.y - 8,
-          text: 'JUMP +' + payout,
+          text: (stomping ? 'STOMP +' : 'JUMP +') + payout,
           color: '#F0D78C',
           t0: performance.now(),
           duration: 900,
@@ -7438,7 +7448,7 @@
         });
       }
       applyExplosionClear([{
-        name: 'KING JUMP',
+        name: stomping ? 'KING STOMP' : 'KING JUMP',
         points: 0,
         cells: [[mc, mr]],
         color: cardGlowColor(victim)
