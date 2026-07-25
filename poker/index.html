@@ -281,7 +281,8 @@
     border-radius:16px;
     padding:8px;
     box-shadow:0 20px 50px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02);
-    overflow:hidden;
+    /* Visible so score popups can hang a little past the felt edge. */
+    overflow:visible;
   }
   canvas#board{
     display:block;
@@ -297,6 +298,12 @@
     min-height:0;
     border-radius:10px;
   }
+  canvas.board-popup-layer{
+    position:absolute;
+    pointer-events:none;
+    z-index:4;
+    /* left/top/width/height synced to #board + POPUP_OVERHANG in JS */
+  }
   .banner{
     position:absolute;
     inset:0;
@@ -309,6 +316,7 @@
     backdrop-filter:blur(2px);
     border-radius:16px;
     text-align:center;
+    z-index:5;
   }
   .banner.show{display:flex;}
   .banner h2{
@@ -2232,6 +2240,7 @@
 
     <div class="board-frame">
       <canvas id="board" width="630" height="960"></canvas>
+      <canvas class="board-popup-layer" id="popupLayer" width="702" height="1032" aria-hidden="true"></canvas>
       <div class="banner" id="banner">
         <h2 id="bannerText">Nice hand!</h2>
         <button id="playAgain">Play again</button>
@@ -2428,11 +2437,33 @@
   // the bottom peg row must sit between columns, not on their mouths.
   const PEG_ZONE = 420;
   const W = COLS*CELL, H = PEG_ZONE + ROWS*CELL;
+  // Score labels may hang this many canvas px past the felt (drawn on overlay).
+  const POPUP_OVERHANG = 36;
   const canvas = document.getElementById('board');
   canvas.width = W; canvas.height = H;
   // Drive CSS aspect-ratio from the live bitmap so layout can't drift again.
   canvas.style.setProperty('--board-aspect', W + ' / ' + H);
   const ctx = canvas.getContext('2d');
+  const popupCanvas = document.getElementById('popupLayer');
+  const popupCtx = popupCanvas ? popupCanvas.getContext('2d') : null;
+  if(popupCanvas){
+    popupCanvas.width = W + POPUP_OVERHANG * 2;
+    popupCanvas.height = H + POPUP_OVERHANG * 2;
+  }
+  function layoutPopupLayer(){
+    if(!popupCanvas) return;
+    const frame = canvas.parentElement;
+    if(!frame) return;
+    const cRect = canvas.getBoundingClientRect();
+    const fRect = frame.getBoundingClientRect();
+    if(cRect.width < 1 || cRect.height < 1) return;
+    const ox = POPUP_OVERHANG * (cRect.width / W);
+    const oy = POPUP_OVERHANG * (cRect.height / H);
+    popupCanvas.style.left = (cRect.left - fRect.left - ox) + 'px';
+    popupCanvas.style.top = (cRect.top - fRect.top - oy) + 'px';
+    popupCanvas.style.width = (cRect.width + ox * 2) + 'px';
+    popupCanvas.style.height = (cRect.height + oy * 2) + 'px';
+  }
 
   const PEG = getCSS('--peg');
   const PANEL = getCSS('--panel');
@@ -2882,7 +2913,7 @@
       date: 'Jul 25, 2026',
       title: 'Celebration labels stay on the felt',
       items: [
-        'Hand score popups near the left or right edge nudge inward so big celebrations are no longer clipped by the board frame.'
+        'Hand score popups near the left or right edge stay readable — they can hang a little past the felt instead of getting chopped off by the board frame.'
       ]
     },
     {
@@ -5337,8 +5368,9 @@
   }
 
   let lastHitPopupAt = 0;
-  // Keep celebration / hit labels inside the canvas — large slam text on
-  // edge columns otherwise clips against .board-frame overflow:hidden.
+  // Keep celebration / hit labels mostly on the felt — allow POPUP_OVERHANG
+  // past the edge (overlay canvas) so they can hang off a little without
+  // disappearing into .board-frame clipping.
   function clampPopupToBoard(p){
     if(!p || p.text == null) return p;
     const fontSize = p.fontSize || (p.big ? 26 : 16);
@@ -5361,12 +5393,13 @@
     const pad = glow * 0.25 + 4;
     const halfW = (Math.abs(hw0 * cos) + Math.abs(hh0 * sin)) * fitScale + pad;
     const halfH = (Math.abs(hw0 * sin) + Math.abs(hh0 * cos)) * fitScale + pad;
-    // Wider/taller than the board → pin to center on that axis.
-    const minX = Math.min(halfW, W * 0.5);
-    const maxX = Math.max(W - halfW, W * 0.5);
-    // Float rises by floatBoost over the lifetime — reserve that headroom.
-    const minY = Math.min(halfH + floatBoost, H * 0.5);
-    const maxY = Math.max(H - halfH, H * 0.5);
+    // Allow a little hang past the felt; still pin ultra-wide labels inward.
+    const minX = Math.min(halfW - POPUP_OVERHANG, W * 0.5);
+    const maxX = Math.max(W - (halfW - POPUP_OVERHANG), W * 0.5);
+    // Float rises by floatBoost over the lifetime — reserve that headroom,
+    // but let the rising tip peek past the top by POPUP_OVERHANG.
+    const minY = Math.min(halfH + floatBoost - POPUP_OVERHANG, H * 0.5);
+    const maxY = Math.max(H - (halfH - POPUP_OVERHANG), H * 0.5);
     p.x = Math.max(minX, Math.min(maxX, p.x));
     p.y = Math.max(minY, Math.min(maxY, p.y));
     return p;
@@ -8010,6 +8043,12 @@
 
     const nowP = performance.now();
     popups = popups.filter(p => nowP - p.t0 < p.duration);
+    layoutPopupLayer();
+    const pctx = popupCtx || ctx;
+    const ox = popupCtx ? POPUP_OVERHANG : 0;
+    if(popupCtx){
+      popupCtx.clearRect(0, 0, popupCanvas.width, popupCanvas.height);
+    }
     for(const p of popups){
       const age = nowP - p.t0;
       const t = age / p.duration;
@@ -8027,16 +8066,15 @@
       const tilt = entryTilt + (restTilt - entryTilt) * slamT;
       const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
 
-      ctx.save();
-      ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      pctx.save();
+      pctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+      pctx.textAlign = 'center';
+      pctx.textBaseline = 'middle';
       // Dark outline so labels stay readable over suit-colored pucks.
       const lineW = Math.max(4, fontSize * 0.18);
-      // Re-clamp with this frame's scale so peak slam never clips the frame.
-      // If the label is wider than the board even centered, shrink the draw
-      // scale so a Royal Flush still fits instead of spilling ~10px off each side.
-      const tw = ctx.measureText(p.text).width;
+      // Re-clamp with this frame's scale. Labels may hang POPUP_OVERHANG past
+      // the felt; shrink only when they'd exceed that hang budget.
+      const tw = pctx.measureText(p.text).width;
       const hw0 = tw * 0.5 + lineW;
       const hh0 = fontSize * 0.55 + lineW;
       const cos = Math.cos(tilt);
@@ -8044,36 +8082,36 @@
       const pad = glow * 0.25 + 4;
       const baseW = Math.abs(hw0 * cos) + Math.abs(hh0 * sin);
       const baseH = Math.abs(hw0 * sin) + Math.abs(hh0 * cos);
-      const maxScaleX = baseW > 0 ? (W * 0.5 - pad) / baseW : scale;
-      const maxScaleY = baseH > 0 ? (H * 0.5 - pad) / baseH : scale;
+      const maxScaleX = baseW > 0 ? (W * 0.5 + POPUP_OVERHANG - pad) / baseW : scale;
+      const maxScaleY = baseH > 0 ? (H * 0.5 + POPUP_OVERHANG - pad) / baseH : scale;
       const drawScale = Math.max(0.55, Math.min(scale, maxScaleX, maxScaleY));
       const halfW = baseW * drawScale + pad;
       const halfH = baseH * drawScale + pad;
-      const drawX = Math.max(halfW, Math.min(W - halfW, p.x));
-      const drawY = Math.max(halfH, Math.min(H - halfH, p.y + dy));
-      ctx.translate(drawX, drawY);
-      ctx.rotate(tilt);
-      ctx.scale(drawScale, drawScale);
-      ctx.globalAlpha = alpha;
-      ctx.lineWidth = lineW;
-      ctx.strokeStyle = 'rgba(8,6,16,0.92)';
-      ctx.lineJoin = 'round';
-      ctx.miterLimit = 2;
-      ctx.strokeText(p.text, 0, 0);
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = glow;
-      ctx.fillText(p.text, 0, 0);
+      const drawX = Math.max(halfW - POPUP_OVERHANG, Math.min(W - (halfW - POPUP_OVERHANG), p.x));
+      const drawY = Math.max(halfH - POPUP_OVERHANG, Math.min(H - (halfH - POPUP_OVERHANG), p.y + dy));
+      pctx.translate(drawX + ox, drawY + ox);
+      pctx.rotate(tilt);
+      pctx.scale(drawScale, drawScale);
+      pctx.globalAlpha = alpha;
+      pctx.lineWidth = lineW;
+      pctx.strokeStyle = 'rgba(8,6,16,0.92)';
+      pctx.lineJoin = 'round';
+      pctx.miterLimit = 2;
+      pctx.strokeText(p.text, 0, 0);
+      pctx.fillStyle = p.color;
+      pctx.shadowColor = p.color;
+      pctx.shadowBlur = glow;
+      pctx.fillText(p.text, 0, 0);
       // Hot white core on premium pops — reads brighter without changing hue much.
       if(glow >= 24){
-        ctx.shadowBlur = glow * 0.35;
-        ctx.globalAlpha = alpha * 0.55;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(p.text, 0, 0);
+        pctx.shadowBlur = glow * 0.35;
+        pctx.globalAlpha = alpha * 0.55;
+        pctx.fillStyle = '#ffffff';
+        pctx.fillText(p.text, 0, 0);
       }
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-      ctx.restore();
+      pctx.shadowBlur = 0;
+      pctx.globalAlpha = 1;
+      pctx.restore();
     }
 
     if(!gameOver && nextCard){

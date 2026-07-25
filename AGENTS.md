@@ -105,7 +105,7 @@ Game design detail for players lives in `README.md`.
 | 4970–5200 | `persistSave`, `loadSave`, migrations, Cash Out / reset |
 | 5800–6100 | Ball physics (`tick`, `stepBall`, collisions) |
 | 6160–6500 | Hand detection, near-miss guides, scoring payouts |
-| ~5330 | `pushPopup` / `clampPopupToBoard` — canvas score labels stay in-bounds |
+| ~5330 | `pushPopup` / `clampPopupToBoard` / `#popupLayer` — score labels hang up to `POPUP_OVERHANG` past the felt |
 | 6700–7100 | Floor clear, board-full escape, drawing cards on canvas |
 | 7500–8900 | Rail tabs, quest UI, modals, init, keeper loop |
 
