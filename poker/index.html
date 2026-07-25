@@ -2508,7 +2508,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 12;
+  const SAVE_VERSION = 15;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2546,7 +2546,7 @@
       desc: '+1 effective chain multiplier per level.',
       baseCost: 120,
       costScale: 2.0,
-      maxLevel: 10,
+      maxLevel: 50,
       unlockAt: 4
     },
     {
@@ -2942,10 +2942,10 @@
     {
       id: 'houseEdge',
       name: 'House Edge',
-      desc: 'Permanent chip multiplier on every payout.',
+      desc: '+1 Hot Streak level permanently (does not raise Hot Streak’s buy cost). Capped at Hot Streak max.',
       baseCost: 1,
       costScale: 1.65,
-      maxLevel: 25
+      maxLevel: 40
     },
     {
       id: 'seedStack',
@@ -2972,6 +2972,14 @@
       maxLevel: 8
     },
     {
+      id: 'blindSpread',
+      name: 'Open Blind',
+      desc: 'Each level extends Big Blind’s chip multiplier to another payout: pin tips → rail tax → sweep stakes → quests → level bonuses.',
+      baseCost: 2,
+      costScale: 1.95,
+      maxLevel: 5
+    },
+    {
       id: 'quickDeal',
       name: 'Quick Deal',
       desc: '+1 Auto Dealer level permanently (does not raise Auto Dealer’s buy cost). Capped at Auto Dealer max.',
@@ -2983,6 +2991,14 @@
       id: 'pinPrivilege',
       name: 'Pin Privilege',
       desc: '+1 Pin Tip level permanently (does not raise Pin Tip’s buy cost). Capped at Pin Tip max.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
+      id: 'feltWax',
+      name: 'Felt Wax',
+      desc: '+1 Felt Grease level permanently (does not raise Felt Grease’s buy cost). Capped at Felt Grease max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3149,6 +3165,8 @@
   function prestigeBonusLevels(id){
     if(id === 'autoDealer') return prestigeLevel('quickDeal');
     if(id === 'pinPayout') return prestigeLevel('pinPrivilege');
+    if(id === 'hotStreak') return prestigeLevel('houseEdge');
+    if(id === 'feltGrease') return prestigeLevel('feltWax');
     return 0;
   }
 
@@ -3178,10 +3196,6 @@
     const next = Math.min(maxPurchasableLevel(id), before + n);
     upgrades[id] = next;
     return next - before;
-  }
-
-  function prestigeChipMult(){
-    return 1 + 0.2 * prestigeLevel('houseEdge');
   }
 
   function upgradeCostMult(){
@@ -3461,7 +3475,7 @@
   function contractRewardText(reward){
     const r = reward || {};
     const parts = [];
-    if(r.chips) parts.push('+' + formatNum(r.chips) + ' chips');
+    if(r.chips) parts.push('+' + formatNum(blindBonusChips(r.chips, 'contracts')) + ' chips');
     if(r.comps) parts.push('+' + r.comps + ' VIP comps');
     if(r.runComps) parts.push('+' + r.runComps + ' Cash Out comps');
     if(r.prestige){
@@ -3479,10 +3493,11 @@
     opts = opts || {};
     const r = reward || {};
     if(r.chips){
-      score += r.chips;
+      const chips = blindBonusChips(r.chips, 'contracts');
+      score += chips;
       if(!opts.skipFly){
-        if(opts.originEl) spawnRewardParticles(opts.originEl, { chips: r.chips });
-        else spawnChipFly(W/2, PEG_ZONE * 0.38, r.chips);
+        if(opts.originEl) spawnRewardParticles(opts.originEl, { chips });
+        else spawnChipFly(W/2, PEG_ZONE * 0.38, chips);
       }
     }
     if(r.comps){
@@ -3909,8 +3924,52 @@
     return 1 + 0.25 * upgradeLevel('bigBlind');
   }
 
+  // VIP Open Blind — each level adds Big Blind’s multiplier to another payout type.
+  const BLIND_SPREAD_ORDER = ['pin', 'bumper', 'floor', 'contracts', 'levelBonus'];
+  const BLIND_SPREAD_LABELS = {
+    pin: 'pin tips',
+    bumper: 'rail tax',
+    floor: 'sweep stakes',
+    contracts: 'quests & achievements',
+    levelBonus: 'level bonuses'
+  };
+
+  function blindSpreadLevel(){
+    return prestigeLevel('blindSpread');
+  }
+
+  function blindSpreadTargets(spread){
+    spread = spread == null ? blindSpreadLevel() : Math.max(0, Math.floor(spread));
+    const targets = ['hands'];
+    for(let i = 0; i < spread && i < BLIND_SPREAD_ORDER.length; i++){
+      targets.push(BLIND_SPREAD_LABELS[BLIND_SPREAD_ORDER[i]]);
+    }
+    return targets;
+  }
+
+  function blindSpreadEffectText(spread){
+    if(upgradeLevel('bigBlind') <= 0) return 'Buy Big Blind first';
+    const mult = tableScoreMultiplier().toFixed(2).replace(/\.00$/, '');
+    return '×' + mult + ' on ' + blindSpreadTargets(spread).join(', ');
+  }
+
+  function blindMultiplier(category){
+    if(upgradeLevel('bigBlind') <= 0) return 1;
+    const mult = tableScoreMultiplier();
+    if(category === 'hands') return mult;
+    const idx = BLIND_SPREAD_ORDER.indexOf(category);
+    if(idx < 0) return 1;
+    return blindSpreadLevel() > idx ? mult : 1;
+  }
+
+  function blindBonusChips(amount, category){
+    amount = Math.floor(amount);
+    if(amount <= 0) return 0;
+    return Math.floor(amount * blindMultiplier(category));
+  }
+
   function scoreMultiplier(){
-    return tableScoreMultiplier() * prestigeChipMult();
+    return blindMultiplier('hands');
   }
 
   function chainBonus(){
@@ -3923,18 +3982,18 @@
 
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? Math.floor(lvl * prestigeChipMult()) : 0;
+    return lvl ? Math.floor(lvl * blindMultiplier('pin')) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? Math.floor(lvl * 2 * prestigeChipMult()) : 0;
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper')) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
-    return lvl ? Math.floor(lvl * 75 * scoreMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor')) : 0;
   }
 
   function suitBombCooldownMs(){
@@ -4065,7 +4124,7 @@
         parts.push('+' + bonus.comps + ' Cash Out comp' + (bonus.comps === 1 ? '' : 's'));
       }
       if(bonus.chips){
-        parts.push('+' + formatNum(bonus.chips) + ' chips');
+        parts.push('+' + formatNum(blindBonusChips(bonus.chips, 'levelBonus')) + ' chips');
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
@@ -4110,9 +4169,10 @@
     if(bonus){
       if(bonus.comps) runCompCredit += bonus.comps;
       if(bonus.chips){
-        score += bonus.chips;
+        const chips = blindBonusChips(bonus.chips, 'levelBonus');
+        score += chips;
         // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
-        if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, bonus.chips);
+        if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, chips);
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
@@ -4626,7 +4686,7 @@
           ? ('Every ' + formatInterval(autoDropIntervalMs()))
           : 'Paused';
       case 'bigBlind':
-        return '×' + tableScoreMultiplier().toFixed(2).replace(/\.00$/,'');
+        return lvl ? blindSpreadEffectText() : 'No bonus';
       case 'hotStreak':
         return lvl ? ('+' + lvl + ' chain') : 'No bonus';
       case 'premiumCut': {
@@ -4673,7 +4733,9 @@
     const lvl = prestigeLevel(def.id);
     switch(def.id){
       case 'houseEdge':
-        return '×' + prestigeChipMult().toFixed(2).replace(/\.00$/,'') + ' chips';
+        return lvl
+          ? ('+' + lvl + ' Hot Streak · now Lv ' + upgradeLevel('hotStreak'))
+          : 'No Hot Streak bonus';
       case 'seedStack':
         return lvl ? (formatNum(startingChips()) + ' start') : 'Empty pockets';
       case 'rackDiscount':
@@ -4682,6 +4744,8 @@
           : 'Full price';
       case 'compCard':
         return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
+      case 'blindSpread':
+        return blindSpreadEffectText(lvl);
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
@@ -4690,6 +4754,10 @@
         return lvl
           ? ('+' + lvl + ' Pin Tip · now Lv ' + upgradeLevel('pinPayout'))
           : 'No Pin Tip bonus';
+      case 'feltWax':
+        return lvl
+          ? ('+' + lvl + ' Felt Grease · now Lv ' + upgradeLevel('feltGrease'))
+          : 'No Felt Grease bonus';
       case 'questInk':{
         const rar = QUEST_RARITIES[maxQuestRarityIndex()] || 'common';
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
