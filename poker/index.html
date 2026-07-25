@@ -1006,6 +1006,7 @@
     transition:width .08s linear;
   }
   .suit-bomb{
+    position:relative;
     width:100%;
     flex:0 0 auto;
     display:none;
@@ -1015,21 +1016,27 @@
     border:1px solid #2a2545;
     border-radius:12px;
     padding:10px 12px;
+    overflow:hidden;
   }
   .suit-bomb.show{display:flex;}
-  .suit-bomb.picker-hidden{padding-bottom:8px;}
   .suit-bomb.picker-hidden .suit-bomb-btns{display:none;}
   .suit-bomb-charge{
-    display:none;
-    height:4px;
-    border-radius:999px;
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:3px;
     background:rgba(255,255,255,0.06);
+    pointer-events:none;
     overflow:hidden;
+    display:none;
   }
   .suit-bomb.picker-hidden .suit-bomb-charge{display:block;}
   .suit-bomb-charge > span{
-    display:block;
-    height:100%;
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:0;
     width:0%;
     background:linear-gradient(90deg, var(--felt), var(--felt-bright));
     transition:width .08s linear, background .2s ease;
@@ -2019,8 +2026,8 @@
         <b>Suit Purge</b>
         <span id="suitBombStatus">ready</span>
       </div>
-      <div class="suit-bomb-charge" aria-hidden="true"><span id="suitBombChargeFill"></span></div>
       <div class="suit-bomb-btns" id="suitBombBtns"></div>
+      <div class="suit-bomb-charge" aria-hidden="true"><span id="suitBombChargeFill"></span></div>
     </div>
 
     <div class="board-frame">
