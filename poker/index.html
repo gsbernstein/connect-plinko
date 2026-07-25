@@ -2918,6 +2918,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 26,
+      date: 'Jul 25, 2026',
+      title: 'Storm the Beaches VIP perk',
+      items: [
+        'New VIP perk: Storm the Beaches — Auto Dealer runs ~3× faster, but cards can randomly explode on pins.',
+        'Toggle On/Off anytime. Pairs chaotically with Pin Split if you want both risk modes at once.'
+      ]
+    },
+    {
       id: 25,
       date: 'Jul 25, 2026',
       title: 'Pin Split VIP perk',
@@ -3785,13 +3794,22 @@
       costScale: 1,
       maxLevel: 1,
       toggleable: true
+    },
+    {
+      id: 'stormBeaches',
+      name: 'Storm the Beaches',
+      desc: 'Auto Dealer runs ~3× faster, but cards can randomly explode when they hit a pin. High volume, high casualties. Toggle On/Off anytime.',
+      baseCost: 18,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
     }
   ];
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -3945,6 +3963,26 @@
 
   function manualDropCooldownMs(){
     return pinSplitActive() ? PIN_SPLIT_MANUAL_COOLDOWN_MS : 0;
+  }
+
+  function stormBeachesUnlocked(){
+    return prestigeLevel('stormBeaches') > 0;
+  }
+
+  function stormBeachesActive(){
+    return stormBeachesUnlocked() && isAutoEnabled('stormBeaches');
+  }
+
+  // Storm the Beaches: flood the table, but pins can shell falling cards.
+  const STORM_BEACHES_SPAWN_MULT = 1 / 3; // ~3× faster Auto Dealer
+  const STORM_BEACHES_EXPLODE_CHANCE = 0.22;
+
+  function stormBeachesSpawnMult(){
+    return stormBeachesActive() ? STORM_BEACHES_SPAWN_MULT : 1;
+  }
+
+  function dropSpawnMult(){
+    return pinSplitSpawnMult() * stormBeachesSpawnMult();
   }
 
   function tableTiltUnlocked(){
@@ -4733,8 +4771,8 @@
     const lvl = upgradeLevel('autoDealer');
     if(lvl <= 0 || !isAutoEnabled('autoDealer')) return Infinity;
     // ~2.4s at Lv1 → ~34ms by Lv12 (2 physics ticks at 60Hz).
-    // Pin Split stretches the cadence ~10× while the perk is on.
-    return Math.floor(2400 * Math.pow(0.68, lvl - 1) * pinSplitSpawnMult());
+    // Pin Split / Storm the Beaches stretch or compress cadence via dropSpawnMult().
+    return Math.floor(2400 * Math.pow(0.68, lvl - 1) * dropSpawnMult());
   }
 
   function autoDropIntervalTicks(){
@@ -5726,6 +5764,10 @@
         if(!lvl) return 'Normal drops';
         if(!isAutoEnabled('pinSplit')) return 'Paused';
         return '×' + PIN_SPLIT_SPAWN_MULT + ' slower · split on pins';
+      case 'stormBeaches':
+        if(!lvl) return 'Steady landings';
+        if(!isAutoEnabled('stormBeaches')) return 'Paused';
+        return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% pin shells';
       default:
         return '';
     }
@@ -6627,6 +6669,32 @@
     balls.push(twin);
   }
 
+  function detonateFallingBall(ball){
+    if(!ball || ball.exploded) return;
+    ball.exploded = true;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.spin = 0;
+    spawnExplosion(ball.x, ball.y, ball.card);
+    if(ball.stackEntry != null && ball.targetCol != null){
+      const col = ball.targetCol;
+      const idx = stack[col].indexOf(ball.stackEntry);
+      if(idx >= 0){
+        stack[col].splice(idx, 1);
+        rebuildColumnFromStack(col);
+        recomputeBumpers();
+      }
+      ball.stackEntry = null;
+      ball.targetCol = null;
+      ball.row = null;
+    }
+  }
+
+  function sweepExplodedBalls(){
+    if(!balls.some(b => b.exploded)) return;
+    balls = balls.filter(b => !b.exploded);
+  }
+
   function dropInColumn(col){
     if(inputBlocked()) return;
     dropAt(col*CELL + CELL/2, {autoCol: col});
@@ -6696,6 +6764,7 @@
   }
 
   function stepBall(ball, gravity){
+    if(ball.exploded) return;
     ball.frameSafety++;
     ball.angle += ball.spin;
     ball.spin *= 0.992;
@@ -6751,12 +6820,20 @@
             }
           }
           p.hit = 10;
+          // Storm the Beaches: fresh pin contacts can shell the card mid-fall.
+          if(freshHit && stormBeachesActive() && !ball.cascadeBall
+              && Math.random() < STORM_BEACHES_EXPLODE_CHANCE){
+            detonateFallingBall(ball);
+            break;
+          }
           // Pin Split: first contact with a pin can bifurcate the card.
           if(freshHit && canSplitBall(ball)){
             spawnSplitTwin(ball, nx, ny);
           }
         }
       }
+
+      if(ball.exploded) return;
 
       collideBallWithBumpers(ball);
 
@@ -7012,6 +7089,7 @@
       for(const ball of balls){
         stepBall(ball, gravity);
       }
+      sweepExplodedBalls();
       resolveBallCollisions();
       forceSeatStuckGridBalls();
       physicsAccumulator -= PHYSICS_DT;
