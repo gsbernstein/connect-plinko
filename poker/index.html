@@ -702,15 +702,18 @@
     line-height:16px;
     text-align:center;
   }
-  .rail-tab-badge.is-new{
+  .rail-tab-badge.is-new,
+  .rail-tab-badge.is-dot{
     min-width:10px;
     width:10px;
     height:10px;
     padding:0;
     font-size:0;
     line-height:0;
-    background:#e85d6a;
     color:transparent;
+  }
+  .rail-tab-badge.is-new{
+    background:#e85d6a;
     box-shadow:0 0 0 2px rgba(23,20,38,0.92);
   }
   .rail-tab[data-panel="achievements"] .rail-tab-badge,
@@ -2746,6 +2749,15 @@
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   const CHANGELOG = [
+    {
+      id: 14,
+      date: 'Jul 25, 2026',
+      title: 'VIP tab badge',
+      items: [
+        'Cash Out no longer adds to the VIP tab count — only affordable VIP perks do.',
+        'When Cash Out is ready and nothing else is, the VIP tab shows a plain badge (no number).'
+      ]
+    },
     {
       id: 13,
       date: 'Jul 25, 2026',
@@ -7994,26 +8006,39 @@
     if(changed) scheduleSave();
   }
 
-  function setTabBadge(panel, count){
+  function setTabBadge(panel, count, opts){
     const el = tabBadges[panel];
     if(!el) return;
+    opts = opts || {};
     if(hasNewUnlockBadge(panel)){
       el.hidden = false;
       el.textContent = '';
       el.classList.add('is-new');
+      el.classList.remove('is-dot');
       el.setAttribute('aria-label', 'New unlock');
       return;
     }
     el.classList.remove('is-new');
-    el.removeAttribute('aria-label');
     const n = Math.max(0, count | 0);
-    if(n <= 0){
-      el.hidden = true;
-      el.textContent = '0';
+    if(n > 0){
+      el.hidden = false;
+      el.classList.remove('is-dot');
+      el.removeAttribute('aria-label');
+      el.textContent = n > 99 ? '99+' : String(n);
       return;
     }
-    el.hidden = false;
-    el.textContent = n > 99 ? '99+' : String(n);
+    // Count is 0: optional empty/dot badge (e.g. Cash Out ready, no VIP buys).
+    if(opts.empty){
+      el.hidden = false;
+      el.textContent = '';
+      el.classList.add('is-dot');
+      el.setAttribute('aria-label', opts.ariaLabel || 'Available');
+      return;
+    }
+    el.hidden = true;
+    el.classList.remove('is-dot');
+    el.removeAttribute('aria-label');
+    el.textContent = '0';
   }
 
   function panelTabUnlocked(panel){
@@ -8477,7 +8502,8 @@
 
   function updatePrestigeUI(){
     const { ready } = updateCashOutUI();
-    let vipReady = ready ? 1 : 0;
+    // Badge number = affordable VIP perks only; Cash Out never increments the count.
+    let vipReady = 0;
     if(prestigeUpgradesEl){
       const active = [];
       const maxedList = [];
@@ -8502,7 +8528,7 @@
       orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
     }
     if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
-    setTabBadge('vip', vipReady);
+    setTabBadge('vip', vipReady, ready ? { empty: true, ariaLabel: 'Cash Out ready' } : null);
     updateRailTabAvailability();
   }
 
