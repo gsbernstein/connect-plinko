@@ -2545,7 +2545,7 @@
   const MAX_AUTO_DROP_BALLS = 264;
   const MAX_POPUPS = 36;
   const MAX_PARTICLES = 180;
-  const MAX_RUN_LEVEL = 40;
+  const MAX_RUN_LEVEL = 200;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
   const MIN_CASH_OUT_LEVEL = 8;
   // Shop order = array order. unlockAt = run level required to first reveal.
@@ -2677,7 +2677,18 @@
     25: { comps: 4, label: '+4 Cash Out comps' },
     30: { comps: 5, prestige: 'rackDiscount', label: '+5 comps · VIP +1 Rack Discount' },
     35: { comps: 6, prestige: 'compCard', label: '+6 comps · VIP +1 Comp Card' },
-    40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' }
+    40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' },
+    50: { comps: 10, prestige: 'pinPrivilege', label: '+10 comps · VIP +1 Pin Privilege' },
+    60: { comps: 12, label: '+12 Cash Out comps' },
+    70: { comps: 14, prestige: 'feltWax', label: '+14 comps · VIP +1 Felt Wax' },
+    80: { comps: 16, label: '+16 Cash Out comps' },
+    90: { comps: 18, prestige: 'blindSpread', label: '+18 comps · VIP +1 Open Blind' },
+    100: { comps: 20, prestige: 'questInk', label: '+20 comps · VIP +1 Quest Ink' },
+    120: { comps: 24, label: '+24 Cash Out comps' },
+    140: { comps: 28, prestige: 'houseEdge', label: '+28 comps · VIP +1 House Edge' },
+    160: { comps: 32, label: '+32 Cash Out comps' },
+    180: { comps: 36, prestige: 'quickDeal', label: '+36 comps · VIP +1 Quick Deal' },
+    200: { comps: 50, prestige: 'compCard', label: '+50 comps · VIP +1 Comp Card' }
   };
 
   // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
@@ -2715,6 +2726,8 @@
     'STRAIGHT FLUSH': ['runStraights', 'runFlushes']
   };
   const MAX_QUEST_SLOTS = 5;
+  // Quest slots unlock at these run levels (spread across the full climb).
+  const QUEST_SLOT_UNLOCK_LEVELS = [2, 50, 100, 150, 200];
   const QUEST_CLAIM_ANIM_MS = 360;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
@@ -3285,14 +3298,23 @@
     return pendingComps() > 0;
   }
 
+  function questSlotUnlockLevel(slotIndex){
+    return QUEST_SLOT_UNLOCK_LEVELS[slotIndex] || null;
+  }
+
   function questSlotCap(){
-    // One slot per run level above 1, capped at 5.
-    return Math.min(MAX_QUEST_SLOTS, Math.max(0, runLevel - 1));
+    let cap = 0;
+    for(const unlockLvl of QUEST_SLOT_UNLOCK_LEVELS){
+      if(runLevel >= unlockLvl) cap++;
+      else break;
+    }
+    return Math.min(MAX_QUEST_SLOTS, cap);
   }
 
   function questsTabUnlocked(){
-    // First opens at run Lv 2; stays after Cash Out (slots still gate on this run).
-    return questSlotCap() > 0 || highestRunLevelReached() >= 2;
+    // First slot opens at run Lv 2; stays after Cash Out (slots still gate on this run).
+    const firstUnlock = QUEST_SLOT_UNLOCK_LEVELS[0] || 2;
+    return questSlotCap() > 0 || highestRunLevelReached() >= firstUnlock;
   }
 
   function upgradesTabUnlocked(){
@@ -4179,9 +4201,8 @@
     if(lvl === MIN_CASH_OUT_LEVEL && firstTimeAtLevel){
       parts.push('VIP Lounge unlocked');
     }
-    // Slot i unlocks at run level i+1 (first slot at Lv 2).
-    if(lvl >= 2 && lvl <= MAX_QUEST_SLOTS + 1){
-      if(lvl === 2){
+    if(QUEST_SLOT_UNLOCK_LEVELS.includes(lvl)){
+      if(lvl === QUEST_SLOT_UNLOCK_LEVELS[0]){
         if(firstTimeAtLevel) parts.push('Quests unlocked');
       } else {
         parts.push('Quest slot +1');
@@ -7944,7 +7965,7 @@
   }
 
   function fillLockedQuestButton(btn, slotIndex){
-    const unlockLvl = slotIndex + 2;
+    const unlockLvl = questSlotUnlockLevel(slotIndex) || (slotIndex + 2);
     for(const r of QUEST_RARITIES) btn.classList.remove('rarity-' + r);
     btn.classList.remove('claimable', 'claimed');
     btn.classList.add('quest-locked');
