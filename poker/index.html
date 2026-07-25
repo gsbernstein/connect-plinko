@@ -2922,7 +2922,7 @@
       date: 'Jul 25, 2026',
       title: 'Highest combo achievements',
       items: [
-        'New infinite Multiway achievement for your biggest COMBO — tiers every ×2 (×2, ×4, ×6…) and keeps going.'
+        'New infinite Multiway achievement for your biggest COMBO — climb ×2, ×3, ×4… one step at a time.'
       ]
     },
     {
@@ -3559,12 +3559,12 @@
       id: 'a_max_combo', kind: 'achievement', name: 'Multiway',
       desc: 'Reach COMBO ×{n}.',
       stat: 'maxCombo', unlockAt: 1, infinite: true,
-      scale: { targetStep: 2, compPerLevel: 2, compCap: 40 },
+      scale: { targetStep: 1, compPerLevel: 2, compCap: 40 },
       tiers: [
         { target: 2, reward: { chips: 200 } },
-        { target: 4, reward: { comps: 2 } },
-        { target: 6, reward: { comps: 4 } },
-        { target: 8, reward: { comps: 8 } }
+        { target: 3, reward: { comps: 2 } },
+        { target: 4, reward: { comps: 4 } },
+        { target: 5, reward: { comps: 8 } }
       ]
     },
     {
