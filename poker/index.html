@@ -1890,6 +1890,52 @@
     return String(r);
   }
   function cardFace(card){ return rankLabel(card.rank) + card.suit; }
+  const CARD_TIER_LABELS = ['', 'Silver', 'Gold', 'Diamond'];
+  const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
+  const CARD_TIER_RING = [
+    null,
+    ['#E8EDF4', '#98A4B8'],
+    ['#F7E7A8', '#C9A24A'],
+    ['#E8FAFF', '#6EC8FF']
+  ];
+  function cardTier(card){
+    const t = card && card.tier;
+    return (typeof t === 'number' && t >= 1 && t <= 3) ? (t | 0) : 0;
+  }
+  function cloneCard(card, extra){
+    const c = {suit: card.suit, rank: card.rank};
+    const t = cardTier(card);
+    if(t) c.tier = t;
+    if(extra) Object.assign(c, extra);
+    return c;
+  }
+  function premiumCutChances(){
+    const lvl = upgradeLevel('premiumCut');
+    if(!lvl) return {silver: 0, gold: 0, diamond: 0};
+    return {
+      diamond: Math.min(0.08, 0.002 + lvl * 0.003),
+      gold: Math.min(0.20, 0.01 + lvl * 0.012),
+      silver: Math.min(0.45, 0.03 + lvl * 0.028)
+    };
+  }
+  function rollCardTier(){
+    const {silver, gold, diamond} = premiumCutChances();
+    const r = Math.random();
+    if(r < diamond) return 3;
+    if(r < diamond + gold) return 2;
+    if(r < diamond + gold + silver) return 1;
+    return 0;
+  }
+  function handCardMultiplier(cards){
+    let bonus = 0;
+    for(const c of cards){
+      bonus += CARD_TIER_BONUS[cardTier(c)] || 0;
+    }
+    return 1 + bonus;
+  }
+  function tierLabelShort(t){
+    return t === 3 ? '◆' : t === 2 ? '★' : t === 1 ? '✦' : '';
+  }
   function trailRGBA(card, alpha){
     const hex = SUIT_COLOR[card.suit] || '#ffffff';
     const n = parseInt(hex.slice(1), 16);
@@ -2040,7 +2086,10 @@
   let shoe = [];
   function dealCard(){
     if(shoe.length < 8) shoe = shoe.concat(makeDeck());
-    return shoe.pop();
+    const card = shoe.pop();
+    const tier = rollCardTier();
+    if(tier) card.tier = tier;
+    return card;
   }
 
   // Aces play high or low for straights.
@@ -2173,6 +2222,15 @@
       baseCost: 120,
       costScale: 2.0,
       maxLevel: 10,
+      unlockAt: 4
+    },
+    {
+      id: 'premiumCut',
+      name: 'Premium Cut',
+      desc: 'Chance to deal Silver, Gold, or Diamond cards. Each premium card in a scored hand boosts that hand\'s payout.',
+      baseCost: 150,
+      costScale: 2.0,
+      maxLevel: 15,
       unlockAt: 4
     },
     {
@@ -3761,6 +3819,12 @@
         return '×' + tableScoreMultiplier().toFixed(2).replace(/\.00$/,'');
       case 'hotStreak':
         return lvl ? ('+' + lvl + ' chain') : 'No bonus';
+      case 'premiumCut': {
+        if(!lvl) return 'Standard cards only';
+        const {silver, gold, diamond} = premiumCutChances();
+        const pct = n => (n * 100).toFixed(n < 0.01 ? 1 : 0).replace(/\.0$/, '') + '%';
+        return pct(silver) + ' silver · ' + pct(gold) + ' gold · ' + pct(diamond) + ' diamond';
+      }
       case 'pinPayout':
         return lvl ? ('+' + pinHitPayout() + ' / peg') : 'No payout';
       case 'bumperPayout':
@@ -4751,7 +4815,7 @@
         entry.row = row;
         entry.ball.row = row;
       } else {
-        col[row] = {suit: entry.card.suit, rank: entry.card.rank, angle: entry.angle||0};
+        col[row] = cloneCard(entry.card, {angle: entry.angle || 0});
       }
     }
     for(let r=0;r<ROWS;r++) grid[c][r] = col[r];
@@ -4986,12 +5050,12 @@
   function finalizeDrop(ball){
     const col = ball.targetCol, row = ball.row;
     const angle = ball.angle || 0;
-    const card = {suit: ball.card.suit, rank: ball.card.rank, angle};
+    const card = cloneCard(ball.card, {angle});
     grid[col][row] = card;
     markHintsDirty();
     if(ball.stackEntry){
       ball.stackEntry.type = 'piece';
-      ball.stackEntry.card = {suit: card.suit, rank: card.rank};
+      ball.stackEntry.card = cloneCard(card);
       ball.stackEntry.angle = angle;
       delete ball.stackEntry.ball;
     }
@@ -5025,12 +5089,15 @@
           for(let len=5; len>=3; len--){
             if(cards.length < len) continue;
             for(let i=0;i<=cards.length-len;i++){
-              const hand = evaluateCards(cards.slice(i, i+len));
+              const slice = cards.slice(i, i+len);
+              const hand = evaluateCards(slice);
               if(!hand) continue;
+              const cardMult = handCardMultiplier(slice);
               candidates.push({
                 i, len,
                 name: hand.name,
                 points: hand.points,
+                cardMult,
                 cells: cells.slice(i, i+len)
               });
             }
@@ -5045,6 +5112,7 @@
             groups.push({
               name: cand.name,
               points: cand.points,
+              cardMult: cand.cardMult,
               cells: cand.cells,
               color: SUIT_COLOR[cards[cand.i].suit]
             });
@@ -5262,7 +5330,7 @@
 
   function scoreGroups(groups, chainMultiplier){
     let pts = 0;
-    for(const g of groups) pts += g.points;
+    for(const g of groups) pts += g.points * (g.cardMult || 1);
     if(groups.length > 1) pts += (groups.length - 1);
     return pts * chainMultiplier;
   }
@@ -5270,7 +5338,7 @@
   function spawnHandChipFlies(groups, chainMult){
     const mult = scoreMultiplier();
     for(const g of groups){
-      const pts = Math.floor(g.points * chainMult * mult);
+      const pts = Math.floor(g.points * (g.cardMult || 1) * chainMult * mult);
       if(pts <= 0 || !g.cells || !g.cells.length) continue;
       // Poker scores are small integers — juice the burst by hand strength
       // and spit chips from every cleared seat so clears feel rewarding.
@@ -5322,14 +5390,16 @@
       const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
       const x = avgC*CELL+CELL/2;
       const y = PEG_ZONE + avgR*CELL + CELL/2;
-      const pts = Math.floor(g.points * chainMult * mult);
+      const cardMult = g.cardMult || 1;
+      const pts = Math.floor(g.points * cardMult * chainMult * mult);
       const tier = handTextTier(g.name);
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
       const bangs = '!'.repeat(fx.bangs);
+      const multTag = cardMult > 1.001 ? (' ×' + cardMult.toFixed(2).replace(/\.00$/, '')) : '';
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + bangs + ' +' + pts,
+        text: g.name + multTag + bangs + ' +' + pts,
         color: brightenColor(g.color || '#ffffff', fx.bright),
         t0: now,
         duration: fx.duration,
@@ -5418,7 +5488,7 @@
       phase: 'peg',
       targetCol: null,
       row: null,
-      card: {suit: card.suit, rank: card.rank},
+      card: cloneCard(card),
       angle: angle || 0,
       spin: (Math.random()-0.5)*0.5,
       frameSafety: 0,
@@ -5856,6 +5926,30 @@
     }
     target.shadowBlur = 0;
     drawChipGlyphs(target, card, radius);
+
+    const tier = cardTier(card);
+    if(tier){
+      const ring = CARD_TIER_RING[tier];
+      const ringR = radius + (isBall ? 1.5 : 2);
+      const ringGrad = target.createLinearGradient(-ringR, -ringR, ringR, ringR);
+      ringGrad.addColorStop(0, ring[0]);
+      ringGrad.addColorStop(1, ring[1]);
+      target.beginPath();
+      target.arc(0, 0, ringR, 0, Math.PI * 2);
+      target.strokeStyle = ringGrad;
+      target.lineWidth = Math.max(2, radius * 0.11);
+      target.stroke();
+      if(tier === 3){
+        target.shadowColor = '#8EE4FF';
+        target.shadowBlur = Math.max(5, radius * 0.28);
+        target.beginPath();
+        target.arc(0, 0, ringR + 1, 0, Math.PI * 2);
+        target.strokeStyle = 'rgba(180,240,255,0.35)';
+        target.lineWidth = 1.5;
+        target.stroke();
+        target.shadowBlur = 0;
+      }
+    }
 
     if(highlight){
       target.beginPath();
@@ -7124,7 +7218,8 @@
       nextCtx.clearRect(0,0,nextPreview.width, nextPreview.height);
       return;
     }
-    nextLabel.textContent = cardFace(nextCard);
+    const tierMark = tierLabelShort(cardTier(nextCard));
+    nextLabel.textContent = tierMark ? (tierMark + ' ' + cardFace(nextCard)) : cardFace(nextCard);
     nextCtx.clearRect(0,0,nextPreview.width, nextPreview.height);
     drawCardFace(nextCtx, 36, 36, nextCard, 0, 30, false, 0);
   }
