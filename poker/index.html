@@ -2954,7 +2954,7 @@
       title: 'Storm the Beaches VIP perk',
       items: [
         'New expensive VIP perk: Storm the Beaches — Auto Dealer runs ~3× faster, but cards can randomly explode on pins.',
-        'Toggle On/Off anytime.'
+        'Exploding cards blast nearby falling chips outward. Toggle On/Off anytime.'
       ]
     },
     {
@@ -4017,6 +4017,8 @@
   // Storm the Beaches: flood the table, but pins can shell falling cards.
   const STORM_BEACHES_SPAWN_MULT = 1 / 3; // ~3× faster Auto Dealer
   const STORM_BEACHES_EXPLODE_CHANCE = 0.22;
+  const STORM_BEACHES_BLAST_RADIUS = 120;
+  const STORM_BEACHES_BLAST_FORCE = 10;
 
   function stormBeachesSpawnMult(){
     return stormBeachesActive() ? STORM_BEACHES_SPAWN_MULT : 1;
@@ -6739,6 +6741,31 @@
     balls.push(twin);
   }
 
+  function applyStormBlast(origin){
+    const ox = origin.x, oy = origin.y;
+    const R = STORM_BEACHES_BLAST_RADIUS;
+    for(const b of balls){
+      if(b === origin || b.exploded || b.landed) continue;
+      // Only shove in-flight chips — settled board pieces stay put.
+      if(b.phase !== 'peg' && b.phase !== 'grid') continue;
+      const dx = b.x - ox, dy = b.y - oy;
+      const dist = Math.hypot(dx, dy);
+      if(dist < 0.0001 || dist > R) continue;
+      const falloff = 1 - dist / R;
+      const impulse = STORM_BEACHES_BLAST_FORCE * (0.4 + 0.6 * falloff * falloff);
+      const nx = dx / dist, ny = dy / dist;
+      b.vx += nx * impulse;
+      b.vy += ny * impulse - 2.2 * falloff;
+      b.vx = Math.max(-12, Math.min(12, b.vx));
+      b.vy = Math.max(-14, Math.min(15, b.vy));
+      b.spin += (nx > 0 ? 1 : -1) * (0.15 + 0.35 * falloff);
+      // A hard upward kick can yank a seating chip back into the pegs.
+      if(b.phase === 'grid' && b.vy < -0.5){
+        releaseBallToPegs(b);
+      }
+    }
+  }
+
   function detonateFallingBall(ball){
     if(!ball || ball.exploded) return;
     ball.exploded = true;
@@ -6746,6 +6773,7 @@
     ball.vy = 0;
     ball.spin = 0;
     spawnExplosion(ball.x, ball.y, ball.card);
+    applyStormBlast(ball);
     if(ball.stackEntry != null && ball.targetCol != null){
       const col = ball.targetCol;
       const idx = stack[col].indexOf(ball.stackEntry);
