@@ -919,7 +919,16 @@
     font-size:12px;
     color:var(--ink-dim);
     white-space:nowrap;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease, transform .08s ease;
   }
+  .idle-pill:hover,
+  .idle-pill:focus-visible{
+    border-color:rgba(230,195,92,0.45);
+    background:var(--panel-2);
+    outline:none;
+  }
+  .idle-pill:active{transform:translateY(1px);}
   .idle-pill:not([hidden]){display:flex;}
   .idle-pill[hidden]{display:none !important;}
   .idle-pill-head{
@@ -1910,7 +1919,9 @@
         <span class="hud-label">Comps</span>
         <b class="hud-val" id="compsHudVal">0</b>
       </div>
-      <div class="idle-pill hud-tile" id="autoStatus" hidden>
+      <div class="idle-pill hud-tile" id="autoStatus" role="button" tabindex="0"
+           title="Auto Dealer — click to pause or resume" hidden
+           aria-label="Auto Dealer — click to pause or resume">
         <div class="idle-pill-head">
           <span class="hud-label">Auto</span>
           <b class="hud-val" id="autoStatusVal">—</b>
@@ -7557,6 +7568,22 @@
       }
     });
   }
+  if(autoStatusEl){
+    const toggleAutoDealer = ()=>{
+      if(upgradeLevel('autoDealer') <= 0) return;
+      setAutoEnabled('autoDealer', !isAutoEnabled('autoDealer'));
+    };
+    autoStatusEl.addEventListener('click', (e)=>{
+      e.preventDefault();
+      toggleAutoDealer();
+    });
+    autoStatusEl.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        toggleAutoDealer();
+      }
+    });
+  }
   if(levelModalClose) levelModalClose.addEventListener('click', closeLevelModal);
   if(levelModalBackdrop) levelModalBackdrop.addEventListener('click', closeLevelModal);
 
@@ -7604,6 +7631,10 @@
     const interval = autoDropIntervalMs();
     const on = enabled && Number.isFinite(interval);
     autoStatusEl.classList.toggle('on', on);
+    autoStatusEl.title = enabled
+      ? 'Auto Dealer — click to pause'
+      : 'Auto Dealer — click to resume';
+    autoStatusEl.setAttribute('aria-label', autoStatusEl.title);
     if(!enabled){
       if(autoStatusValEl) autoStatusValEl.textContent = 'paused';
       if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
