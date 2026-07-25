@@ -77,7 +77,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `bigRoomActive` / `castFireballsFrom` / `stepBurning` / `maybeFlamingKingIgnite` / `BIG_ROOM_*` | Big Room: explosions cast fireballs that ignite settled cards; burn ticks drip chips then ash out; crowned King Me leaps go aflame and light nearby cards |
 | `stormBeachLandingPayout` | Storm the Beaches: chips when a card survives pegs and enters the grid (`enterGridColumn`) |
 | `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
-| `suitPurgeActive` / `purgeCardPayout` / `suitBombPickerMinimized` / `suitPurgePairPenalty` | Suit Purge: shop toggle arms/disarms; bar tap minimizes picker; purge pays per card; auto-target deprioritizes Card Counting pairs |
+| `purgeCardPayout` / `suitBombPickerMinimized` / `suitBombUiVisible` / `suitPurgePairPenalty` | Suit Purge: shop Hide/Show and bar tap minimize picker only (purges keep running); purge pays per card; auto-target deprioritizes Card Counting pairs |
 | `maybeAutoBuy` / `PIT_BOSS_BUY_BATCH` / `PIT_BOSS_BUY_INTERVAL_MS` | Pit Boss (toggleable): up to 5 cheapest affordable shop buys per tick; `140` ms throttle |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
@@ -218,7 +218,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Big Room fireballs | `bigRoomActive` / `spawnExplosion` → `castFireballsFrom` (Storm pin shells + hand/floor clears); `stepFireballs` / `stepBurning` / `ashOutStackEntry`; flaming King Me via `launchKingJumper` → `maybeFlamingKingIgnite` |
 | Storm the Beaches landing | `stormBeachLandingPayout` in `enterGridColumn` when peg → grid |
 | Short Fuse toggle | `shortFuseActive` / `resolveSpeed` / `flashPulseCount`; `toggleable` on `shortFuse` def + `AUTO_TOGGLE_IDS` |
-| Suit Purge UI | `#suitBombBar`, `suitPurgeActive` / `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI`; shop toggle arms/disarms; bar tap minimizes picker |
+| Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI`; shop Hide/Show and bar tap minimize picker only |
 | New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
