@@ -3434,6 +3434,20 @@
     return achievementRevealed(def) && achievementComplete(def);
   }
 
+  function achievementProgressRatio(def){
+    const tier = achievementActiveTier(def);
+    if(!tier || !tier.target) return 0;
+    return achievementProgress(def) / tier.target;
+  }
+
+  function compareAchievementButtons(a, b){
+    // Ready-to-claim first, then closest to the next level, completed last.
+    if(a.canClaim !== b.canClaim) return a.canClaim ? -1 : 1;
+    if(a.fullyClaimed !== b.fullyClaimed) return a.fullyClaimed ? 1 : -1;
+    if(b.ratio !== a.ratio) return b.ratio - a.ratio;
+    return a.order - b.order;
+  }
+
   function activeQuestProgress(q){
     const cur = stats[q.stat] || 0;
     return Math.min(q.target, Math.max(0, cur - (q.baseline || 0)));
@@ -7844,10 +7858,9 @@
   function updateAchievementsUI(){
     if(!achievementsEl) return;
     let achieveReady = 0;
-    const claimable = [];
-    const active = [];
-    const done = [];
-    for(const def of ACHIEVEMENT_DEFS){
+    const visible = [];
+    for(let order = 0; order < ACHIEVEMENT_DEFS.length; order++){
+      const def = ACHIEVEMENT_DEFS[order];
       const btn = contractButtons[def.id];
       if(!btn) continue;
       const revealed = achievementRevealed(def);
@@ -7892,13 +7905,18 @@
           ? 'Complete'
           : (canClaim ? 'Claim reward' : 'In progress');
       }
-      if(canClaim) claimable.push(btn);
-      else if(fullyClaimed) done.push(btn);
-      else active.push(btn);
+      visible.push({
+        btn,
+        canClaim,
+        fullyClaimed,
+        ratio: stillSecret ? 0 : achievementProgressRatio(def),
+        order
+      });
     }
+    visible.sort(compareAchievementButtons);
     if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
     setTabBadge('achievements', achieveReady);
-    orderUpgradeButtons(achievementsEl, claimable.concat(active, done));
+    orderUpgradeButtons(achievementsEl, visible.map(entry => entry.btn));
   }
 
   function updateContractsUI(){
