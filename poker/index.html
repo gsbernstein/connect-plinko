@@ -66,11 +66,11 @@
     overflow:hidden;
   }
   .chip-fx-layer{
-    position:absolute;
+    position:fixed;
     inset:0;
     pointer-events:none;
-    overflow:hidden;
-    z-index:6;
+    overflow:visible;
+    z-index:50;
   }
   .fly-chip{
     position:absolute;
@@ -93,6 +93,55 @@
     inset:2.5px;
     border-radius:50%;
     border:1px dashed rgba(70,45,10,0.35);
+  }
+  .fly-comp,
+  .fly-run-comp,
+  .fly-spark{
+    position:absolute;
+    width:14px;
+    height:14px;
+    margin:-7px 0 0 -7px;
+    border-radius:4px;
+    background:linear-gradient(145deg, #F0D78C 0%, #C9A84A 55%, #8a6f2a 100%);
+    border:1px solid rgba(90,70,20,0.55);
+    box-shadow:0 1px 4px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,248,220,0.35);
+    will-change:transform, opacity;
+    pointer-events:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:9px;
+    font-weight:700;
+    color:#1a1408;
+    line-height:1;
+  }
+  .fly-comp::after{content:'★';}
+  .fly-run-comp{
+    border-radius:3px;
+    background:linear-gradient(145deg, #d4f0e4 0%, #7EC8A3 50%, #2d8a6e 100%);
+    border-color:rgba(46,138,110,0.55);
+    color:#0d2818;
+  }
+  .fly-run-comp::after{content:'$';}
+  .fly-spark{
+    width:6px;
+    height:6px;
+    margin:-3px 0 0 -3px;
+    border-radius:50%;
+    border:none;
+    background:radial-gradient(circle, #fff 0%, #7EC8A3 45%, transparent 100%);
+    box-shadow:0 0 6px rgba(126,200,163,0.65);
+    font-size:0;
+  }
+  .fly-spark::after{content:'';}
+  .comps-pill.comp-pulse{
+    animation:compLandPulse 0.32s ease-out;
+  }
+  @keyframes compLandPulse{
+    0%{ transform:scale(1); }
+    45%{ transform:scale(1.07); filter:brightness(1.14); }
+    100%{ transform:scale(1); filter:brightness(1); }
   }
   .score.chip-pulse{
     animation:chipLandPulse 0.32s ease-out;
@@ -371,7 +420,7 @@
     min-width:0;
     min-height:48px;
     padding:8px 2px 6px;
-    border:1px solid transparent;
+    border:none;
     border-radius:10px;
     background:transparent;
     color:var(--ink-dim);
@@ -380,7 +429,7 @@
     font-weight:700;
     letter-spacing:0.01em;
     cursor:pointer;
-    transition:color .15s ease, background .15s ease, border-color .15s ease;
+    transition:color .15s ease, background .15s ease;
   }
   .rail-tab:hover{
     color:var(--ink);
@@ -389,22 +438,13 @@
   .rail-tab.is-active{
     color:var(--ink);
     background:var(--panel-2);
-    border-color:#3a3558;
   }
-  .rail-tab[data-panel="table"].is-active{border-color:rgba(139,127,255,0.5); color:var(--peg);}
-  .rail-tab[data-panel="welcome"].is-active{border-color:rgba(46,138,110,0.5); color:var(--felt-bright);}
-  .rail-tab[data-panel="upgrades"].is-active{border-color:rgba(46,138,110,0.45); color:var(--felt-bright);}
-  .rail-tab[data-panel="quests"].is-active{border-color:rgba(126,200,163,0.45); color:#7EC8A3;}
-  .rail-tab[data-panel="quests"].quest-auto-claimed{
-    animation:questTabAutoClaim 1.1s ease;
-  }
-  .rail-tab[data-panel="quests"].quest-auto-claimed .rail-tab-badge{
+  .rail-tab[data-panel="table"].is-active{color:var(--peg);}
+  .rail-tab[data-panel="welcome"].is-active{color:var(--felt-bright);}
+  .rail-tab[data-panel="upgrades"].is-active{color:var(--felt-bright);}
+  .rail-tab[data-panel="quests"].is-active{color:#7EC8A3;}
+  .rail-tab-badge.quest-tab-badge-pop{
     animation:questTabBadgePop 1.1s ease;
-  }
-  @keyframes questTabAutoClaim{
-    0%,100%{box-shadow:none;border-color:transparent;}
-    18%{border-color:rgba(126,200,163,0.75);box-shadow:0 0 0 2px rgba(126,200,163,0.22), 0 0 14px rgba(126,200,163,0.28);}
-    42%{border-color:rgba(240,215,140,0.55);box-shadow:0 0 0 1px rgba(240,215,140,0.18), 0 0 10px rgba(240,215,140,0.2);}
   }
   @keyframes questTabBadgePop{
     0%,100%{transform:scale(1);}
@@ -412,9 +452,9 @@
     48%{transform:scale(0.94);}
     68%{transform:scale(1.08);}
   }
-  .rail-tab[data-panel="achievements"].is-active{border-color:rgba(240,215,140,0.45); color:#F0D78C;}
-  .rail-tab[data-panel="vip"].is-active{border-color:rgba(230,195,92,0.5); color:#E6C35C;}
-  .rail-tab[data-panel="settings"].is-active{border-color:#3a3558; color:var(--ink);}
+  .rail-tab[data-panel="achievements"].is-active{color:#F0D78C;}
+  .rail-tab[data-panel="vip"].is-active{color:#E6C35C;}
+  .rail-tab[data-panel="settings"].is-active{color:var(--ink);}
   .welcome-panel{
     flex:1 1 auto;
     justify-content:center;
@@ -672,22 +712,22 @@
   .quest.claimable .quest-action{color:var(--felt-bright);}
   .quest.claimed .quest-action{color:var(--ink-dim);font-weight:500;}
   .quest.quest-claiming{
-    animation:questClaimPop .32s ease forwards;
+    animation:questClaimDissolve .36s ease forwards;
     pointer-events:none;
     z-index:1;
   }
   .quest.quest-claiming-auto{
-    animation-name:questClaimPopAuto;
+    animation-name:questClaimDissolveAuto;
   }
-  @keyframes questClaimPop{
-    0%{transform:scale(1);filter:brightness(1);box-shadow:0 0 0 0 rgba(46,138,110,0.5);}
-    45%{transform:scale(1.03);filter:brightness(1.15);box-shadow:0 0 18px 3px rgba(46,138,110,0.35);}
-    100%{transform:scale(0.97);filter:brightness(0.85);opacity:0.45;}
+  @keyframes questClaimDissolve{
+    0%{filter:brightness(1);opacity:1;box-shadow:none;}
+    18%{filter:brightness(1.18);box-shadow:0 0 14px 2px rgba(46,138,110,0.22);}
+    100%{filter:brightness(0.82);opacity:0.38;transform:scale(0.985);}
   }
-  @keyframes questClaimPopAuto{
-    0%{transform:scale(1);filter:brightness(1);box-shadow:0 0 0 0 rgba(240,215,140,0.45);}
-    45%{transform:scale(1.02);filter:brightness(1.12);box-shadow:0 0 16px 2px rgba(240,215,140,0.32);}
-    100%{transform:scale(0.97);filter:brightness(0.85);opacity:0.45;}
+  @keyframes questClaimDissolveAuto{
+    0%{filter:brightness(1);opacity:1;box-shadow:none;}
+    18%{filter:brightness(1.14);box-shadow:0 0 12px 2px rgba(240,215,140,0.2);}
+    100%{filter:brightness(0.82);opacity:0.38;transform:scale(0.985);}
   }
   .quest.quest-rolling-in{
     animation:questRollIn .42s ease;
@@ -731,26 +771,21 @@
     overflow:hidden;
   }
   .upgrade-progress-bonus,
-  .upgrade-progress-bought,
-  .upgrade-progress > span{
+  .upgrade-progress-bought{
     position:absolute;
-    left:0;
     top:0;
     bottom:0;
     width:0%;
-    transition:width .2s ease;
+    transition:left .2s ease, width .2s ease;
   }
-  .upgrade-progress-bonus{
-    z-index:0;
-    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
-  }
-  .upgrade-progress-bought,
-  .upgrade-progress > span{
-    z-index:1;
+  .upgrade-progress-bought{
+    left:0;
     background:linear-gradient(90deg, var(--felt), var(--felt-bright));
   }
-  .upgrade.maxed .upgrade-progress-bought,
-  .upgrade.maxed .upgrade-progress > span{
+  .upgrade-progress-bonus{
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+  }
+  .upgrade.maxed .upgrade-progress-bought{
     background:linear-gradient(90deg, #463d7a, var(--peg));
   }
   @media (hover:hover) and (pointer:fine){
@@ -915,6 +950,8 @@
     padding:10px 12px;
   }
   .suit-bomb.show{display:flex;}
+  .suit-bomb.picker-hidden{padding-bottom:8px;}
+  .suit-bomb.picker-hidden .suit-bomb-btns{display:none;}
   .suit-bomb-head{
     display:flex;
     justify-content:space-between;
@@ -1178,8 +1215,7 @@
       overflow:visible;
     }
     .app.mode-shop .stage .board-frame,
-    .app.mode-shop .stage .suit-bomb,
-    .app.mode-shop .stage .chip-fx-layer{
+    .app.mode-shop .stage .suit-bomb{
       display:none !important;
     }
     .hud{
@@ -1469,6 +1505,16 @@
     0%{ box-shadow:0 0 0 0 rgba(230,195,92,0.55); }
     100%{ box-shadow:0 0 0 0 transparent; }
   }
+  .upgrade.auto-bought{
+    animation:upgradeAutoBuy .68s ease;
+    z-index:1;
+  }
+  @keyframes upgradeAutoBuy{
+    0%{filter:brightness(1);box-shadow:none;}
+    28%{filter:brightness(1.16);box-shadow:0 0 18px 3px rgba(46,138,110,0.38), 0 0 0 1px rgba(46,138,110,0.25);}
+    55%{filter:brightness(1.08);box-shadow:0 0 10px 2px rgba(126,200,163,0.22);}
+    100%{filter:brightness(1);box-shadow:none;}
+  }
   .cashout{
     display:flex;
     flex-direction:column;
@@ -1514,8 +1560,7 @@
     border-color:rgba(230,195,92,0.55);
     box-shadow:0 0 0 1px rgba(230,195,92,0.12);
   }
-  .upgrade.prestige-upgrade .upgrade-progress-bought,
-  .upgrade.prestige-upgrade .upgrade-progress > span{
+  .upgrade.prestige-upgrade .upgrade-progress-bought{
     background:linear-gradient(90deg, #8a6f2a, #E6C35C);
   }
   .upgrade.prestige-upgrade .upgrade-effect{color:#F0D78C;}
@@ -1827,8 +1872,8 @@
 </head>
 <body>
 <div class="app mode-table" id="app">
+  <div class="chip-fx-layer" id="chipFxLayer" aria-hidden="true"></div>
   <section class="stage is-active" id="panelTable" data-panel="table" aria-label="Table">
-    <div class="chip-fx-layer" id="chipFxLayer" aria-hidden="true"></div>
     <div class="hud">
       <div class="score hud-tile active" id="scoreBox">
         <span class="hud-label">Chips</span>
@@ -2579,11 +2624,12 @@
     {
       id: 'suitBomb',
       name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait.',
+      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait. Toggle to hide the suit picker.',
       baseCost: 400,
       costScale: 1.85,
       maxLevel: 12,
-      unlockAt: 11
+      unlockAt: 11,
+      toggleable: true
     },
     {
       id: 'autoSuitBomb',
@@ -2648,7 +2694,7 @@
     'TWO PAIR': 'runTwoPairs'
   };
   const MAX_QUEST_SLOTS = 5;
-  const QUEST_CLAIM_ANIM_MS = 320;
+  const QUEST_CLAIM_ANIM_MS = 360;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
     common:    { label: 'Common',    weight: 52, targetMult: 1,   rewardMult: 1,   color: '#9aa3b5' },
@@ -2977,10 +3023,10 @@
     {
       id: 'pitBoss',
       name: 'Pit Boss',
-      desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick. Toggle On/Off anytime.',
+      desc: 'Automatically buy the cheapest affordable table upgrade each tick. Toggle On/Off anytime.',
       baseCost: 12,
-      costScale: 2.4,
-      maxLevel: 5,
+      costScale: 1,
+      maxLevel: 1,
       toggleable: true
     }
   ];
@@ -2988,7 +3034,7 @@
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'questDesk', 'pitBoss'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -3077,6 +3123,10 @@
 
   function isAutoEnabled(id){
     return autoEnabled[id] !== false;
+  }
+
+  function suitBombUiVisible(){
+    return upgradeLevel('suitBomb') > 0 && isAutoEnabled('suitBomb');
   }
 
   function setAutoEnabled(id, on){
@@ -3410,14 +3460,24 @@
     return parts.length ? parts.join(' · ') : 'Reward';
   }
 
-  function applyContractReward(reward){
+  function applyContractReward(reward, opts){
+    opts = opts || {};
     const r = reward || {};
     if(r.chips){
       score += r.chips;
-      spawnChipFly(W/2, PEG_ZONE * 0.38, r.chips);
+      if(!opts.skipFly){
+        if(opts.originEl) spawnRewardParticles(opts.originEl, { chips: r.chips });
+        else spawnChipFly(W/2, PEG_ZONE * 0.38, r.chips);
+      }
     }
-    if(r.comps) comps += r.comps;
-    if(r.runComps) runCompCredit += r.runComps;
+    if(r.comps){
+      comps += r.comps;
+      if(!opts.skipFly && opts.originEl) spawnRewardParticles(opts.originEl, { comps: r.comps });
+    }
+    if(r.runComps){
+      runCompCredit += r.runComps;
+      if(!opts.skipFly && opts.originEl) spawnRewardParticles(opts.originEl, { runComps: r.runComps });
+    }
     if(r.prestige){
       const pDef = PRESTIGE_DEFS.find(u => u.id === r.prestige);
       if(pDef && prestigeLevel(pDef.id) < pDef.maxLevel){
@@ -3541,6 +3601,10 @@
     return activeRailPanel === 'quests';
   }
 
+  function isUpgradesPanelOpen(){
+    return activeRailPanel === 'upgrades';
+  }
+
   function playQuestClaimEffect(btn, opts){
     if(!btn) return;
     opts = opts || {};
@@ -3548,6 +3612,7 @@
     void btn.offsetWidth;
     btn.classList.add('quest-claiming');
     if(opts.auto) btn.classList.add('quest-claiming-auto');
+    if(opts.reward) spawnRewardParticles(btn, opts.reward);
     clearTimeout(btn._questClaimTimer);
     btn._questClaimTimer = setTimeout(()=>{
       btn.classList.remove('quest-claiming', 'quest-claiming-auto');
@@ -3564,13 +3629,17 @@
   }
 
   function pulseQuestTabAutoClaim(){
+    spawnRailTabBurst('quests', { count: 6, popSpread: 20 });
     const tab = questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
     if(!tab) return;
-    tab.classList.remove('quest-auto-claimed');
-    void tab.offsetWidth;
-    tab.classList.add('quest-auto-claimed');
-    clearTimeout(tab._questAutoClaimTimer);
-    tab._questAutoClaimTimer = setTimeout(()=>tab.classList.remove('quest-auto-claimed'), 1120);
+    const badge = tab.querySelector('.rail-tab-badge');
+    if(badge){
+      badge.classList.remove('quest-tab-badge-pop');
+      void badge.offsetWidth;
+      badge.classList.add('quest-tab-badge-pop');
+      clearTimeout(tab._questBadgePopTimer);
+      tab._questBadgePopTimer = setTimeout(()=>badge.classList.remove('quest-tab-badge-pop'), 1120);
+    }
   }
 
   function pushQuestClaimPopup(claimed){
@@ -3609,7 +3678,10 @@
     const animateCard = panelOpen && opts.animate !== false && !opts.deferUi;
 
     const finishClaim = ()=>{
-      applyContractReward(q.reward);
+      applyContractReward(q.reward, {
+        skipFly: !!animateCard || !!opts.skipRewardFly,
+        originEl: animateCard ? questSlotButtons[idx] : null
+      });
       const used = new Set(
         activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
       );
@@ -3623,7 +3695,7 @@
     };
 
     if(animateCard){
-      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto });
+      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto, reward: q.reward });
       setTimeout(finishClaim, QUEST_CLAIM_ANIM_MS);
       return q;
     }
@@ -3641,8 +3713,8 @@
       const ready = activeQuests.find(q => activeQuestComplete(q));
       if(!ready) break;
       const idx = activeQuests.findIndex(x => x.uid === ready.uid);
-      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true });
-      const q = claimActiveQuest(ready.uid, { deferUi: true });
+      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true, reward: ready.reward });
+      const q = claimActiveQuest(ready.uid, { deferUi: true, skipRewardFly: true });
       if(!q) break;
       claimed.push(q);
       claimedSlots.push(idx);
@@ -3655,6 +3727,10 @@
         for(const idx of claimedSlots) playQuestRollIn(questSlotButtons[idx]);
       } else {
         pulseQuestTabAutoClaim();
+        const tab = questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+        for(const q of claimed){
+          if(tab && q.reward) spawnRewardParticles(tab, q.reward);
+        }
       }
       pushQuestClaimPopup(claimed);
     };
@@ -4109,16 +4185,200 @@
     };
   }
 
-  function scoreBoxTarget(){
-    if(!scoreBoxEl || !chipFxLayer) return { x: 40, y: 20 };
+  function scoreBoxTargetRect(){
+    if(!scoreBoxEl || !chipFxLayer) return null;
     const box = scoreBoxEl.getBoundingClientRect();
     const stage = chipFxLayer.getBoundingClientRect();
     return {
-      x: box.left - stage.left + box.width * 0.78,
+      left: box.left - stage.left,
+      top: box.top - stage.top,
+      width: box.width,
+      height: box.height
+    };
+  }
+
+  const SCORE_BOX_PAD_X = 8;
+  const SCORE_BOX_PAD_BOTTOM = 5;
+
+  function scoreBoxTargetPoint(relX){
+    const r = scoreBoxTargetRect();
+    if(!r) return { x: 40, y: 20 };
+    return {
+      x: r.left + SCORE_BOX_PAD_X + (r.width - SCORE_BOX_PAD_X * 2) * relX,
+      y: r.top + r.height - SCORE_BOX_PAD_BOTTOM
+    };
+  }
+
+  function scoreBoxTarget(){
+    return scoreBoxTargetPoint(0.55);
+  }
+
+  function assignScoreBoxTarget(particle){
+    const relX = 0.1 + Math.random() * 0.8;
+    const pt = scoreBoxTargetPoint(relX);
+    particle.targetAnchor = 'scoreBox';
+    particle.targetRelX = relX;
+    particle.tx = pt.x;
+    particle.ty = pt.y;
+    particle.targetFn = scoreBoxTarget;
+    particle.flyToTarget = true;
+  }
+
+  function elementStagePoint(el){
+    if(!el || !chipFxLayer) return { x: 40, y: 20 };
+    const rect = el.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    return {
+      x: rect.left - stage.left + rect.width * 0.5,
+      y: rect.top - stage.top + rect.height * 0.42
+    };
+  }
+
+  function tableTabStagePoint(){
+    const tab = document.querySelector('.rail-tab[data-panel="table"]');
+    if(!tab || !chipFxLayer) return scoreBoxTarget();
+    const rect = tab.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    return {
+      x: rect.left - stage.left + rect.width * 0.5,
+      y: rect.top - stage.top + rect.height * 0.5
+    };
+  }
+
+  function spawnRailTabBurst(panel, opts){
+    opts = opts || {};
+    const tab = document.querySelector('.rail-tab[data-panel="' + panel + '"]');
+    if(!tab || tab.hidden) return;
+    spawnFlyBurst(elementStagePoint(tab), {
+      count: opts.count || 5,
+      className: opts.className || 'fly-spark',
+      flyToTarget: false,
+      popSpread: opts.popSpread || 22,
+      duration: opts.duration || 380,
+      maxCount: opts.maxCount || 7
+    });
+  }
+
+  function isBoardVisible(){
+    return desktopMq.matches || activeRailPanel === 'table';
+  }
+
+  function chipFlyOrigin(cx, cy, opts){
+    opts = opts || {};
+    if(opts.fromStage) return { x: cx, y: cy };
+    if(!isBoardVisible()) return tableTabStagePoint();
+    return canvasToStagePoint(cx, cy);
+  }
+
+  function compsBoxTarget(){
+    const compsBoxEl = document.getElementById('compsBox');
+    if(!compsBoxEl || compsBoxEl.hidden || !chipFxLayer) return scoreBoxTarget();
+    const box = compsBoxEl.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    return {
+      x: box.left - stage.left + box.width * 0.72,
       y: box.top - stage.top + box.height * 0.5
     };
   }
 
+  function pulseCompsBox(){
+    const compsBoxEl = document.getElementById('compsBox');
+    if(!compsBoxEl || compsBoxEl.hidden) return;
+    compsBoxEl.classList.remove('comp-pulse');
+    void compsBoxEl.offsetWidth;
+    compsBoxEl.classList.add('comp-pulse');
+    clearTimeout(compsBoxEl._compPulseTimer);
+    compsBoxEl._compPulseTimer = setTimeout(()=>compsBoxEl.classList.remove('comp-pulse'), 340);
+  }
+
+  function spawnFlyBurst(origin, opts){
+    if(!chipFxLayer) return;
+    opts = opts || {};
+    const budget = Math.max(0, MAX_FLYING_CHIPS - flyingChips.length);
+    if(budget <= 0) return;
+    let count = Math.max(1, Math.floor(opts.count || 3));
+    count = Math.min(count, budget, opts.maxCount || 10);
+    const targetFn = opts.targetFn || scoreBoxTarget;
+    const onLand = opts.onLand || pulseScoreBox;
+    const className = opts.className || 'fly-chip';
+    const now = performance.now();
+    const flyToTarget = opts.flyToTarget !== false;
+    for(let i = 0; i < count; i++){
+      const el = document.createElement('div');
+      el.className = className;
+      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.35;
+      const pop = 14 + Math.random() * (opts.popSpread || 34);
+      const delay = i * 16 + Math.random() * 22;
+      const duration = opts.duration || (flyToTarget ? 620 + Math.random() * 220 : 420 + Math.random() * 160);
+      const popX = origin.x + Math.cos(ang) * pop;
+      const popY = origin.y + Math.sin(ang) * pop;
+      el.style.left = '0px';
+      el.style.top = '0px';
+      el.style.opacity = '0';
+      el.style.transform = 'translate(' + origin.x + 'px,' + origin.y + 'px) scale(0)';
+      chipFxLayer.appendChild(el);
+      const particle = {
+        el,
+        t0: now + delay,
+        duration,
+        x0: origin.x,
+        y0: origin.y,
+        popX,
+        popY,
+        rot: (Math.random() - 0.5) * 140,
+        size: 0.85 + Math.random() * 0.35,
+        targetFn,
+        onLand: flyToTarget ? onLand : null,
+        flyToTarget
+      };
+      if(flyToTarget && targetFn === scoreBoxTarget){
+        assignScoreBoxTarget(particle);
+      } else if(flyToTarget){
+        const target = targetFn();
+        particle.tx = target.x + (Math.random() * 12 - 6);
+        particle.ty = target.y + (Math.random() * 8 - 4);
+      } else {
+        particle.tx = popX;
+        particle.ty = popY;
+      }
+      flyingChips.push(particle);
+    }
+    ensureChipFlyLoop();
+  }
+
+  function spawnRewardParticles(originEl, reward){
+    if(!originEl) return;
+    const origin = elementStagePoint(originEl);
+    const r = reward || {};
+    if(r.chips){
+      spawnChipFly(origin.x, origin.y, r.chips, { fromStage: true });
+    }
+    if(r.comps){
+      spawnFlyBurst(origin, {
+        count: Math.min(6, Math.max(2, r.comps)),
+        className: 'fly-comp',
+        targetFn: compsBoxTarget,
+        onLand: pulseCompsBox
+      });
+    }
+    if(r.runComps){
+      spawnFlyBurst(origin, {
+        count: Math.min(5, Math.max(2, r.runComps)),
+        className: 'fly-run-comp',
+        targetFn: compsBoxTarget,
+        onLand: pulseCompsBox
+      });
+    }
+    if(r.prestige || r.upgrade){
+      spawnFlyBurst(origin, {
+        count: 4,
+        className: 'fly-spark',
+        flyToTarget: false,
+        popSpread: 28,
+        duration: 380
+      });
+    }
+  }
   function chipFlyCountForAmount(amount){
     if(amount <= 1) return 1;
     if(amount <= 4) return 2;
@@ -4175,8 +4435,7 @@
     // payout can't still fan out into multiple sprites.
     if(amount > 0) count = Math.min(count, amount);
     if(count <= 0) return;
-    const origin = canvasToStagePoint(cx, cy);
-    const target = scoreBoxTarget();
+    const origin = chipFlyOrigin(cx, cy, opts);
     const now = performance.now();
     for(let i = 0; i < count; i++){
       const el = document.createElement('div');
@@ -4192,7 +4451,7 @@
       el.style.opacity = '0';
       el.style.transform = 'translate(' + origin.x + 'px,' + origin.y + 'px) scale(0)';
       chipFxLayer.appendChild(el);
-      flyingChips.push({
+      const particle = {
         el,
         t0: now + delay,
         duration,
@@ -4200,11 +4459,13 @@
         y0: origin.y,
         popX,
         popY,
-        tx: target.x + (Math.random() * 12 - 6),
-        ty: target.y + (Math.random() * 8 - 4),
         rot: (Math.random() - 0.5) * 140,
-        size: 0.85 + Math.random() * 0.35
-      });
+        size: 0.85 + Math.random() * 0.35,
+        onLand: pulseScoreBox,
+        flyToTarget: true
+      };
+      assignScoreBoxTarget(particle);
+      flyingChips.push(particle);
     }
     ensureChipFlyLoop();
   }
@@ -4212,7 +4473,6 @@
   function stepFlyingChips(){
     if(!flyingChips.length) return;
     const now = performance.now();
-    const liveTarget = scoreBoxTarget();
     const next = [];
     for(const c of flyingChips){
       const age = now - c.t0;
@@ -4221,9 +4481,16 @@
         continue;
       }
       const t = Math.min(1, age / c.duration);
-      // Track the counter as layout shifts (HUD wrap / resize).
-      c.tx += (liveTarget.x - c.tx) * 0.18;
-      c.ty += (liveTarget.y - c.ty) * 0.18;
+      if(c.targetAnchor === 'scoreBox'){
+        const pt = scoreBoxTargetPoint(c.targetRelX);
+        c.tx = pt.x;
+        c.ty = pt.y;
+      } else if(c.flyToTarget !== false){
+        const liveTarget = (c.targetFn || scoreBoxTarget)();
+        // Track the counter as layout shifts (HUD wrap / resize).
+        c.tx += (liveTarget.x - c.tx) * 0.18;
+        c.ty += (liveTarget.y - c.ty) * 0.18;
+      }
 
       let x, y, scale, alpha, rot;
       // Short pop, then a readable arc up to the HUD counter.
@@ -4253,7 +4520,7 @@
 
       if(t >= 1){
         if(c.el.parentNode) c.el.parentNode.removeChild(c.el);
-        pulseScoreBox();
+        if(c.onLand) c.onLand();
       } else {
         next.push(c);
       }
@@ -4375,9 +4642,9 @@
         return 'Out ' + gone + ' · In ' + left;
       }
       case 'suitBomb':
-        return lvl
-          ? ('Cooldown ' + formatInterval(suitBombCooldownMs()))
-          : 'Locked';
+        if(!lvl) return 'Locked';
+        if(!isAutoEnabled('suitBomb')) return 'Picker hidden';
+        return 'Cooldown ' + formatInterval(suitBombCooldownMs());
       case 'autoSuitBomb':
         if(!lvl) return upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge';
         return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
@@ -4421,9 +4688,7 @@
         return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
-        return isAutoEnabled('pitBoss')
-          ? ('Auto-buys ×' + lvl + ' / tick')
-          : 'Paused';
+        return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
       default:
         return '';
     }
@@ -4686,29 +4951,57 @@
   }
 
   function tryAutoBuyUpgrades(){
-    const batch = prestigeLevel('pitBoss');
-    if(batch <= 0 || !isAutoEnabled('pitBoss')) return 0;
-    let bought = 0;
-    for(let i = 0; i < batch; i++){
-      let bestId = null;
-      let bestCost = Infinity;
-      for(const def of UPGRADE_DEFS){
-        if(!upgradeUnlocked(def.id)) continue;
-        if(def.id === 'autoSuitBomb' && !suitBombUnlocked()) continue;
-        const lvl = upgradeLevel(def.id);
-        if(lvl >= def.maxLevel) continue;
-        const cost = upgradeCost(def);
-        if(score < cost) continue;
-        if(cost < bestCost){
-          bestCost = cost;
-          bestId = def.id;
-        }
+    if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return { count: 0, ids: [] };
+    let bestId = null;
+    let bestCost = Infinity;
+    for(const def of UPGRADE_DEFS){
+      if(!upgradeUnlocked(def.id)) continue;
+      if(def.id === 'autoSuitBomb' && !suitBombUnlocked()) continue;
+      const lvl = upgradeLevel(def.id);
+      if(lvl >= def.maxLevel) continue;
+      const cost = upgradeCost(def);
+      if(score < cost) continue;
+      if(cost < bestCost){
+        bestCost = cost;
+        bestId = def.id;
       }
-      if(!bestId || !purchaseUpgrade(bestId)) break;
-      bought++;
     }
-    if(bought) scheduleSave();
-    return bought;
+    if(!bestId || !purchaseUpgrade(bestId)) return { count: 0, ids: [] };
+    scheduleSave();
+    return { count: 1, ids: [bestId] };
+  }
+
+  function playUpgradeAutoBuyEffect(btn){
+    if(!btn) return;
+    btn.classList.remove('auto-bought');
+    void btn.offsetWidth;
+    btn.classList.add('auto-bought');
+    clearTimeout(btn._autoBuyTimer);
+    btn._autoBuyTimer = setTimeout(()=>btn.classList.remove('auto-bought'), 720);
+    spawnFlyBurst(elementStagePoint(btn), {
+      count: 5,
+      className: 'fly-spark',
+      flyToTarget: false,
+      popSpread: 24,
+      duration: 360,
+      maxCount: 6
+    });
+  }
+
+  function pulseUpgradesTabAutoBuy(){
+    spawnRailTabBurst('upgrades', { count: 6, popSpread: 20 });
+  }
+
+  function celebrateAutoBuyUpgrades(ids){
+    if(!ids || !ids.length) return;
+    const panelOpen = isUpgradesPanelOpen();
+    if(panelOpen){
+      for(const id of ids){
+        playUpgradeAutoBuyEffect(upgradeButtons[id]);
+      }
+    } else {
+      pulseUpgradesTabAutoBuy();
+    }
   }
 
   let lastAutoBuyAt = 0;
@@ -4716,15 +5009,16 @@
     if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return 0;
     now = now || performance.now();
     if(now - lastAutoBuyAt < 220) return 0;
-    const bought = tryAutoBuyUpgrades();
-    if(bought){
+    const result = tryAutoBuyUpgrades();
+    if(result.count){
       lastAutoBuyAt = now;
+      celebrateAutoBuyUpgrades(result.ids);
       updateScoreUI();
       updateShopUI();
       updateAutoStatus();
       updateSuitBombUI(now, true);
     }
-    return bought;
+    return result.count;
   }
 
   function buyPrestigeUpgrade(id){
@@ -7227,20 +7521,30 @@
     if(toggle){
       toggle.hidden = !canToggle;
       if(canToggle){
-        const on = isAutoEnabled(def.id);
-        toggle.textContent = on ? 'On' : 'Off';
-        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
-        toggle.classList.toggle('is-off', !on);
+        if(def.id === 'suitBomb'){
+          const visible = suitBombUiVisible();
+          toggle.textContent = visible ? 'Hide' : 'Show';
+          toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !visible);
+        } else {
+          const on = isAutoEnabled(def.id);
+          toggle.textContent = on ? 'On' : 'Off';
+          toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !on);
+        }
       }
     }
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
     const boughtFill = btn.querySelector('.upgrade-progress-bought');
     if(def.maxLevel > 0){
-      if(bonusFill){
-        bonusFill.style.width = Math.min(100, (effective / def.maxLevel) * 100) + '%';
-      }
+      const boughtPct = Math.min(100, (bought / def.maxLevel) * 100);
+      const bonusPct = Math.min(100 - boughtPct, (bonus / def.maxLevel) * 100);
       if(boughtFill){
-        boughtFill.style.width = Math.min(100, (bought / def.maxLevel) * 100) + '%';
+        boughtFill.style.width = boughtPct + '%';
+      }
+      if(bonusFill){
+        bonusFill.style.left = boughtPct + '%';
+        bonusFill.style.width = bonusPct + '%';
       }
     }
     btn.querySelector('.upgrade-effect').textContent = opts.effect || '';
@@ -7704,7 +8008,9 @@
     if(!force && now - lastSuitBombUiAt < 120) return;
     lastSuitBombUiAt = now;
     const unlocked = suitBombUnlocked();
+    const showPicker = suitBombUiVisible();
     suitBombBar.classList.toggle('show', unlocked);
+    suitBombBar.classList.toggle('picker-hidden', unlocked && !showPicker);
     if(!unlocked) return;
 
     const cd = suitBombCooldownMs();
