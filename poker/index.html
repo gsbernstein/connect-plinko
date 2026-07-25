@@ -835,12 +835,13 @@
   }
   .idle-pill:not([hidden]){display:flex;}
   .idle-pill[hidden]{display:none !important;}
-  .idle-pill-top{
+  .idle-pill-head{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:8px;
   }
+  .idle-pill-head .hud-label::after{content:'\00a0';}
   .idle-pill b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -986,17 +987,27 @@
     outline:none;
   }
   .level-pill:active{transform:translateY(1px);}
-  .level-pill-top{
+  .level-pill-head{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:8px;
     min-width:0;
   }
-  .level-pill-top > span:first-child{
+  .level-left{
+    display:flex;
+    align-items:baseline;
     flex:0 0 auto;
     white-space:nowrap;
   }
+  .level-left .hud-label::after{content:'\00a0';}
+  .next-card-meta{
+    display:flex;
+    align-items:baseline;
+    gap:0;
+  }
+  .next-card-meta .hud-label::after{content:'\00a0';}
+  .hud-mobile-only{display:none;}
   .level-pill b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -1068,6 +1079,110 @@
     0%{ transform:scale(1); }
     22%{ transform:scale(1.65); }
     100%{ transform:scale(1); }
+  }
+  @media (max-width:999px){
+    .hud{
+      flex-wrap:nowrap;
+      gap:4px;
+      align-items:stretch;
+    }
+    .hud > .hud-tile,
+    .hud > .score,
+    .hud > .level-pill,
+    .hud > .comps-pill,
+    .hud > .idle-pill:not([hidden]),
+    .hud > .next-card{
+      flex:1 1 0;
+      min-width:0;
+      width:auto !important;
+    }
+    .score,
+    .comps-pill{
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:1px;
+      padding:5px 2px;
+      white-space:nowrap;
+    }
+    .hud-label{
+      display:block;
+      font-size:9px;
+      line-height:1.15;
+      letter-spacing:0.03em;
+      opacity:0.88;
+    }
+    .score b,
+    .comps-pill b,
+    .idle-pill b,
+    .next-card b,
+    #runLevelVal{
+      font-size:13px;
+      min-width:0 !important;
+      width:100%;
+      text-align:center;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .level-pill{
+      padding:5px 2px 4px;
+      gap:2px;
+      align-items:stretch;
+    }
+    .level-pill-head{
+      flex-direction:column;
+      align-items:center;
+      gap:0;
+    }
+    .level-left{
+      flex-direction:column;
+      align-items:center;
+      gap:0;
+      width:100%;
+      white-space:normal;
+    }
+    .level-left .hud-label::after{content:none;}
+    #runLevelXp{
+      font-size:8px;
+      line-height:1.1;
+      text-align:center;
+      flex:none;
+      max-width:100%;
+      margin-top:1px;
+    }
+    .level-bar{margin-top:1px;}
+    .idle-pill{
+      padding:5px 2px 4px;
+      align-items:stretch;
+    }
+    .idle-pill-head{
+      flex-direction:column;
+      align-items:center;
+      gap:0;
+    }
+    .idle-pill-head .hud-label::after{content:none;}
+    .idle-pill b{font-size:11px;}
+    .next-card{
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:1px;
+      padding:4px 2px;
+    }
+    .hud-mobile-only{display:block;}
+    .hud-desktop-only{display:none;}
+    .next-card-meta{
+      flex-direction:column;
+      align-items:center;
+      min-width:0;
+      width:100%;
+    }
+    .next-card canvas{
+      width:26px;
+      height:26px;
+      flex-shrink:0;
+    }
+    .next-card b{font-size:10px;max-width:100%;}
   }
   .level-toast{
     position:fixed;
@@ -1627,23 +1742,39 @@
   <section class="stage is-active" id="panelTable" data-panel="table" aria-label="Table">
     <div class="chip-fx-layer" id="chipFxLayer" aria-hidden="true"></div>
     <div class="hud">
-      <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
-      <div class="level-pill" id="levelBox" role="button" tabindex="0"
+      <div class="score hud-tile active" id="scoreBox">
+        <span class="hud-label">Chips</span>
+        <b class="hud-val" id="scoreVal">0</b>
+      </div>
+      <div class="level-pill hud-tile" id="levelBox" role="button" tabindex="0"
            title="Run level — click for unlocks" aria-label="Run level — show unlocks">
-        <div class="level-pill-top">
-          <span>Level&nbsp;<b id="runLevelVal">1</b></span>
-          <span id="runLevelXp">0 / 18</span>
+        <div class="level-pill-head">
+          <span class="level-left">
+            <span class="hud-label">Level</span>
+            <b class="hud-val" id="runLevelVal">1</b>
+          </span>
+          <span class="hud-xp" id="runLevelXp">0 / 18</span>
         </div>
         <div class="level-bar" aria-hidden="true"><span id="runLevelFill"></span></div>
       </div>
-      <div class="comps-pill" id="compsBox" title="VIP comps — permanent currency from Cash Out" hidden>Comps&nbsp;<b id="compsHudVal">0</b></div>
-      <div class="idle-pill" id="autoStatus" hidden>
-        <div class="idle-pill-top">Auto&nbsp;<b id="autoStatusVal">—</b></div>
+      <div class="comps-pill hud-tile" id="compsBox" title="VIP comps — permanent currency from Cash Out" hidden>
+        <span class="hud-label">Comps</span>
+        <b class="hud-val" id="compsHudVal">0</b>
+      </div>
+      <div class="idle-pill hud-tile" id="autoStatus" hidden>
+        <div class="idle-pill-head">
+          <span class="hud-label">Auto</span>
+          <b class="hud-val" id="autoStatusVal">—</b>
+        </div>
         <div class="idle-bar" aria-hidden="true"><span id="autoStatusFill"></span></div>
       </div>
-      <div class="next-card">
+      <div class="next-card hud-tile">
+        <span class="hud-label hud-mobile-only">Next</span>
         <canvas id="nextPreview" width="72" height="72"></canvas>
-        <div>Next&nbsp;<b id="nextLabel">—</b></div>
+        <div class="next-card-meta">
+          <span class="hud-label hud-desktop-only">Next</span>
+          <b class="hud-val" id="nextLabel">—</b>
+        </div>
       </div>
     </div>
     <div class="level-toast" id="levelToast" role="status" aria-live="polite"></div>
