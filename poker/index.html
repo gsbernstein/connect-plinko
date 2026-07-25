@@ -2703,6 +2703,33 @@
     return null;
   }
 
+  // Ace Up Your Sleeve: evaluate as if an invisible Ace (best suit) were in the hand.
+  // For 5-card windows, try dropping each board card so the ghost Ace can fill in.
+  function evaluateHandSlice(cards){
+    let best = evaluateCards(cards);
+    if(!cards || !cards.length || prestigeLevel('aceSleeve') <= 0) return best;
+
+    function consider(hand){
+      if(!hand) return;
+      if(!best || hand.points > best.points) best = hand;
+    }
+
+    for(const suit of SUITS){
+      const ghost = {suit, rank: 1};
+      if(cards.length < 5){
+        consider(evaluateCards(cards.concat([ghost])));
+      } else if(cards.length === 5){
+        for(let drop = 0; drop < 5; drop++){
+          const subset = [];
+          for(let i = 0; i < 5; i++) if(i !== drop) subset.push(cards[i]);
+          subset.push(ghost);
+          consider(evaluateCards(subset));
+        }
+      }
+    }
+    return best;
+  }
+
   // One card shy of a scoring hand — used for faint guide lines on the board.
   function canCompleteStraight(ranks){
     const uniq = [...new Set(ranks)];
@@ -2749,6 +2776,15 @@
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   const CHANGELOG = [
+    {
+      id: 15,
+      date: 'Jul 25, 2026',
+      title: 'Sleeve & counting',
+      items: [
+        'New VIP perk Ace Up Your Sleeve — hands score as if they had a hidden Ace.',
+        'New VIP perk Card Counting — bigger hand payouts for duplicate cards on the table.'
+      ]
+    },
     {
       id: 14,
       date: 'Jul 25, 2026',
@@ -3456,6 +3492,22 @@
       costScale: 1,
       maxLevel: 1,
       toggleable: true
+    },
+    {
+      id: 'aceSleeve',
+      name: 'Ace Up Your Sleeve',
+      desc: 'Every poker hand evaluates as if it had an invisible Ace. The house looks the other way.',
+      baseCost: 15,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'cardCounting',
+      name: 'Card Counting',
+      desc: 'Hand payouts gain a bonus for every duplicate card on the table (same rank and suit).',
+      baseCost: 6,
+      costScale: 1.9,
+      maxLevel: 8
     }
   ];
 
@@ -4441,6 +4493,38 @@
     return blindMultiplier('hands');
   }
 
+  // Extra copies of the same rank+suit on the settled board (multi-deck duplicates).
+  function boardDuplicateExtras(){
+    const counts = Object.create(null);
+    if(!grid) return 0;
+    for(let c = 0; c < COLS; c++){
+      for(let r = 0; r < ROWS; r++){
+        const card = grid[c][r];
+        if(!card) continue;
+        const key = isWild(card) ? (card.rank + 'W') : (card.rank + card.suit);
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    }
+    let extras = 0;
+    for(const key in counts){
+      if(counts[key] > 1) extras += counts[key] - 1;
+    }
+    return extras;
+  }
+
+  // Card Counting: +8% hand payout per duplicate extra per VIP level.
+  function cardCountingMultiplier(){
+    const lvl = prestigeLevel('cardCounting');
+    if(!lvl) return 1;
+    const extras = boardDuplicateExtras();
+    if(!extras) return 1;
+    return 1 + extras * 0.08 * lvl;
+  }
+
+  function handPayoutMultiplier(){
+    return scoreMultiplier() * runMetaMultiplier() * cardCountingMultiplier();
+  }
+
   function chainBonus(){
     return upgradeLevel('hotStreak');
   }
@@ -5284,6 +5368,15 @@
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
         return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
+      case 'aceSleeve':
+        return lvl ? 'Hidden Ace in every hand' : 'Play fair';
+      case 'cardCounting':{
+        if(!lvl) return 'No count bonus';
+        const extras = boardDuplicateExtras();
+        const pct = Math.round(8 * lvl);
+        if(!extras) return '+' + pct + '% per duplicate';
+        return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingMultiplier());
+      }
       default:
         return '';
     }
@@ -6541,14 +6634,16 @@
             if(cards.length < len) continue;
             for(let i=0;i<=cards.length-len;i++){
               const slice = cards.slice(i, i+len);
-              const hand = evaluateCards(slice);
+              const hand = evaluateHandSlice(slice);
               if(!hand) continue;
               const cardMult = handCardMultiplier(slice);
+              const baseHand = evaluateCards(slice);
               candidates.push({
                 i, len,
                 name: hand.name,
                 points: hand.points,
                 cardMult,
+                sleeve: !!(!baseHand || baseHand.points < hand.points),
                 cells: cells.slice(i, i+len)
               });
             }
@@ -6564,6 +6659,7 @@
               name: cand.name,
               points: cand.points,
               cardMult: cand.cardMult,
+              sleeve: cand.sleeve,
               cells: cand.cells,
               color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
             });
@@ -6611,7 +6707,7 @@
           for(let len=5; len>=3; len--){
             if(cards.length < len) continue;
             for(let i=0;i<=cards.length-len;i++){
-              if(!evaluateCards(cards.slice(i, i+len))) continue;
+              if(!evaluateHandSlice(cards.slice(i, i+len))) continue;
               for(let k=i;k<i+len;k++) scoringMask[k]=true;
             }
           }
@@ -6803,7 +6899,7 @@
   }
 
   function spawnHandChipFlies(groups, chainMult){
-    const mult = scoreMultiplier() * runMetaMultiplier();
+    const mult = handPayoutMultiplier();
     for(const g of groups){
       const pts = Math.floor(g.points * (g.cardMult || 1) * chainMult * mult);
       if(pts <= 0 || !g.cells || !g.cells.length) continue;
@@ -6875,7 +6971,7 @@
 
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
-    const mult = scoreMultiplier() * runMetaMultiplier();
+    const mult = handPayoutMultiplier();
     for(const g of groups){
       const {x, y} = groupGridCenter(g);
       const cardMult = g.cardMult || 1;
@@ -6884,10 +6980,11 @@
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
       const bangs = '!'.repeat(fx.bangs);
       const multTag = cardMult > 1.001 ? (' ×' + cardMult.toFixed(2).replace(/\.00$/, '')) : '';
+      const sleeveTag = g.sleeve ? ' ✦' : '';
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + multTag + bangs + ' +' + pts,
+        text: g.name + sleeveTag + multTag + bangs + ' +' + pts,
         color: brightenColor(g.color || '#ffffff', fx.bright),
         t0: now,
         duration: fx.duration,
@@ -7306,7 +7403,7 @@
           const isFloorClear = currentGroups.some(g => g.floorClear);
           if(!isFloorClear){
             const chainMult = computeChainMult(chainStep);
-            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier() * runMetaMultiplier());
+            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * handPayoutMultiplier());
             noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
