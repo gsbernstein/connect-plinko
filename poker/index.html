@@ -1892,11 +1892,23 @@
   function cardFace(card){ return rankLabel(card.rank) + card.suit; }
   const CARD_TIER_LABELS = ['', 'Silver', 'Gold', 'Diamond'];
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
-  const CARD_TIER_RING = [
+  const CARD_TIER_METAL = [
     null,
-    ['#E8EDF4', '#98A4B8'],
-    ['#F7E7A8', '#C9A24A'],
-    ['#E8FAFF', '#6EC8FF']
+    {
+      fill: ['#FFFFFF', '#D8E2EE', '#9AAABE', '#EEF2F8', '#6E7E92'],
+      stroke: ['#E8EEF6', '#7E90A6'],
+      rim: '#3E4A58'
+    },
+    {
+      fill: ['#FFF9D0', '#F3D878', '#B88418', '#F8E8A8', '#7A5810'],
+      stroke: ['#FFF0B0', '#9A742C'],
+      rim: '#3E2A08'
+    },
+    {
+      fill: ['#FFFFFF', '#D8F8FF', '#5EC0F0', '#E8FAFF', '#2E78A8'],
+      stroke: ['#D8F8FF', '#48A0D0'],
+      rim: '#144060'
+    }
   ];
   function cardTier(card){
     const t = card && card.tier;
@@ -5882,8 +5894,23 @@
 
   // ---- drawing ----
   // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
+  function metalGlyphGradient(target, stops, x, y, size){
+    const span = size * 1.1;
+    const grad = target.createLinearGradient(
+      x - span * 0.32, y - span * 0.52,
+      x + span * 0.34, y + span * 0.48
+    );
+    const last = stops.length - 1;
+    for(let i = 0; i < stops.length; i++){
+      grad.addColorStop(i / last, stops[i]);
+    }
+    return grad;
+  }
+
   function drawChipGlyphs(target, card, radius){
     const color = SUIT_COLOR[card.suit];
+    const tier = cardTier(card);
+    const metal = CARD_TIER_METAL[tier];
     target.textAlign = 'center';
     target.textBaseline = 'middle';
     const suitSize = Math.max(10, Math.round(radius * 0.74));
@@ -5903,9 +5930,36 @@
       target.fillStyle = fill;
       target.fillText(text, x, y);
     }
+    function stampMetalGlyph(text, x, y, font, lineW){
+      target.font = font;
+      target.lineJoin = 'round';
+      target.miterLimit = 2;
+      const size = parseInt(font, 10) || Math.round(lineW * 12);
+      const rimW = lineW * (1.25 + tier * 0.08);
+      const foilW = lineW * (0.9 + tier * 0.05);
+
+      target.lineWidth = rimW;
+      target.strokeStyle = metal.rim;
+      target.strokeText(text, x, y);
+
+      target.lineWidth = foilW;
+      target.strokeStyle = metalGlyphGradient(target, metal.stroke, x, y, size);
+      target.strokeText(text, x, y);
+
+      target.fillStyle = metalGlyphGradient(target, metal.fill, x, y, size);
+      target.fillText(text, x, y);
+
+      target.save();
+      target.globalAlpha = tier === 3 ? 0.72 : 0.58;
+      target.lineWidth = Math.max(1, lineW * 0.38);
+      target.strokeStyle = 'rgba(255,255,255,0.95)';
+      target.strokeText(text, x - size * 0.03, y - size * 0.055);
+      target.restore();
+    }
+    const stamp = metal ? stampMetalGlyph : stampGlyph;
 
     // Suit underneath (drawn first)
-    stampGlyph(
+    stamp(
       card.suit,
       suitX,
       suitY,
@@ -5914,7 +5968,7 @@
       Math.max(1.6, radius * 0.09)
     );
     // Rank on top, diagonally offset — Fraunces has a clearer Q tick.
-    stampGlyph(
+    stamp(
       rankLabel(card.rank),
       rankX,
       rankY,
@@ -5950,30 +6004,6 @@
     }
     target.shadowBlur = 0;
     drawChipGlyphs(target, card, radius);
-
-    const tier = cardTier(card);
-    if(tier){
-      const ring = CARD_TIER_RING[tier];
-      const ringR = radius + (isBall ? 1.5 : 2);
-      const ringGrad = target.createLinearGradient(-ringR, -ringR, ringR, ringR);
-      ringGrad.addColorStop(0, ring[0]);
-      ringGrad.addColorStop(1, ring[1]);
-      target.beginPath();
-      target.arc(0, 0, ringR, 0, Math.PI * 2);
-      target.strokeStyle = ringGrad;
-      target.lineWidth = Math.max(2, radius * 0.11);
-      target.stroke();
-      if(tier === 3){
-        target.shadowColor = '#8EE4FF';
-        target.shadowBlur = Math.max(5, radius * 0.28);
-        target.beginPath();
-        target.arc(0, 0, ringR + 1, 0, Math.PI * 2);
-        target.strokeStyle = 'rgba(180,240,255,0.35)';
-        target.lineWidth = 1.5;
-        target.stroke();
-        target.shadowBlur = 0;
-      }
-    }
 
     if(highlight){
       target.beginPath();
