@@ -2918,6 +2918,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 20,
+      date: 'Jul 25, 2026',
+      title: 'Chain banner stays honest',
+      items: [
+        'Suit Purge no longer flashes a low CHAIN ×N mid-heater — your streak carryover is preserved for the next hand without the fake dip.'
+      ]
+    },
+    {
       id: 19,
       date: 'Jul 25, 2026',
       title: 'More achievements',
@@ -7685,7 +7693,11 @@
         if(elapsed >= flashMs){
           const isFloorClear = currentGroups.some(g => g.floorClear);
           if(!isFloorClear){
-            const chainMult = computeChainMult(chainStep);
+            // Suit Purge bridges a heater without consuming it — keep pendingChain
+            // for the next real hand. Scoring at chainStep 0 would otherwise flash
+            // a low CHAIN ×N from Hot Streak alone, then jump back up.
+            const isSuitBomb = currentGroups.some(g => g.suitBomb);
+            const chainMult = isSuitBomb ? 1 : computeChainMult(chainStep);
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * handPayoutMultiplier());
             noteHandClear(currentGroups, chainMult);
             awardChips(pts);
