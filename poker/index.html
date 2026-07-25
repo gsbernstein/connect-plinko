@@ -6224,6 +6224,7 @@
     currentGroups = [];
     chainStep = 0;
     pendingChain = 0;
+    heaterHoldUntilUse = false;
     flashCells = null;
     particles = [];
     popups = [];
@@ -6441,6 +6442,9 @@
   let currentGroups = [];
   let chainStep = 0;
   let pendingChain = 0;
+  // After load, board is empty so idle expire would kill a restored heater —
+  // hold until the next hand actually advances the chain once.
+  let heaterHoldUntilUse = false;
   // Persist active heater across refresh / update (board itself stays session-only).
   function heaterChainForSave(){
     if(resolving && currentGroups && currentGroups.some(g => g.floorClear)) return 0;
@@ -7747,7 +7751,8 @@
         refreshButtons();
       }
     } else {
-      if(balls.length===0){
+      // Empty table normally ends a heater; skip once after restore until a hand fires.
+      if(balls.length===0 && !heaterHoldUntilUse){
         if(pendingChain !== 0){
           pendingChain = 0;
           scheduleSave();
@@ -7762,6 +7767,7 @@
     resolveEpoch++;
     chainStep = pendingChain;
     pendingChain = 0;
+    heaterHoldUntilUse = false;
     refreshButtons();
     enterFlash(groups);
     startResolveLoop();
@@ -10120,9 +10126,11 @@
   buildSuitBombUI();
   freshState();
   // Board is session-only; re-apply heater so refresh/update doesn't break a streak.
+  // Hold against idle expire until the next scored hand advances the chain.
   if(resumeHeaterChain > 0){
     pendingChain = resumeHeaterChain;
     resumeHeaterChain = 0;
+    heaterHoldUntilUse = true;
   }
   renderChangelog();
   updateSettingsChangelogBadge();
