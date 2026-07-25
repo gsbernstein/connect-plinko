@@ -604,10 +604,26 @@
     line-height:16px;
     text-align:center;
   }
+  .rail-tab-badge.is-new{
+    min-width:10px;
+    width:10px;
+    height:10px;
+    padding:0;
+    font-size:0;
+    line-height:0;
+    background:#e85d6a;
+    color:transparent;
+    box-shadow:0 0 0 2px rgba(23,20,38,0.92);
+  }
   .rail-tab[data-panel="achievements"] .rail-tab-badge,
   .rail-tab[data-panel="vip"] .rail-tab-badge{
     background:#E6C35C;
     color:#1a1408;
+  }
+  .rail-tab[data-panel="achievements"] .rail-tab-badge.is-new,
+  .rail-tab[data-panel="vip"] .rail-tab-badge.is-new{
+    background:#e85d6a;
+    color:transparent;
   }
   .rail-tab-badge[hidden]{display:none !important;}
   .rail-tab[hidden]{display:none !important;}
@@ -2568,7 +2584,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 15;
+  const SAVE_VERSION = 16;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -3145,6 +3161,14 @@
   let questClaimed = Object.create(null); // achievement id -> claimed tier count
   let activeQuests = []; // rolled run quests in slots
   let questUidSeq = 1;
+  const EMPTY_SEEN_UNLOCKS = {
+    tabs: { quests: false, achievements: false, vip: false },
+    upgrades: []
+  };
+  let seenUnlocks = {
+    tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
+    upgrades: []
+  };
   const EMPTY_STATS = {
     hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
@@ -4942,6 +4966,7 @@
         questUidSeq,
         autoEnabled,
         suitBombCdLeft: cdLeft,
+        seenUnlocks,
         v: SAVE_VERSION
       }));
     }catch(_){ /* private mode / quota */ }
@@ -5081,6 +5106,22 @@
       } else {
         suitBombReadyAt = performance.now();
       }
+      if(data.seenUnlocks && typeof data.seenUnlocks === 'object'){
+        seenUnlocks.tabs.quests = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.quests);
+        seenUnlocks.tabs.achievements = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.achievements);
+        seenUnlocks.tabs.vip = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.vip);
+        seenUnlocks.upgrades = Array.isArray(data.seenUnlocks.upgrades)
+          ? data.seenUnlocks.upgrades.filter(id => UPGRADE_DEFS.some(d => d.id === id))
+          : [];
+      } else {
+        // Existing saves before unlock badges — don't badge already-unlocked content.
+        seenUnlocks.tabs.quests = questsTabUnlocked();
+        seenUnlocks.tabs.achievements = achievementsTabUnlocked();
+        seenUnlocks.tabs.vip = vipTabUnlocked();
+        seenUnlocks.upgrades = UPGRADE_DEFS
+          .filter(d => (d.unlockAt || 1) > 1 && upgradeUnlocked(d.id))
+          .map(d => d.id);
+      }
     }catch(_){ /* corrupt save */ }
   }
 
@@ -5101,6 +5142,10 @@
     autoDropTicks = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
+    seenUnlocks = {
+      tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
+      upgrades: []
+    };
     persistSave();
     updateScoreUI();
     updateShopUI();
@@ -7465,9 +7510,61 @@
     return desktopMq.matches;
   }
 
+  function hasUnviewedUpgradeUnlock(){
+    for(const def of UPGRADE_DEFS){
+      if((def.unlockAt || 1) <= 1) continue;
+      if(!upgradeUnlocked(def.id)) continue;
+      if(!seenUnlocks.upgrades.includes(def.id)) return true;
+    }
+    return false;
+  }
+
+  function hasNewUnlockBadge(panel){
+    if(panel === 'quests') return questsTabUnlocked() && !seenUnlocks.tabs.quests;
+    if(panel === 'achievements') return achievementsTabUnlocked() && !seenUnlocks.tabs.achievements;
+    if(panel === 'vip') return vipTabUnlocked() && !seenUnlocks.tabs.vip;
+    if(panel === 'upgrades') return upgradesTabUnlocked() && hasUnviewedUpgradeUnlock();
+    return false;
+  }
+
+  function markPanelUnlocksSeen(panel){
+    let changed = false;
+    if(panel === 'quests' && questsTabUnlocked() && !seenUnlocks.tabs.quests){
+      seenUnlocks.tabs.quests = true;
+      changed = true;
+    }
+    if(panel === 'achievements' && achievementsTabUnlocked() && !seenUnlocks.tabs.achievements){
+      seenUnlocks.tabs.achievements = true;
+      changed = true;
+    }
+    if(panel === 'vip' && vipTabUnlocked() && !seenUnlocks.tabs.vip){
+      seenUnlocks.tabs.vip = true;
+      changed = true;
+    }
+    if(panel === 'upgrades' && upgradesTabUnlocked()){
+      for(const def of UPGRADE_DEFS){
+        if((def.unlockAt || 1) <= 1) continue;
+        if(!upgradeUnlocked(def.id)) continue;
+        if(seenUnlocks.upgrades.includes(def.id)) continue;
+        seenUnlocks.upgrades.push(def.id);
+        changed = true;
+      }
+    }
+    if(changed) scheduleSave();
+  }
+
   function setTabBadge(panel, count){
     const el = tabBadges[panel];
     if(!el) return;
+    if(hasNewUnlockBadge(panel)){
+      el.hidden = false;
+      el.textContent = '';
+      el.classList.add('is-new');
+      el.setAttribute('aria-label', 'New unlock');
+      return;
+    }
+    el.classList.remove('is-new');
+    el.removeAttribute('aria-label');
     const n = Math.max(0, count | 0);
     if(n <= 0){
       el.hidden = true;
@@ -7531,6 +7628,7 @@
       tab.classList.toggle('is-active', on);
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     }
+    markPanelUnlocksSeen(panel);
   }
 
   for(const tab of railTabs){
@@ -7900,6 +7998,7 @@
     }
     // Keep buyable upgrades up top; sink completed ones.
     orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateRailTabAvailability();
   }
@@ -7959,6 +8058,7 @@
       }
       orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
     }
+    if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
     setTabBadge('vip', vipReady);
     updateRailTabAvailability();
   }
@@ -8137,6 +8237,7 @@
     if(questSlotsMetaEl){
       questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
     }
+    if(activeRailPanel === 'quests') markPanelUnlocksSeen('quests');
     setTabBadge('quests', questReady);
   }
 
@@ -8200,6 +8301,7 @@
     }
     visible.sort(compareAchievementButtons);
     if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
+    if(activeRailPanel === 'achievements') markPanelUnlocksSeen('achievements');
     setTabBadge('achievements', achieveReady);
     orderUpgradeButtons(achievementsEl, visible.map(entry => entry.btn));
   }
