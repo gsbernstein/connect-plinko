@@ -3645,7 +3645,12 @@
     if(opts.burst && opts.burst > 1) count = Math.ceil(count * opts.burst);
     const maxFly = desktopMq.matches ? (opts.maxCount || 28) : 12;
     count = Math.min(count, budget, maxFly);
+    // Never show more chips flying than were actually awarded.
+    if(amount > 0) count = Math.min(count, amount);
     if(!desktopMq.matches) count = Math.max(1, Math.ceil(count * 0.55));
+    // Re-apply the earn cap after the mobile density scale so a 1-chip
+    // payout can't still fan out into multiple sprites.
+    if(amount > 0) count = Math.min(count, amount);
     if(count <= 0) return;
     const origin = canvasToStagePoint(cx, cy);
     const target = scoreBoxTarget();
@@ -5335,26 +5340,43 @@
     return pts * chainMultiplier;
   }
 
+  // Split `total` flying chips across `n` origins without exceeding the payout.
+  function chipFlyShares(total, n){
+    total = Math.max(0, Math.floor(total));
+    n = Math.max(0, Math.floor(n));
+    if(total <= 0 || n <= 0) return [];
+    const seats = Math.min(n, total);
+    const base = Math.floor(total / seats);
+    let rem = total - base * seats;
+    const shares = [];
+    for(let i = 0; i < seats; i++){
+      shares.push(base + (rem > 0 ? 1 : 0));
+      if(rem > 0) rem--;
+    }
+    return shares;
+  }
+
   function spawnHandChipFlies(groups, chainMult){
     const mult = scoreMultiplier();
     for(const g of groups){
       const pts = Math.floor(g.points * (g.cardMult || 1) * chainMult * mult);
       if(pts <= 0 || !g.cells || !g.cells.length) continue;
-      // Poker scores are small integers — juice the burst by hand strength
-      // and spit chips from every cleared seat so clears feel rewarding.
-      const perSeat = Math.min(8, 3 + Math.floor(g.points / 2) + (chainMult > 1 ? 1 : 0));
-      for(const [c, r] of g.cells){
+      // Spit from cleared seats, but never more sprites than chips earned.
+      const shares = chipFlyShares(pts, g.cells.length);
+      for(let i = 0; i < shares.length; i++){
+        const [c, r] = g.cells[i];
         spawnChipFly(
           c*CELL + CELL/2,
           PEG_ZONE + r*CELL + CELL/2,
-          pts,
-          { minCount: perSeat, burst: 1.35, maxCount: 10 }
+          shares[i],
+          { count: shares[i], maxCount: shares[i] }
         );
       }
     }
   }
 
-  // Floor clear wipes the bottom row — spit a fat burst from each seat.
+  // Floor clear wipes the bottom row — spit a burst from each seat, capped
+  // to the chips actually paid out.
   function spawnFloorChipFlies(groups, totalPts){
     totalPts = Math.floor(totalPts);
     if(totalPts <= 0) return;
@@ -5365,19 +5387,19 @@
     }
     if(!cells.length){
       spawnChipFly(W/2, PEG_ZONE + (ROWS-1)*CELL + CELL/2, totalPts, {
-        minCount: 14, burst: 1.5, maxCount: 22
+        count: Math.min(totalPts, chipFlyCountForAmount(totalPts)),
+        maxCount: totalPts
       });
       return;
     }
-    // Don't dilate the visual by splitting payout across seats — each wiped
-    // hole should throw a real handful of chips.
-    const perSeat = Math.min(10, Math.max(5, Math.ceil(chipFlyCountForAmount(totalPts) / 2)));
-    for(const [c, r] of cells){
+    const shares = chipFlyShares(totalPts, cells.length);
+    for(let i = 0; i < shares.length; i++){
+      const [c, r] = cells[i];
       spawnChipFly(
         c*CELL + CELL/2,
         PEG_ZONE + r*CELL + CELL/2,
-        totalPts,
-        { minCount: perSeat, burst: 1.25, maxCount: 10 }
+        shares[i],
+        { count: shares[i], maxCount: shares[i] }
       );
     }
   }
