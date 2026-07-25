@@ -2703,8 +2703,8 @@
     return null;
   }
 
-  // Ace Up Your Sleeve: evaluate as if an invisible Ace (best suit) were in the hand.
-  // For 5-card windows, try dropping each board card so the ghost Ace can fill in.
+  // Ace Up Your Sleeve: board cards in the window + one invisible Ace, then the
+  // best normal poker hand of at most 5 cards (never a 6-card evaluate).
   function evaluateHandSlice(cards){
     let best = evaluateCards(cards);
     if(!cards || !cards.length || prestigeLevel('aceSleeve') <= 0) return best;
@@ -2714,18 +2714,21 @@
       if(!best || hand.points > best.points) best = hand;
     }
 
-    for(const suit of SUITS){
-      const ghost = {suit, rank: 1};
-      if(cards.length < 5){
-        consider(evaluateCards(cards.concat([ghost])));
-      } else if(cards.length === 5){
-        for(let drop = 0; drop < 5; drop++){
-          const subset = [];
-          for(let i = 0; i < 5; i++) if(i !== drop) subset.push(cards[i]);
-          subset.push(ghost);
-          consider(evaluateCards(subset));
-        }
+    function considerPool(pool){
+      if(pool.length <= 5){
+        consider(evaluateCards(pool));
+        return;
       }
+      // Best 5 of 6: try every way to drop one card.
+      for(let drop = 0; drop < pool.length; drop++){
+        const subset = [];
+        for(let i = 0; i < pool.length; i++) if(i !== drop) subset.push(pool[i]);
+        consider(evaluateCards(subset));
+      }
+    }
+
+    for(const suit of SUITS){
+      considerPool(cards.concat([{suit, rank: 1}]));
     }
     return best;
   }
@@ -2781,7 +2784,7 @@
       date: 'Jul 25, 2026',
       title: 'Sleeve & counting',
       items: [
-        'New VIP perk Ace Up Your Sleeve — hands score as if they had a hidden Ace.',
+        'New VIP perk Ace Up Your Sleeve (100 comps) — each line scores the best hand from its cards plus a hidden Ace.',
         'New VIP perk Card Counting — bigger hand payouts for duplicate cards on the table.'
       ]
     },
@@ -3496,8 +3499,8 @@
     {
       id: 'aceSleeve',
       name: 'Ace Up Your Sleeve',
-      desc: 'Every poker hand evaluates as if it had an invisible Ace. The house looks the other way.',
-      baseCost: 15,
+      desc: 'Each line scores the best 5-card poker hand from its cards plus one invisible Ace. The house looks the other way.',
+      baseCost: 100,
       costScale: 1,
       maxLevel: 1
     },
@@ -6637,13 +6640,11 @@
               const hand = evaluateHandSlice(slice);
               if(!hand) continue;
               const cardMult = handCardMultiplier(slice);
-              const baseHand = evaluateCards(slice);
               candidates.push({
                 i, len,
                 name: hand.name,
                 points: hand.points,
                 cardMult,
-                sleeve: !!(!baseHand || baseHand.points < hand.points),
                 cells: cells.slice(i, i+len)
               });
             }
@@ -6659,7 +6660,6 @@
               name: cand.name,
               points: cand.points,
               cardMult: cand.cardMult,
-              sleeve: cand.sleeve,
               cells: cand.cells,
               color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
             });
@@ -6980,11 +6980,10 @@
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
       const bangs = '!'.repeat(fx.bangs);
       const multTag = cardMult > 1.001 ? (' ×' + cardMult.toFixed(2).replace(/\.00$/, '')) : '';
-      const sleeveTag = g.sleeve ? ' ✦' : '';
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + sleeveTag + multTag + bangs + ' +' + pts,
+        text: g.name + multTag + bangs + ' +' + pts,
         color: brightenColor(g.color || '#ffffff', fx.bright),
         t0: now,
         duration: fx.duration,
