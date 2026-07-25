@@ -3034,10 +3034,10 @@
     {
       id: 'pitBoss',
       name: 'Pit Boss',
-      desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick. Toggle On/Off anytime.',
+      desc: 'Automatically buy the cheapest affordable table upgrade each tick. Toggle On/Off anytime.',
       baseCost: 12,
-      costScale: 2.4,
-      maxLevel: 5,
+      costScale: 1,
+      maxLevel: 1,
       toggleable: true
     }
   ];
@@ -4574,9 +4574,7 @@
         return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
-        return isAutoEnabled('pitBoss')
-          ? ('Auto-buys ×' + lvl + ' / tick')
-          : 'Paused';
+        return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
       default:
         return '';
     }
@@ -4836,31 +4834,24 @@
   }
 
   function tryAutoBuyUpgrades(){
-    const batch = prestigeLevel('pitBoss');
-    if(batch <= 0 || !isAutoEnabled('pitBoss')) return { count: 0, ids: [] };
-    let bought = 0;
-    const ids = [];
-    for(let i = 0; i < batch; i++){
-      let bestId = null;
-      let bestCost = Infinity;
-      for(const def of UPGRADE_DEFS){
-        if(!upgradeUnlocked(def.id)) continue;
-        if(def.id === 'autoSuitBomb' && !suitBombUnlocked()) continue;
-        const lvl = upgradeLevel(def.id);
-        if(lvl >= def.maxLevel) continue;
-        const cost = upgradeCost(def);
-        if(score < cost) continue;
-        if(cost < bestCost){
-          bestCost = cost;
-          bestId = def.id;
-        }
+    if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return { count: 0, ids: [] };
+    let bestId = null;
+    let bestCost = Infinity;
+    for(const def of UPGRADE_DEFS){
+      if(!upgradeUnlocked(def.id)) continue;
+      if(def.id === 'autoSuitBomb' && !suitBombUnlocked()) continue;
+      const lvl = upgradeLevel(def.id);
+      if(lvl >= def.maxLevel) continue;
+      const cost = upgradeCost(def);
+      if(score < cost) continue;
+      if(cost < bestCost){
+        bestCost = cost;
+        bestId = def.id;
       }
-      if(!bestId || !purchaseUpgrade(bestId)) break;
-      bought++;
-      ids.push(bestId);
     }
-    if(bought) scheduleSave();
-    return { count: bought, ids };
+    if(!bestId || !purchaseUpgrade(bestId)) return { count: 0, ids: [] };
+    scheduleSave();
+    return { count: 1, ids: [bestId] };
   }
 
   function playUpgradeAutoBuyEffect(btn){
