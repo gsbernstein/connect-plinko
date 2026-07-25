@@ -2878,6 +2878,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 18,
+      date: 'Jul 25, 2026',
+      title: 'Celebration labels stay on the felt',
+      items: [
+        'Hand score popups near the left or right edge nudge inward so big celebrations are no longer clipped by the board frame.'
+      ]
+    },
+    {
       id: 17,
       date: 'Jul 25, 2026',
       title: 'Sleeve & counting',
@@ -5329,7 +5337,42 @@
   }
 
   let lastHitPopupAt = 0;
+  // Keep celebration / hit labels inside the canvas — large slam text on
+  // edge columns otherwise clips against .board-frame overflow:hidden.
+  function clampPopupToBoard(p){
+    if(!p || p.text == null) return p;
+    const fontSize = p.fontSize || (p.big ? 26 : 16);
+    const slam = p.slam || (p.big ? 1.35 : 1.15);
+    // Peak slam rarely fits on edge columns; size the gutter for a strong
+    // mid-slam so labels stay near the hand without jumping to dead center.
+    const fitScale = 1 + (slam - 1) * 0.45;
+    const tilt = Math.abs(p.tilt || 0) * 1.85;
+    const floatBoost = p.floatBoost || (p.big ? 40 : 30);
+    const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
+    ctx.save();
+    ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+    const tw = ctx.measureText(String(p.text)).width;
+    ctx.restore();
+    const stroke = Math.max(4, fontSize * 0.18);
+    const hw0 = tw * 0.5 + stroke;
+    const hh0 = fontSize * 0.55 + stroke;
+    const cos = Math.cos(tilt);
+    const sin = Math.sin(tilt);
+    const pad = glow * 0.25 + 4;
+    const halfW = (Math.abs(hw0 * cos) + Math.abs(hh0 * sin)) * fitScale + pad;
+    const halfH = (Math.abs(hw0 * sin) + Math.abs(hh0 * cos)) * fitScale + pad;
+    // Wider/taller than the board → pin to center on that axis.
+    const minX = Math.min(halfW, W * 0.5);
+    const maxX = Math.max(W - halfW, W * 0.5);
+    // Float rises by floatBoost over the lifetime — reserve that headroom.
+    const minY = Math.min(halfH + floatBoost, H * 0.5);
+    const maxY = Math.max(H - halfH, H * 0.5);
+    p.x = Math.max(minX, Math.min(maxX, p.x));
+    p.y = Math.max(minY, Math.min(maxY, p.y));
+    return p;
+  }
   function pushPopup(popup){
+    clampPopupToBoard(popup);
     popups.push(popup);
     if(popups.length > MAX_POPUPS){
       popups.splice(0, popups.length - MAX_POPUPS);
@@ -7985,15 +8028,31 @@
       const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
 
       ctx.save();
-      ctx.translate(p.x, p.y + dy);
-      ctx.rotate(tilt);
-      ctx.scale(scale, scale);
-      ctx.globalAlpha = alpha;
       ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       // Dark outline so labels stay readable over suit-colored pucks.
-      ctx.lineWidth = Math.max(4, fontSize * 0.18);
+      const lineW = Math.max(4, fontSize * 0.18);
+      // Re-clamp with this frame's scale so peak slam never clips the frame.
+      const tw = ctx.measureText(p.text).width;
+      const hw0 = tw * 0.5 + lineW;
+      const hh0 = fontSize * 0.55 + lineW;
+      const cos = Math.cos(tilt);
+      const sin = Math.sin(tilt);
+      const pad = glow * 0.25 + 4;
+      const halfW = (Math.abs(hw0 * cos) + Math.abs(hh0 * sin)) * scale + pad;
+      const halfH = (Math.abs(hw0 * sin) + Math.abs(hh0 * cos)) * scale + pad;
+      const minX = Math.min(halfW, W * 0.5);
+      const maxX = Math.max(W - halfW, W * 0.5);
+      const minY = Math.min(halfH, H * 0.5);
+      const maxY = Math.max(H - halfH, H * 0.5);
+      const drawX = Math.max(minX, Math.min(maxX, p.x));
+      const drawY = Math.max(minY, Math.min(maxY, p.y + dy));
+      ctx.translate(drawX, drawY);
+      ctx.rotate(tilt);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = lineW;
       ctx.strokeStyle = 'rgba(8,6,16,0.92)';
       ctx.lineJoin = 'round';
       ctx.miterLimit = 2;
