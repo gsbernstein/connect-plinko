@@ -215,6 +215,28 @@
     min-width:4ch;
     text-align:right;
   }
+  .score-stack{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:1px;
+    min-width:4ch;
+  }
+  .score-stack b{
+    min-width:0;
+    width:100%;
+  }
+  .chip-rate{
+    display:block;
+    width:100%;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:10px;
+    line-height:1.15;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink-dim);
+    opacity:0.9;
+    text-align:right;
+  }
   .next-card{
     display:flex;
     align-items:center;
@@ -1600,6 +1622,15 @@
       text-overflow:ellipsis;
       justify-content:center;
     }
+    .score-stack{
+      align-items:center;
+      width:100%;
+      min-width:0;
+    }
+    .chip-rate{
+      text-align:center;
+      font-size:9px;
+    }
     .level-pill{
       padding:5px 2px 4px;
       gap:2px;
@@ -2193,7 +2224,10 @@
     <div class="hud">
       <div class="score hud-tile active" id="scoreBox">
         <span class="hud-label">Chips</span>
-        <b class="hud-val" id="scoreVal">0</b>
+        <span class="score-stack">
+          <b class="hud-val" id="scoreVal">0</b>
+          <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
+        </span>
       </div>
       <div class="level-pill hud-tile" id="levelBox" role="button" tabindex="0"
            title="Run level — click for unlocks" aria-label="Run level — show unlocks">
@@ -2939,6 +2973,14 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 29,
+      date: 'Jul 25, 2026',
+      title: 'Chips per second',
+      items: [
+        'The Chips HUD now shows a live chips/s rate from recent table earnings.'
+      ]
+    },
     {
       id: 28,
       date: 'Jul 25, 2026',
@@ -5203,6 +5245,7 @@
 
   const chipFxLayer = document.getElementById('chipFxLayer');
   const scoreBoxEl = document.getElementById('scoreBox');
+  const chipRateValEl = document.getElementById('chipRateVal');
   const MAX_FLYING_CHIPS = 80;
   let flyingChips = [];
   let chipFlyRaf = 0;
@@ -5574,11 +5617,68 @@
     chipFlyRaf = requestAnimationFrame(step);
   }
 
+  // Rolling chips/s from gameplay awards (hands, pin tip, rail tax, floor clear).
+  const CHIP_RATE_WINDOW_MS = 5000;
+  const CHIP_RATE_UI_MS = 250;
+  let chipEarnSamples = [];
+  let lastChipRatePaint = 0;
+  let lastChipRateText = '';
+
+  function noteChipEarn(amount, now){
+    amount = Math.floor(amount);
+    if(amount <= 0) return;
+    now = now || performance.now();
+    chipEarnSamples.push({ t: now, n: amount });
+    const cutoff = now - CHIP_RATE_WINDOW_MS;
+    let i = 0;
+    while(i < chipEarnSamples.length && chipEarnSamples[i].t < cutoff) i++;
+    if(i) chipEarnSamples.splice(0, i);
+  }
+
+  function currentChipRate(now){
+    now = now || performance.now();
+    const cutoff = now - CHIP_RATE_WINDOW_MS;
+    let i = 0;
+    while(i < chipEarnSamples.length && chipEarnSamples[i].t < cutoff) i++;
+    if(i) chipEarnSamples.splice(0, i);
+    if(!chipEarnSamples.length) return 0;
+    let sum = 0;
+    for(const s of chipEarnSamples) sum += s.n;
+    return sum / (CHIP_RATE_WINDOW_MS / 1000);
+  }
+
+  function formatChipRate(rate){
+    if(!Number.isFinite(rate) || rate < 0.05) return '0/s';
+    if(rate < 100){
+      return (Math.round(rate * 10) / 10).toFixed(1).replace(/\.0$/, '') + '/s';
+    }
+    return formatNum(rate) + '/s';
+  }
+
+  function resetChipRate(){
+    chipEarnSamples = [];
+    lastChipRatePaint = 0;
+    lastChipRateText = '';
+    if(chipRateValEl) chipRateValEl.textContent = '0/s';
+  }
+
+  function updateChipRateUI(now, force){
+    if(!chipRateValEl) return;
+    now = now || performance.now();
+    if(!force && now - lastChipRatePaint < CHIP_RATE_UI_MS) return;
+    lastChipRatePaint = now;
+    const text = formatChipRate(currentChipRate(now));
+    if(text === lastChipRateText) return;
+    lastChipRateText = text;
+    chipRateValEl.textContent = text;
+  }
+
   function awardChips(amount, origin){
     amount = Math.floor(amount);
     if(amount <= 0) return 0;
     score += amount;
     lifetime += amount;
+    noteChipEarn(amount);
     const leveled = syncRunLevel();
     scheduleSave();
     // Peg/bumper hits can fire often — batch score + shop DOM updates.
@@ -5829,6 +5929,7 @@
     chainStep = 0;
     pendingChain = 0;
     resumeHeaterChain = 0;
+    resetChipRate();
   }
 
   function persistSave(){
@@ -6074,6 +6175,7 @@
     chainStep = 0;
     pendingChain = 0;
     resumeHeaterChain = 0;
+    resetChipRate();
     seenUnlocks = {
       tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
       upgrades: []
@@ -9100,6 +9202,7 @@
 
   function updateScoreUI(){
     scoreValEl.textContent = formatNum(score);
+    updateChipRateUI(performance.now(), true);
     if(lifetimeValEl) lifetimeValEl.textContent = formatNum(lifetime);
     updateCompsHud();
     updateLevelUI();
@@ -10275,6 +10378,7 @@
   // Lightweight keeper: only runs work when the physics/resolve loops are idle.
   function idleSpin(){
     const now = performance.now();
+    updateChipRateUI(now);
     if(upgradeLevel('autoDealer') > 0) updateAutoStatus(now);
     if(!looping && !resolveLooping){
       updateSuitBombUI(now);
