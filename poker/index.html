@@ -235,6 +235,49 @@
     font-size:12px;
     line-height:1.45;
   }
+  .settings-toggles{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:100%;
+  }
+  .settings-toggle{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:12px 14px;
+    background:var(--panel-2);
+    border:1px solid #2a2545;
+    border-radius:10px;
+    color:var(--ink);
+    font-size:13px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .settings-toggle:hover{border-color:#463d7a;}
+  .settings-toggle input{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+  }
+  .settings-toggle-ui{
+    flex:0 0 auto;
+    min-width:42px;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid #3a3558;
+    background:#171426;
+    color:var(--ink-dim);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    text-align:center;
+  }
+  .settings-toggle input:checked + .settings-toggle-ui{
+    color:var(--felt-bright);
+    border-color:rgba(46,138,110,0.45);
+    background:rgba(26,77,62,0.28);
+  }
   .rails{
     width:100%;
     display:flex;
@@ -1680,6 +1723,18 @@
           <h2>Settings</h2>
         </div>
         <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
+        <div class="settings-toggles">
+          <label class="settings-toggle">
+            <span>Show FPS counter</span>
+            <input type="checkbox" id="settingShowFps">
+            <span class="settings-toggle-ui" aria-hidden="true">Off</span>
+          </label>
+          <label class="settings-toggle">
+            <span>Near-hand hints</span>
+            <input type="checkbox" id="settingNearHandHints">
+            <span class="settings-toggle-ui" aria-hidden="true">Off</span>
+          </label>
+        </div>
         <button type="button" class="reset" id="resetScores">Reset all progress</button>
       </section>
     </div>
@@ -2064,6 +2119,7 @@
 
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
+  const SETTINGS_KEY = 'plinkoPokerSettings_v1';
   const SAVE_VERSION = 7;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
@@ -2521,7 +2577,7 @@
   let prestigeCount = 0;
   let runLevel = 1;
   let runCompCredit = 0; // comps banked by level rewards; paid out on Cash Out
-  let lastAutoDropAt = 0;
+  let autoDropTicks = 0;
   let lastIdleDrawAt = 0;
   let nearMissCache = null;
   let hintsDirty = true;
@@ -2549,6 +2605,50 @@
     runStraightFlushes: 0
   };
   let stats = Object.assign({}, EMPTY_STATS);
+  const DEFAULT_SETTINGS = {
+    showFps: false,
+    nearHandHints: false
+  };
+  let gameSettings = Object.assign({}, DEFAULT_SETTINGS);
+
+  function loadSettings(){
+    try{
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || typeof data !== 'object') return;
+      if(typeof data.showFps === 'boolean') gameSettings.showFps = data.showFps;
+      if(typeof data.nearHandHints === 'boolean') gameSettings.nearHandHints = data.nearHandHints;
+    }catch(_){ /* ignore */ }
+  }
+
+  function persistSettings(){
+    try{
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(gameSettings));
+    }catch(_){ /* private mode / quota */ }
+  }
+
+  function setGameSetting(key, on){
+    if(!(key in DEFAULT_SETTINGS)) return;
+    gameSettings[key] = !!on;
+    persistSettings();
+    syncSettingsUI();
+    if(key === 'nearHandHints') markHintsDirty();
+    startLoop();
+  }
+
+  function syncSettingsUI(){
+    if(settingShowFpsEl){
+      settingShowFpsEl.checked = !!gameSettings.showFps;
+      const ui = settingShowFpsEl.nextElementSibling;
+      if(ui) ui.textContent = gameSettings.showFps ? 'On' : 'Off';
+    }
+    if(settingNearHandHintsEl){
+      settingNearHandHintsEl.checked = !!gameSettings.nearHandHints;
+      const ui = settingNearHandHintsEl.nextElementSibling;
+      if(ui) ui.textContent = gameSettings.nearHandHints ? 'On' : 'Off';
+    }
+  }
 
   function purchasedLevel(id){ return upgrades[id] || 0; }
   function prestigeLevel(id){ return prestigeUpgrades[id] || 0; }
@@ -3091,6 +3191,18 @@
     const early = 3200 * Math.pow(0.72, Math.min(lvl, 12) - 1);
     const late = early * Math.pow(0.94, Math.max(0, lvl - 12));
     return Math.max(40, Math.floor(late));
+  }
+
+  function autoDropIntervalTicks(){
+    const ms = autoDropIntervalMs();
+    if(!Number.isFinite(ms)) return Infinity;
+    return Math.max(1, Math.round(ms / 1000 * PHYSICS_HZ));
+  }
+
+  function autoDealerActive(){
+    return upgradeLevel('autoDealer') > 0
+      && isAutoEnabled('autoDealer')
+      && Number.isFinite(autoDropIntervalMs());
   }
 
   function autoDropCount(){
@@ -3720,7 +3832,7 @@
     lifetime = 0;
     runLevel = 1;
     runCompCredit = 0;
-    lastAutoDropAt = 0;
+    autoDropTicks = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
   }
@@ -3869,7 +3981,7 @@
     questClaimed = Object.create(null);
     activeQuests = [];
     questUidSeq = 1;
-    lastAutoDropAt = 0;
+    autoDropTicks = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
     persistSave();
@@ -4021,6 +4133,7 @@
   }
 
   function getNearMisses(){
+    if(!gameSettings.nearHandHints) return [];
     if(hintsDirty || !nearMissCache){
       nearMissCache = findNearMisses();
       hintsDirty = false;
@@ -4071,11 +4184,11 @@
     return best;
   }
 
-  function tryAutoDrop(now){
-    const interval = autoDropIntervalMs();
-    if(!Number.isFinite(interval)) return;
+  function tryAutoDrop(){
+    const intervalTicks = autoDropIntervalTicks();
+    if(!Number.isFinite(intervalTicks)) return;
     if(gameOver) return;
-    if(now - lastAutoDropAt < interval) return;
+    if(autoDropTicks < intervalTicks) return;
     if(balls.length >= MAX_AUTO_DROP_BALLS) return;
 
     const count = autoDropCount();
@@ -4093,7 +4206,7 @@
       }
       dropped++;
     }
-    if(dropped > 0) lastAutoDropAt = now;
+    if(dropped > 0) autoDropTicks = 0;
   }
 
   function stopHoldDrop(){
@@ -4145,7 +4258,7 @@
     popups = [];
     clearFlyingChips();
     pendingSuitBomb = null;
-    lastAutoDropAt = performance.now();
+    autoDropTicks = 0;
     lastPhysicsTime = 0;
     physicsAccumulator = 0;
     fpsDisplay = 0;
@@ -4758,7 +4871,6 @@
 
   function tick(){
     const now = performance.now();
-    tryAutoDrop(now);
     tryHoldDrop(now);
     tryAutoSuitBomb(now);
     maybeAutoBuy(now);
@@ -4784,6 +4896,8 @@
       physicsSteps++;
     }
     lastPhysicsSteps = physicsSteps;
+    autoDropTicks += physicsSteps;
+    tryAutoDrop();
     stepParticles();
 
     const landed = balls.filter(b=>b.landed);
@@ -4806,7 +4920,7 @@
       && isAutoEnabled('autoSuitBomb')
       && suitBombUnlocked();
     if(balls.length>0 || particles.length>0 || popupsAlive || resolving
-      || bombCharging || bombAuto){
+      || bombCharging || bombAuto || autoDealerActive()){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -5021,6 +5135,7 @@
   }
 
   function drawNearMissHints(){
+    if(!gameSettings.nearHandHints) return;
     if(gameOver || resolving) return;
     const hints = getNearMisses();
     if(!hints.length) return;
@@ -5516,7 +5631,6 @@
 
   function resolveTick(){
     const now = performance.now();
-    tryAutoDrop(now);
     tryHoldDrop(now);
     const speed = Math.min(physicsSpeed(), 2.8);
     const flashMs = FLASH_MS / speed;
@@ -5720,6 +5834,7 @@
   }
 
   function drawFpsOverlay(){
+    if(!gameSettings.showFps) return;
     const now = performance.now();
     sampleFps(now);
     const lines = [
@@ -6010,6 +6125,8 @@
   const autoStatusEl = document.getElementById('autoStatus');
   const autoStatusValEl = document.getElementById('autoStatusVal');
   const autoStatusFillEl = document.getElementById('autoStatusFill');
+  const settingShowFpsEl = document.getElementById('settingShowFps');
+  const settingNearHandHintsEl = document.getElementById('settingNearHandHints');
   const upgradesEl = document.getElementById('upgrades');
   const prestigeUpgradesEl = document.getElementById('prestigeUpgrades');
   const questsEl = document.getElementById('quests');
@@ -6346,6 +6463,7 @@
       return;
     }
     const n = autoDropCount();
+    const intervalTicks = autoDropIntervalTicks();
     const blocked = balls.length >= MAX_AUTO_DROP_BALLS;
     if(autoStatusValEl){
       autoStatusValEl.textContent = blocked
@@ -6355,7 +6473,7 @@
     if(autoStatusFillEl){
       const t = blocked
         ? 1
-        : Math.max(0, Math.min(1, (now - lastAutoDropAt) / interval));
+        : Math.max(0, Math.min(1, autoDropTicks / intervalTicks));
       autoStatusFillEl.style.width = (t * 100) + '%';
     }
   }
@@ -7096,6 +7214,18 @@
     refreshButtons();
     draw();
   });
+  if(settingShowFpsEl){
+    settingShowFpsEl.addEventListener('change', ()=>{
+      setGameSetting('showFps', settingShowFpsEl.checked);
+      draw();
+    });
+  }
+  if(settingNearHandHintsEl){
+    settingNearHandHintsEl.addEventListener('change', ()=>{
+      setGameSetting('nearHandHints', settingNearHandHintsEl.checked);
+      draw();
+    });
+  }
 
   function canvasPos(evt){
     const rect = canvas.getBoundingClientRect();
@@ -7157,13 +7287,13 @@
     if(upgradeLevel('autoDealer') > 0) updateAutoStatus(now);
     if(!looping && !resolveLooping){
       updateSuitBombUI(now);
-      tryAutoDrop(now);
       tryHoldDrop(now);
       tryAutoSuitBomb(now);
       maybeAutoBuy(now);
       maybeAutoClaimQuests(now);
       const needLoop = balls.length || particles.length || resolving
         || holdDropping
+        || autoDealerActive()
         || (prestigeLevel('pitBoss') > 0 && isAutoEnabled('pitBoss'))
         || (prestigeLevel('questDesk') > 0
           && isAutoEnabled('questDesk')
@@ -7184,6 +7314,8 @@
     requestAnimationFrame(idleSpin);
   }
 
+  loadSettings();
+  syncSettingsUI();
   loadSave();
   // Don't flash unlock animations for upgrades already available on load.
   for(const def of UPGRADE_DEFS){
