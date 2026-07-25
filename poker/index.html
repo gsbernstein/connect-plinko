@@ -322,6 +322,68 @@
     font-size:12px;
     line-height:1.45;
   }
+  .settings-changelog{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    width:100%;
+  }
+  .settings-changelog-head{
+    margin:0;
+    color:var(--ink);
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+  }
+  .changelog-entry{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    padding:0 0 12px;
+    border-bottom:1px solid #2a2545;
+  }
+  .changelog-entry:last-child{
+    padding-bottom:0;
+    border-bottom:none;
+  }
+  .changelog-meta{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .changelog-title{
+    margin:0;
+    color:var(--ink);
+    font-size:13px;
+    font-weight:700;
+    line-height:1.3;
+  }
+  .changelog-date{
+    flex:0 0 auto;
+    color:var(--ink-dim);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+  }
+  .changelog-items{
+    margin:0;
+    padding:0 0 0 16px;
+    color:var(--ink-dim);
+    font-size:12px;
+    line-height:1.45;
+  }
+  .changelog-items li{margin:0 0 4px;}
+  .changelog-items li:last-child{margin-bottom:0;}
+  .settings-danger{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:100%;
+    margin-top:4px;
+    padding-top:14px;
+    border-top:1px solid #2a2545;
+  }
   .settings-toggles{
     display:flex;
     flex-direction:column;
@@ -2108,7 +2170,10 @@
         <div class="shop-head">
           <h2>Settings</h2>
         </div>
-        <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
+        <div class="settings-changelog" aria-label="Changelog">
+          <p class="settings-changelog-head">What’s new</p>
+          <div id="changelogList"></div>
+        </div>
         <div class="settings-toggles">
           <label class="settings-toggle">
             <span>Show FPS counter</span>
@@ -2126,7 +2191,10 @@
             <span class="settings-toggle-ui" aria-hidden="true">On</span>
           </label>
         </div>
-        <button type="button" class="reset" id="resetScores">Reset all progress</button>
+        <div class="settings-danger">
+          <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
+          <button type="button" class="reset" id="resetScores">Reset all progress</button>
+        </div>
       </section>
     </div>
 
@@ -2155,6 +2223,7 @@
       </button>
       <button type="button" class="rail-tab" data-panel="settings" aria-selected="false">
         <span class="rail-tab-label">Settings</span>
+        <span class="rail-tab-badge is-new" id="badgeSettings" hidden aria-label="New updates"></span>
       </button>
     </nav>
   </aside>
@@ -2634,7 +2703,43 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 17;
+  const SAVE_VERSION = 18;
+  // Newest-first. Bump id (monotonic) when adding an entry so the Settings
+  // red badge lights up for players whose save has a lower seenChangelogId.
+  // Keep entries player-facing; skip pure agent/docs/internal churn.
+  const CHANGELOG = [
+    {
+      id: 3,
+      date: 'Jul 2026',
+      title: 'Shop math & Auto Dealer',
+      items: [
+        'VIP skill bonuses now raise matching upgrade buy costs and surface Blind / payout / combo multipliers on shop rows.',
+        'Auto Dealer caps at Lv 12 with steeper costs; the Auto HUD fill tracks real deal timing at fast rates.'
+      ]
+    },
+    {
+      id: 2,
+      date: 'Jul 2026',
+      title: 'Table Tilt & Short Fuse',
+      items: [
+        'New VIP perk Table Tilt steers peg falls from device motion (toggleable; permission only when you turn it on).',
+        'Short Fuse speeds hand-clear explosions separately from Felt Grease ball physics.',
+        'Minimized Suit Purge charge bar pins to the card bottom; auto-target suit flashes when casting.'
+      ]
+    },
+    {
+      id: 1,
+      date: 'Jul 2026',
+      title: 'Progression rework',
+      items: [
+        'Run level climbs to 200 with quest slots at Lv 2 / 20 / 45 / 75 / 110 and late-game payout & combo multipliers.',
+        'VIP rework: Felt Wax, Hot Streak, Open Blind; Card Sense and Auto Purge moved to VIP perks.',
+        'Achievements gain infinite tiered levels, sort by progress, and pulse the numerator when it ticks up.',
+        'Rail tabs show a red dot the first time a section unlocks; Next HUD uses colored suit glyphs.'
+      ]
+    }
+  ];
+  const CHANGELOG_LATEST_ID = CHANGELOG.reduce((max, e) => Math.max(max, e.id | 0), 0);
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -3240,6 +3345,8 @@
     tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
     upgrades: []
   };
+  // Highest CHANGELOG entry id the player has opened in Settings (0 = none).
+  let seenChangelogId = 0;
   const EMPTY_STATS = {
     hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
@@ -5066,6 +5173,7 @@
         autoEnabled,
         suitBombCdLeft: cdLeft,
         seenUnlocks,
+        seenChangelogId,
         v: SAVE_VERSION
       }));
     }catch(_){ /* private mode / quota */ }
@@ -5226,6 +5334,12 @@
           .filter(d => (d.unlockAt || 1) > 1 && upgradeUnlocked(d.id))
           .map(d => d.id);
       }
+      // Missing / invalid → 0 so existing saves badge the seeded changelog once.
+      if(typeof data.seenChangelogId === 'number' && data.seenChangelogId >= 0){
+        seenChangelogId = Math.floor(data.seenChangelogId);
+      } else {
+        seenChangelogId = 0;
+      }
     }catch(_){ /* corrupt save */ }
   }
 
@@ -5251,6 +5365,8 @@
       tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
       upgrades: []
     };
+    // Reset is launched from Settings — keep changelog marked seen.
+    seenChangelogId = CHANGELOG_LATEST_ID;
     persistSave();
     updateScoreUI();
     updateShopUI();
@@ -5259,6 +5375,7 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateSettingsChangelogBadge();
     // Reset is launched from Settings (always unlocked), so tab gating alone
     // won't leave FTUE — jump back to the first-run default panel.
     setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
@@ -7600,9 +7717,62 @@
     upgrades: document.getElementById('badgeUpgrades'),
     quests: document.getElementById('badgeQuests'),
     achievements: document.getElementById('badgeAchievements'),
-    vip: document.getElementById('badgeVip')
+    vip: document.getElementById('badgeVip'),
+    settings: document.getElementById('badgeSettings')
   };
+  const changelogListEl = document.getElementById('changelogList');
   let activeRailPanel = 'table';
+
+  function hasUnseenChangelog(){
+    return CHANGELOG_LATEST_ID > (seenChangelogId | 0);
+  }
+
+  function updateSettingsChangelogBadge(){
+    const el = tabBadges.settings;
+    if(!el) return;
+    const unseen = hasUnseenChangelog();
+    el.hidden = !unseen;
+    el.textContent = '';
+    el.classList.toggle('is-new', true);
+    if(unseen) el.setAttribute('aria-label', 'New updates');
+    else el.removeAttribute('aria-label');
+  }
+
+  function markChangelogSeen(){
+    if(seenChangelogId >= CHANGELOG_LATEST_ID) return;
+    seenChangelogId = CHANGELOG_LATEST_ID;
+    scheduleSave();
+    updateSettingsChangelogBadge();
+  }
+
+  function renderChangelog(){
+    if(!changelogListEl) return;
+    changelogListEl.textContent = '';
+    for(const entry of CHANGELOG){
+      const wrap = document.createElement('article');
+      wrap.className = 'changelog-entry';
+      const meta = document.createElement('div');
+      meta.className = 'changelog-meta';
+      const title = document.createElement('h3');
+      title.className = 'changelog-title';
+      title.textContent = entry.title;
+      const date = document.createElement('span');
+      date.className = 'changelog-date';
+      date.textContent = entry.date || '';
+      meta.appendChild(title);
+      meta.appendChild(date);
+      const list = document.createElement('ul');
+      list.className = 'changelog-items';
+      for(const item of (entry.items || [])){
+        const li = document.createElement('li');
+        li.textContent = item;
+        list.appendChild(li);
+      }
+      wrap.appendChild(meta);
+      wrap.appendChild(list);
+      changelogListEl.appendChild(wrap);
+    }
+  }
   const nextLabel = document.getElementById('nextLabel');
   const nextTier = document.getElementById('nextTier');
   const nextRank = document.getElementById('nextRank');
@@ -7742,6 +7912,7 @@
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     }
     markPanelUnlocksSeen(panel);
+    if(panel === 'settings') markChangelogSeen();
   }
 
   for(const tab of railTabs){
@@ -9139,6 +9310,8 @@
   buildShop();
   buildSuitBombUI();
   freshState();
+  renderChangelog();
+  updateSettingsChangelogBadge();
   updateScoreUI();
   updateLevelUI();
   updateAutoStatus();

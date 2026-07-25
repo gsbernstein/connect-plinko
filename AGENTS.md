@@ -78,6 +78,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
+| `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`) |
+| `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 
 ### Progression model (high level)
 
@@ -145,6 +147,20 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 - `persistSave` / `scheduleSave` — debounced writes to `localStorage`.
 - When adding fields, bump `SAVE_VERSION` and add migration logic in `loadSave`.
 - `ACHIEVEMENT_LEGACY_CLAIMS` maps retired achievement ids for old saves.
+- `seenChangelogId` — missing/invalid loads as `0` so existing saves get the Settings red badge once for seeded entries.
+
+### Settings changelog (What’s New)
+
+Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a red-dot badge on the Settings rail tab (`#badgeSettings`, `.rail-tab-badge.is-new`) when `seenChangelogId < CHANGELOG_LATEST_ID`. Opening Settings calls `markChangelogSeen()` (sets `seenChangelogId` to `CHANGELOG_LATEST_ID` and saves). Hard reset keeps the changelog marked seen (reset is launched from Settings).
+
+**Agents: keep this updated.** When you ship a player-visible Poker change (new upgrade/perk, progression tweak, notable UX), prepend a new object to `CHANGELOG` with:
+
+1. `id` — strictly greater than the current max (`CHANGELOG_LATEST_ID` is derived).
+2. `date` — short label (e.g. `'Jul 2026'`).
+3. `title` — one short headline.
+4. `items` — 1–4 concise player-facing bullets (skip pure docs/agent/internal fixes).
+
+That new `id` is what lights the red badge for returning saves. Do not reuse or renumber old ids. Render path: `renderChangelog` → `#changelogList`; badge: `updateSettingsChangelogBadge`.
 
 ## Common agent tasks
 
@@ -157,6 +173,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
 | Hand scoring / stats | hand detection block ~6160+, `HAND_STAT` wiring |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
+| Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
 | Classic gameplay | `index.html` only |
 
 ## Git & PR workflow
