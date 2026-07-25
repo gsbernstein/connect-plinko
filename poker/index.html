@@ -2918,6 +2918,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 22,
+      date: 'Jul 25, 2026',
+      title: 'Bigger combos, hotter heaters',
+      items: [
+        'COMBO banners scale up with the number of hands you clear at once.',
+        'Multi-hand clears advance your chain once per hand — a COMBO ×3 jumps the heater three steps.'
+      ]
+    },
+    {
       id: 21,
       date: 'Jul 25, 2026',
       title: 'Instant vs Cash Out comps',
@@ -7270,6 +7279,21 @@
     };
   }
 
+  // Combo banner juice scales with simultaneous hands (×2 baseline → bigger).
+  function comboPopupJuice(n){
+    const extra = Math.max(0, n - 2);
+    return {
+      fontSize: Math.min(52, 22 + extra * 8),
+      floatBoost: Math.min(88, 38 + extra * 12),
+      slam: Math.min(3.4, 1.6 + extra * 0.35),
+      slamMs: Math.min(280, 150 + extra * 24),
+      glow: Math.min(44, 14 + extra * 6),
+      duration: Math.min(2400, 1200 + extra * 200),
+      tilt: -0.08 - Math.min(0.18, extra * 0.035),
+      big: true
+    };
+  }
+
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
     const mult = handPayoutMultiplier();
@@ -7307,11 +7331,13 @@
     }
     if(groups.length>1){
       const comboPos = comboPopupPosition(groups);
+      const fx = comboPopupJuice(groups.length);
       pushPopup({
         x: comboPos.x, y: comboPos.y,
         text:'COMBO ×'+groups.length+'!',
-        color: PEG, t0:now, duration:1200,
-        fontSize: 20, floatBoost: 36, tilt: -0.08, slam: 1.55, slamMs: 150, glow: 12
+        color: PEG, t0:now, duration: fx.duration,
+        fontSize: fx.fontSize, floatBoost: fx.floatBoost, tilt: fx.tilt,
+        slam: fx.slam, slamMs: fx.slamMs, glow: fx.glow, big: fx.big
       });
     }
   }
@@ -7656,7 +7682,8 @@
   }
 
   function enterFlash(groups){
-    chainStep++;
+    // Each simultaneous hand advances the heater — COMBO ×N steps chain N times.
+    chainStep += Math.max(1, groups.length);
     currentGroups = groups;
     flashCells = new Set();
     for(const g of groups) for(const [c,r] of g.cells) flashCells.add(c+','+r);
