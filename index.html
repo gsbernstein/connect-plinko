@@ -1696,14 +1696,13 @@
   });
 
   // ---- gyro board tilt (opt-in; no permission until the toggle is checked) ----
-  const TILT_RANGE_DEG = 50; // device lean past deadzone that maps to full ±60° gravity
-  const TILT_DEADZONE_DEG = 6;
-  const TILT_BASELINE_MS = 500; // ignore tap-wobble when capturing neutral hold
+  const TILT_RANGE_DEG = 45; // device lean past deadzone → full ±60° gravity
+  const TILT_DEADZONE_DEG = 4;
+  const TILT_BASELINE_MS = 400;
   let gyroEnabled = false;
   let gyroBaseline = null;
   let gyroBaselineSamples = [];
   let gyroBaselineUntil = 0;
-  let lastMotionLeanAt = 0;
   let tiltLockedOrientation = false;
   let tiltEnteredFullscreen = false;
   const tiltToggle = document.getElementById('tiltToggle');
@@ -1714,14 +1713,6 @@
     gyroBaselineSamples = [];
     gyroBaselineUntil = 0;
     boardTilt = 0;
-  }
-
-  // Gravity-plane lean in degrees (0 = upright). abs(ay) so iOS (−Y) and Android (+Y)
-  // upright readings both map to 0.
-  function leanFromGravity(ax, ay){
-    if(ax == null || ay == null) return null;
-    if(Math.hypot(ax, ay) < 4) return null;
-    return Math.atan2(ax, Math.abs(ay)) * (180 / Math.PI);
   }
 
   function screenOrientationAngle(){
@@ -1760,39 +1751,54 @@
     if(Math.abs(delta) < TILT_DEADZONE_DEG) delta = 0;
     else delta -= Math.sign(delta) * TILT_DEADZONE_DEG;
     const raw = Math.max(-1, Math.min(1, delta / TILT_RANGE_DEG));
-    boardTilt += (raw - boardTilt) * 0.28;
-  }
-
-  function onDeviceMotion(e){
-    const a = e.accelerationIncludingGravity;
-    if(!a) return;
-    const lean = leanFromGravity(a.x, a.y);
-    if(lean == null) return;
-    lastMotionLeanAt = performance.now();
-    applyLeanSample(lean);
+    boardTilt += (raw - boardTilt) * 0.35;
   }
 
   function onDeviceOrientation(e){
-    if(performance.now() - lastMotionLeanAt < 400) return;
     applyLeanSample(leanFromOrientation(e));
   }
 
-  function lockScreenForTilt(){
-    const tryLock = ()=>{
-      if(!screen.orientation || typeof screen.orientation.lock !== 'function'){
-        return Promise.resolve();
-      }
-      return screen.orientation.lock('portrait').then(()=>{
-        tiltLockedOrientation = true;
-      }).catch(()=>{});
-    };
-    if(document.fullscreenElement) return tryLock();
+  function fullscreenElement(){
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  // MUST be invoked synchronously from a tap/click handler.
+  function requestTiltFullscreen(){
+    if(fullscreenElement()){
+      lockPortrait();
+      return;
+    }
     const root = document.documentElement;
-    if(typeof root.requestFullscreen !== 'function') return tryLock();
-    return root.requestFullscreen().then(()=>{
-      tiltEnteredFullscreen = true;
-      return tryLock();
-    }).catch(()=> tryLock());
+    const req = root.requestFullscreen || root.webkitRequestFullscreen || root.webkitRequestFullScreen;
+    if(typeof req !== 'function'){
+      lockPortrait();
+      return;
+    }
+    try{
+      const result = req.call(root, { navigationUI: 'hide' });
+      const after = ()=>{
+        tiltEnteredFullscreen = !!fullscreenElement();
+        lockPortrait();
+      };
+      if(result && typeof result.then === 'function'){
+        result.then(after).catch(()=>{
+          tiltEnteredFullscreen = false;
+          lockPortrait();
+        });
+      } else {
+        after();
+      }
+    }catch(err){
+      tiltEnteredFullscreen = false;
+      lockPortrait();
+    }
+  }
+
+  function lockPortrait(){
+    if(!screen.orientation || typeof screen.orientation.lock !== 'function') return;
+    screen.orientation.lock('portrait').then(()=>{
+      tiltLockedOrientation = true;
+    }).catch(()=>{});
   }
 
   function unlockScreenForTilt(){
@@ -1800,38 +1806,32 @@
       try{ screen.orientation.unlock(); }catch(err){ /* ignore */ }
       tiltLockedOrientation = false;
     }
-    if(tiltEnteredFullscreen && document.fullscreenElement && typeof document.exitFullscreen === 'function'){
+    if(tiltEnteredFullscreen && fullscreenElement()){
       tiltEnteredFullscreen = false;
-      document.exitFullscreen().catch(()=>{});
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if(typeof exit === 'function'){
+        try{
+          const result = exit.call(document);
+          if(result && typeof result.catch === 'function') result.catch(()=>{});
+        }catch(err){ /* ignore */ }
+      }
     }
   }
 
   function enableGyro(){
-    const canOrient = typeof window.DeviceOrientationEvent !== 'undefined';
-    const canMotion = typeof window.DeviceMotionEvent !== 'undefined';
-    if(!canOrient && !canMotion) return Promise.resolve(false);
+    if(typeof window.DeviceOrientationEvent === 'undefined') return Promise.resolve(false);
     if(gyroEnabled){
       resetGyroBaseline();
       return Promise.resolve(true);
     }
     const start = ()=>{
-      if(canMotion) window.addEventListener('devicemotion', onDeviceMotion, true);
-      if(canOrient) window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      window.addEventListener('deviceorientation', onDeviceOrientation, true);
       gyroEnabled = true;
       resetGyroBaseline();
       return true;
     };
-    const orientPerm = typeof DeviceOrientationEvent !== 'undefined'
-      && typeof DeviceOrientationEvent.requestPermission === 'function'
-      ? DeviceOrientationEvent.requestPermission
-      : null;
-    const motionPerm = typeof DeviceMotionEvent !== 'undefined'
-      && typeof DeviceMotionEvent.requestPermission === 'function'
-      ? DeviceMotionEvent.requestPermission
-      : null;
-    if(orientPerm || motionPerm){
-      const req = orientPerm || motionPerm;
-      return req.call(orientPerm ? DeviceOrientationEvent : DeviceMotionEvent)
+    if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+      return DeviceOrientationEvent.requestPermission()
         .then(state => state === 'granted' ? start() : false)
         .catch(()=>false);
     }
@@ -1839,22 +1839,21 @@
     return Promise.resolve(true);
   }
 
-  if((typeof window.DeviceOrientationEvent !== 'undefined'
-    || typeof window.DeviceMotionEvent !== 'undefined') && tiltToggleWrap){
+  if(typeof window.DeviceOrientationEvent !== 'undefined' && tiltToggleWrap){
     tiltToggleWrap.hidden = false;
   }
   if(tiltToggle){
     tiltToggle.addEventListener('change', ()=>{
       if(tiltToggle.checked){
+        // Fullscreen must start in this tap's call stack.
+        requestTiltFullscreen();
         enableGyro().then(ok => {
           tiltControlsOn = !!ok;
           if(!ok){
             tiltToggle.checked = false;
+            unlockScreenForTilt();
             boardTilt = 0;
-            return;
           }
-          resetGyroBaseline();
-          lockScreenForTilt();
         });
       } else {
         tiltControlsOn = false;
