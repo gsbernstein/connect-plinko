@@ -2984,6 +2984,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 46,
+      date: 'Jul 27, 2026',
+      title: 'Flaming crowned kings',
+      items: [
+        'With I Didn\'t Ask How Big the Room Was on, crowned kings leap aflame and light nearby cards as they jump.',
+        'Burning cards keep dripping chips during King Me leaps — they only ash out once the crown lands.'
+      ]
+    },
+    {
       id: 45,
       date: 'Jul 27, 2026',
       title: 'I Didn\'t Ask How Big the Room Was',
@@ -4106,7 +4115,7 @@
     {
       id: 'bigRoom',
       name: 'I Didn\'t Ask How Big the Room Was',
-      desc: 'Explosions cast fireballs that light other cards on fire. Burning cards drip chips until they ash out. Toggle On/Off anytime.',
+      desc: 'Explosions cast fireballs that light other cards on fire. Burning cards drip chips until they ash out. Crowned kings leap aflame and light neighbors. Toggle On/Off anytime.',
       baseCost: 80,
       costScale: 1,
       maxLevel: 1,
@@ -4403,6 +4412,8 @@
   const BIG_ROOM_BURN_TICKS = 4;
   const BIG_ROOM_BURN_TICK_MS = 420;
   const BIG_ROOM_BURN_COLOR = '#FF7A3D';
+  const BIG_ROOM_KING_EMBER_MS = 70;
+  const BIG_ROOM_KING_IGNITE_R = 58;
 
   function bigRoomUnlocked(){
     return prestigeLevel('bigRoom') > 0;
@@ -6503,7 +6514,7 @@
       case 'bigRoom':
         if(!lvl) return 'No fireballs';
         if(!isAutoEnabled('bigRoom')) return 'Paused';
-        return 'Fireballs on blasts · ' + formatNum(burnTickPayout()) + ' / burn tick';
+        return 'Fireballs on blasts · flaming kings · ' + formatNum(burnTickPayout()) + ' / burn tick';
       default:
         return '';
     }
@@ -8125,9 +8136,16 @@
   function launchKingJumper(col, row){
     const card = grid[col][row];
     if(!card || card.rank !== 13 || !card.crowned) return false;
+    const stackIdx = ROWS - 1 - row;
+    const settled = (stackIdx >= 0 && stackIdx < stack[col].length)
+      ? stack[col][stackIdx]
+      : null;
+    const wasBurning = !!(settled && settled.type === 'piece' && settled.burning);
     const lifted = removeSettledPieceAt(col, row);
     if(!lifted) return false;
     const {x, y} = cellCenter(col, row);
+    // Big Room: crowned leaps go aflame (and keep any burn they already had).
+    const flaming = wasBurning || bigRoomActive();
     kingJumpers.push({
       card: cloneCard(lifted, {crowned: true}),
       col, row,
@@ -8139,7 +8157,9 @@
       fromX: x, fromY: y,
       toX: x, toY: y,
       midCol: -1, midRow: -1,
-      destCol: col, destRow: row
+      destCol: col, destRow: row,
+      flaming,
+      lastEmberAt: 0
     });
     startLoop();
     return true;
@@ -8273,6 +8293,7 @@
         // Arc over the victim.
         j.y -= Math.sin(ease * Math.PI) * (CELL * 0.72);
         j.card.angle = (j.card.angle || 0) + 0.18;
+        maybeFlamingKingIgnite(j, now);
         if(t >= 1){
           finishKingMeLeap(j);
           changed = true;
@@ -8285,6 +8306,7 @@
         next.push(j);
         continue;
       }
+      maybeFlamingKingIgnite(j, now);
       if(j.jumpsLeft <= 0){
         detonateKingJumper(j);
         changed = true;
@@ -8310,6 +8332,41 @@
 
   function kingMeBusy(){
     return kingJumpers.length > 0 || pendingKingMe.length > 0;
+  }
+
+  // Big Room: flaming crowned kings trail embers and light settled cards they skim.
+  function maybeFlamingKingIgnite(j, now){
+    if(!j || !j.flaming || !bigRoomActive()) return;
+    if(now - (j.lastEmberAt || 0) < BIG_ROOM_KING_EMBER_MS) return;
+    j.lastEmberAt = now;
+    if(particles.length < MAX_PARTICLES && Math.random() < 0.7){
+      const n = Math.min(2, MAX_PARTICLES - particles.length);
+      for(let i = 0; i < n; i++){
+        particles.push({
+          x: j.x + (Math.random() - 0.5) * 14,
+          y: j.y + (Math.random() - 0.5) * 10,
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: -1.4 - Math.random() * 1.6,
+          r: 1.5 + Math.random() * 2.4,
+          color: i % 2 ? '#FFD27A' : BIG_ROOM_BURN_COLOR,
+          life: 1,
+          decay: 0.05 + Math.random() * 0.04
+        });
+      }
+    }
+    const r2 = BIG_ROOM_KING_IGNITE_R * BIG_ROOM_KING_IGNITE_R;
+    for(let c = 0; c < COLS; c++){
+      for(let i = 0; i < stack[c].length; i++){
+        const entry = stack[c][i];
+        if(entry.type !== 'piece' || entry.burning) continue;
+        const row = ROWS - 1 - i;
+        const pos = cellCenter(c, row);
+        const dx = pos.x - j.x, dy = pos.y - j.y;
+        if(dx * dx + dy * dy <= r2){
+          igniteStackEntry(entry, c, row);
+        }
+      }
+    }
   }
 
   // ---- poker hand finding ----
@@ -8977,8 +9034,10 @@
   }
 
   function stepBurning(now){
-    // Pause while hands resolve or crowned kings reshape the board.
-    if(resolving || kingMeJumping()) return;
+    // Hands still pause burns; during King Me leaps we keep dripping chips but
+    // defer ash-outs so captures / column rebuilds don't fight each other.
+    if(resolving) return;
+    const deferAsh = kingMeJumping();
     let anyAsh = false;
     for(let c = 0; c < COLS; c++){
       // Walk top-down so splices don't skip entries.
@@ -9001,6 +9060,12 @@
             decay: 0.05 + Math.random() * 0.04
           });
         }
+        if(burn.ticksLeft <= 0){
+          if(deferAsh) continue;
+          ashOutStackEntry(c, i);
+          anyAsh = true;
+          continue;
+        }
         if(now < burn.nextTickAt) continue;
         const payout = burnTickPayout();
         if(payout > 0){
@@ -9017,6 +9082,7 @@
         burn.ticksLeft--;
         burn.nextTickAt = now + BIG_ROOM_BURN_TICK_MS;
         if(burn.ticksLeft <= 0){
+          if(deferAsh) continue;
           ashOutStackEntry(c, i);
           anyAsh = true;
         }
@@ -9823,10 +9889,29 @@
   function drawKingJumper(j){
     const pulse = 1 + 0.04 * Math.sin(performance.now() / 90);
     ctx.save();
-    ctx.shadowColor = '#F0D78C';
-    ctx.shadowBlur = 18;
+    ctx.shadowColor = j.flaming ? BIG_ROOM_BURN_COLOR : '#F0D78C';
+    ctx.shadowBlur = j.flaming ? 22 : 18;
     drawCardFace(ctx, j.x, j.y + 7 * pulse, j.card, j.card.angle || 0, 26, true, 0);
     drawCardFace(ctx, j.x, j.y - 6 * pulse, j.card, j.card.angle || 0, 33, true, 0.55);
+    if(j.flaming){
+      const age = performance.now() / 1000;
+      const flicker = 0.55 + 0.45 * Math.abs(Math.sin(age * 16));
+      ctx.globalAlpha = 0.35 + 0.35 * flicker;
+      ctx.beginPath();
+      ctx.arc(j.x, j.y - 4, 30, 0, Math.PI * 2);
+      ctx.fillStyle = BIG_ROOM_BURN_COLOR;
+      ctx.fill();
+      ctx.globalAlpha = 0.65 + 0.3 * flicker;
+      for(let i = 0; i < 3; i++){
+        const ox = j.x + (i - 1) * 8;
+        const top = j.y - 28 - (i === 1 ? 6 : 0) - 6 * flicker;
+        ctx.beginPath();
+        ctx.moveTo(ox - 4, j.y - 18);
+        ctx.quadraticCurveTo(ox + Math.sin(age * 20 + i) * 3, top, ox + 4, j.y - 18);
+        ctx.fillStyle = i === 1 ? '#FFD27A' : BIG_ROOM_BURN_COLOR;
+        ctx.fill();
+      }
+    }
     ctx.restore();
   }
 
