@@ -46,7 +46,7 @@ Then visit:
 
 Published with GitHub Pages **Deploy from a branch**: `master` / `/` (repo root).
 
-`poker/version.json` holds Poker’s live release id. Open Poker tabs poll it and prompt for a refresh when it advances.
+`poker/version.json` holds Poker’s live release id (same number as the latest Settings changelog entry). Open Poker tabs poll it and prompt for a refresh when it advances.
 
 If the site is not live yet, enable Pages once:
 

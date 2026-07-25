@@ -79,9 +79,9 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
-| `APP_RELEASE` | Baked-in Poker build id; must match `poker/version.json` `v` |
+| `APP_RELEASE` | Alias of `CHANGELOG_LATEST_ID`; must match `poker/version.json` `v` |
 | `RELEASE_URL` / `startReleasePolling` | Polls `poker/version.json` (cache-bust); shows `#updateBanner` when remote `v` is newer |
-| `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`) |
+| `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 
 ### Progression model (high level)
@@ -162,19 +162,15 @@ Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a r
 2. `date` — calendar label with day (e.g. `'Jul 25, 2026'`), not month-only.
 3. `title` — one short headline.
 4. `items` — 1–4 concise player-facing bullets (skip pure docs/agent/internal fixes).
+5. Set `poker/version.json` `"v"` to that same new `id` (release poll uses it; `APP_RELEASE` is `CHANGELOG_LATEST_ID`).
 
 That new `id` lights the Settings badge and highlights only that entry (and any other unseen ids) for returning saves. Do not reuse or renumber old ids. Render path: `openSettingsChangelog` / `renderChangelog` → `#changelogList`; badge: `updateSettingsChangelogBadge`.
 
 ### Release poll (refresh banner)
 
-Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes and when the tab becomes visible. The page bakes in `APP_RELEASE`; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
+Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes and when the tab becomes visible. The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`**; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
 
-**Agents: bump on Poker player-visible deploys** (or any Poker change you want open tabs to pick up):
-
-1. Increment `v` in `poker/version.json`.
-2. Set `APP_RELEASE` in `poker/index.html` to the same integer.
-
-Do not renumber downward. Missed bumps only delay the prompt.
+No separate release counter — bumping a changelog `id` and setting `poker/version.json` `"v"` to match is enough. Missed `version.json` bumps only delay the refresh prompt.
 
 ## Common agent tasks
 
@@ -189,7 +185,7 @@ Do not renumber downward. Missed bumps only delay the prompt.
 | Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `autoEnabled.suitBomb`, `updateSuitBombUI`; first Auto Purge buy collapses picker; tap bar chrome toggles Hide/Show |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
 | Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
-| Prompt open Poker tabs to refresh after deploy | Bump `poker/version.json` `v` + Poker `APP_RELEASE`; see **Release poll** above |
+| Prompt open Poker tabs to refresh after deploy | Same as changelog: new `CHANGELOG` `id` + set `poker/version.json` `v` to that id |
 | Classic gameplay | `index.html` only |
 
 ## Git & PR workflow

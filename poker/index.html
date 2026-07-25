@@ -2810,9 +2810,8 @@
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
   const SAVE_VERSION = 18;
-  // Must match poker/version.json "v". Bump both when shipping a Poker deploy
-  // you want long-lived tabs to refresh for.
-  const APP_RELEASE = 1;
+  // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
+  // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
   const RELEASE_POLL_MS = 5 * 60 * 1000;
   const RELEASE_DISMISS_KEY = 'plinkoPokerReleaseDismissed';
@@ -2820,6 +2819,7 @@
   // red badge lights up for players whose save has a lower seenChangelogId.
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
+  // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
       id: 14,
@@ -2958,6 +2958,8 @@
     }
   ];
   const CHANGELOG_LATEST_ID = CHANGELOG.reduce((max, e) => Math.max(max, e.id | 0), 0);
+  // Same integer as poker/version.json "v" — bump that file whenever this advances.
+  const APP_RELEASE = CHANGELOG_LATEST_ID;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
