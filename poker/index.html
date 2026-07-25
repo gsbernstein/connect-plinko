@@ -7076,10 +7076,6 @@
       if(btn.classList.contains('is-disabled')) return;
       onBuy(def.id);
     };
-    btn.addEventListener('pointerdown', (e)=>{
-      if(e.target.closest('.upgrade-toggle')) return;
-      if(e.pointerType === 'touch') e.preventDefault();
-    });
     btn.addEventListener('click', (e)=>{
       if(e.target.closest('.upgrade-toggle')) return;
       tryBuy();
