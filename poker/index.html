@@ -2558,7 +2558,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 16;
+  const SAVE_VERSION = 17;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2652,6 +2652,15 @@
       costScale: 1.8,
       maxLevel: 12,
       unlockAt: 8
+    },
+    {
+      id: 'shortFuse',
+      name: 'Short Fuse',
+      desc: 'Hand clears flash and explode faster.',
+      baseCost: 80,
+      costScale: 1.85,
+      maxLevel: 12,
+      unlockAt: 9
     },
     {
       id: 'highCut',
@@ -4121,6 +4130,16 @@
     return 1 + 0.22 * upgradeLevel('feltGrease');
   }
 
+  function resolveSpeed(){
+    return 1 + 0.22 * upgradeLevel('shortFuse');
+  }
+
+  function flashPulseCount(){
+    const lvl = upgradeLevel('shortFuse');
+    // 7 pulses at Lv0, tapering to 2 by ~Lv10.
+    return Math.max(2, 7 - Math.floor(lvl * 0.5));
+  }
+
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
     return lvl ? Math.floor(lvl * blindMultiplier('pin') * runMetaMultiplier()) : 0;
@@ -4815,6 +4834,10 @@
         return 'Cooldown ' + formatInterval(suitBombCooldownMs());
       case 'feltGrease':
         return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
+      case 'shortFuse':
+        return lvl
+          ? ('×' + resolveSpeed().toFixed(2).replace(/\.00$/,'') + ' clear speed')
+          : 'Normal timing';
       default:
         return '';
     }
@@ -4954,6 +4977,11 @@
           if(prestigeLevel('autoSuitBomb') < 1) prestigeUpgrades.autoSuitBomb = 1;
           upgrades.autoSuitBomb = 0;
         }
+      }
+      // Felt Grease used to speed clears too — grant matching Short Fuse levels once.
+      if((data.v || 0) < 17 && purchasedLevel('shortFuse') <= 0 && purchasedLevel('feltGrease') > 0){
+        const fuseDef = UPGRADE_DEFS.find(u => u.id === 'shortFuse');
+        upgrades.shortFuse = Math.min(fuseDef.maxLevel, purchasedLevel('feltGrease'));
       }
       // Purchased levels can't push effective skill past max once VIP bonus applies.
       for(const def of UPGRADE_DEFS){
@@ -6852,7 +6880,7 @@
 
   function resolveTick(){
     const now = performance.now();
-    const speed = Math.min(physicsSpeed(), 2.8);
+    const speed = resolveSpeed();
     const flashMs = FLASH_MS / speed;
     const explodeMs = EXPLODE_MS / speed;
     if(resolving){
@@ -7039,12 +7067,13 @@
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
-  function drawFlashPiece(cx, cy, card, elapsedFrac){
+  function drawFlashPiece(cx, cy, card, elapsedFrac, pulses){
     const color = cardGlowColor(card);
     // Uniform flash (rank juice lives in score text). Tiny scale + suit pulse.
-    const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * 7);
+    const pulseWaves = pulses || 7;
+    const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * pulseWaves);
     const r = 32 * pulse;
-    const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * 7));
+    const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * pulseWaves));
     ctx.save();
     ctx.translate(cx, cy);
     ctx.shadowColor = color;
@@ -7205,8 +7234,9 @@
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
     const flashElapsed = resolvePhase==='flash'
-      ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS)
+      ? Math.min(1,(performance.now()-resolvePhaseStart)/(FLASH_MS/resolveSpeed()))
       : 0;
+    const flashPulses = flashPulseCount();
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const val = grid[c][r];
@@ -7214,7 +7244,7 @@
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
         const key = c+','+r;
         if(flashCells && flashCells.has(key)){
-          drawFlashPiece(cx,cy,val,flashElapsed);
+          drawFlashPiece(cx,cy,val,flashElapsed, flashPulses);
         } else {
           drawPiece(cx,cy,val, false);
         }
