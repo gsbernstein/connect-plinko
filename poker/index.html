@@ -1734,6 +1734,11 @@
             <input type="checkbox" id="settingNearHandHints">
             <span class="settings-toggle-ui" aria-hidden="true">Off</span>
           </label>
+          <label class="settings-toggle">
+            <span>Chip animation</span>
+            <input type="checkbox" id="settingChipAnimation" checked>
+            <span class="settings-toggle-ui" aria-hidden="true">On</span>
+          </label>
         </div>
         <button type="button" class="reset" id="resetScores">Reset all progress</button>
       </section>
@@ -2607,7 +2612,8 @@
   let stats = Object.assign({}, EMPTY_STATS);
   const DEFAULT_SETTINGS = {
     showFps: false,
-    nearHandHints: false
+    nearHandHints: false,
+    chipAnimation: true
   };
   let gameSettings = Object.assign({}, DEFAULT_SETTINGS);
 
@@ -2619,6 +2625,7 @@
       if(!data || typeof data !== 'object') return;
       if(typeof data.showFps === 'boolean') gameSettings.showFps = data.showFps;
       if(typeof data.nearHandHints === 'boolean') gameSettings.nearHandHints = data.nearHandHints;
+      if(typeof data.chipAnimation === 'boolean') gameSettings.chipAnimation = data.chipAnimation;
     }catch(_){ /* ignore */ }
   }
 
@@ -2634,6 +2641,7 @@
     persistSettings();
     syncSettingsUI();
     if(key === 'nearHandHints') markHintsDirty();
+    if(key === 'chipAnimation' && !gameSettings.chipAnimation) clearFlyingChips();
     startLoop();
   }
 
@@ -2647,6 +2655,11 @@
       settingNearHandHintsEl.checked = !!gameSettings.nearHandHints;
       const ui = settingNearHandHintsEl.nextElementSibling;
       if(ui) ui.textContent = gameSettings.nearHandHints ? 'On' : 'Off';
+    }
+    if(settingChipAnimationEl){
+      settingChipAnimationEl.checked = gameSettings.chipAnimation !== false;
+      const ui = settingChipAnimationEl.nextElementSibling;
+      if(ui) ui.textContent = gameSettings.chipAnimation !== false ? 'On' : 'Off';
     }
   }
 
@@ -3561,6 +3574,7 @@
 
   function spawnChipFly(cx, cy, amount, opts){
     if(!chipFxLayer || !scoreBoxEl) return;
+    if(gameSettings.chipAnimation === false) return;
     opts = opts || {};
     amount = Math.floor(amount);
     if(amount <= 0 && !opts.count && !opts.minCount) return;
@@ -6179,6 +6193,7 @@
   const autoStatusFillEl = document.getElementById('autoStatusFill');
   const settingShowFpsEl = document.getElementById('settingShowFps');
   const settingNearHandHintsEl = document.getElementById('settingNearHandHints');
+  const settingChipAnimationEl = document.getElementById('settingChipAnimation');
   const upgradesEl = document.getElementById('upgrades');
   const prestigeUpgradesEl = document.getElementById('prestigeUpgrades');
   const questsEl = document.getElementById('quests');
@@ -7276,6 +7291,11 @@
     settingNearHandHintsEl.addEventListener('change', ()=>{
       setGameSetting('nearHandHints', settingNearHandHintsEl.checked);
       draw();
+    });
+  }
+  if(settingChipAnimationEl){
+    settingChipAnimationEl.addEventListener('change', ()=>{
+      setGameSetting('chipAnimation', settingChipAnimationEl.checked);
     });
   }
 
