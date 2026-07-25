@@ -2463,7 +2463,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 9;
+  const SAVE_VERSION = 10;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2738,100 +2738,160 @@
     {
       id: 'a_first_hand', kind: 'achievement', name: 'First Pot',
       desc: 'Score your first poker hand.',
-      stat: 'hands', target: 1, unlockAt: 1,
-      reward: { chips: 25 }
+      stat: 'hands', unlockAt: 1,
+      tiers: [{ target: 1, reward: { chips: 25 } }]
     },
     {
-      id: 'a_hands_50', kind: 'achievement', name: 'Table Regular',
-      desc: 'Score 50 hands lifetime.',
-      stat: 'hands', target: 50, unlockAt: 1,
-      reward: { comps: 1 }
-    },
-    {
-      id: 'a_hands_250', kind: 'achievement', name: 'Felt Veteran',
-      desc: 'Score 250 hands lifetime.',
-      stat: 'hands', target: 250, unlockAt: 1,
-      reward: { comps: 3 }
+      id: 'a_hands', kind: 'achievement', name: 'Table Regular',
+      desc: 'Score {n} hands lifetime.',
+      stat: 'hands', unlockAt: 1,
+      tiers: [
+        { target: 50, reward: { comps: 1 } },
+        { target: 250, reward: { comps: 3 } },
+        { target: 1000, reward: { comps: 5 } },
+        { target: 5000, reward: { comps: 10 } }
+      ]
     },
     {
       id: 'a_flush', kind: 'achievement', name: 'Suited Up',
-      desc: 'Score a Flush.',
-      stat: 'flushes', target: 1, unlockAt: 1,
-      reward: { chips: 120, runComps: 1 }
+      desc: 'Score {n} Flushes.',
+      stat: 'flushes', unlockAt: 1,
+      tiers: [
+        { target: 1, reward: { chips: 120, runComps: 1 } },
+        { target: 10, reward: { comps: 1 } },
+        { target: 50, reward: { comps: 2 } },
+        { target: 200, reward: { comps: 4 } }
+      ]
     },
     {
       id: 'a_straight', kind: 'achievement', name: 'In Order',
-      desc: 'Score a Straight.',
-      stat: 'straights', target: 1, unlockAt: 1,
-      reward: { chips: 120 }
+      desc: 'Score {n} Straights.',
+      stat: 'straights', unlockAt: 1,
+      tiers: [
+        { target: 1, reward: { chips: 120 } },
+        { target: 10, reward: { comps: 1 } },
+        { target: 50, reward: { comps: 2 } },
+        { target: 200, reward: { comps: 4 } }
+      ]
     },
     {
       id: 'a_fullhouse', kind: 'achievement', name: 'Full Boat',
-      desc: 'Score a Full House.',
-      stat: 'fullHouses', target: 1, unlockAt: 1,
-      reward: { chips: 200, comps: 1 }
+      desc: 'Score {n} Full Houses.',
+      stat: 'fullHouses', unlockAt: 1,
+      tiers: [
+        { target: 1, reward: { chips: 200, comps: 1 } },
+        { target: 5, reward: { comps: 2 } },
+        { target: 25, reward: { comps: 3 } },
+        { target: 100, reward: { comps: 5 } }
+      ]
     },
     {
       id: 'a_quads', kind: 'achievement', name: 'Quad Squad',
-      desc: 'Score Four of a Kind.',
-      stat: 'fourKinds', target: 1, unlockAt: 1,
-      reward: { comps: 2 }
+      desc: 'Score {n} Four of a Kinds.',
+      stat: 'fourKinds', unlockAt: 1,
+      tiers: [
+        { target: 1, reward: { comps: 2 } },
+        { target: 3, reward: { comps: 3 } },
+        { target: 15, reward: { comps: 4 } },
+        { target: 50, reward: { comps: 6 } }
+      ]
     },
     {
       id: 'a_sf', kind: 'achievement', name: 'Painted Straight',
-      desc: 'Score a Straight Flush.',
-      stat: 'straightFlushes', target: 1, secret: true,
-      reward: { comps: 3 }
+      desc: 'Score {n} Straight Flushes.',
+      stat: 'straightFlushes', secret: true,
+      tiers: [
+        { target: 1, reward: { comps: 3 } },
+        { target: 3, reward: { comps: 5 } },
+        { target: 10, reward: { comps: 8 } }
+      ]
     },
     {
       id: 'a_royal', kind: 'achievement', name: 'Crown Jewel',
-      desc: 'Score a Royal Flush.',
-      stat: 'royalFlushes', target: 1, secret: true,
-      reward: { comps: 5, prestige: 'houseEdge' }
+      desc: 'Score {n} Royal Flushes.',
+      stat: 'royalFlushes', secret: true,
+      tiers: [
+        { target: 1, reward: { comps: 5, prestige: 'houseEdge' } },
+        { target: 2, reward: { comps: 8 } },
+        { target: 5, reward: { comps: 12, prestige: 'compCard' } }
+      ]
     },
     {
       id: 'a_combo', kind: 'achievement', name: 'Double Down',
-      desc: 'Clear two hands in one resolve.',
-      stat: 'multiHandClears', target: 1, unlockAt: 1,
-      reward: { chips: 150 }
+      desc: 'Score {n} multi-hand clears.',
+      stat: 'multiHandClears', unlockAt: 1,
+      tiers: [
+        { target: 1, reward: { chips: 150 } },
+        { target: 10, reward: { comps: 1 } },
+        { target: 50, reward: { comps: 3 } },
+        { target: 200, reward: { comps: 5 } }
+      ]
     },
     {
-      id: 'a_floor_10', kind: 'achievement', name: 'Janitor',
-      desc: 'Trigger 10 floor clears lifetime.',
-      stat: 'floorClears', target: 10, unlockAt: 1,
-      reward: { comps: 2 }
+      id: 'a_floor', kind: 'achievement', name: 'Janitor',
+      desc: 'Trigger {n} floor clears lifetime.',
+      stat: 'floorClears', unlockAt: 1,
+      tiers: [
+        { target: 10, reward: { comps: 2 } },
+        { target: 50, reward: { comps: 3 } },
+        { target: 200, reward: { comps: 5 } },
+        { target: 1000, reward: { comps: 8 } }
+      ]
     },
     {
-      id: 'a_cashout_1', kind: 'achievement', name: 'First Buy-In',
-      desc: 'Cash Out once.',
-      stat: 'cashOuts', target: 1, unlockAt: 1,
-      reward: { comps: 1 }
+      id: 'a_cashout', kind: 'achievement', name: 'Buy-In Club',
+      desc: 'Cash Out {n} times.',
+      stat: 'cashOuts', unlockAt: 1,
+      tiers: [
+        { target: 1, reward: { comps: 1 } },
+        { target: 5, reward: { comps: 3, prestige: 'compCard' } },
+        { target: 15, reward: { comps: 5 } },
+        { target: 30, reward: { comps: 8 } }
+      ]
     },
     {
-      id: 'a_cashout_5', kind: 'achievement', name: 'High Roller',
-      desc: 'Cash Out 5 times.',
-      stat: 'cashOuts', target: 5, unlockAt: 1,
-      reward: { comps: 3, prestige: 'compCard' }
+      id: 'a_level', kind: 'achievement', name: 'Deep Stack',
+      desc: 'Reach run level {n} in a single table.',
+      stat: 'maxRunLevel', unlockAt: 1,
+      tiers: [
+        { target: 20, reward: { comps: 3 } },
+        { target: 30, reward: { comps: 4 } },
+        { target: 40, reward: { comps: 6 } }
+      ]
     },
     {
-      id: 'a_level_20', kind: 'achievement', name: 'Deep Stack',
-      desc: 'Reach run level 20 in a single table.',
-      stat: 'maxRunLevel', target: 20, unlockAt: 1,
-      reward: { comps: 3 }
+      id: 'a_upgrades', kind: 'achievement', name: 'Rack Builder',
+      desc: 'Buy {n} table upgrades.',
+      stat: 'upgradesBought', unlockAt: 1,
+      tiers: [
+        { target: 20, reward: { comps: 2 } },
+        { target: 50, reward: { comps: 3 } },
+        { target: 100, reward: { comps: 5 } },
+        { target: 250, reward: { comps: 8 } }
+      ]
     },
     {
-      id: 'a_upgrades_20', kind: 'achievement', name: 'Rack Builder',
-      desc: 'Buy 20 table upgrades.',
-      stat: 'upgradesBought', target: 20, unlockAt: 1,
-      reward: { comps: 2 }
-    },
-    {
-      id: 'a_purges_10', kind: 'achievement', name: 'Suit Sanitizer',
-      desc: 'Cast Suit Purge 10 times.',
-      stat: 'suitPurges', target: 10, unlockAt: 11,
-      reward: { comps: 2 }
+      id: 'a_purges', kind: 'achievement', name: 'Suit Sanitizer',
+      desc: 'Cast Suit Purge {n} times.',
+      stat: 'suitPurges', unlockAt: 11,
+      tiers: [
+        { target: 10, reward: { comps: 2 } },
+        { target: 50, reward: { comps: 3 } },
+        { target: 200, reward: { comps: 5 } }
+      ]
     }
   ];
+  // Map retired one-shot achievement ids to { groupId, tier } for save migration.
+  const ACHIEVEMENT_LEGACY_CLAIMS = {
+    a_hands_50: { id: 'a_hands', tier: 1 },
+    a_hands_250: { id: 'a_hands', tier: 2 },
+    a_cashout_1: { id: 'a_cashout', tier: 1 },
+    a_cashout_5: { id: 'a_cashout', tier: 2 },
+    a_floor_10: { id: 'a_floor', tier: 1 },
+    a_level_20: { id: 'a_level', tier: 1 },
+    a_upgrades_20: { id: 'a_upgrades', tier: 1 },
+    a_purges_10: { id: 'a_purges', tier: 1 }
+  };
   // Back-compat alias used by a few load paths.
   const CONTRACT_DEFS = ACHIEVEMENT_DEFS;
 
@@ -2932,7 +2992,7 @@
   let levelToastTimer = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
-  let questClaimed = Object.create(null); // achievement id -> true
+  let questClaimed = Object.create(null); // achievement id -> claimed tier count
   let activeQuests = []; // rolled run quests in slots
   let questUidSeq = 1;
   const EMPTY_STATS = {
@@ -3140,7 +3200,7 @@
   function achievementsTabUnlocked(){
     // Stay hidden until the first achievement is earned (complete or claimed).
     return ACHIEVEMENT_DEFS.some(def =>
-      achievementIsClaimed(def) || achievementComplete(def)
+      achievementClaimedTier(def) > 0 || achievementComplete(def)
     );
   }
 
@@ -3172,26 +3232,81 @@
     return Math.max(0, Math.min(QUEST_RARITIES.length - 1, prestigeLevel('questInk')));
   }
 
+  function achievementTiers(def){
+    if(def.tiers && def.tiers.length) return def.tiers;
+    if(def.target != null) return [{ target: def.target, reward: def.reward || {} }];
+    return [];
+  }
+
+  function achievementTierCount(def){
+    return achievementTiers(def).length;
+  }
+
+  function achievementClaimedTier(def){
+    const v = questClaimed[def.id];
+    if(typeof v === 'number' && v > 0) return Math.min(v, achievementTierCount(def));
+    if(v === true) return achievementTierCount(def);
+    return 0;
+  }
+
+  function achievementIsFullyClaimed(def){
+    return achievementClaimedTier(def) >= achievementTierCount(def);
+  }
+
+  function achievementActiveTierIndex(def){
+    const claimed = achievementClaimedTier(def);
+    if(claimed >= achievementTierCount(def)) return achievementTierCount(def) - 1;
+    return claimed;
+  }
+
+  function achievementActiveTier(def){
+    return achievementTiers(def)[achievementActiveTierIndex(def)] || null;
+  }
+
+  function achievementStatValue(def){
+    return stats[def.stat] || 0;
+  }
+
+  function achievementDesc(def, tier){
+    tier = tier || achievementActiveTier(def);
+    if(!tier) return def.desc || '';
+    return (def.desc || '').replace(/\{n\}/g, formatNum(tier.target));
+  }
+
+  function achievementKindLabel(def){
+    const total = achievementTierCount(def);
+    if(total <= 1) return 'Achievement';
+    const claimed = achievementClaimedTier(def);
+    const active = Math.min(claimed + 1, total);
+    if(achievementIsFullyClaimed(def)) return 'Lv ' + total + ' / ' + total;
+    return 'Lv ' + active + ' / ' + total;
+  }
+
   function achievementProgress(def){
-    return Math.min(def.target, stats[def.stat] || 0);
+    const tier = achievementActiveTier(def);
+    if(!tier) return 0;
+    if(achievementIsFullyClaimed(def)) return tier.target;
+    return Math.min(tier.target, achievementStatValue(def));
   }
 
   function achievementComplete(def){
-    return achievementProgress(def) >= def.target;
+    if(achievementIsFullyClaimed(def)) return false;
+    const tier = achievementActiveTier(def);
+    return !!tier && achievementStatValue(def) >= tier.target;
   }
 
   function achievementIsClaimed(def){
-    return !!questClaimed[def.id];
+    return achievementIsFullyClaimed(def);
   }
 
   function achievementRevealed(def){
-    if(achievementIsClaimed(def) || achievementComplete(def)) return true;
-    if(def.secret) return achievementProgress(def) > 0;
+    if(achievementClaimedTier(def) > 0 || achievementComplete(def)) return true;
+    if(def.secret) return achievementStatValue(def) > 0;
     return highestRunLevelReached() >= (def.unlockAt || 1);
   }
 
   function achievementCanClaim(def){
-    return achievementRevealed(def) && achievementComplete(def) && !achievementIsClaimed(def);
+    return achievementRevealed(def) && achievementComplete(def);
   }
 
   function activeQuestProgress(q){
@@ -3488,13 +3603,17 @@
   function claimAchievement(id){
     const def = ACHIEVEMENT_DEFS.find(c => c.id === id);
     if(!def || !achievementCanClaim(def)) return false;
-    questClaimed[def.id] = true;
-    applyContractReward(def.reward);
+    const tierIdx = achievementActiveTierIndex(def);
+    const tier = achievementTiers(def)[tierIdx];
+    if(!tier) return false;
+    questClaimed[def.id] = tierIdx + 1;
+    applyContractReward(tier.reward);
     refreshQuestUiAndSave();
+    const tierSuffix = achievementTierCount(def) > 1 ? ' Lv ' + (tierIdx + 1) : '';
     pushPopup({
       x: W / 2,
       y: PEG_ZONE * 0.38,
-      text: 'ACHIEVE · ' + def.name,
+      text: 'ACHIEVE · ' + def.name + tierSuffix,
       color: '#F0D78C',
       t0: performance.now(),
       duration: 1400,
@@ -4332,8 +4451,26 @@
       if(runLevel > (stats.maxRunLevel || 1)) stats.maxRunLevel = runLevel;
       if(data.questClaimed && typeof data.questClaimed === 'object'){
         questClaimed = Object.create(null);
-        for(const def of ACHIEVEMENT_DEFS){
-          if(data.questClaimed[def.id]) questClaimed[def.id] = true;
+        const legacyMerged = Object.create(null);
+        for(const [oldId, claimed] of Object.entries(data.questClaimed)){
+          if(!claimed) continue;
+          const legacy = ACHIEVEMENT_LEGACY_CLAIMS[oldId];
+          if(legacy){
+            legacyMerged[legacy.id] = Math.max(legacyMerged[legacy.id] || 0, legacy.tier);
+            continue;
+          }
+          const def = ACHIEVEMENT_DEFS.find(d => d.id === oldId);
+          if(!def) continue;
+          const tierCount = achievementTierCount(def);
+          if(claimed === true) questClaimed[oldId] = tierCount;
+          else if(typeof claimed === 'number' && claimed > 0){
+            questClaimed[oldId] = Math.min(tierCount, Math.floor(claimed));
+          }
+        }
+        for(const [id, tier] of Object.entries(legacyMerged)){
+          const def = ACHIEVEMENT_DEFS.find(d => d.id === id);
+          if(!def) continue;
+          questClaimed[id] = Math.max(questClaimed[id] || 0, Math.min(achievementTierCount(def), tier));
         }
       }
       if(typeof data.questUidSeq === 'number' && data.questUidSeq > 0){
@@ -7332,38 +7469,49 @@
       const revealed = achievementRevealed(def);
       btn.hidden = !revealed;
       if(!revealed) continue;
+      const tier = achievementActiveTier(def);
+      const target = tier ? tier.target : 1;
       const progress = achievementProgress(def);
-      const complete = progress >= def.target;
-      const claimed = achievementIsClaimed(def);
-      const canClaim = complete && !claimed;
-      const stillSecret = !!(def.secret && !complete && !claimed);
+      const canClaim = achievementCanClaim(def);
+      const fullyClaimed = achievementIsFullyClaimed(def);
+      const stillSecret = !!(def.secret && !canClaim && achievementClaimedTier(def) === 0
+        && achievementStatValue(def) === 0);
       if(canClaim) achieveReady++;
       btn.disabled = !canClaim;
       btn.classList.toggle('claimable', canClaim);
-      btn.classList.toggle('claimed', claimed);
+      btn.classList.toggle('claimed', fullyClaimed);
       btn.classList.add('achievement');
       btn.querySelector('.quest-name').textContent = stillSecret ? '???' : def.name;
+      btn.querySelector('.quest-kind').textContent = stillSecret ? 'Achievement' : achievementKindLabel(def);
       btn.querySelector('.quest-desc').textContent = stillSecret
         ? 'Hidden achievement — keep playing.'
-        : def.desc;
+        : achievementDesc(def, tier);
+      const rewardEl = btn.querySelector('.quest-reward');
+      if(rewardEl){
+        rewardEl.textContent = stillSecret
+          ? '???'
+          : (fullyClaimed
+            ? 'All levels claimed'
+            : contractRewardText(tier ? tier.reward : {}));
+      }
       const fill = btn.querySelector('.quest-bar > span');
       if(fill){
-        fill.style.width = Math.min(100, (progress / def.target) * 100) + '%';
+        fill.style.width = Math.min(100, (progress / target) * 100) + '%';
       }
       const progEl = btn.querySelector('.quest-prog');
       if(progEl){
         progEl.innerHTML = stillSecret
           ? '<b>?</b> / ?'
-          : ('<b>' + formatNum(progress) + '</b> / ' + formatNum(def.target));
+          : ('<b>' + formatNum(progress) + '</b> / ' + formatNum(target));
       }
       const actionEl = btn.querySelector('.quest-action');
       if(actionEl){
-        actionEl.textContent = claimed
-          ? 'Claimed'
+        actionEl.textContent = fullyClaimed
+          ? 'Complete'
           : (canClaim ? 'Claim reward' : 'In progress');
       }
       if(canClaim) claimable.push(btn);
-      else if(claimed) done.push(btn);
+      else if(fullyClaimed) done.push(btn);
       else active.push(btn);
     }
     if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
@@ -7378,14 +7526,17 @@
 
   function makeAchievementButton(def){
     const btn = makeQuestCardShell();
+    const tier = achievementActiveTier(def);
     btn.classList.add('achievement');
     btn.dataset.id = def.id;
     btn.querySelector('.quest-name').textContent = def.secret ? '???' : def.name;
-    btn.querySelector('.quest-kind').textContent = 'Achievement';
+    btn.querySelector('.quest-kind').textContent = def.secret ? 'Achievement' : achievementKindLabel(def);
     btn.querySelector('.quest-desc').textContent = def.secret
       ? 'Hidden achievement — keep playing.'
-      : def.desc;
-    btn.querySelector('.quest-reward').textContent = contractRewardText(def.reward);
+      : achievementDesc(def, tier);
+    btn.querySelector('.quest-reward').textContent = def.secret
+      ? '???'
+      : contractRewardText(tier ? tier.reward : {});
     btn.addEventListener('click', ()=>claimAchievement(def.id));
     return btn;
   }
