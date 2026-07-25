@@ -5499,6 +5499,8 @@
       stack[c] = survivors;
       rebuildColumnFromStack(c);
     }
+    const purgeSuit = groups.find(g => g.suitBomb)?.purgeSuit;
+    if(purgeSuit) purgeSuitBalls(purgeSuit);
     recomputeBumpers();
     markHintsDirty();
     startLoop();
@@ -5554,16 +5556,45 @@
     return cells;
   }
 
+  function findSuitBalls(suit){
+    return balls.filter(b => b.card && b.card.suit === suit);
+  }
+
+  function countSuitInPlay(suit){
+    return findSuitCells(suit).length + findSuitBalls(suit).length;
+  }
+
+  function purgeSuitBalls(suit){
+    const victims = findSuitBalls(suit);
+    if(!victims.length) return;
+    const colsTouched = new Set();
+    for(const b of victims){
+      spawnExplosion(b.x, b.y, b.card);
+      if(b.stackEntry != null && b.targetCol != null){
+        const col = b.targetCol;
+        const idx = stack[col].indexOf(b.stackEntry);
+        if(idx >= 0){
+          stack[col].splice(idx, 1);
+          colsTouched.add(col);
+        }
+      }
+    }
+    balls = balls.filter(b => !(b.card && b.card.suit === suit));
+    for(const c of colsTouched) rebuildColumnFromStack(c);
+  }
+
   function beginSuitBomb(suit, cells){
     resolving = true;
     resolveEpoch++;
     pendingChain = 0;
     chainStep = 0;
+    const inFlight = findSuitBalls(suit).length;
     currentGroups = [{
       name: 'SUIT PURGE ' + suit,
-      points: Math.max(1, cells.length),
+      points: Math.max(1, cells.length + inFlight),
       cells,
       suitBomb: true,
+      purgeSuit: suit,
       color: SUIT_COLOR[suit] || '#ffffff'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
@@ -5579,7 +5610,7 @@
     if(!suitBombReady(now) || gameOver) return false;
     if(!SUITS.includes(suit)) return false;
     const cells = findSuitCells(suit);
-    if(cells.length < 1) return false;
+    if(countSuitInPlay(suit) < 1) return false;
     // Spend the charge immediately so a mid-clear click still counts.
     suitBombReadyAt = now + suitBombCooldownMs();
     noteSuitPurge();
@@ -5598,7 +5629,7 @@
     const suit = pendingSuitBomb;
     pendingSuitBomb = null;
     const cells = findSuitCells(suit);
-    if(cells.length < 1){
+    if(countSuitInPlay(suit) < 1){
       updateSuitBombUI(performance.now(), true);
       return;
     }
@@ -5608,7 +5639,7 @@
   function pickAutoSuitBombTarget(){
     let best = null, bestCount = 0;
     for(const s of SUITS){
-      const n = findSuitCells(s).length;
+      const n = countSuitInPlay(s);
       if(n > bestCount){
         bestCount = n;
         best = s;
@@ -7071,16 +7102,17 @@
       if(gone) continue;
       visible++;
       // Stay clickable during hand clears — cast queues until the board is free.
-      const canCast = ready && !gameOver && count > 0;
+      const total = count + inFlight[s];
+      const canCast = ready && !gameOver && total > 0;
       btn.disabled = !canCast && !queued;
       btn.classList.toggle('charging', !ready && !queued);
       btn.classList.toggle('queued', queued);
       btn.style.setProperty('--cd', Math.round((queued ? 1 : charge) * 100) + '%');
       btn.title = queued
         ? ('Queued purge ' + s)
-        : count
-          ? ('Purge ' + count + ' × ' + s)
-          : ('No ' + s + ' on board');
+        : total
+          ? ('Purge ' + total + ' × ' + s + (inFlight[s] ? ' (' + inFlight[s] + ' in flight)' : ''))
+          : ('No ' + s + ' in play');
     }
     suitBombBtnsEl.style.gridTemplateColumns =
       'repeat(' + Math.max(1, visible) + ', 1fr)';
