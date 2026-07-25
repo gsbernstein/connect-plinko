@@ -70,7 +70,7 @@
     inset:0;
     pointer-events:none;
     overflow:visible;
-    z-index:20;
+    z-index:50;
   }
   .fly-chip{
     position:absolute;
@@ -449,6 +449,22 @@
   }
   .rail-tab[data-panel="quests"].quest-auto-claimed .rail-tab-badge{
     animation:questTabBadgePop 1.1s ease;
+  }
+  .rail-tab.rail-tab-burst{
+    animation:railTabBurst 0.52s ease;
+  }
+  .rail-tab[data-panel="table"].table-tab-earning{
+    animation:tableTabEarn 0.55s ease;
+  }
+  @keyframes railTabBurst{
+    0%{transform:scale(1);filter:brightness(1);}
+    35%{transform:scale(1.07);filter:brightness(1.18);}
+    100%{transform:scale(1);filter:brightness(1);}
+  }
+  @keyframes tableTabEarn{
+    0%{box-shadow:none;filter:brightness(1);}
+    30%{box-shadow:0 0 14px 2px rgba(139,127,255,0.35);filter:brightness(1.14);}
+    100%{box-shadow:none;filter:brightness(1);}
   }
   @keyframes questTabAutoClaim{
     0%,100%{box-shadow:none;border-color:transparent;}
@@ -3584,6 +3600,7 @@
     tab.classList.add('quest-auto-claimed');
     clearTimeout(tab._questAutoClaimTimer);
     tab._questAutoClaimTimer = setTimeout(()=>tab.classList.remove('quest-auto-claimed'), 1120);
+    spawnRailTabBurst('quests', { count: 6, popSpread: 20 });
   }
 
   function pushQuestClaimPopup(claimed){
@@ -4123,14 +4140,43 @@
     };
   }
 
-  function scoreBoxTarget(){
-    if(!scoreBoxEl || !chipFxLayer) return { x: 40, y: 20 };
+  function scoreBoxTargetRect(){
+    if(!scoreBoxEl || !chipFxLayer) return null;
     const box = scoreBoxEl.getBoundingClientRect();
     const stage = chipFxLayer.getBoundingClientRect();
     return {
-      x: box.left - stage.left + box.width * 0.78,
-      y: box.top - stage.top + box.height * 0.5
+      left: box.left - stage.left,
+      top: box.top - stage.top,
+      width: box.width,
+      height: box.height
     };
+  }
+
+  const SCORE_BOX_PAD_X = 8;
+  const SCORE_BOX_PAD_BOTTOM = 5;
+
+  function scoreBoxTargetPoint(relX){
+    const r = scoreBoxTargetRect();
+    if(!r) return { x: 40, y: 20 };
+    return {
+      x: r.left + SCORE_BOX_PAD_X + (r.width - SCORE_BOX_PAD_X * 2) * relX,
+      y: r.top + r.height - SCORE_BOX_PAD_BOTTOM
+    };
+  }
+
+  function scoreBoxTarget(){
+    return scoreBoxTargetPoint(0.55);
+  }
+
+  function assignScoreBoxTarget(particle){
+    const relX = 0.1 + Math.random() * 0.8;
+    const pt = scoreBoxTargetPoint(relX);
+    particle.targetAnchor = 'scoreBox';
+    particle.targetRelX = relX;
+    particle.tx = pt.x;
+    particle.ty = pt.y;
+    particle.targetFn = scoreBoxTarget;
+    particle.flyToTarget = true;
   }
 
   function elementStagePoint(el){
@@ -4150,8 +4196,37 @@
     const stage = chipFxLayer.getBoundingClientRect();
     return {
       x: rect.left - stage.left + rect.width * 0.5,
-      y: rect.top - stage.top + rect.height * 0.38
+      y: rect.top - stage.top + rect.height * 0.5
     };
+  }
+
+  let lastTableTabBurstAt = 0;
+  function spawnRailTabBurst(panel, opts){
+    opts = opts || {};
+    const tab = document.querySelector('.rail-tab[data-panel="' + panel + '"]');
+    if(!tab || tab.hidden) return;
+    spawnFlyBurst(elementStagePoint(tab), {
+      count: opts.count || 5,
+      className: opts.className || 'fly-spark',
+      flyToTarget: false,
+      popSpread: opts.popSpread || 22,
+      duration: opts.duration || 380,
+      maxCount: opts.maxCount || 7
+    });
+    const burstClass = opts.burstClass || 'rail-tab-burst';
+    tab.classList.remove(burstClass, 'rail-tab-burst');
+    void tab.offsetWidth;
+    tab.classList.add(burstClass);
+    clearTimeout(tab._railTabBurstTimer);
+    tab._railTabBurstTimer = setTimeout(()=>tab.classList.remove(burstClass, 'rail-tab-burst'), 560);
+  }
+
+  function maybeSpawnTableTabBurst(){
+    if(isBoardVisible()) return;
+    const now = performance.now();
+    if(now - lastTableTabBurstAt < 140) return;
+    lastTableTabBurstAt = now;
+    spawnRailTabBurst('table', { burstClass: 'table-tab-earning', count: 4, popSpread: 18 });
   }
 
   function isBoardVisible(){
@@ -4161,7 +4236,10 @@
   function chipFlyOrigin(cx, cy, opts){
     opts = opts || {};
     if(opts.fromStage) return { x: cx, y: cy };
-    if(!isBoardVisible()) return tableTabStagePoint();
+    if(!isBoardVisible()){
+      maybeSpawnTableTabBurst();
+      return tableTabStagePoint();
+    }
     return canvasToStagePoint(cx, cy);
   }
 
@@ -4207,13 +4285,12 @@
       const duration = opts.duration || (flyToTarget ? 620 + Math.random() * 220 : 420 + Math.random() * 160);
       const popX = origin.x + Math.cos(ang) * pop;
       const popY = origin.y + Math.sin(ang) * pop;
-      const target = flyToTarget ? targetFn() : { x: popX, y: popY };
       el.style.left = '0px';
       el.style.top = '0px';
       el.style.opacity = '0';
       el.style.transform = 'translate(' + origin.x + 'px,' + origin.y + 'px) scale(0)';
       chipFxLayer.appendChild(el);
-      flyingChips.push({
+      const particle = {
         el,
         t0: now + delay,
         duration,
@@ -4221,14 +4298,23 @@
         y0: origin.y,
         popX,
         popY,
-        tx: target.x + (Math.random() * 12 - 6),
-        ty: target.y + (Math.random() * 8 - 4),
         rot: (Math.random() - 0.5) * 140,
         size: 0.85 + Math.random() * 0.35,
         targetFn,
         onLand: flyToTarget ? onLand : null,
         flyToTarget
-      });
+      };
+      if(flyToTarget && targetFn === scoreBoxTarget){
+        assignScoreBoxTarget(particle);
+      } else if(flyToTarget){
+        const target = targetFn();
+        particle.tx = target.x + (Math.random() * 12 - 6);
+        particle.ty = target.y + (Math.random() * 8 - 4);
+      } else {
+        particle.tx = popX;
+        particle.ty = popY;
+      }
+      flyingChips.push(particle);
     }
     ensureChipFlyLoop();
   }
@@ -4323,7 +4409,6 @@
     if(amount > 0) count = Math.min(count, amount);
     if(count <= 0) return;
     const origin = chipFlyOrigin(cx, cy, opts);
-    const target = scoreBoxTarget();
     const now = performance.now();
     for(let i = 0; i < count; i++){
       const el = document.createElement('div');
@@ -4339,7 +4424,7 @@
       el.style.opacity = '0';
       el.style.transform = 'translate(' + origin.x + 'px,' + origin.y + 'px) scale(0)';
       chipFxLayer.appendChild(el);
-      flyingChips.push({
+      const particle = {
         el,
         t0: now + delay,
         duration,
@@ -4347,14 +4432,13 @@
         y0: origin.y,
         popX,
         popY,
-        tx: target.x + (Math.random() * 12 - 6),
-        ty: target.y + (Math.random() * 8 - 4),
         rot: (Math.random() - 0.5) * 140,
         size: 0.85 + Math.random() * 0.35,
-        targetFn: scoreBoxTarget,
         onLand: pulseScoreBox,
         flyToTarget: true
-      });
+      };
+      assignScoreBoxTarget(particle);
+      flyingChips.push(particle);
     }
     ensureChipFlyLoop();
   }
@@ -4370,10 +4454,13 @@
         continue;
       }
       const t = Math.min(1, age / c.duration);
-      const targetFn = c.targetFn || scoreBoxTarget;
-      const liveTarget = c.flyToTarget === false ? { x: c.tx, y: c.ty } : targetFn();
-      // Track the counter as layout shifts (HUD wrap / resize).
-      if(c.flyToTarget !== false){
+      if(c.targetAnchor === 'scoreBox'){
+        const pt = scoreBoxTargetPoint(c.targetRelX);
+        c.tx = pt.x;
+        c.ty = pt.y;
+      } else if(c.flyToTarget !== false){
+        const liveTarget = (c.targetFn || scoreBoxTarget)();
+        // Track the counter as layout shifts (HUD wrap / resize).
         c.tx += (liveTarget.x - c.tx) * 0.18;
         c.ty += (liveTarget.y - c.ty) * 0.18;
       }
@@ -4879,6 +4966,7 @@
     tab.classList.add('upgrade-auto-bought');
     clearTimeout(tab._upgradeAutoBuyTimer);
     tab._upgradeAutoBuyTimer = setTimeout(()=>tab.classList.remove('upgrade-auto-bought'), 1120);
+    spawnRailTabBurst('upgrades', { count: 6, popSpread: 20 });
   }
 
   function celebrateAutoBuyUpgrades(ids){
