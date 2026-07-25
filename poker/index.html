@@ -2905,7 +2905,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 19;
+  const SAVE_VERSION = 20;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2917,6 +2917,14 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 25,
+      date: 'Jul 25, 2026',
+      title: 'Heater survives refresh',
+      items: [
+        'Your Hot Streak chain is saved with the run — refreshing or updating no longer resets the heater.'
+      ]
+    },
     {
       id: 24,
       date: 'Jul 25, 2026',
@@ -3807,6 +3815,8 @@
   let seenChangelogId = 0;
   // Last APP_RELEASE stamped into the save — used for the Stay Current achievement.
   let appRelease = APP_RELEASE;
+  // Heater steps loaded from save; applied to pendingChain after freshState on boot.
+  let resumeHeaterChain = 0;
   const EMPTY_STATS = {
     hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
@@ -5692,6 +5702,10 @@
     lastAutoDropAt = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
+    // Cash Out persists before freshState — clear heater so it can't revive on reload.
+    chainStep = 0;
+    pendingChain = 0;
+    resumeHeaterChain = 0;
   }
 
   function persistSave(){
@@ -5712,6 +5726,7 @@
         questUidSeq,
         autoEnabled,
         suitBombCdLeft: cdLeft,
+        heaterChain: heaterChainForSave(),
         seenUnlocks,
         seenChangelogId,
         appRelease,
@@ -5859,6 +5874,12 @@
       } else {
         suitBombReadyAt = performance.now();
       }
+      // Heater carryover — applied to pendingChain after freshState on boot.
+      if(typeof data.heaterChain === 'number' && data.heaterChain > 0){
+        resumeHeaterChain = Math.floor(data.heaterChain);
+      } else {
+        resumeHeaterChain = 0;
+      }
       if(data.seenUnlocks && typeof data.seenUnlocks === 'object'){
         seenUnlocks.tabs.quests = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.quests);
         seenUnlocks.tabs.achievements = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.achievements);
@@ -5926,6 +5947,9 @@
     lastAutoDropAt = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
+    chainStep = 0;
+    pendingChain = 0;
+    resumeHeaterChain = 0;
     seenUnlocks = {
       tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
       upgrades: []
@@ -6417,6 +6441,16 @@
   let currentGroups = [];
   let chainStep = 0;
   let pendingChain = 0;
+  // Persist active heater across refresh / update (board itself stays session-only).
+  function heaterChainForSave(){
+    if(resolving && currentGroups && currentGroups.some(g => g.floorClear)) return 0;
+    // Suit Purge keeps the heater in pendingChain; hand resolves use chainStep.
+    if(resolving && currentGroups && currentGroups.some(g => g.suitBomb)){
+      return Math.max(0, pendingChain | 0);
+    }
+    if(resolving) return Math.max(0, chainStep | 0);
+    return Math.max(0, pendingChain | 0);
+  }
   let flashCells = null;
   let particles = [];
   let popups = [];
@@ -7707,12 +7741,18 @@
       // keep bouncing — the clear opens columns for them to fall into.
       if(!hasGridBalls()){
         pendingChain = 0;
+        scheduleSave();
         beginFloorClear();
       } else {
         refreshButtons();
       }
     } else {
-      if(balls.length===0) pendingChain = 0;
+      if(balls.length===0){
+        if(pendingChain !== 0){
+          pendingChain = 0;
+          scheduleSave();
+        }
+      }
       refreshButtons();
     }
   }
@@ -7761,6 +7801,8 @@
         flushPendingSuitBomb();
         if(!resolving) updateSuitBombUI(performance.now(), true);
       }
+      // Keep heater in the save so a refresh mid-flight doesn't punish the streak.
+      scheduleSave();
     }
   }
 
@@ -10077,6 +10119,11 @@
   buildShop();
   buildSuitBombUI();
   freshState();
+  // Board is session-only; re-apply heater so refresh/update doesn't break a streak.
+  if(resumeHeaterChain > 0){
+    pendingChain = resumeHeaterChain;
+    resumeHeaterChain = 0;
+  }
   renderChangelog();
   updateSettingsChangelogBadge();
   updateScoreUI();
