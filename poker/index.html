@@ -989,7 +989,6 @@
     background:linear-gradient(90deg, var(--felt), var(--felt-bright));
     transition:width .08s linear;
   }
-  .level-toast{flex:0 0 auto;}
   .suit-bomb{
     width:100%;
     flex:0 0 auto;
@@ -1361,30 +1360,6 @@
     }
     .next-card .next-card-val{font-size:10px;max-width:100%;}
     .next-card .next-suit-glyph{width:14px;height:14px;}
-  }
-  .level-toast{
-    position:fixed;
-    left:50%;
-    top:18px;
-    transform:translateX(-50%) translateY(-12px);
-    z-index:40;
-    max-width:min(520px, calc(100vw - 28px));
-    padding:10px 16px;
-    border-radius:12px;
-    background:rgba(23,20,38,0.94);
-    border:1px solid rgba(230,195,92,0.45);
-    color:#F0D78C;
-    font-family:'Space Grotesk',sans-serif;
-    font-weight:700;
-    font-size:14px;
-    text-align:center;
-    opacity:0;
-    pointer-events:none;
-    transition:opacity .2s ease, transform .2s ease;
-  }
-  .level-toast.show{
-    opacity:1;
-    transform:translateX(-50%) translateY(0);
   }
   .level-modal{
     position:fixed;
@@ -1966,7 +1941,6 @@
         </b>
       </div>
     </div>
-    <div class="level-toast" id="levelToast" role="status" aria-live="polite"></div>
 
     <div class="suit-bomb" id="suitBombBar" aria-label="Suit Purge">
       <div class="suit-bomb-head">
@@ -3139,7 +3113,6 @@
   let suitBombReadyAt = 0;
   let pendingSuitBomb = null;
   let saveTimer = 0;
-  let levelToastTimer = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
   let questClaimed = Object.create(null); // achievement id -> claimed tier count
@@ -4210,43 +4183,6 @@
     levelCelebrateTimer = setTimeout(()=>box.classList.remove('level-up'), 1400);
   }
 
-  function showLevelUpToast(lvl, parts){
-    const text = parts.length
-      ? ('LEVEL ' + lvl + '! ' + parts.join(' · '))
-      : ('LEVEL ' + lvl + '!');
-    // Match hand-clear score juice so LEVEL N! lands with a slam/glow.
-    const fx = {
-      fontSize: 32, duration: 1750, float: 56,
-      tilt: 0.2, slam: 2.35, slamMs: 200, glow: 26, bright: 0.32
-    };
-    const sign = Math.random() < 0.5 ? -1 : 1;
-    const gold = '#F0D78C';
-    pushPopup({
-      x: W / 2,
-      y: PEG_ZONE * 0.45,
-      text,
-      color: gold,
-      t0: performance.now(),
-      duration: fx.duration,
-      fontSize: fx.fontSize,
-      floatBoost: fx.float,
-      tilt: fx.tilt * sign,
-      slam: fx.slam,
-      slamMs: fx.slamMs,
-      glow: fx.glow,
-      big: true
-    });
-    if(!resolving && !looping) startLoop();
-    celebrateLevelDisplay();
-    const toast = document.getElementById('levelToast');
-    if(toast){
-      toast.textContent = text;
-      toast.classList.add('show');
-      clearTimeout(levelToastTimer);
-      levelToastTimer = setTimeout(()=>toast.classList.remove('show'), 2200);
-    }
-  }
-
   // Describe rewards for a run level without applying them.
   // firstTimeAtLevel: shop/VIP/quest first reveals only fire the first time you hit that level.
   function describeLevelRewardParts(lvl, opts){
@@ -4331,7 +4267,7 @@
         }
       }
     }
-    if(!silent) showLevelUpToast(lvl, parts);
+    if(!silent) celebrateLevelDisplay();
   }
 
   function earnedLevelEntries(uptoLevel){
