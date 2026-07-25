@@ -1121,7 +1121,7 @@
       let lowestClearedIdx = Infinity;
       for(let i=0;i<oldStack.length;i++){
         const oldRow = ROWS - 1 - i;
-        if(oldStack[i].type==='piece' && cleared.has(c+','+oldRow)){
+        if(cleared.has(c+','+oldRow)){
           lowestClearedIdx = Math.min(lowestClearedIdx, i);
         }
       }
@@ -1132,6 +1132,20 @@
         const oldRow = ROWS - 1 - i;
         if(entry.type==='piece' && cleared.has(c+','+oldRow)){
           continue; // destroyed in the explosion
+        }
+        if(entry.type==='ball' && cleared.has(c+','+oldRow)){
+          const b = entry.ball;
+          b.vx += (Math.random()-0.5)*6;
+          b.vy = Math.min(b.vy, 0) - (8 + Math.random()*4);
+          b.stackEntry = null;
+          b.targetCol = null;
+          b.row = null;
+          b.phase = 'peg';
+          b.frameSafety = 0;
+          b.gridAge = 0;
+          b.cascadeBall = true;
+          b.freeDrop = false;
+          continue;
         }
         if(lowestClearedIdx !== Infinity && i > lowestClearedIdx){
           // above the blast — fling back into play

@@ -5,7 +5,7 @@
 <title>Plinko Poker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+Symbols+2:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0B0A14;
@@ -20,11 +20,18 @@
     --diamond:#FF8A5B;
     --spade:#C8C2E8;
     --club:#7EC8A3;
+    --suit-font:'Noto Sans Symbols 2','Segoe UI Symbol','Apple Symbols',sans-serif;
   }
   *{
     box-sizing:border-box;
     -webkit-user-select:none;
     user-select:none;
+  }
+  button,
+  [role="button"],
+  .rail-tab{
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
   }
   html,body{
     margin:0;
@@ -59,11 +66,11 @@
     overflow:hidden;
   }
   .chip-fx-layer{
-    position:absolute;
+    position:fixed;
     inset:0;
     pointer-events:none;
-    overflow:hidden;
-    z-index:6;
+    overflow:visible;
+    z-index:50;
   }
   .fly-chip{
     position:absolute;
@@ -86,6 +93,84 @@
     inset:2.5px;
     border-radius:50%;
     border:1px dashed rgba(70,45,10,0.35);
+  }
+  .fly-comp,
+  .fly-run-comp,
+  .fly-spark{
+    position:absolute;
+    width:14px;
+    height:14px;
+    margin:-7px 0 0 -7px;
+    border-radius:4px;
+    background:linear-gradient(145deg, #F0D78C 0%, #C9A84A 55%, #8a6f2a 100%);
+    border:1px solid rgba(90,70,20,0.55);
+    box-shadow:0 1px 4px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,248,220,0.35);
+    will-change:transform, opacity;
+    pointer-events:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:9px;
+    font-weight:700;
+    color:#1a1408;
+    line-height:1;
+  }
+  .fly-comp::after{content:'★';}
+  .fly-run-comp{
+    border-radius:3px;
+    background:linear-gradient(145deg, #d4f0e4 0%, #7EC8A3 50%, #2d8a6e 100%);
+    border-color:rgba(46,138,110,0.55);
+    color:#0d2818;
+  }
+  .fly-run-comp::after{content:'$';}
+  .fly-spark{
+    width:6px;
+    height:6px;
+    margin:-3px 0 0 -3px;
+    border-radius:50%;
+    border:none;
+    background:radial-gradient(circle, #fff 0%, #7EC8A3 45%, transparent 100%);
+    box-shadow:0 0 6px rgba(126,200,163,0.65);
+    font-size:0;
+  }
+  .fly-spark::after{content:'';}
+  .quest-claim-toast{
+    position:absolute;
+    left:0;
+    top:0;
+    transform:translate(-50%, 0);
+    font:700 13px 'Space Grotesk',sans-serif;
+    letter-spacing:0.02em;
+    white-space:nowrap;
+    text-shadow:
+      0 0 10px rgba(0,0,0,0.95),
+      0 2px 6px rgba(0,0,0,0.85);
+    pointer-events:none;
+    z-index:60;
+    animation:questClaimToastOut 1.35s ease forwards;
+  }
+  @keyframes questClaimToastOut{
+    0%{
+      opacity:0;
+      transform:translate(-50%, 0) scale(0.88);
+    }
+    14%{
+      opacity:1;
+      transform:translate(-50%, 6px) scale(1.04);
+    }
+    100%{
+      opacity:0;
+      transform:translate(-50%, 54px) scale(1);
+    }
+  }
+  .comps-pill.comp-pulse{
+    animation:compLandPulse 0.32s ease-out;
+  }
+  @keyframes compLandPulse{
+    0%{ transform:scale(1); }
+    45%{ transform:scale(1.07); filter:brightness(1.14); }
+    100%{ transform:scale(1); filter:brightness(1); }
   }
   .score.chip-pulse{
     animation:chipLandPulse 0.32s ease-out;
@@ -141,16 +226,24 @@
     font-size:12px;
     color:var(--ink-dim);
   }
-  .next-card canvas{
-    width:36px;
-    height:36px;
-    border-radius:50%;
-    display:block;
-  }
-  .next-card b{
+  .next-card .next-card-val{
+    display:inline-flex;
+    align-items:center;
+    gap:3px;
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
     font-size:14px;
+    min-width:0;
+  }
+  .next-card .next-rank{
+    font-variant-numeric:tabular-nums;
+  }
+  .next-card .next-suit-glyph{
+    display:block;
+    width:16px;
+    height:16px;
+    flex-shrink:0;
+    pointer-events:none;
   }
   .board-frame{
     position:relative;
@@ -229,6 +322,49 @@
     font-size:12px;
     line-height:1.45;
   }
+  .settings-toggles{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:100%;
+  }
+  .settings-toggle{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:12px 14px;
+    background:var(--panel-2);
+    border:1px solid #2a2545;
+    border-radius:10px;
+    color:var(--ink);
+    font-size:13px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .settings-toggle:hover{border-color:#463d7a;}
+  .settings-toggle input{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+  }
+  .settings-toggle-ui{
+    flex:0 0 auto;
+    min-width:42px;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid #3a3558;
+    background:#171426;
+    color:var(--ink-dim);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    text-align:center;
+  }
+  .settings-toggle input:checked + .settings-toggle-ui{
+    color:var(--felt-bright);
+    border-color:rgba(46,138,110,0.45);
+    background:rgba(26,77,62,0.28);
+  }
   .rails{
     width:100%;
     display:flex;
@@ -260,6 +396,7 @@
     overflow-y:auto;
     padding:14px 12px 12px;
     scrollbar-gutter:stable;
+    touch-action:pan-y;
   }
   .rail-body::-webkit-scrollbar{width:8px;}
   .rail-body::-webkit-scrollbar-track{background:transparent;}
@@ -326,7 +463,7 @@
     min-width:0;
     min-height:48px;
     padding:8px 2px 6px;
-    border:1px solid transparent;
+    border:none;
     border-radius:10px;
     background:transparent;
     color:var(--ink-dim);
@@ -335,7 +472,7 @@
     font-weight:700;
     letter-spacing:0.01em;
     cursor:pointer;
-    transition:color .15s ease, background .15s ease, border-color .15s ease;
+    transition:color .15s ease, background .15s ease;
   }
   .rail-tab:hover{
     color:var(--ink);
@@ -344,15 +481,23 @@
   .rail-tab.is-active{
     color:var(--ink);
     background:var(--panel-2);
-    border-color:#3a3558;
   }
-  .rail-tab[data-panel="table"].is-active{border-color:rgba(139,127,255,0.5); color:var(--peg);}
-  .rail-tab[data-panel="welcome"].is-active{border-color:rgba(46,138,110,0.5); color:var(--felt-bright);}
-  .rail-tab[data-panel="upgrades"].is-active{border-color:rgba(46,138,110,0.45); color:var(--felt-bright);}
-  .rail-tab[data-panel="quests"].is-active{border-color:rgba(126,200,163,0.45); color:#7EC8A3;}
-  .rail-tab[data-panel="achievements"].is-active{border-color:rgba(240,215,140,0.45); color:#F0D78C;}
-  .rail-tab[data-panel="vip"].is-active{border-color:rgba(230,195,92,0.5); color:#E6C35C;}
-  .rail-tab[data-panel="settings"].is-active{border-color:#3a3558; color:var(--ink);}
+  .rail-tab[data-panel="table"].is-active{color:var(--peg);}
+  .rail-tab[data-panel="welcome"].is-active{color:var(--felt-bright);}
+  .rail-tab[data-panel="upgrades"].is-active{color:var(--felt-bright);}
+  .rail-tab[data-panel="quests"].is-active{color:#7EC8A3;}
+  .rail-tab-badge.quest-tab-badge-pop{
+    animation:questTabBadgePop 1.1s ease;
+  }
+  @keyframes questTabBadgePop{
+    0%,100%{transform:scale(1);}
+    22%{transform:scale(1.28);}
+    48%{transform:scale(0.94);}
+    68%{transform:scale(1.08);}
+  }
+  .rail-tab[data-panel="achievements"].is-active{color:#F0D78C;}
+  .rail-tab[data-panel="vip"].is-active{color:#E6C35C;}
+  .rail-tab[data-panel="settings"].is-active{color:var(--ink);}
   .welcome-panel{
     flex:1 1 auto;
     justify-content:center;
@@ -459,10 +604,26 @@
     line-height:16px;
     text-align:center;
   }
+  .rail-tab-badge.is-new{
+    min-width:10px;
+    width:10px;
+    height:10px;
+    padding:0;
+    font-size:0;
+    line-height:0;
+    background:#e85d6a;
+    color:transparent;
+    box-shadow:0 0 0 2px rgba(23,20,38,0.92);
+  }
   .rail-tab[data-panel="achievements"] .rail-tab-badge,
   .rail-tab[data-panel="vip"] .rail-tab-badge{
     background:#E6C35C;
     color:#1a1408;
+  }
+  .rail-tab[data-panel="achievements"] .rail-tab-badge.is-new,
+  .rail-tab[data-panel="vip"] .rail-tab-badge.is-new{
+    background:#e85d6a;
+    color:transparent;
   }
   .rail-tab-badge[hidden]{display:none !important;}
   .rail-tab[hidden]{display:none !important;}
@@ -513,10 +674,12 @@
     flex-shrink:0;
     transition:border-color .15s ease, background .15s ease, transform .08s ease;
   }
-  .quest:hover:not(:disabled){
-    border-color:#2d8a6e;
-    background:var(--panel-2);
-    transform:translateY(-1px);
+  @media (hover:hover) and (pointer:fine){
+    .quest:hover:not(:disabled){
+      border-color:#2d8a6e;
+      background:var(--panel-2);
+      transform:translateY(-1px);
+    }
   }
   .quest:disabled{cursor:default;}
   .quest.claimable{
@@ -607,6 +770,32 @@
   }
   .quest.claimable .quest-action{color:var(--felt-bright);}
   .quest.claimed .quest-action{color:var(--ink-dim);font-weight:500;}
+  .quest.quest-claiming{
+    animation:questClaimDissolve .36s ease forwards;
+    pointer-events:none;
+    z-index:1;
+  }
+  .quest.quest-claiming-auto{
+    animation-name:questClaimDissolveAuto;
+  }
+  @keyframes questClaimDissolve{
+    0%{filter:brightness(1);opacity:1;box-shadow:none;}
+    18%{filter:brightness(1.18);box-shadow:0 0 14px 2px rgba(46,138,110,0.22);}
+    100%{filter:brightness(0.82);opacity:0.38;transform:scale(0.985);}
+  }
+  @keyframes questClaimDissolveAuto{
+    0%{filter:brightness(1);opacity:1;box-shadow:none;}
+    18%{filter:brightness(1.14);box-shadow:0 0 12px 2px rgba(240,215,140,0.2);}
+    100%{filter:brightness(0.82);opacity:0.38;transform:scale(0.985);}
+  }
+  .quest.quest-rolling-in{
+    animation:questRollIn .42s ease;
+  }
+  @keyframes questRollIn{
+    0%{opacity:0;transform:translateY(-10px) scale(0.95);}
+    60%{opacity:1;transform:translateY(2px) scale(1.01);}
+    100%{opacity:1;transform:translateY(0) scale(1);}
+  }
   .upgrade{
     position:relative;
     display:flex;
@@ -641,32 +830,29 @@
     overflow:hidden;
   }
   .upgrade-progress-bonus,
-  .upgrade-progress-bought,
-  .upgrade-progress > span{
+  .upgrade-progress-bought{
     position:absolute;
-    left:0;
     top:0;
     bottom:0;
     width:0%;
-    transition:width .2s ease;
+    transition:left .2s ease, width .2s ease;
   }
-  .upgrade-progress-bonus{
-    z-index:0;
-    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
-  }
-  .upgrade-progress-bought,
-  .upgrade-progress > span{
-    z-index:1;
+  .upgrade-progress-bought{
     background:linear-gradient(90deg, var(--felt), var(--felt-bright));
   }
-  .upgrade.maxed .upgrade-progress-bought,
-  .upgrade.maxed .upgrade-progress > span{
+  .upgrade-progress-bonus{
+    left:0;
+    background:linear-gradient(90deg, #8a6f2a, #E6C35C);
+  }
+  .upgrade.maxed .upgrade-progress-bought{
     background:linear-gradient(90deg, #463d7a, var(--peg));
   }
-  .upgrade:hover:not(.is-disabled):not(.buy-blocked){
-    border-color:#463d7a;
-    background:var(--panel-2);
-    transform:translateY(-1px);
+  @media (hover:hover) and (pointer:fine){
+    .upgrade:hover:not(.is-disabled):not(.buy-blocked){
+      border-color:#463d7a;
+      background:var(--panel-2);
+      transform:translateY(-1px);
+    }
   }
   .upgrade:disabled,
   .upgrade.is-disabled{
@@ -767,6 +953,10 @@
     display:none;
     flex-direction:column;
     gap:4px;
+    /* Fixed size so interval ↔ waiting text doesn't reflow the HUD/board. */
+    flex:0 0 118px;
+    width:118px;
+    box-sizing:border-box;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
@@ -774,21 +964,32 @@
     font-size:12px;
     color:var(--ink-dim);
     white-space:nowrap;
-    flex:0 0 auto;
-    min-width:108px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease, transform .08s ease;
   }
+  .idle-pill:hover,
+  .idle-pill:focus-visible{
+    border-color:rgba(230,195,92,0.45);
+    background:var(--panel-2);
+    outline:none;
+  }
+  .idle-pill:active{transform:translateY(1px);}
   .idle-pill:not([hidden]){display:flex;}
   .idle-pill[hidden]{display:none !important;}
-  .idle-pill-top{
+  .idle-pill-head{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:8px;
   }
+  .idle-pill-head .hud-label::after{content:'\00a0';}
   .idle-pill b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
     font-size:14px;
+    display:inline-block;
+    min-width:5.5ch;
+    text-align:right;
   }
   .idle-pill.on{color:var(--felt-bright);border-color:rgba(46,138,110,0.4);}
   .idle-bar{
@@ -804,8 +1005,8 @@
     background:linear-gradient(90deg, var(--felt), var(--felt-bright));
     transition:width .08s linear;
   }
-  .level-toast{flex:0 0 auto;}
   .suit-bomb{
+    position:relative;
     width:100%;
     flex:0 0 auto;
     display:none;
@@ -815,8 +1016,72 @@
     border:1px solid #2a2545;
     border-radius:12px;
     padding:10px 12px;
+    overflow:hidden;
   }
   .suit-bomb.show{display:flex;}
+  .suit-bomb.picker-hidden .suit-bomb-btns{display:none;}
+  .suit-bomb-charge{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:3px;
+    background:rgba(255,255,255,0.06);
+    pointer-events:none;
+    overflow:hidden;
+    display:none;
+  }
+  .suit-bomb.picker-hidden .suit-bomb-charge{display:block;}
+  .suit-bomb-charge > span{
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:0;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+    transition:width .08s linear, background .2s ease;
+  }
+  .suit-bomb[data-target-suit="♥"] .suit-bomb-charge > span{
+    background:linear-gradient(90deg, #7A1830, var(--heart));
+  }
+  .suit-bomb[data-target-suit="♦"] .suit-bomb-charge > span{
+    background:linear-gradient(90deg, #8A4824, var(--diamond));
+  }
+  .suit-bomb[data-target-suit="♠"] .suit-bomb-charge > span{
+    background:linear-gradient(90deg, #3A3558, var(--spade));
+  }
+  .suit-bomb[data-target-suit="♣"] .suit-bomb-charge > span{
+    background:linear-gradient(90deg, #1F5A46, var(--club));
+  }
+  .suit-bomb.picker-hidden.suit-bomb-flash{
+    animation:suitBombTargetFlash .85s ease-in-out infinite;
+  }
+  .suit-bomb[data-target-suit="♥"].picker-hidden.suit-bomb-flash{
+    --suit-bomb-glow:rgba(255,77,109,0.42);
+    --suit-bomb-border:rgba(196,58,85,0.72);
+  }
+  .suit-bomb[data-target-suit="♦"].picker-hidden.suit-bomb-flash{
+    --suit-bomb-glow:rgba(255,138,91,0.42);
+    --suit-bomb-border:rgba(208,112,74,0.72);
+  }
+  .suit-bomb[data-target-suit="♠"].picker-hidden.suit-bomb-flash{
+    --suit-bomb-glow:rgba(200,194,232,0.38);
+    --suit-bomb-border:rgba(110,104,160,0.72);
+  }
+  .suit-bomb[data-target-suit="♣"].picker-hidden.suit-bomb-flash{
+    --suit-bomb-glow:rgba(126,200,163,0.4);
+    --suit-bomb-border:rgba(74,154,120,0.72);
+  }
+  @keyframes suitBombTargetFlash{
+    0%,100%{
+      border-color:#2a2545;
+      box-shadow:none;
+    }
+    50%{
+      border-color:var(--suit-bomb-border, rgba(46,138,110,0.55));
+      box-shadow:0 0 18px var(--suit-bomb-glow, rgba(46,138,110,0.28));
+    }
+  }
   .suit-bomb-head{
     display:flex;
     justify-content:space-between;
@@ -841,7 +1106,6 @@
     position:relative;
     overflow:hidden;
     border:1px solid #2a2545;
-    background:var(--panel-2);
     border-radius:10px;
     padding:10px 0;
     cursor:pointer;
@@ -850,14 +1114,31 @@
     font-size:20px;
     line-height:1;
     color:var(--ink);
-    transition:transform .08s ease, border-color .15s ease, opacity .15s ease;
+    background:
+      radial-gradient(ellipse 130% 110% at 50% 8%, var(--felt-hi) 0%, var(--felt-mid) 52%, var(--felt-lo) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.12),
+      inset 0 -10px 18px rgba(0,0,0,0.18);
+    transition:transform .08s ease, border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  .suit-btn .suit-glyph{
+    position:relative;
+    z-index:1;
+    display:block;
+    width:22px;
+    height:22px;
+    margin:0 auto;
+    pointer-events:none;
   }
   .suit-btn:hover:not(:disabled){
     transform:translateY(-1px);
-    border-color:#463d7a;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.14),
+      inset 0 -10px 18px rgba(0,0,0,0.18),
+      0 0 14px var(--suit-glow);
   }
   .suit-btn:disabled{
-    opacity:0.4;
+    opacity:0.42;
     cursor:not-allowed;
   }
   .suit-btn.gone{display:none;}
@@ -865,20 +1146,63 @@
     position:absolute;
     left:0; right:0; bottom:0;
     height:0%;
-    background:rgba(139,127,255,0.22);
+    background:var(--suit-charge);
     pointer-events:none;
     transition:height .1s linear;
   }
   .suit-btn.charging .cd-fill{height:var(--cd, 0%);}
   .suit-btn.queued{
     opacity:1;
-    border-color:var(--peg);
-    box-shadow:0 0 0 1px rgba(139,127,255,0.35);
+    border-color:var(--suit-accent);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.14),
+      0 0 0 1px var(--suit-glow),
+      0 0 16px var(--suit-glow);
   }
-  .suit-btn[data-suit="♥"]{color:var(--heart);}
-  .suit-btn[data-suit="♦"]{color:var(--diamond);}
-  .suit-btn[data-suit="♠"]{color:var(--spade);}
-  .suit-btn[data-suit="♣"]{color:var(--club);}
+  .suit-btn[data-suit="♥"]{
+    --felt-hi:#C43A55;
+    --felt-mid:#7A1830;
+    --felt-lo:#3A0C18;
+    --suit-accent:var(--heart);
+    --suit-glow:rgba(255,77,109,0.38);
+    --suit-charge:rgba(255,77,109,0.28);
+    color:var(--heart);
+    border-color:rgba(196,58,85,0.55);
+  }
+  .suit-btn[data-suit="♦"]{
+    --felt-hi:#D0704A;
+    --felt-mid:#8A4824;
+    --felt-lo:#3A2010;
+    --suit-accent:var(--diamond);
+    --suit-glow:rgba(255,138,91,0.38);
+    --suit-charge:rgba(255,138,91,0.28);
+    color:var(--diamond);
+    border-color:rgba(208,112,74,0.55);
+  }
+  .suit-btn[data-suit="♠"]{
+    --felt-hi:#6E68A0;
+    --felt-mid:#3A3558;
+    --felt-lo:#1A1630;
+    --suit-accent:var(--spade);
+    --suit-glow:rgba(200,194,232,0.34);
+    --suit-charge:rgba(200,194,232,0.24);
+    color:var(--spade);
+    border-color:rgba(110,104,160,0.58);
+  }
+  .suit-btn[data-suit="♣"]{
+    --felt-hi:#4A9A78;
+    --felt-mid:#1F5A46;
+    --felt-lo:#0E2A22;
+    --suit-accent:var(--club);
+    --suit-glow:rgba(126,200,163,0.36);
+    --suit-charge:rgba(126,200,163,0.26);
+    color:var(--club);
+    border-color:rgba(74,154,120,0.55);
+  }
+  .suit-btn[data-suit="♥"]:hover:not(:disabled){border-color:var(--heart);}
+  .suit-btn[data-suit="♦"]:hover:not(:disabled){border-color:var(--diamond);}
+  .suit-btn[data-suit="♠"]:hover:not(:disabled){border-color:var(--spade);}
+  .suit-btn[data-suit="♣"]:hover:not(:disabled){border-color:var(--club);}
   .comps-pill{
     display:inline-flex;
     align-items:center;
@@ -927,17 +1251,21 @@
     outline:none;
   }
   .level-pill:active{transform:translateY(1px);}
-  .level-pill-top{
+  .level-pill-head{
     display:flex;
     justify-content:space-between;
     align-items:baseline;
     gap:8px;
     min-width:0;
   }
-  .level-pill-top > span:first-child{
+  .level-left{
+    display:flex;
+    align-items:baseline;
     flex:0 0 auto;
     white-space:nowrap;
   }
+  .level-left .hud-label::after{content:'\00a0';}
+  .next-card .hud-label::after{content:'\00a0';}
   .level-pill b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -1010,29 +1338,107 @@
     22%{ transform:scale(1.65); }
     100%{ transform:scale(1); }
   }
-  .level-toast{
-    position:fixed;
-    left:50%;
-    top:18px;
-    transform:translateX(-50%) translateY(-12px);
-    z-index:40;
-    max-width:min(520px, calc(100vw - 28px));
-    padding:10px 16px;
-    border-radius:12px;
-    background:rgba(23,20,38,0.94);
-    border:1px solid rgba(230,195,92,0.45);
-    color:#F0D78C;
-    font-family:'Space Grotesk',sans-serif;
-    font-weight:700;
-    font-size:14px;
-    text-align:center;
-    opacity:0;
-    pointer-events:none;
-    transition:opacity .2s ease, transform .2s ease;
-  }
-  .level-toast.show{
-    opacity:1;
-    transform:translateX(-50%) translateY(0);
+  @media (max-width:999px){
+    .app.mode-shop .stage{
+      flex:0 0 auto;
+      padding-bottom:0;
+      overflow:visible;
+    }
+    .app.mode-shop .stage .board-frame,
+    .app.mode-shop .stage .suit-bomb{
+      display:none !important;
+    }
+    .hud{
+      flex-wrap:nowrap;
+      gap:4px;
+      align-items:stretch;
+    }
+    .hud > .hud-tile,
+    .hud > .score,
+    .hud > .level-pill,
+    .hud > .comps-pill,
+    .hud > .idle-pill:not([hidden]),
+    .hud > .next-card{
+      flex:1 1 0;
+      min-width:0;
+      width:auto !important;
+    }
+    .score,
+    .comps-pill{
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:1px;
+      padding:5px 2px;
+      white-space:nowrap;
+    }
+    .hud-label{
+      display:block;
+      font-size:9px;
+      line-height:1.15;
+      letter-spacing:0.03em;
+      opacity:0.88;
+    }
+    .score b,
+    .comps-pill b,
+    .idle-pill b,
+    .next-card .next-card-val,
+    #runLevelVal{
+      font-size:13px;
+      min-width:0 !important;
+      width:100%;
+      text-align:center;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      justify-content:center;
+    }
+    .level-pill{
+      padding:5px 2px 4px;
+      gap:2px;
+      align-items:stretch;
+    }
+    .level-pill-head{
+      flex-direction:column;
+      align-items:center;
+      gap:0;
+    }
+    .level-left{
+      flex-direction:column;
+      align-items:center;
+      gap:0;
+      width:100%;
+      white-space:normal;
+    }
+    .level-left .hud-label::after{content:none;}
+    #runLevelXp{
+      font-size:8px;
+      line-height:1.1;
+      text-align:center;
+      flex:none;
+      max-width:100%;
+      margin-top:1px;
+    }
+    .level-bar{margin-top:1px;}
+    .idle-pill{
+      padding:5px 2px 4px;
+      align-items:stretch;
+    }
+    .idle-pill-head{
+      flex-direction:column;
+      align-items:center;
+      gap:0;
+    }
+    .idle-pill-head .hud-label::after{content:none;}
+    .idle-pill b{font-size:11px;}
+    .next-card{
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:1px;
+      padding:4px 2px;
+    }
+    .next-card .next-card-val{font-size:10px;max-width:100%;}
+    .next-card .next-suit-glyph{width:14px;height:14px;}
   }
   .level-modal{
     position:fixed;
@@ -1207,6 +1613,16 @@
     0%{ box-shadow:0 0 0 0 rgba(230,195,92,0.55); }
     100%{ box-shadow:0 0 0 0 transparent; }
   }
+  .upgrade.auto-bought{
+    animation:upgradeAutoBuy .68s ease;
+    z-index:1;
+  }
+  @keyframes upgradeAutoBuy{
+    0%{filter:brightness(1);box-shadow:none;}
+    28%{filter:brightness(1.16);box-shadow:0 0 18px 3px rgba(46,138,110,0.38), 0 0 0 1px rgba(46,138,110,0.25);}
+    55%{filter:brightness(1.08);box-shadow:0 0 10px 2px rgba(126,200,163,0.22);}
+    100%{filter:brightness(1);box-shadow:none;}
+  }
   .cashout{
     display:flex;
     flex-direction:column;
@@ -1252,8 +1668,7 @@
     border-color:rgba(230,195,92,0.55);
     box-shadow:0 0 0 1px rgba(230,195,92,0.12);
   }
-  .upgrade.prestige-upgrade .upgrade-progress-bought,
-  .upgrade.prestige-upgrade .upgrade-progress > span{
+  .upgrade.prestige-upgrade .upgrade-progress-bought{
     background:linear-gradient(90deg, #8a6f2a, #E6C35C);
   }
   .upgrade.prestige-upgrade .upgrade-effect{color:#F0D78C;}
@@ -1565,29 +1980,46 @@
 </head>
 <body>
 <div class="app mode-table" id="app">
+  <div class="chip-fx-layer" id="chipFxLayer" aria-hidden="true"></div>
   <section class="stage is-active" id="panelTable" data-panel="table" aria-label="Table">
-    <div class="chip-fx-layer" id="chipFxLayer" aria-hidden="true"></div>
     <div class="hud">
-      <div class="score active" id="scoreBox">Chips&nbsp;<b id="scoreVal">0</b></div>
-      <div class="level-pill" id="levelBox" role="button" tabindex="0"
+      <div class="score hud-tile active" id="scoreBox">
+        <span class="hud-label">Chips</span>
+        <b class="hud-val" id="scoreVal">0</b>
+      </div>
+      <div class="level-pill hud-tile" id="levelBox" role="button" tabindex="0"
            title="Run level — click for unlocks" aria-label="Run level — show unlocks">
-        <div class="level-pill-top">
-          <span>Level&nbsp;<b id="runLevelVal">1</b></span>
-          <span id="runLevelXp">0 / 18</span>
+        <div class="level-pill-head">
+          <span class="level-left">
+            <span class="hud-label">Level</span>
+            <b class="hud-val" id="runLevelVal">1</b>
+          </span>
+          <span class="hud-xp" id="runLevelXp">0 / 18</span>
         </div>
         <div class="level-bar" aria-hidden="true"><span id="runLevelFill"></span></div>
       </div>
-      <div class="comps-pill" id="compsBox" title="VIP comps — permanent currency from Cash Out" hidden>Comps&nbsp;<b id="compsHudVal">0</b></div>
-      <div class="idle-pill" id="autoStatus" hidden>
-        <div class="idle-pill-top">Auto&nbsp;<b id="autoStatusVal">—</b></div>
+      <div class="comps-pill hud-tile" id="compsBox" title="VIP comps — permanent currency from Cash Out" hidden>
+        <span class="hud-label">Comps</span>
+        <b class="hud-val" id="compsHudVal">0</b>
+      </div>
+      <div class="idle-pill hud-tile" id="autoStatus" role="button" tabindex="0"
+           title="Auto Dealer — click to pause or resume" hidden
+           aria-label="Auto Dealer — click to pause or resume">
+        <div class="idle-pill-head">
+          <span class="hud-label">Auto</span>
+          <b class="hud-val" id="autoStatusVal">—</b>
+        </div>
         <div class="idle-bar" aria-hidden="true"><span id="autoStatusFill"></span></div>
       </div>
-      <div class="next-card">
-        <canvas id="nextPreview" width="72" height="72"></canvas>
-        <div>Next&nbsp;<b id="nextLabel">—</b></div>
+      <div class="next-card hud-tile">
+        <span class="hud-label">Next</span>
+        <b class="hud-val next-card-val" id="nextLabel" aria-label="No next card">
+          <span class="next-tier" id="nextTier" hidden aria-hidden="true"></span>
+          <span class="next-rank" id="nextRank">—</span>
+          <canvas class="next-suit-glyph" id="nextSuitGlyph" width="32" height="32" hidden aria-hidden="true"></canvas>
+        </b>
       </div>
     </div>
-    <div class="level-toast" id="levelToast" role="status" aria-live="polite"></div>
 
     <div class="suit-bomb" id="suitBombBar" aria-label="Suit Purge">
       <div class="suit-bomb-head">
@@ -1595,6 +2027,7 @@
         <span id="suitBombStatus">ready</span>
       </div>
       <div class="suit-bomb-btns" id="suitBombBtns"></div>
+      <div class="suit-bomb-charge" aria-hidden="true"><span id="suitBombChargeFill"></span></div>
     </div>
 
     <div class="board-frame">
@@ -1664,6 +2097,23 @@
           <h2>Settings</h2>
         </div>
         <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
+        <div class="settings-toggles">
+          <label class="settings-toggle">
+            <span>Show FPS counter</span>
+            <input type="checkbox" id="settingShowFps">
+            <span class="settings-toggle-ui" aria-hidden="true">Off</span>
+          </label>
+          <label class="settings-toggle">
+            <span>Near-hand hints</span>
+            <input type="checkbox" id="settingNearHandHints">
+            <span class="settings-toggle-ui" aria-hidden="true">Off</span>
+          </label>
+          <label class="settings-toggle">
+            <span>Chip animation</span>
+            <input type="checkbox" id="settingChipAnimation" checked>
+            <span class="settings-toggle-ui" aria-hidden="true">On</span>
+          </label>
+        </div>
         <button type="button" class="reset" id="resetScores">Reset all progress</button>
       </section>
     </div>
@@ -1770,8 +2220,6 @@
   // Drive CSS aspect-ratio from the live bitmap so layout can't drift again.
   canvas.style.setProperty('--board-aspect', W + ' / ' + H);
   const ctx = canvas.getContext('2d');
-  const nextPreview = document.getElementById('nextPreview');
-  const nextCtx = nextPreview.getContext('2d');
 
   const PEG = getCSS('--peg');
   const PANEL = getCSS('--panel');
@@ -1797,6 +2245,10 @@
   // ---- cards ----
   const SUITS = ['♠','♥','♦','♣'];
   const SUIT_COLOR = {'♠':SPADE,'♥':HEART,'♦':DIAMOND,'♣':CLUB};
+  const SUIT_FONT = getCSS('--suit-font') || "'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', sans-serif";
+  function suitGlyphFont(px){
+    return `700 ${px}px ${SUIT_FONT}`;
+  }
   const SUIT_INK = {'♠':'#1a1630','♥':'#5a1020','♦':'#5a2810','♣':'#0e2a22'};
   // Deep felt faces per suit — welcome-chip aesthetic, readable under gold type.
   const SUIT_FELT = {
@@ -1813,9 +2265,87 @@
     if(r===13) return 'K';
     return String(r);
   }
-  function cardFace(card){ return rankLabel(card.rank) + card.suit; }
+  function cardFace(card){
+    if(isWild(card)) return rankLabel(card.rank) + ' W';
+    return rankLabel(card.rank) + card.suit;
+  }
+  const WILD_SUIT = '★';
+  const WILD_GLOW = '#E8ECF4';
+  const WILD_FELT = { hi:'#3A3A48', mid:'#1A1A24', lo:'#080810' };
+  const WILD_ACCENT = '#C8CCD8';
+  const WILD_ICON_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FDD835'];
+  function isWild(card){ return !!(card && card.wild); }
+  function cardGlowColor(card){
+    return isWild(card) ? WILD_GLOW : (SUIT_COLOR[card.suit] || '#ffffff');
+  }
+  function sliceSharesFlushSuit(cards){
+    const fixed = cards.filter(c => !isWild(c));
+    if(!fixed.length) return true;
+    const s = fixed[0].suit;
+    return fixed.every(c => c.suit === s);
+  }
+  function flushHintColor(cards){
+    const fixed = cards.find(c => !isWild(c));
+    return fixed ? SUIT_COLOR[fixed.suit] : WILD_GLOW;
+  }
+  const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
+  // Premium cards only swap the chip shell to a tier-colored felt; glyphs stay normal.
+  const CARD_TIER_FELT = [
+    null,
+    { hi:'#D8E2EE', mid:'#9AAABE', lo:'#5A6478' },
+    { hi:'#FFF9D0', mid:'#F3D878', lo:'#7A5810' },
+    { hi:'#D8F8FF', mid:'#5EC0F0', lo:'#2E78A8' }
+  ];
+  const CARD_TIER_ACCENT = ['', '#C8D4E4', '#E6C35C', '#7ED8FF'];
+  function cardTier(card){
+    const t = card && card.tier;
+    return (typeof t === 'number' && t >= 1 && t <= 3) ? (t | 0) : 0;
+  }
+  function cloneCard(card, extra){
+    const c = {suit: card.suit, rank: card.rank};
+    if(isWild(card)) c.wild = true;
+    const t = cardTier(card);
+    if(t) c.tier = t;
+    if(extra) Object.assign(c, extra);
+    return c;
+  }
+  function wildCardChance(){
+    const lvl = upgradeLevel('wildCard');
+    if(!lvl) return 0;
+    return Math.min(0.22, 0.012 + lvl * 0.014);
+  }
+  function rollWildCard(){
+    return Math.random() < wildCardChance();
+  }
+  function premiumCutChances(){
+    const lvl = upgradeLevel('premiumCut');
+    if(!lvl) return {silver: 0, gold: 0, diamond: 0};
+    return {
+      diamond: Math.min(0.08, 0.002 + lvl * 0.003),
+      gold: Math.min(0.20, 0.01 + lvl * 0.012),
+      silver: Math.min(0.45, 0.03 + lvl * 0.028)
+    };
+  }
+  function rollCardTier(){
+    const {silver, gold, diamond} = premiumCutChances();
+    const r = Math.random();
+    if(r < diamond) return 3;
+    if(r < diamond + gold) return 2;
+    if(r < diamond + gold + silver) return 1;
+    return 0;
+  }
+  function handCardMultiplier(cards){
+    let bonus = 0;
+    for(const c of cards){
+      bonus += CARD_TIER_BONUS[cardTier(c)] || 0;
+    }
+    return 1 + bonus;
+  }
+  function tierLabelShort(t){
+    return t === 3 ? '◆' : t === 2 ? '★' : t === 1 ? '✦' : '';
+  }
   function trailRGBA(card, alpha){
-    const hex = SUIT_COLOR[card.suit] || '#ffffff';
+    const hex = cardGlowColor(card);
     const n = parseInt(hex.slice(1), 16);
     const r = (n>>16)&255, g = (n>>8)&255, b = n&255;
     return `rgba(${r},${g},${b},${alpha})`;
@@ -1825,6 +2355,8 @@
   // stay dynamic so we only pay for 4 textures instead of a 52-card sheet.
   const CHIP_TEX_SIZE = 128;
   const chipTextures = Object.create(null);
+  const chipTierTextures = Object.create(null);
+  let chipWildTexture = null;
   let feltNoiseCanvas = null;
 
   function getFeltNoise(){
@@ -1844,7 +2376,7 @@
     return c;
   }
 
-  function bakeChipTexture(suit){
+  function bakeChipTexture(felt, accent){
     const size = CHIP_TEX_SIZE;
     const c = document.createElement('canvas');
     c.width = c.height = size;
@@ -1852,8 +2384,6 @@
     const cx = size / 2;
     const cy = size / 2;
     const R = size / 2 - 1;
-    const felt = SUIT_FELT[suit] || SUIT_FELT['♠'];
-    const accent = SUIT_COLOR[suit] || '#F0D78C';
 
     // Suit-colored outer rim (not a gold donut — that ate the in-flight suit glow).
     const rim = g.createRadialGradient(cx, cy, R * 0.72, cx, cy, R);
@@ -1931,8 +2461,44 @@
 
   function ensureChipTextures(){
     for(const suit of SUITS){
-      if(!chipTextures[suit]) chipTextures[suit] = bakeChipTexture(suit);
+      if(!chipTextures[suit]){
+        chipTextures[suit] = bakeChipTexture(
+          SUIT_FELT[suit] || SUIT_FELT['♠'],
+          SUIT_COLOR[suit] || '#F0D78C'
+        );
+      }
     }
+  }
+
+  function ensureTierChipTextures(){
+    for(let tier = 1; tier <= 3; tier++){
+      if(!chipTierTextures[tier]){
+        chipTierTextures[tier] = bakeChipTexture(
+          CARD_TIER_FELT[tier],
+          CARD_TIER_ACCENT[tier]
+        );
+      }
+    }
+  }
+
+  function ensureWildChipTexture(){
+    if(!chipWildTexture){
+      chipWildTexture = bakeChipTexture(WILD_FELT, WILD_ACCENT);
+    }
+  }
+
+  function chipTextureForCard(card){
+    if(isWild(card)){
+      ensureWildChipTexture();
+      return chipWildTexture;
+    }
+    const tier = cardTier(card);
+    if(tier){
+      ensureTierChipTextures();
+      return chipTierTextures[tier];
+    }
+    ensureChipTextures();
+    return chipTextures[card.suit];
   }
 
   function shuffle(arr){
@@ -1964,7 +2530,15 @@
   let shoe = [];
   function dealCard(){
     if(shoe.length < 8) shoe = shoe.concat(makeDeck());
-    return shoe.pop();
+    const card = shoe.pop();
+    if(rollWildCard()){
+      card.wild = true;
+      card.suit = WILD_SUIT;
+    } else {
+      const tier = rollCardTier();
+      if(tier) card.tier = tier;
+    }
+    return card;
   }
 
   // Aces play high or low for straights.
@@ -1984,11 +2558,10 @@
     const n = cards.length;
     if(n < 3) return null;
     const ranks = cards.map(c=>c.rank);
-    const suits = cards.map(c=>c.suit);
     const rankCounts = {};
     for(const r of ranks) rankCounts[r] = (rankCounts[r]||0)+1;
     const counts = Object.values(rankCounts).sort((a,b)=>b-a);
-    const flush = n>=5 && suits.every(s=>s===suits[0]);
+    const flush = n>=5 && sliceSharesFlushSuit(cards);
     const straight = n===5 && isStraightRanks(ranks);
 
     if(n===5 && flush && straight){
@@ -2048,12 +2621,14 @@
 
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
-  const SAVE_VERSION = 7;
+  const SETTINGS_KEY = 'plinkoPokerSettings_v1';
+  const SAVE_VERSION = 17;
   const MAX_IN_FLIGHT = 14;
-  const MAX_CASCADE_BALLS = 42;
+  // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
+  const MAX_AUTO_DROP_BALLS = 264;
   const MAX_POPUPS = 36;
   const MAX_PARTICLES = 180;
-  const MAX_RUN_LEVEL = 40;
+  const MAX_RUN_LEVEL = 200;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
   const MIN_CASH_OUT_LEVEL = 8;
   // Shop order = array order. unlockAt = run level required to first reveal.
@@ -2071,15 +2646,6 @@
       toggleable: true
     },
     {
-      id: 'multiDeal',
-      name: 'Multi Deal',
-      desc: 'Drop extra cards each auto tick.',
-      baseCost: 80,
-      costScale: 2.05,
-      maxLevel: 8,
-      unlockAt: 2
-    },
-    {
       id: 'bigBlind',
       name: 'Big Blind',
       desc: '+25% chips from every scored hand.',
@@ -2094,8 +2660,26 @@
       desc: '+1 effective chain multiplier per level.',
       baseCost: 120,
       costScale: 2.0,
-      maxLevel: 10,
+      maxLevel: 50,
       unlockAt: 4
+    },
+    {
+      id: 'premiumCut',
+      name: 'Premium Cut',
+      desc: 'Chance to deal Silver, Gold, or Diamond cards. Each premium card in a scored hand boosts that hand\'s payout.',
+      baseCost: 150,
+      costScale: 2.0,
+      maxLevel: 15,
+      unlockAt: 4
+    },
+    {
+      id: 'wildCard',
+      name: 'Wild Card',
+      desc: 'Chance to deal a wild card that counts as any suit for flushes. Higher levels deal them more often.',
+      baseCost: 175,
+      costScale: 2.0,
+      maxLevel: 12,
+      unlockAt: 5
     },
     {
       id: 'bumperPayout',
@@ -2134,12 +2718,12 @@
       unlockAt: 8
     },
     {
-      id: 'cardSense',
-      name: 'Card Sense',
-      desc: 'Auto-drops aim toward near-miss columns.',
-      baseCost: 200,
-      costScale: 1,
-      maxLevel: 1,
+      id: 'shortFuse',
+      name: 'Short Fuse',
+      desc: 'Hand clears flash and explode faster.',
+      baseCost: 80,
+      costScale: 1.85,
+      maxLevel: 12,
       unlockAt: 9
     },
     {
@@ -2154,20 +2738,11 @@
     {
       id: 'suitBomb',
       name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait.',
+      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait. Toggle to hide the suit picker.',
       baseCost: 400,
       costScale: 1.85,
       maxLevel: 12,
-      unlockAt: 11
-    },
-    {
-      id: 'autoSuitBomb',
-      name: 'Auto Purge',
-      desc: 'Automatically cast Suit Purge on the most crowded suit when charged. Toggle On/Off anytime.',
-      baseCost: 1800,
-      costScale: 1,
-      maxLevel: 1,
-      unlockAt: 13,
+      unlockAt: 11,
       toggleable: true
     },
     {
@@ -2183,18 +2758,31 @@
 
   // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
   // comps = Cash Out credit for this run (spent only when cashing out).
+  // metaMult / chainExp = multiplicative factors (2.0 = double), stack across late levels.
+  // Chip bonuses scale via levelChipReward() at every milestone, quest slot, and ×10 level.
   const LEVEL_BONUSES = {
-    5:  { comps: 1, chips: 40, label: '+1 Cash Out comp · +40 chips' },
+    5:  { comps: 1, label: '+1 Cash Out comp' },
     8:  { comps: 1, label: '+1 Cash Out comp · Cash Out unlocked' },
-    10: { comps: 1, upgrade: { id: 'autoDealer', n: 1 }, label: '+1 Cash Out comp · +1 Auto Dealer' },
+    10: { comps: 1, label: '+1 Cash Out comp' },
     12: { comps: 2, label: '+2 Cash Out comps' },
-    15: { comps: 2, prestige: 'seedStack', label: '+2 comps · VIP +1 Seed Stack' },
-    18: { comps: 2, upgrade: { id: 'bigBlind', n: 1 }, label: '+2 comps · +1 Big Blind' },
-    20: { comps: 3, prestige: 'houseEdge', label: '+3 comps · VIP +1 House Edge' },
-    25: { comps: 4, prestige: 'holdDeal', label: '+4 comps · VIP +1 Hold Deal' },
-    30: { comps: 5, prestige: 'rackDiscount', label: '+5 comps · VIP +1 Rack Discount' },
-    35: { comps: 6, prestige: 'compCard', label: '+6 comps · VIP +1 Comp Card' },
-    40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' }
+    15: { comps: 2, label: '+2 Cash Out comps' },
+    18: { comps: 2, label: '+2 Cash Out comps' },
+    20: { comps: 3, label: '+3 Cash Out comps' },
+    25: { comps: 4, label: '+4 Cash Out comps' },
+    30: { comps: 5, label: '+5 Cash Out comps' },
+    35: { comps: 6, label: '+6 Cash Out comps' },
+    40: { comps: 8, label: '+8 Cash Out comps' },
+    50: { comps: 10, metaMult: 2.0, label: '+10 comps · ×2 payout multipliers' },
+    60: { comps: 12, label: '+12 Cash Out comps' },
+    70: { comps: 14, chainExp: 2.0, label: '+14 comps · ×2 chain multiplier' },
+    80: { comps: 16, label: '+16 Cash Out comps' },
+    90: { comps: 18, label: '+18 Cash Out comps' },
+    100: { comps: 20, label: '+20 Cash Out comps' },
+    120: { comps: 24, metaMult: 2.0, label: '+24 comps · ×2 payout multipliers' },
+    140: { comps: 28, chainExp: 2.5, label: '+28 comps · ×2.5 chain multiplier' },
+    160: { comps: 32, label: '+32 Cash Out comps' },
+    180: { comps: 36, label: '+36 Cash Out comps' },
+    200: { comps: 50, metaMult: 2.5, chainExp: 2.0, label: '+50 comps · ×2.5 mults · ×2 chain' }
   };
 
   // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
@@ -2222,7 +2810,19 @@
     'THREE OF A KIND': 'runThreeKinds',
     'TWO PAIR': 'runTwoPairs'
   };
+  // Higher hands also count toward lower-category achievements and quests.
+  const HAND_STAT_ALSO = {
+    'ROYAL FLUSH': ['straightFlushes', 'straights', 'flushes'],
+    'STRAIGHT FLUSH': ['straights', 'flushes']
+  };
+  const RUN_HAND_STAT_ALSO = {
+    'ROYAL FLUSH': ['runStraightFlushes', 'runStraights', 'runFlushes'],
+    'STRAIGHT FLUSH': ['runStraights', 'runFlushes']
+  };
   const MAX_QUEST_SLOTS = 5;
+  // Quest slots unlock at these run levels (spread across the full climb).
+  const QUEST_SLOT_UNLOCK_LEVELS = [2, 20, 45, 75, 110];
+  const QUEST_CLAIM_ANIM_MS = 360;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
     common:    { label: 'Common',    weight: 52, targetMult: 1,   rewardMult: 1,   color: '#9aa3b5' },
@@ -2258,12 +2858,6 @@
       desc: 'Clear {n} chained hands (×2+).',
       stat: 'runChainClears', baseTarget: 1, minRarity: 'uncommon',
       reward: { chips: 140 }
-    },
-    {
-      id: 'floor', name: 'Sweep the Felt',
-      desc: 'Trigger {n} floor clear(s).',
-      stat: 'runFloorClears', baseTarget: 1, minRarity: 'uncommon',
-      reward: { chips: 180, runComps: 1 }
     },
     {
       id: 'multi', name: 'Two-Way Pot',
@@ -2312,100 +2906,172 @@
     {
       id: 'a_first_hand', kind: 'achievement', name: 'First Pot',
       desc: 'Score your first poker hand.',
-      stat: 'hands', target: 1, unlockAt: 1,
-      reward: { chips: 25 }
+      stat: 'hands', unlockAt: 1,
+      tiers: [{ target: 1, reward: { chips: 25 } }]
     },
     {
-      id: 'a_hands_50', kind: 'achievement', name: 'Table Regular',
-      desc: 'Score 50 hands lifetime.',
-      stat: 'hands', target: 50, unlockAt: 1,
-      reward: { comps: 1 }
-    },
-    {
-      id: 'a_hands_250', kind: 'achievement', name: 'Felt Veteran',
-      desc: 'Score 250 hands lifetime.',
-      stat: 'hands', target: 250, unlockAt: 1,
-      reward: { comps: 3 }
+      id: 'a_hands', kind: 'achievement', name: 'Table Regular',
+      desc: 'Score {n} hands lifetime.',
+      stat: 'hands', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.5, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 50, reward: { comps: 1 } },
+        { target: 250, reward: { comps: 3 } },
+        { target: 1000, reward: { comps: 5 } },
+        { target: 5000, reward: { comps: 10 } }
+      ]
     },
     {
       id: 'a_flush', kind: 'achievement', name: 'Suited Up',
-      desc: 'Score a Flush.',
-      stat: 'flushes', target: 1, unlockAt: 1,
-      reward: { chips: 120, runComps: 1 }
+      desc: 'Score {n} Flushes.',
+      stat: 'flushes', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 25 },
+      tiers: [
+        { target: 1, reward: { chips: 120, runComps: 1 } },
+        { target: 10, reward: { comps: 1 } },
+        { target: 50, reward: { comps: 2 } },
+        { target: 200, reward: { comps: 4 } }
+      ]
     },
     {
       id: 'a_straight', kind: 'achievement', name: 'In Order',
-      desc: 'Score a Straight.',
-      stat: 'straights', target: 1, unlockAt: 1,
-      reward: { chips: 120 }
+      desc: 'Score {n} Straights.',
+      stat: 'straights', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 25 },
+      tiers: [
+        { target: 1, reward: { chips: 120 } },
+        { target: 10, reward: { comps: 1 } },
+        { target: 50, reward: { comps: 2 } },
+        { target: 200, reward: { comps: 4 } }
+      ]
     },
     {
       id: 'a_fullhouse', kind: 'achievement', name: 'Full Boat',
-      desc: 'Score a Full House.',
-      stat: 'fullHouses', target: 1, unlockAt: 1,
-      reward: { chips: 200, comps: 1 }
+      desc: 'Score {n} Full Houses.',
+      stat: 'fullHouses', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.1, compPerLevel: 1, chipBase: 100, chipGrowth: 1.3, compCap: 25 },
+      tiers: [
+        { target: 1, reward: { chips: 200, comps: 1 } },
+        { target: 5, reward: { comps: 2 } },
+        { target: 25, reward: { comps: 3 } },
+        { target: 100, reward: { comps: 5 } }
+      ]
     },
     {
       id: 'a_quads', kind: 'achievement', name: 'Quad Squad',
-      desc: 'Score Four of a Kind.',
-      stat: 'fourKinds', target: 1, unlockAt: 1,
-      reward: { comps: 2 }
+      desc: 'Score {n} Four of a Kinds.',
+      stat: 'fourKinds', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.0, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 1, reward: { comps: 2 } },
+        { target: 3, reward: { comps: 3 } },
+        { target: 15, reward: { comps: 4 } },
+        { target: 50, reward: { comps: 6 } }
+      ]
     },
     {
       id: 'a_sf', kind: 'achievement', name: 'Painted Straight',
-      desc: 'Score a Straight Flush.',
-      stat: 'straightFlushes', target: 1, secret: true,
-      reward: { comps: 3 }
+      desc: 'Score {n} Straight Flushes.',
+      stat: 'straightFlushes', secret: true, infinite: true,
+      scale: { targetGrowth: 1.85, compPerLevel: 1, compCap: 35 },
+      tiers: [
+        { target: 1, reward: { comps: 3 } },
+        { target: 3, reward: { comps: 5 } },
+        { target: 10, reward: { comps: 8 } }
+      ]
     },
     {
       id: 'a_royal', kind: 'achievement', name: 'Crown Jewel',
-      desc: 'Score a Royal Flush.',
-      stat: 'royalFlushes', target: 1, secret: true,
-      reward: { comps: 5, prestige: 'houseEdge' }
+      desc: 'Score {n} Royal Flushes.',
+      stat: 'royalFlushes', secret: true, infinite: true,
+      scale: { targetGrowth: 1.75, compPerLevel: 2, compCap: 40 },
+      tiers: [
+        { target: 1, reward: { comps: 5, prestige: 'houseEdge' } },
+        { target: 2, reward: { comps: 8 } },
+        { target: 5, reward: { comps: 12, prestige: 'compCard' } }
+      ]
     },
     {
       id: 'a_combo', kind: 'achievement', name: 'Double Down',
-      desc: 'Clear two hands in one resolve.',
-      stat: 'multiHandClears', target: 1, unlockAt: 1,
-      reward: { chips: 150 }
+      desc: 'Score {n} multi-hand clears.',
+      stat: 'multiHandClears', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.3, compPerLevel: 1, chipBase: 100, chipGrowth: 1.35, compCap: 25 },
+      tiers: [
+        { target: 1, reward: { chips: 150 } },
+        { target: 10, reward: { comps: 1 } },
+        { target: 50, reward: { comps: 3 } },
+        { target: 200, reward: { comps: 5 } }
+      ]
     },
     {
-      id: 'a_floor_10', kind: 'achievement', name: 'Janitor',
-      desc: 'Trigger 10 floor clears lifetime.',
-      stat: 'floorClears', target: 10, unlockAt: 1,
-      reward: { comps: 2 }
+      id: 'a_floor', kind: 'achievement', name: 'Janitor',
+      desc: 'Trigger {n} floor clears lifetime.',
+      stat: 'floorClears', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.4, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 10, reward: { comps: 2 } },
+        { target: 50, reward: { comps: 3 } },
+        { target: 200, reward: { comps: 5 } },
+        { target: 1000, reward: { comps: 8 } }
+      ]
     },
     {
-      id: 'a_cashout_1', kind: 'achievement', name: 'First Buy-In',
-      desc: 'Cash Out once.',
-      stat: 'cashOuts', target: 1, unlockAt: 1,
-      reward: { comps: 1 }
+      id: 'a_cashout', kind: 'achievement', name: 'Buy-In Club',
+      desc: 'Cash Out {n} times.',
+      stat: 'cashOuts', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 1.9, compPerLevel: 1, compCap: 35 },
+      tiers: [
+        { target: 1, reward: { comps: 1 } },
+        { target: 5, reward: { comps: 3, prestige: 'compCard' } },
+        { target: 15, reward: { comps: 5 } },
+        { target: 30, reward: { comps: 8 } }
+      ]
     },
     {
-      id: 'a_cashout_5', kind: 'achievement', name: 'High Roller',
-      desc: 'Cash Out 5 times.',
-      stat: 'cashOuts', target: 5, unlockAt: 1,
-      reward: { comps: 3, prestige: 'compCard' }
+      id: 'a_level', kind: 'achievement', name: 'Deep Stack',
+      desc: 'Reach run level {n} in a single table.',
+      stat: 'maxRunLevel', unlockAt: 1,
+      tiers: [
+        { target: 20, reward: { comps: 3 } },
+        { target: 30, reward: { comps: 4 } },
+        { target: 40, reward: { comps: 6 } }
+      ]
     },
     {
-      id: 'a_level_20', kind: 'achievement', name: 'Deep Stack',
-      desc: 'Reach run level 20 in a single table.',
-      stat: 'maxRunLevel', target: 20, unlockAt: 1,
-      reward: { comps: 3 }
+      id: 'a_upgrades', kind: 'achievement', name: 'Rack Builder',
+      desc: 'Buy {n} table upgrades.',
+      stat: 'upgradesBought', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.1, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 20, reward: { comps: 2 } },
+        { target: 50, reward: { comps: 3 } },
+        { target: 100, reward: { comps: 5 } },
+        { target: 250, reward: { comps: 8 } }
+      ]
     },
     {
-      id: 'a_upgrades_20', kind: 'achievement', name: 'Rack Builder',
-      desc: 'Buy 20 table upgrades.',
-      stat: 'upgradesBought', target: 20, unlockAt: 1,
-      reward: { comps: 2 }
-    },
-    {
-      id: 'a_purges_10', kind: 'achievement', name: 'Suit Sanitizer',
-      desc: 'Cast Suit Purge 10 times.',
-      stat: 'suitPurges', target: 10, unlockAt: 11,
-      reward: { comps: 2 }
+      id: 'a_purges', kind: 'achievement', name: 'Suit Sanitizer',
+      desc: 'Cast Suit Purge {n} times.',
+      stat: 'suitPurges', unlockAt: 11, infinite: true,
+      scale: { targetGrowth: 2.3, compPerLevel: 1, compCap: 25 },
+      tiers: [
+        { target: 10, reward: { comps: 2 } },
+        { target: 50, reward: { comps: 3 } },
+        { target: 200, reward: { comps: 5 } }
+      ]
     }
   ];
+  // Map retired one-shot achievement ids to { groupId, tier } for save migration.
+  const ACHIEVEMENT_LEGACY_CLAIMS = {
+    a_hands_50: { id: 'a_hands', tier: 1 },
+    a_hands_250: { id: 'a_hands', tier: 2 },
+    a_cashout_1: { id: 'a_cashout', tier: 1 },
+    a_cashout_5: { id: 'a_cashout', tier: 2 },
+    a_floor_10: { id: 'a_floor', tier: 1 },
+    a_level_20: { id: 'a_level', tier: 1 },
+    a_upgrades_20: { id: 'a_upgrades', tier: 1 },
+    a_purges_10: { id: 'a_purges', tier: 1 }
+  };
   // Back-compat alias used by a few load paths.
   const CONTRACT_DEFS = ACHIEVEMENT_DEFS;
 
@@ -2414,10 +3080,10 @@
     {
       id: 'houseEdge',
       name: 'House Edge',
-      desc: 'Permanent chip multiplier on every payout.',
+      desc: '+1 Hot Streak level permanently (does not raise Hot Streak’s buy cost). Capped at Hot Streak max.',
       baseCost: 1,
       costScale: 1.65,
-      maxLevel: 25
+      maxLevel: 40
     },
     {
       id: 'seedStack',
@@ -2444,12 +3110,12 @@
       maxLevel: 8
     },
     {
-      id: 'holdDeal',
-      name: 'Hold Deal',
-      desc: 'Hold on the board or a column to keep dropping cards. Always available. Higher levels deal faster.',
+      id: 'blindSpread',
+      name: 'Open Blind',
+      desc: 'Each level extends Big Blind’s chip multiplier to another payout: pin tips → rail tax → sweep stakes → quests → level bonuses.',
       baseCost: 2,
-      costScale: 1.85,
-      maxLevel: 12
+      costScale: 1.95,
+      maxLevel: 5
     },
     {
       id: 'tableTilt',
@@ -2477,12 +3143,37 @@
       maxLevel: 10
     },
     {
+      id: 'feltWax',
+      name: 'Felt Wax',
+      desc: '+1 Felt Grease level permanently (does not raise Felt Grease’s buy cost). Capped at Felt Grease max.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
       id: 'questInk',
       name: 'Quest Ink',
       desc: 'Unlock higher-rarity table quests. Lv1 Uncommon → Lv4 Legendary.',
       baseCost: 2,
       costScale: 2.15,
       maxLevel: 4
+    },
+    {
+      id: 'cardSense',
+      name: 'Card Sense',
+      desc: 'Auto-drops aim toward near-miss columns.',
+      baseCost: 4,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'autoSuitBomb',
+      name: 'Auto Purge',
+      desc: 'Automatically cast Suit Purge on the most crowded suit when charged. Toggle On/Off anytime.',
+      baseCost: 8,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
     },
     {
       id: 'questDesk',
@@ -2496,10 +3187,10 @@
     {
       id: 'pitBoss',
       name: 'Pit Boss',
-      desc: 'Automatically buy the cheapest affordable table upgrades. Higher levels buy more each tick. Toggle On/Off anytime.',
+      desc: 'Automatically buy the cheapest affordable table upgrade each tick. Toggle On/Off anytime.',
       baseCost: 12,
-      costScale: 2.4,
-      maxLevel: 5,
+      costScale: 1,
+      maxLevel: 1,
       toggleable: true
     }
   ];
@@ -2507,27 +3198,34 @@
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'questDesk', 'pitBoss', 'tableTilt'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
   let runLevel = 1;
   let runCompCredit = 0; // comps banked by level rewards; paid out on Cash Out
-  let lastAutoDropAt = 0;
+  let autoDropTicks = 0;
+  let lastIdleDrawAt = 0;
+  let nearMissCache = null;
+  let hintsDirty = true;
   let suitBombReadyAt = 0;
   let pendingSuitBomb = null;
   let saveTimer = 0;
-  let holdDropping = false;
-  let holdDropCol = null; // null = aim at aimX; number = fixed column
   // Gyro tilt: -1..1 lean; degrees come from the Table Tilt VIP perk.
   let boardTilt = 0;
-  let lastHoldDropAt = 0;
-  let levelToastTimer = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
-  let questClaimed = Object.create(null); // achievement id -> true
+  let questClaimed = Object.create(null); // achievement id -> claimed tier count
   let activeQuests = []; // rolled run quests in slots
   let questUidSeq = 1;
+  const EMPTY_SEEN_UNLOCKS = {
+    tabs: { quests: false, achievements: false, vip: false },
+    upgrades: []
+  };
+  let seenUnlocks = {
+    tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
+    upgrades: []
+  };
   const EMPTY_STATS = {
     hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
@@ -2540,12 +3238,68 @@
     runStraightFlushes: 0
   };
   let stats = Object.assign({}, EMPTY_STATS);
+  const DEFAULT_SETTINGS = {
+    showFps: false,
+    nearHandHints: false,
+    chipAnimation: true
+  };
+  let gameSettings = Object.assign({}, DEFAULT_SETTINGS);
+
+  function loadSettings(){
+    try{
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      if(!data || typeof data !== 'object') return;
+      if(typeof data.showFps === 'boolean') gameSettings.showFps = data.showFps;
+      if(typeof data.nearHandHints === 'boolean') gameSettings.nearHandHints = data.nearHandHints;
+      if(typeof data.chipAnimation === 'boolean') gameSettings.chipAnimation = data.chipAnimation;
+    }catch(_){ /* ignore */ }
+  }
+
+  function persistSettings(){
+    try{
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(gameSettings));
+    }catch(_){ /* private mode / quota */ }
+  }
+
+  function setGameSetting(key, on){
+    if(!(key in DEFAULT_SETTINGS)) return;
+    gameSettings[key] = !!on;
+    persistSettings();
+    syncSettingsUI();
+    if(key === 'nearHandHints') markHintsDirty();
+    if(key === 'chipAnimation' && !gameSettings.chipAnimation) clearFlyingChips();
+    startLoop();
+  }
+
+  function syncSettingsUI(){
+    if(settingShowFpsEl){
+      settingShowFpsEl.checked = !!gameSettings.showFps;
+      const ui = settingShowFpsEl.nextElementSibling;
+      if(ui) ui.textContent = gameSettings.showFps ? 'On' : 'Off';
+    }
+    if(settingNearHandHintsEl){
+      settingNearHandHintsEl.checked = !!gameSettings.nearHandHints;
+      const ui = settingNearHandHintsEl.nextElementSibling;
+      if(ui) ui.textContent = gameSettings.nearHandHints ? 'On' : 'Off';
+    }
+    if(settingChipAnimationEl){
+      settingChipAnimationEl.checked = gameSettings.chipAnimation !== false;
+      const ui = settingChipAnimationEl.nextElementSibling;
+      if(ui) ui.textContent = gameSettings.chipAnimation !== false ? 'On' : 'Off';
+    }
+  }
 
   function purchasedLevel(id){ return upgrades[id] || 0; }
   function prestigeLevel(id){ return prestigeUpgrades[id] || 0; }
 
   function isAutoEnabled(id){
     return autoEnabled[id] !== false;
+  }
+
+  function suitBombUiVisible(){
+    return upgradeLevel('suitBomb') > 0 && isAutoEnabled('suitBomb');
   }
 
   function setAutoEnabled(id, on){
@@ -2583,6 +3337,8 @@
   function prestigeBonusLevels(id){
     if(id === 'autoDealer') return prestigeLevel('quickDeal');
     if(id === 'pinPayout') return prestigeLevel('pinPrivilege');
+    if(id === 'hotStreak') return prestigeLevel('houseEdge');
+    if(id === 'feltGrease') return prestigeLevel('feltWax');
     return 0;
   }
 
@@ -2612,10 +3368,6 @@
     const next = Math.min(maxPurchasableLevel(id), before + n);
     upgrades[id] = next;
     return next - before;
-  }
-
-  function prestigeChipMult(){
-    return 1 + 0.2 * prestigeLevel('houseEdge');
   }
 
   function upgradeCostMult(){
@@ -2652,6 +3404,18 @@
     return credit;
   }
 
+  function levelHasChipBonus(lvl){
+    if(lvl < 2) return false;
+    if(LEVEL_BONUSES[lvl]) return true;
+    if(QUEST_SLOT_UNLOCK_LEVELS.includes(lvl)) return true;
+    return lvl >= 10 && lvl % 10 === 0;
+  }
+
+  function levelChipReward(lvl){
+    if(!levelHasChipBonus(lvl)) return 0;
+    return Math.floor(8 * lvl + 6 * Math.pow(lvl, 1.25));
+  }
+
   function highestRunLevelReached(){
     return Math.max(runLevel, stats.maxRunLevel || 1);
   }
@@ -2674,14 +3438,23 @@
     return pendingComps() > 0;
   }
 
+  function questSlotUnlockLevel(slotIndex){
+    return QUEST_SLOT_UNLOCK_LEVELS[slotIndex] || null;
+  }
+
   function questSlotCap(){
-    // One slot per run level above 1, capped at 5.
-    return Math.min(MAX_QUEST_SLOTS, Math.max(0, runLevel - 1));
+    let cap = 0;
+    for(const unlockLvl of QUEST_SLOT_UNLOCK_LEVELS){
+      if(runLevel >= unlockLvl) cap++;
+      else break;
+    }
+    return Math.min(MAX_QUEST_SLOTS, cap);
   }
 
   function questsTabUnlocked(){
-    // First opens at run Lv 2; stays after Cash Out (slots still gate on this run).
-    return questSlotCap() > 0 || highestRunLevelReached() >= 2;
+    // First slot opens at run Lv 2; stays after Cash Out (slots still gate on this run).
+    const firstUnlock = QUEST_SLOT_UNLOCK_LEVELS[0] || 2;
+    return questSlotCap() > 0 || highestRunLevelReached() >= firstUnlock;
   }
 
   function upgradesTabUnlocked(){
@@ -2697,16 +3470,23 @@
   function achievementsTabUnlocked(){
     // Stay hidden until the first achievement is earned (complete or claimed).
     return ACHIEVEMENT_DEFS.some(def =>
-      achievementIsClaimed(def) || achievementComplete(def)
+      achievementClaimedTier(def) > 0 || achievementComplete(def)
     );
+  }
+
+  function vipProgressStarted(){
+    // Sticky once you earn comps, cash out, or buy a VIP perk — spending comps
+    // before run Lv 8 must not hide the lounge again.
+    return prestigeCount > 0
+      || comps > 0
+      || PRESTIGE_DEFS.some(def => prestigeLevel(def.id) > 0);
   }
 
   function vipTabUnlocked(){
     // Cash Out / VIP Lounge opens at run Lv 8, after any Cash Out, or once you
     // hold permanent comps (e.g. first achievement reward) so you can spend them.
     return highestRunLevelReached() >= MIN_CASH_OUT_LEVEL
-      || prestigeCount > 0
-      || comps > 0;
+      || vipProgressStarted();
   }
 
   function defaultShopPanel(){
@@ -2722,26 +3502,158 @@
     return Math.max(0, Math.min(QUEST_RARITIES.length - 1, prestigeLevel('questInk')));
   }
 
+  function achievementSeedTiers(def){
+    if(def.tiers && def.tiers.length) return def.tiers;
+    if(def.target != null) return [{ target: def.target, reward: def.reward || {} }];
+    return [];
+  }
+
+  function achievementTiers(def){
+    return achievementSeedTiers(def);
+  }
+
+  function achievementTierCount(def){
+    if(def.infinite) return Infinity;
+    return achievementSeedTiers(def).length;
+  }
+
+  function achievementScaledReward(def, level, baseReward, extra){
+    baseReward = baseReward || {};
+    const scale = def.scale || {};
+    const r = {};
+    const compBase = baseReward.comps || scale.compBase || 1;
+    const compPer = scale.compPerLevel != null ? scale.compPerLevel : 1;
+    const compCap = scale.compCap || 30;
+    const comps = Math.min(compCap, Math.floor(compBase + extra * compPer));
+    if(comps > 0) r.comps = comps;
+
+    const chipBase = baseReward.chips || scale.chipBase || 0;
+    if(chipBase > 0){
+      const chipGrowth = scale.chipGrowth != null ? scale.chipGrowth : 1.35;
+      const chips = Math.floor(chipBase * Math.pow(chipGrowth, extra));
+      if(chips > 0) r.chips = chips;
+    }
+
+    const runCompEvery = scale.runCompEvery || 4;
+    if(extra > 0 && extra % runCompEvery === 0){
+      const runCap = scale.runCompCap || 5;
+      r.runComps = Math.min(runCap, 1 + Math.floor(extra / runCompEvery));
+    }
+    return r;
+  }
+
+  function achievementTierAt(def, level){
+    level = Math.max(1, Math.floor(level));
+    const seeds = achievementSeedTiers(def);
+    if(!seeds.length) return null;
+    if(level <= seeds.length) return seeds[level - 1];
+    if(!def.infinite) return null;
+
+    const last = seeds[seeds.length - 1];
+    const extra = level - seeds.length;
+    const scale = def.scale || {};
+    const targetGrowth = scale.targetGrowth != null ? scale.targetGrowth : 2.2;
+    const target = Math.max(
+      last.target + 1,
+      Math.ceil(last.target * Math.pow(targetGrowth, extra))
+    );
+    return {
+      target,
+      reward: achievementScaledReward(def, level, last.reward, extra)
+    };
+  }
+
+  function achievementClaimedTier(def){
+    const v = questClaimed[def.id];
+    if(typeof v === 'number' && v > 0){
+      if(def.infinite) return v;
+      return Math.min(v, achievementSeedTiers(def).length);
+    }
+    if(v === true) return achievementSeedTiers(def).length;
+    return 0;
+  }
+
+  function achievementIsFullyClaimed(def){
+    if(def.infinite) return false;
+    return achievementClaimedTier(def) >= achievementSeedTiers(def).length;
+  }
+
+  function achievementActiveTierIndex(def){
+    const claimed = achievementClaimedTier(def);
+    if(!def.infinite && claimed >= achievementSeedTiers(def).length){
+      return achievementSeedTiers(def).length - 1;
+    }
+    return claimed;
+  }
+
+  function achievementActiveTier(def){
+    const level = achievementClaimedTier(def) + 1;
+    if(!def.infinite && level > achievementSeedTiers(def).length){
+      const seeds = achievementSeedTiers(def);
+      return seeds[seeds.length - 1] || null;
+    }
+    return achievementTierAt(def, level);
+  }
+
+  function achievementStatValue(def){
+    return stats[def.stat] || 0;
+  }
+
+  function achievementDesc(def, tier){
+    tier = tier || achievementActiveTier(def);
+    if(!tier) return def.desc || '';
+    return (def.desc || '').replace(/\{n\}/g, formatNum(tier.target));
+  }
+
+  function achievementKindLabel(def){
+    const claimed = achievementClaimedTier(def);
+    const active = claimed + 1;
+    if(def.infinite) return 'Lv ' + active;
+    const total = achievementSeedTiers(def).length;
+    if(total <= 1) return 'Achievement';
+    if(achievementIsFullyClaimed(def)) return 'Lv ' + total + ' / ' + total;
+    return 'Lv ' + active + ' / ' + total;
+  }
+
   function achievementProgress(def){
-    return Math.min(def.target, stats[def.stat] || 0);
+    const tier = achievementActiveTier(def);
+    if(!tier) return 0;
+    if(!def.infinite && achievementIsFullyClaimed(def)) return tier.target;
+    return Math.min(tier.target, achievementStatValue(def));
   }
 
   function achievementComplete(def){
-    return achievementProgress(def) >= def.target;
+    if(!def.infinite && achievementIsFullyClaimed(def)) return false;
+    const tier = achievementActiveTier(def);
+    return !!tier && achievementStatValue(def) >= tier.target;
   }
 
   function achievementIsClaimed(def){
-    return !!questClaimed[def.id];
+    return achievementIsFullyClaimed(def);
   }
 
   function achievementRevealed(def){
-    if(achievementIsClaimed(def) || achievementComplete(def)) return true;
-    if(def.secret) return achievementProgress(def) > 0;
+    if(achievementClaimedTier(def) > 0 || achievementComplete(def)) return true;
+    if(def.secret) return achievementStatValue(def) > 0;
     return highestRunLevelReached() >= (def.unlockAt || 1);
   }
 
   function achievementCanClaim(def){
-    return achievementRevealed(def) && achievementComplete(def) && !achievementIsClaimed(def);
+    return achievementRevealed(def) && achievementComplete(def);
+  }
+
+  function achievementProgressRatio(def){
+    const tier = achievementActiveTier(def);
+    if(!tier || !tier.target) return 0;
+    return achievementProgress(def) / tier.target;
+  }
+
+  function compareAchievementButtons(a, b){
+    // Ready-to-claim first, then closest to the next level, completed last.
+    if(a.canClaim !== b.canClaim) return a.canClaim ? -1 : 1;
+    if(a.fullyClaimed !== b.fullyClaimed) return a.fullyClaimed ? 1 : -1;
+    if(b.ratio !== a.ratio) return b.ratio - a.ratio;
+    return a.order - b.order;
   }
 
   function activeQuestProgress(q){
@@ -2756,7 +3668,7 @@
   function contractRewardText(reward){
     const r = reward || {};
     const parts = [];
-    if(r.chips) parts.push('+' + formatNum(r.chips) + ' chips');
+    if(r.chips) parts.push('+' + formatNum(blindBonusChips(r.chips, 'contracts')) + ' chips');
     if(r.comps) parts.push('+' + r.comps + ' VIP comps');
     if(r.runComps) parts.push('+' + r.runComps + ' Cash Out comps');
     if(r.prestige){
@@ -2770,14 +3682,25 @@
     return parts.length ? parts.join(' · ') : 'Reward';
   }
 
-  function applyContractReward(reward){
+  function applyContractReward(reward, opts){
+    opts = opts || {};
     const r = reward || {};
     if(r.chips){
-      score += r.chips;
-      spawnChipFly(W/2, PEG_ZONE * 0.38, r.chips);
+      const chips = blindBonusChips(r.chips, 'contracts');
+      score += chips;
+      if(!opts.skipFly){
+        if(opts.originEl) spawnRewardParticles(opts.originEl, { chips });
+        else spawnChipFly(W/2, PEG_ZONE * 0.38, chips);
+      }
     }
-    if(r.comps) comps += r.comps;
-    if(r.runComps) runCompCredit += r.runComps;
+    if(r.comps){
+      comps += r.comps;
+      if(!opts.skipFly && opts.originEl) spawnRewardParticles(opts.originEl, { comps: r.comps });
+    }
+    if(r.runComps){
+      runCompCredit += r.runComps;
+      if(!opts.skipFly && opts.originEl) spawnRewardParticles(opts.originEl, { runComps: r.runComps });
+    }
     if(r.prestige){
       const pDef = PRESTIGE_DEFS.find(u => u.id === r.prestige);
       if(pDef && prestigeLevel(pDef.id) < pDef.maxLevel){
@@ -2897,69 +3820,157 @@
     updateSuitBombUI(performance.now(), true);
   }
 
+  function isQuestsPanelOpen(){
+    return activeRailPanel === 'quests';
+  }
+
+  function isUpgradesPanelOpen(){
+    return activeRailPanel === 'upgrades';
+  }
+
+  function playQuestClaimEffect(btn, opts){
+    if(!btn) return;
+    opts = opts || {};
+    btn.classList.remove('quest-claiming', 'quest-claiming-auto', 'quest-rolling-in');
+    void btn.offsetWidth;
+    btn.classList.add('quest-claiming');
+    if(opts.auto) btn.classList.add('quest-claiming-auto');
+    if(opts.reward) spawnRewardParticles(btn, opts.reward);
+    clearTimeout(btn._questClaimTimer);
+    btn._questClaimTimer = setTimeout(()=>{
+      btn.classList.remove('quest-claiming', 'quest-claiming-auto');
+    }, QUEST_CLAIM_ANIM_MS + 40);
+  }
+
+  function playQuestRollIn(btn){
+    if(!btn) return;
+    btn.classList.remove('quest-claiming', 'quest-claiming-auto', 'quest-rolling-in');
+    void btn.offsetWidth;
+    btn.classList.add('quest-rolling-in');
+    clearTimeout(btn._questRollInTimer);
+    btn._questRollInTimer = setTimeout(()=>btn.classList.remove('quest-rolling-in'), 440);
+  }
+
+  function pulseQuestTabAutoClaim(){
+    spawnRailTabBurst('quests', { count: 6, popSpread: 20 });
+    const tab = getQuestsTabEl();
+    if(!tab) return;
+    const badge = tab.querySelector('.rail-tab-badge');
+    if(badge){
+      badge.classList.remove('quest-tab-badge-pop');
+      void badge.offsetWidth;
+      badge.classList.add('quest-tab-badge-pop');
+      clearTimeout(tab._questBadgePopTimer);
+      tab._questBadgePopTimer = setTimeout(()=>badge.classList.remove('quest-tab-badge-pop'), 1120);
+    }
+  }
+
+  function getQuestsTabEl(){
+    return questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+  }
+
+  function pushQuestClaimToast(quest, stackIndex){
+    const tab = getQuestsTabEl();
+    if(!tab || tab.hidden || !chipFxLayer || !quest) return;
+    const rect = tab.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    const x = rect.left - stage.left + rect.width * 0.5;
+    const y = rect.top - stage.top + rect.height + 6 + (stackIndex || 0) * 26;
+    const el = document.createElement('div');
+    el.className = 'quest-claim-toast';
+    const rarity = QUEST_RARITY[quest.rarity] || QUEST_RARITY.common;
+    el.style.color = rarity.color;
+    el.textContent = 'QUEST · ' + quest.name;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    chipFxLayer.appendChild(el);
+    const cleanup = ()=>{ if(el.parentNode) el.parentNode.removeChild(el); };
+    el.addEventListener('animationend', cleanup, { once: true });
+    setTimeout(cleanup, 1500);
+  }
+
+  function pushQuestClaimPopup(claimed){
+    if(!claimed || !claimed.length) return;
+    for(let i = 0; i < claimed.length; i++){
+      const q = claimed[i];
+      const stackIndex = i;
+      if(i === 0) pushQuestClaimToast(q, stackIndex);
+      else setTimeout(() => pushQuestClaimToast(q, stackIndex), i * 140);
+    }
+  }
+
   function claimActiveQuest(uid, opts){
     opts = opts || {};
     const idx = activeQuests.findIndex(q => q.uid === uid);
     if(idx < 0) return null;
     const q = activeQuests[idx];
     if(!activeQuestComplete(q)) return null;
-    applyContractReward(q.reward);
-    const used = new Set(
-      activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
-    );
-    activeQuests[idx] = rollQuest(used);
-    if(!opts.deferUi){
-      refreshQuestUiAndSave();
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST · ' + q.name,
-        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
-        t0: performance.now(),
-        duration: 1400,
-        big: true
+    const panelOpen = isQuestsPanelOpen();
+    const animateCard = panelOpen && opts.animate !== false && !opts.deferUi;
+
+    const finishClaim = ()=>{
+      const flyOrigin = animateCard
+        ? questSlotButtons[idx]
+        : getQuestsTabEl();
+      applyContractReward(q.reward, {
+        skipFly: !!opts.skipRewardFly,
+        originEl: opts.skipRewardFly ? null : flyOrigin
       });
-      if(!resolving && !looping) startLoop();
+      const used = new Set(
+        activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
+      );
+      activeQuests[idx] = rollQuest(used);
+      if(!opts.deferUi){
+        refreshQuestUiAndSave();
+        if(panelOpen) playQuestRollIn(questSlotButtons[idx]);
+        pushQuestClaimPopup([q]);
+      }
+      return q;
+    };
+
+    if(animateCard){
+      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto, reward: q.reward });
+      setTimeout(finishClaim, QUEST_CLAIM_ANIM_MS);
+      return q;
     }
-    return q;
+
+    return finishClaim();
   }
 
   function tryAutoClaimQuests(){
     if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
     const claimed = [];
+    const claimedSlots = [];
+    const panelOpen = isQuestsPanelOpen();
     // Cap passes so a bad roll can never spin forever.
     for(let guard = 0; guard < MAX_QUEST_SLOTS; guard++){
       const ready = activeQuests.find(q => activeQuestComplete(q));
       if(!ready) break;
-      const q = claimActiveQuest(ready.uid, { deferUi: true });
+      const idx = activeQuests.findIndex(x => x.uid === ready.uid);
+      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true, reward: ready.reward });
+      const q = claimActiveQuest(ready.uid, { deferUi: true, skipRewardFly: true });
       if(!q) break;
       claimed.push(q);
+      claimedSlots.push(idx);
     }
     if(!claimed.length) return 0;
-    refreshQuestUiAndSave();
-    if(claimed.length === 1){
-      const q = claimed[0];
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST · ' + q.name,
-        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
-        t0: performance.now(),
-        duration: 1400,
-        big: true
-      });
-    } else {
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST DESK · ×' + claimed.length,
-        color: '#F0D78C',
-        t0: performance.now(),
-        duration: 1400,
-        big: true
-      });
-    }
-    if(!resolving && !looping) startLoop();
+
+    const finishUi = ()=>{
+      refreshQuestUiAndSave();
+      if(panelOpen){
+        for(const idx of claimedSlots) playQuestRollIn(questSlotButtons[idx]);
+      } else {
+        pulseQuestTabAutoClaim();
+        const tab = getQuestsTabEl();
+        for(const q of claimed){
+          if(tab && q.reward) spawnRewardParticles(tab, q.reward);
+        }
+      }
+      pushQuestClaimPopup(claimed);
+    };
+
+    if(panelOpen) setTimeout(finishUi, QUEST_CLAIM_ANIM_MS);
+    else finishUi();
     return claimed.length;
   }
 
@@ -2977,13 +3988,19 @@
   function claimAchievement(id){
     const def = ACHIEVEMENT_DEFS.find(c => c.id === id);
     if(!def || !achievementCanClaim(def)) return false;
-    questClaimed[def.id] = true;
-    applyContractReward(def.reward);
+    const level = achievementClaimedTier(def) + 1;
+    const tier = achievementTierAt(def, level);
+    if(!tier) return false;
+    questClaimed[def.id] = level;
+    applyContractReward(tier.reward);
     refreshQuestUiAndSave();
+    const tierSuffix = (def.infinite || achievementSeedTiers(def).length > 1)
+      ? ' Lv ' + level
+      : '';
     pushPopup({
       x: W / 2,
       y: PEG_ZONE * 0.38,
-      text: 'ACHIEVE · ' + def.name,
+      text: 'ACHIEVE · ' + def.name + tierSuffix,
       color: '#F0D78C',
       t0: performance.now(),
       duration: 1400,
@@ -3043,6 +4060,8 @@
       if(key) bumpStat(key, 1);
       const runKey = RUN_HAND_STAT[g.name];
       if(runKey) bumpStat(runKey, 1);
+      for(const alsoKey of (HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
+      for(const alsoKey of (RUN_HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
     }
   }
 
@@ -3086,65 +4105,155 @@
   function autoDropIntervalMs(){
     const lvl = upgradeLevel('autoDealer');
     if(lvl <= 0 || !isAutoEnabled('autoDealer')) return Infinity;
-    // Steep through the teens (~3.2s → ~86ms by Lv12), then a gentler
-    // cut so Lv13–30 still matter, flooring at 40ms near the top.
-    const early = 3200 * Math.pow(0.72, Math.min(lvl, 12) - 1);
-    const late = early * Math.pow(0.94, Math.max(0, lvl - 12));
-    return Math.max(40, Math.floor(late));
+    // Steep through the teens (~2.4s → ~55ms by Lv12), then a gentler
+    // cut so Lv13–30 still matter, flooring at 16ms near the top.
+    const early = 2400 * Math.pow(0.68, Math.min(lvl, 12) - 1);
+    const late = early * Math.pow(0.92, Math.max(0, lvl - 12));
+    return Math.max(16, Math.floor(late));
   }
 
-  function autoDropCount(){
-    return 1 + upgradeLevel('multiDeal');
+  function autoDropIntervalTicks(){
+    const ms = autoDropIntervalMs();
+    if(!Number.isFinite(ms)) return Infinity;
+    return Math.max(1, Math.round(ms / 1000 * PHYSICS_HZ));
   }
 
-  function holdDealUnlocked(){
-    return prestigeLevel('holdDeal') > 0;
-  }
-
-  function holdDropIntervalMs(){
-    const lvl = prestigeLevel('holdDeal');
-    if(lvl <= 0) return Infinity;
-    // ~400ms at Lv1, under 150ms by Lv6, floors at 70ms.
-    return Math.max(70, Math.floor(400 * Math.pow(0.82, lvl - 1)));
+  function autoDealerActive(){
+    return upgradeLevel('autoDealer') > 0
+      && isAutoEnabled('autoDealer')
+      && Number.isFinite(autoDropIntervalMs());
   }
 
   function tableScoreMultiplier(){
     return 1 + 0.25 * upgradeLevel('bigBlind');
   }
 
+  // VIP Open Blind — each level adds Big Blind’s multiplier to another payout type.
+  const BLIND_SPREAD_ORDER = ['pin', 'bumper', 'floor', 'contracts', 'levelBonus'];
+  const BLIND_SPREAD_LABELS = {
+    pin: 'pin tips',
+    bumper: 'rail tax',
+    floor: 'sweep stakes',
+    contracts: 'quests & achievements',
+    levelBonus: 'level bonuses'
+  };
+
+  function blindSpreadLevel(){
+    return prestigeLevel('blindSpread');
+  }
+
+  function blindSpreadTargets(spread){
+    spread = spread == null ? blindSpreadLevel() : Math.max(0, Math.floor(spread));
+    const targets = ['hands'];
+    for(let i = 0; i < spread && i < BLIND_SPREAD_ORDER.length; i++){
+      targets.push(BLIND_SPREAD_LABELS[BLIND_SPREAD_ORDER[i]]);
+    }
+    return targets;
+  }
+
+  function blindSpreadEffectText(spread){
+    if(upgradeLevel('bigBlind') <= 0) return 'Buy Big Blind first';
+    const mult = tableScoreMultiplier().toFixed(2).replace(/\.00$/, '');
+    return '×' + mult + ' on ' + blindSpreadTargets(spread).join(', ');
+  }
+
+  function blindMultiplier(category){
+    if(upgradeLevel('bigBlind') <= 0) return 1;
+    const mult = tableScoreMultiplier();
+    if(category === 'hands') return mult;
+    const idx = BLIND_SPREAD_ORDER.indexOf(category);
+    if(idx < 0) return 1;
+    return blindSpreadLevel() > idx ? mult : 1;
+  }
+
+  function blindBonusChips(amount, category){
+    amount = Math.floor(amount);
+    if(amount <= 0) return 0;
+    return Math.floor(amount * blindMultiplier(category));
+  }
+
   function scoreMultiplier(){
-    return tableScoreMultiplier() * prestigeChipMult();
+    return blindMultiplier('hands');
   }
 
   function chainBonus(){
     return upgradeLevel('hotStreak');
   }
 
+  function runLevelBonusProduct(field){
+    let mult = 1;
+    for(let L = 2; L <= runLevel; L++){
+      const bonus = LEVEL_BONUSES[L];
+      if(bonus && bonus[field]) mult *= bonus[field];
+    }
+    return mult;
+  }
+
+  function runMetaMultiplier(){
+    return runLevelBonusProduct('metaMult');
+  }
+
+  function runChainMultiplier(){
+    return runLevelBonusProduct('chainExp');
+  }
+
+  function computeChainMult(chainStep){
+    const linear = Math.max(1, chainStep + chainBonus());
+    const mult = runChainMultiplier();
+    if(mult <= 1) return linear;
+    return Math.max(1, Math.floor(linear * mult));
+  }
+
+  function formatMultFactor(v, noun){
+    const text = (v % 1 === 0) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
+    return '×' + text + ' ' + noun;
+  }
+
+  function formatMetaMultBonus(v){
+    return formatMultFactor(v, 'payout multipliers');
+  }
+
+  function formatChainExpBonus(v){
+    return formatMultFactor(v, 'chain multiplier');
+  }
+
   function physicsSpeed(){
     return 1 + 0.22 * upgradeLevel('feltGrease');
   }
 
+  function resolveSpeed(){
+    return 1 + 0.22 * upgradeLevel('shortFuse');
+  }
+
+  function flashPulseCount(){
+    const lvl = upgradeLevel('shortFuse');
+    // 7 pulses at Lv0, tapering to 2 by ~Lv10.
+    return Math.max(2, 7 - Math.floor(lvl * 0.5));
+  }
+
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? Math.floor(lvl * prestigeChipMult()) : 0;
+    return lvl ? Math.floor(lvl * blindMultiplier('pin') * runMetaMultiplier()) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? Math.floor(lvl * 2 * prestigeChipMult()) : 0;
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * runMetaMultiplier()) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
-    return lvl ? Math.floor(lvl * 75 * scoreMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * runMetaMultiplier()) : 0;
   }
 
   function suitBombCooldownMs(){
     const lvl = upgradeLevel('suitBomb');
     if(lvl <= 0) return Infinity;
-    // ~45s at Lv1, under 20s by Lv5, floors at 8s near max.
-    return Math.max(8000, Math.floor(45000 * Math.pow(0.85, lvl - 1)));
+    // ~45s at Lv1, under 20s by Lv5, then a steeper late curve down to ~6s at max.
+    const early = 45000 * Math.pow(0.85, Math.min(lvl, 9) - 1);
+    const late = early * Math.pow(0.80, Math.max(0, lvl - 9));
+    return Math.max(5000, Math.floor(late));
   }
 
   function suitBombUnlocked(){
@@ -3172,7 +4281,9 @@
   }
 
   function cardAllowed(card){
-    return !!(card && rankAllowed(card.rank) && activeSuits().includes(card.suit));
+    if(!card) return false;
+    if(isWild(card)) return rankAllowed(card.rank);
+    return rankAllowed(card.rank) && activeSuits().includes(card.suit);
   }
 
   function reshapeShoe(){
@@ -3206,43 +4317,6 @@
     levelCelebrateTimer = setTimeout(()=>box.classList.remove('level-up'), 1400);
   }
 
-  function showLevelUpToast(lvl, parts){
-    const text = parts.length
-      ? ('LEVEL ' + lvl + '! ' + parts.join(' · '))
-      : ('LEVEL ' + lvl + '!');
-    // Match hand-clear score juice so LEVEL N! lands with a slam/glow.
-    const fx = {
-      fontSize: 32, duration: 1750, float: 56,
-      tilt: 0.2, slam: 2.35, slamMs: 200, glow: 26, bright: 0.32
-    };
-    const sign = Math.random() < 0.5 ? -1 : 1;
-    const gold = '#F0D78C';
-    pushPopup({
-      x: W / 2,
-      y: PEG_ZONE * 0.45,
-      text,
-      color: gold,
-      t0: performance.now(),
-      duration: fx.duration,
-      fontSize: fx.fontSize,
-      floatBoost: fx.float,
-      tilt: fx.tilt * sign,
-      slam: fx.slam,
-      slamMs: fx.slamMs,
-      glow: fx.glow,
-      big: true
-    });
-    if(!resolving && !looping) startLoop();
-    celebrateLevelDisplay();
-    const toast = document.getElementById('levelToast');
-    if(toast){
-      toast.textContent = text;
-      toast.classList.add('show');
-      clearTimeout(levelToastTimer);
-      levelToastTimer = setTimeout(()=>toast.classList.remove('show'), 2200);
-    }
-  }
-
   // Describe rewards for a run level without applying them.
   // firstTimeAtLevel: shop/VIP/quest first reveals only fire the first time you hit that level.
   function describeLevelRewardParts(lvl, opts){
@@ -3259,12 +4333,13 @@
       }
     }
     const bonus = LEVEL_BONUSES[lvl];
+    const chips = levelChipReward(lvl);
+    if(chips > 0){
+      parts.push('+' + formatNum(blindBonusChips(chips, 'levelBonus')) + ' chips');
+    }
     if(bonus){
       if(bonus.comps){
         parts.push('+' + bonus.comps + ' Cash Out comp' + (bonus.comps === 1 ? '' : 's'));
-      }
-      if(bonus.chips){
-        parts.push('+' + formatNum(bonus.chips) + ' chips');
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
@@ -3275,22 +4350,19 @@
           }
         }
       }
-      if(bonus.prestige){
-        const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
-        if(pDef){
-          if(preview || prestigeLevel(pDef.id) < pDef.maxLevel){
-            parts.push('VIP +1 ' + pDef.name);
-          }
-        }
+      if(bonus.metaMult){
+        parts.push(formatMetaMultBonus(bonus.metaMult));
+      }
+      if(bonus.chainExp){
+        parts.push(formatChainExpBonus(bonus.chainExp));
       }
       if(bonus.label && !parts.length) parts.push(bonus.label);
     }
     if(lvl === MIN_CASH_OUT_LEVEL && firstTimeAtLevel){
       parts.push('VIP Lounge unlocked');
     }
-    // Slot i unlocks at run level i+1 (first slot at Lv 2).
-    if(lvl >= 2 && lvl <= MAX_QUEST_SLOTS + 1){
-      if(lvl === 2){
+    if(QUEST_SLOT_UNLOCK_LEVELS.includes(lvl)){
+      if(lvl === QUEST_SLOT_UNLOCK_LEVELS[0]){
         if(firstTimeAtLevel) parts.push('Quests unlocked');
       } else {
         parts.push('Quest slot +1');
@@ -3302,17 +4374,16 @@
   function grantLevelReward(lvl, opts){
     opts = opts || {};
     const silent = !!opts.silent;
-    // maxRunLevel updates after the level-up loop, so "prior" is still the peak.
-    const firstTimeAtLevel = (stats.maxRunLevel || 1) < lvl;
-    const parts = describeLevelRewardParts(lvl, { firstTimeAtLevel });
     const bonus = LEVEL_BONUSES[lvl];
+    const chips = levelChipReward(lvl);
+    if(chips > 0){
+      const awarded = blindBonusChips(chips, 'levelBonus');
+      score += awarded;
+      // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
+      if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, awarded);
+    }
     if(bonus){
       if(bonus.comps) runCompCredit += bonus.comps;
-      if(bonus.chips){
-        score += bonus.chips;
-        // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
-        if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, bonus.chips);
-      }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
         if(uDef){
@@ -3326,17 +4397,8 @@
           }
         }
       }
-      if(bonus.prestige){
-        const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
-        if(pDef){
-          const before = prestigeLevel(pDef.id);
-          if(before < pDef.maxLevel){
-            prestigeUpgrades[pDef.id] = before + 1;
-          }
-        }
-      }
     }
-    if(!silent) showLevelUpToast(lvl, parts);
+    if(!silent) celebrateLevelDisplay();
   }
 
   function earnedLevelEntries(uptoLevel){
@@ -3401,16 +4463,200 @@
     };
   }
 
-  function scoreBoxTarget(){
-    if(!scoreBoxEl || !chipFxLayer) return { x: 40, y: 20 };
+  function scoreBoxTargetRect(){
+    if(!scoreBoxEl || !chipFxLayer) return null;
     const box = scoreBoxEl.getBoundingClientRect();
     const stage = chipFxLayer.getBoundingClientRect();
     return {
-      x: box.left - stage.left + box.width * 0.78,
+      left: box.left - stage.left,
+      top: box.top - stage.top,
+      width: box.width,
+      height: box.height
+    };
+  }
+
+  const SCORE_BOX_PAD_X = 8;
+  const SCORE_BOX_PAD_BOTTOM = 5;
+
+  function scoreBoxTargetPoint(relX){
+    const r = scoreBoxTargetRect();
+    if(!r) return { x: 40, y: 20 };
+    return {
+      x: r.left + SCORE_BOX_PAD_X + (r.width - SCORE_BOX_PAD_X * 2) * relX,
+      y: r.top + r.height - SCORE_BOX_PAD_BOTTOM
+    };
+  }
+
+  function scoreBoxTarget(){
+    return scoreBoxTargetPoint(0.55);
+  }
+
+  function assignScoreBoxTarget(particle){
+    const relX = 0.1 + Math.random() * 0.8;
+    const pt = scoreBoxTargetPoint(relX);
+    particle.targetAnchor = 'scoreBox';
+    particle.targetRelX = relX;
+    particle.tx = pt.x;
+    particle.ty = pt.y;
+    particle.targetFn = scoreBoxTarget;
+    particle.flyToTarget = true;
+  }
+
+  function elementStagePoint(el){
+    if(!el || !chipFxLayer) return { x: 40, y: 20 };
+    const rect = el.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    return {
+      x: rect.left - stage.left + rect.width * 0.5,
+      y: rect.top - stage.top + rect.height * 0.42
+    };
+  }
+
+  function tableTabStagePoint(){
+    const tab = document.querySelector('.rail-tab[data-panel="table"]');
+    if(!tab || !chipFxLayer) return scoreBoxTarget();
+    const rect = tab.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    return {
+      x: rect.left - stage.left + rect.width * 0.5,
+      y: rect.top - stage.top + rect.height * 0.5
+    };
+  }
+
+  function spawnRailTabBurst(panel, opts){
+    opts = opts || {};
+    const tab = document.querySelector('.rail-tab[data-panel="' + panel + '"]');
+    if(!tab || tab.hidden) return;
+    spawnFlyBurst(elementStagePoint(tab), {
+      count: opts.count || 5,
+      className: opts.className || 'fly-spark',
+      flyToTarget: false,
+      popSpread: opts.popSpread || 22,
+      duration: opts.duration || 380,
+      maxCount: opts.maxCount || 7
+    });
+  }
+
+  function isBoardVisible(){
+    return desktopMq.matches || activeRailPanel === 'table';
+  }
+
+  function chipFlyOrigin(cx, cy, opts){
+    opts = opts || {};
+    if(opts.fromStage) return { x: cx, y: cy };
+    if(!isBoardVisible()) return tableTabStagePoint();
+    return canvasToStagePoint(cx, cy);
+  }
+
+  function compsBoxTarget(){
+    const compsBoxEl = document.getElementById('compsBox');
+    if(!compsBoxEl || compsBoxEl.hidden || !chipFxLayer) return scoreBoxTarget();
+    const box = compsBoxEl.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    return {
+      x: box.left - stage.left + box.width * 0.72,
       y: box.top - stage.top + box.height * 0.5
     };
   }
 
+  function pulseCompsBox(){
+    const compsBoxEl = document.getElementById('compsBox');
+    if(!compsBoxEl || compsBoxEl.hidden) return;
+    compsBoxEl.classList.remove('comp-pulse');
+    void compsBoxEl.offsetWidth;
+    compsBoxEl.classList.add('comp-pulse');
+    clearTimeout(compsBoxEl._compPulseTimer);
+    compsBoxEl._compPulseTimer = setTimeout(()=>compsBoxEl.classList.remove('comp-pulse'), 340);
+  }
+
+  function spawnFlyBurst(origin, opts){
+    if(!chipFxLayer) return;
+    opts = opts || {};
+    const budget = Math.max(0, MAX_FLYING_CHIPS - flyingChips.length);
+    if(budget <= 0) return;
+    let count = Math.max(1, Math.floor(opts.count || 3));
+    count = Math.min(count, budget, opts.maxCount || 10);
+    const targetFn = opts.targetFn || scoreBoxTarget;
+    const onLand = opts.onLand || pulseScoreBox;
+    const className = opts.className || 'fly-chip';
+    const now = performance.now();
+    const flyToTarget = opts.flyToTarget !== false;
+    for(let i = 0; i < count; i++){
+      const el = document.createElement('div');
+      el.className = className;
+      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.35;
+      const pop = 14 + Math.random() * (opts.popSpread || 34);
+      const delay = i * 16 + Math.random() * 22;
+      const duration = opts.duration || (flyToTarget ? 620 + Math.random() * 220 : 420 + Math.random() * 160);
+      const popX = origin.x + Math.cos(ang) * pop;
+      const popY = origin.y + Math.sin(ang) * pop;
+      el.style.left = '0px';
+      el.style.top = '0px';
+      el.style.opacity = '0';
+      el.style.transform = 'translate(' + origin.x + 'px,' + origin.y + 'px) scale(0)';
+      chipFxLayer.appendChild(el);
+      const particle = {
+        el,
+        t0: now + delay,
+        duration,
+        x0: origin.x,
+        y0: origin.y,
+        popX,
+        popY,
+        rot: (Math.random() - 0.5) * 140,
+        size: 0.85 + Math.random() * 0.35,
+        targetFn,
+        onLand: flyToTarget ? onLand : null,
+        flyToTarget
+      };
+      if(flyToTarget && targetFn === scoreBoxTarget){
+        assignScoreBoxTarget(particle);
+      } else if(flyToTarget){
+        const target = targetFn();
+        particle.tx = target.x + (Math.random() * 12 - 6);
+        particle.ty = target.y + (Math.random() * 8 - 4);
+      } else {
+        particle.tx = popX;
+        particle.ty = popY;
+      }
+      flyingChips.push(particle);
+    }
+    ensureChipFlyLoop();
+  }
+
+  function spawnRewardParticles(originEl, reward){
+    if(!originEl) return;
+    const origin = elementStagePoint(originEl);
+    const r = reward || {};
+    if(r.chips){
+      spawnChipFly(origin.x, origin.y, r.chips, { fromStage: true });
+    }
+    if(r.comps){
+      spawnFlyBurst(origin, {
+        count: Math.min(6, Math.max(2, r.comps)),
+        className: 'fly-comp',
+        targetFn: compsBoxTarget,
+        onLand: pulseCompsBox
+      });
+    }
+    if(r.runComps){
+      spawnFlyBurst(origin, {
+        count: Math.min(5, Math.max(2, r.runComps)),
+        className: 'fly-run-comp',
+        targetFn: compsBoxTarget,
+        onLand: pulseCompsBox
+      });
+    }
+    if(r.prestige || r.upgrade){
+      spawnFlyBurst(origin, {
+        count: 4,
+        className: 'fly-spark',
+        flyToTarget: false,
+        popSpread: 28,
+        duration: 380
+      });
+    }
+  }
   function chipFlyCountForAmount(amount){
     if(amount <= 1) return 1;
     if(amount <= 4) return 2;
@@ -3449,20 +4695,25 @@
 
   function spawnChipFly(cx, cy, amount, opts){
     if(!chipFxLayer || !scoreBoxEl) return;
+    if(gameSettings.chipAnimation === false) return;
     opts = opts || {};
     amount = Math.floor(amount);
-    if(amount <= 0 && !opts.count && !opts.minCount) return;
+    if(amount <= 0 && !opts.count) return;
     const budget = Math.max(0, MAX_FLYING_CHIPS - flyingChips.length);
     if(budget <= 0) return;
     let count = Number.isFinite(opts.count)
       ? Math.floor(opts.count)
       : chipFlyCountForAmount(Math.max(1, amount));
-    if(opts.minCount) count = Math.max(count, Math.floor(opts.minCount));
-    if(opts.burst && opts.burst > 1) count = Math.ceil(count * opts.burst);
-    count = Math.min(count, budget, opts.maxCount || 28);
+    const maxFly = desktopMq.matches ? (opts.maxCount || 28) : 12;
+    count = Math.min(count, budget, maxFly);
+    // Never show more chips flying than were actually awarded.
+    if(amount > 0) count = Math.min(count, amount);
+    if(!desktopMq.matches) count = Math.max(1, Math.ceil(count * 0.55));
+    // Re-apply the earn cap after the mobile density scale so a 1-chip
+    // payout can't still fan out into multiple sprites.
+    if(amount > 0) count = Math.min(count, amount);
     if(count <= 0) return;
-    const origin = canvasToStagePoint(cx, cy);
-    const target = scoreBoxTarget();
+    const origin = chipFlyOrigin(cx, cy, opts);
     const now = performance.now();
     for(let i = 0; i < count; i++){
       const el = document.createElement('div');
@@ -3478,7 +4729,7 @@
       el.style.opacity = '0';
       el.style.transform = 'translate(' + origin.x + 'px,' + origin.y + 'px) scale(0)';
       chipFxLayer.appendChild(el);
-      flyingChips.push({
+      const particle = {
         el,
         t0: now + delay,
         duration,
@@ -3486,11 +4737,13 @@
         y0: origin.y,
         popX,
         popY,
-        tx: target.x + (Math.random() * 12 - 6),
-        ty: target.y + (Math.random() * 8 - 4),
         rot: (Math.random() - 0.5) * 140,
-        size: 0.85 + Math.random() * 0.35
-      });
+        size: 0.85 + Math.random() * 0.35,
+        onLand: pulseScoreBox,
+        flyToTarget: true
+      };
+      assignScoreBoxTarget(particle);
+      flyingChips.push(particle);
     }
     ensureChipFlyLoop();
   }
@@ -3498,7 +4751,6 @@
   function stepFlyingChips(){
     if(!flyingChips.length) return;
     const now = performance.now();
-    const liveTarget = scoreBoxTarget();
     const next = [];
     for(const c of flyingChips){
       const age = now - c.t0;
@@ -3507,9 +4759,16 @@
         continue;
       }
       const t = Math.min(1, age / c.duration);
-      // Track the counter as layout shifts (HUD wrap / resize).
-      c.tx += (liveTarget.x - c.tx) * 0.18;
-      c.ty += (liveTarget.y - c.ty) * 0.18;
+      if(c.targetAnchor === 'scoreBox'){
+        const pt = scoreBoxTargetPoint(c.targetRelX);
+        c.tx = pt.x;
+        c.ty = pt.y;
+      } else if(c.flyToTarget !== false){
+        const liveTarget = (c.targetFn || scoreBoxTarget)();
+        // Track the counter as layout shifts (HUD wrap / resize).
+        c.tx += (liveTarget.x - c.tx) * 0.18;
+        c.ty += (liveTarget.y - c.ty) * 0.18;
+      }
 
       let x, y, scale, alpha, rot;
       // Short pop, then a readable arc up to the HUD counter.
@@ -3539,7 +4798,7 @@
 
       if(t >= 1){
         if(c.el.parentNode) c.el.parentNode.removeChild(c.el);
-        pulseScoreBox();
+        if(c.onLand) c.onLand();
       } else {
         next.push(c);
       }
@@ -3627,12 +4886,19 @@
         return isAutoEnabled('autoDealer')
           ? ('Every ' + formatInterval(autoDropIntervalMs()))
           : 'Paused';
-      case 'multiDeal':
-        return (1 + lvl) + ' card' + (1+lvl === 1 ? '' : 's') + '/tick';
       case 'bigBlind':
-        return '×' + tableScoreMultiplier().toFixed(2).replace(/\.00$/,'');
+        return lvl ? blindSpreadEffectText() : 'No bonus';
       case 'hotStreak':
         return lvl ? ('+' + lvl + ' chain') : 'No bonus';
+      case 'premiumCut': {
+        if(!lvl) return 'Standard cards only';
+        const {silver, gold, diamond} = premiumCutChances();
+        const pct = n => (n * 100).toFixed(n < 0.01 ? 1 : 0).replace(/\.0$/, '') + '%';
+        return pct(silver) + ' silver · ' + pct(gold) + ' gold · ' + pct(diamond) + ' diamond';
+      }
+      case 'wildCard':
+        if(!lvl) return 'No wilds';
+        return (wildCardChance() * 100).toFixed(1).replace(/\.0$/, '') + '% wild';
       case 'pinPayout':
         return lvl ? ('+' + pinHitPayout() + ' / peg') : 'No payout';
       case 'bumperPayout':
@@ -3654,16 +4920,15 @@
         return 'Out ' + gone + ' · In ' + left;
       }
       case 'suitBomb':
-        return lvl
-          ? ('Cooldown ' + formatInterval(suitBombCooldownMs()))
-          : 'Locked';
-      case 'autoSuitBomb':
-        if(!lvl) return upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge';
-        return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
-      case 'cardSense':
-        return lvl ? 'Aiming near hands' : 'Random columns';
+        if(!lvl) return 'Locked';
+        if(!isAutoEnabled('suitBomb')) return 'Picker hidden';
+        return 'Cooldown ' + formatInterval(suitBombCooldownMs());
       case 'feltGrease':
         return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
+      case 'shortFuse':
+        return lvl
+          ? ('×' + resolveSpeed().toFixed(2).replace(/\.00$/,'') + ' clear speed')
+          : 'Normal timing';
       default:
         return '';
     }
@@ -3673,7 +4938,9 @@
     const lvl = prestigeLevel(def.id);
     switch(def.id){
       case 'houseEdge':
-        return '×' + prestigeChipMult().toFixed(2).replace(/\.00$/,'') + ' chips';
+        return lvl
+          ? ('+' + lvl + ' Hot Streak · now Lv ' + upgradeLevel('hotStreak'))
+          : 'No Hot Streak bonus';
       case 'seedStack':
         return lvl ? (formatNum(startingChips()) + ' start') : 'Empty pockets';
       case 'rackDiscount':
@@ -3682,10 +4949,8 @@
           : 'Full price';
       case 'compCard':
         return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
-      case 'holdDeal':
-        return lvl
-          ? ('Hold every ' + formatInterval(holdDropIntervalMs()))
-          : 'Click to drop';
+      case 'blindSpread':
+        return blindSpreadEffectText(lvl);
       case 'tableTilt':
         if(!lvl) return 'Upright gravity';
         if(!isAutoEnabled('tableTilt')) return 'Paused';
@@ -3698,19 +4963,26 @@
         return lvl
           ? ('+' + lvl + ' Pin Tip · now Lv ' + upgradeLevel('pinPayout'))
           : 'No Pin Tip bonus';
+      case 'feltWax':
+        return lvl
+          ? ('+' + lvl + ' Felt Grease · now Lv ' + upgradeLevel('feltGrease'))
+          : 'No Felt Grease bonus';
       case 'questInk':{
         const rar = QUEST_RARITIES[maxQuestRarityIndex()] || 'common';
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
         return lvl ? ('Up to ' + label) : 'Common quests only';
       }
+      case 'cardSense':
+        return lvl ? 'Aiming near hands' : 'Random columns';
+      case 'autoSuitBomb':
+        if(!lvl) return suitBombUnlocked() ? 'Manual only' : 'Needs Suit Purge';
+        return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
       case 'questDesk':
         if(!lvl) return 'Manual claims';
         return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
-        return isAutoEnabled('pitBoss')
-          ? ('Auto-buys ×' + lvl + ' / tick')
-          : 'Paused';
+        return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
       default:
         return '';
     }
@@ -3722,7 +4994,7 @@
     lifetime = 0;
     runLevel = 1;
     runCompCredit = 0;
-    lastAutoDropAt = 0;
+    autoDropTicks = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
   }
@@ -3745,6 +5017,7 @@
         questUidSeq,
         autoEnabled,
         suitBombCdLeft: cdLeft,
+        seenUnlocks,
         v: SAVE_VERSION
       }));
     }catch(_){ /* private mode / quota */ }
@@ -3783,13 +5056,27 @@
           }
         }
       }
-      // Migrate retired table Hold Deal into the VIP Hold Deal perk.
-      if(data.upgrades && typeof data.upgrades.holdDeal === 'number' && data.upgrades.holdDeal > 0){
-        const migrated = Math.min(
-          PRESTIGE_DEFS.find(u => u.id === 'holdDeal').maxLevel,
-          Math.floor(data.upgrades.holdDeal)
-        );
-        if(migrated > prestigeLevel('holdDeal')) prestigeUpgrades.holdDeal = migrated;
+      // Retired Multi Deal — each level becomes one Auto Dealer level.
+      if(data.upgrades && typeof data.upgrades.multiDeal === 'number' && data.upgrades.multiDeal > 0){
+        const autoDef = UPGRADE_DEFS.find(u => u.id === 'autoDealer');
+        const migrated = Math.min(autoDef.maxLevel, Math.floor(data.upgrades.multiDeal));
+        if(migrated > upgradeLevel('autoDealer')) upgrades.autoDealer = migrated;
+      }
+      // Card Sense / Auto Purge moved from table upgrades to VIP perks.
+      if(data.upgrades && typeof data.upgrades === 'object'){
+        if(typeof data.upgrades.cardSense === 'number' && data.upgrades.cardSense > 0){
+          if(prestigeLevel('cardSense') < 1) prestigeUpgrades.cardSense = 1;
+          upgrades.cardSense = 0;
+        }
+        if(typeof data.upgrades.autoSuitBomb === 'number' && data.upgrades.autoSuitBomb > 0){
+          if(prestigeLevel('autoSuitBomb') < 1) prestigeUpgrades.autoSuitBomb = 1;
+          upgrades.autoSuitBomb = 0;
+        }
+      }
+      // Felt Grease used to speed clears too — grant matching Short Fuse levels once.
+      if((data.v || 0) < 17 && purchasedLevel('shortFuse') <= 0 && purchasedLevel('feltGrease') > 0){
+        const fuseDef = UPGRADE_DEFS.find(u => u.id === 'shortFuse');
+        upgrades.shortFuse = Math.min(fuseDef.maxLevel, purchasedLevel('feltGrease'));
       }
       // Purchased levels can't push effective skill past max once VIP bonus applies.
       for(const def of UPGRADE_DEFS){
@@ -3817,8 +5104,29 @@
       if(runLevel > (stats.maxRunLevel || 1)) stats.maxRunLevel = runLevel;
       if(data.questClaimed && typeof data.questClaimed === 'object'){
         questClaimed = Object.create(null);
-        for(const def of ACHIEVEMENT_DEFS){
-          if(data.questClaimed[def.id]) questClaimed[def.id] = true;
+        const legacyMerged = Object.create(null);
+        for(const [oldId, claimed] of Object.entries(data.questClaimed)){
+          if(!claimed) continue;
+          const legacy = ACHIEVEMENT_LEGACY_CLAIMS[oldId];
+          if(legacy){
+            legacyMerged[legacy.id] = Math.max(legacyMerged[legacy.id] || 0, legacy.tier);
+            continue;
+          }
+          const def = ACHIEVEMENT_DEFS.find(d => d.id === oldId);
+          if(!def) continue;
+          const tierCount = achievementSeedTiers(def).length;
+          if(claimed === true) questClaimed[oldId] = tierCount;
+          else if(typeof claimed === 'number' && claimed > 0){
+            questClaimed[oldId] = def.infinite
+              ? Math.floor(claimed)
+              : Math.min(tierCount, Math.floor(claimed));
+          }
+        }
+        for(const [id, tier] of Object.entries(legacyMerged)){
+          const def = ACHIEVEMENT_DEFS.find(d => d.id === id);
+          if(!def) continue;
+          const capped = def.infinite ? tier : Math.min(achievementSeedTiers(def).length, tier);
+          questClaimed[id] = Math.max(questClaimed[id] || 0, capped);
         }
       }
       if(typeof data.questUidSeq === 'number' && data.questUidSeq > 0){
@@ -3854,6 +5162,22 @@
       } else {
         suitBombReadyAt = performance.now();
       }
+      if(data.seenUnlocks && typeof data.seenUnlocks === 'object'){
+        seenUnlocks.tabs.quests = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.quests);
+        seenUnlocks.tabs.achievements = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.achievements);
+        seenUnlocks.tabs.vip = !!(data.seenUnlocks.tabs && data.seenUnlocks.tabs.vip);
+        seenUnlocks.upgrades = Array.isArray(data.seenUnlocks.upgrades)
+          ? data.seenUnlocks.upgrades.filter(id => UPGRADE_DEFS.some(d => d.id === id))
+          : [];
+      } else {
+        // Existing saves before unlock badges — don't badge already-unlocked content.
+        seenUnlocks.tabs.quests = questsTabUnlocked();
+        seenUnlocks.tabs.achievements = achievementsTabUnlocked();
+        seenUnlocks.tabs.vip = vipTabUnlocked();
+        seenUnlocks.upgrades = UPGRADE_DEFS
+          .filter(d => (d.unlockAt || 1) > 1 && upgradeUnlocked(d.id))
+          .map(d => d.id);
+      }
     }catch(_){ /* corrupt save */ }
   }
 
@@ -3871,9 +5195,13 @@
     questClaimed = Object.create(null);
     activeQuests = [];
     questUidSeq = 1;
-    lastAutoDropAt = 0;
+    autoDropTicks = 0;
     suitBombReadyAt = 0;
     pendingSuitBomb = null;
+    seenUnlocks = {
+      tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
+      upgrades: []
+    };
     persistSave();
     updateScoreUI();
     updateShopUI();
@@ -3924,7 +5252,6 @@
     const def = UPGRADE_DEFS.find(u => u.id === id);
     if(!def) return false;
     if(!upgradeUnlocked(id)) return false;
-    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return false;
     if(upgradeLevel(id) >= def.maxLevel) return false;
     if(purchasedLevel(id) >= maxPurchasableLevel(id)) return false;
     const cost = upgradeCost(def);
@@ -3954,29 +5281,56 @@
   }
 
   function tryAutoBuyUpgrades(){
-    const batch = prestigeLevel('pitBoss');
-    if(batch <= 0 || !isAutoEnabled('pitBoss')) return 0;
-    let bought = 0;
-    for(let i = 0; i < batch; i++){
-      let bestId = null;
-      let bestCost = Infinity;
-      for(const def of UPGRADE_DEFS){
-        if(!upgradeUnlocked(def.id)) continue;
-        if(def.id === 'autoSuitBomb' && !suitBombUnlocked()) continue;
-        const lvl = upgradeLevel(def.id);
-        if(lvl >= def.maxLevel) continue;
-        const cost = upgradeCost(def);
-        if(score < cost) continue;
-        if(cost < bestCost){
-          bestCost = cost;
-          bestId = def.id;
-        }
+    if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return { count: 0, ids: [] };
+    let bestId = null;
+    let bestCost = Infinity;
+    for(const def of UPGRADE_DEFS){
+      if(!upgradeUnlocked(def.id)) continue;
+      const lvl = upgradeLevel(def.id);
+      if(lvl >= def.maxLevel) continue;
+      const cost = upgradeCost(def);
+      if(score < cost) continue;
+      if(cost < bestCost){
+        bestCost = cost;
+        bestId = def.id;
       }
-      if(!bestId || !purchaseUpgrade(bestId)) break;
-      bought++;
     }
-    if(bought) scheduleSave();
-    return bought;
+    if(!bestId || !purchaseUpgrade(bestId)) return { count: 0, ids: [] };
+    scheduleSave();
+    return { count: 1, ids: [bestId] };
+  }
+
+  function playUpgradeAutoBuyEffect(btn){
+    if(!btn) return;
+    btn.classList.remove('auto-bought');
+    void btn.offsetWidth;
+    btn.classList.add('auto-bought');
+    clearTimeout(btn._autoBuyTimer);
+    btn._autoBuyTimer = setTimeout(()=>btn.classList.remove('auto-bought'), 720);
+    spawnFlyBurst(elementStagePoint(btn), {
+      count: 5,
+      className: 'fly-spark',
+      flyToTarget: false,
+      popSpread: 24,
+      duration: 360,
+      maxCount: 6
+    });
+  }
+
+  function pulseUpgradesTabAutoBuy(){
+    spawnRailTabBurst('upgrades', { count: 6, popSpread: 20 });
+  }
+
+  function celebrateAutoBuyUpgrades(ids){
+    if(!ids || !ids.length) return;
+    const panelOpen = isUpgradesPanelOpen();
+    if(panelOpen){
+      for(const id of ids){
+        playUpgradeAutoBuyEffect(upgradeButtons[id]);
+      }
+    } else {
+      pulseUpgradesTabAutoBuy();
+    }
   }
 
   let lastAutoBuyAt = 0;
@@ -3984,15 +5338,16 @@
     if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return 0;
     now = now || performance.now();
     if(now - lastAutoBuyAt < 220) return 0;
-    const bought = tryAutoBuyUpgrades();
-    if(bought){
+    const result = tryAutoBuyUpgrades();
+    if(result.count){
       lastAutoBuyAt = now;
+      celebrateAutoBuyUpgrades(result.ids);
       updateScoreUI();
       updateShopUI();
       updateAutoStatus();
       updateSuitBombUI(now, true);
     }
-    return bought;
+    return result.count;
   }
 
   function buyPrestigeUpgrade(id){
@@ -4000,6 +5355,7 @@
     if(!def) return;
     const lvl = prestigeLevel(id);
     if(lvl >= def.maxLevel) return;
+    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return;
     const cost = prestigeUpgradeCost(def);
     if(comps < cost) return;
     comps -= cost;
@@ -4015,15 +5371,37 @@
     updateAutoStatus();
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
     if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
-    if(id === 'holdDeal' && !resolving && !looping) startLoop();
+    if(id === 'autoSuitBomb') updateSuitBombUI(performance.now(), true);
+    if((id === 'autoSuitBomb' || id === 'cardSense') && !resolving && !looping){
+      startLoop();
+    }
     if(id === 'tableTilt') activateTableTilt(true);
+  }
+
+  function markHintsDirty(){
+    hintsDirty = true;
+  }
+
+  function getNearMisses(){
+    if(!gameSettings.nearHandHints) return [];
+    if(hintsDirty || !nearMissCache){
+      nearMissCache = findNearMisses();
+      hintsDirty = false;
+    }
+    return nearMissCache;
   }
 
   function columnReservations(){
     const reserved = Array(COLS).fill(0);
+    // Only reserve columns for balls close to seating — peg-zone pucks
+    // shouldn't block auto-deal from picking open columns.
+    const reserveY = PEG_ZONE - 110;
     for(const b of balls){
-      if(b.targetCol != null) reserved[b.targetCol]++;
-      else if(b.phase === 'peg' && b.autoCol != null) reserved[b.autoCol]++;
+      if(b.phase === 'grid' && b.targetCol != null){
+        reserved[b.targetCol]++;
+      } else if(b.phase === 'peg' && b.autoCol != null && b.y >= reserveY){
+        reserved[b.autoCol]++;
+      }
     }
     return reserved;
   }
@@ -4034,11 +5412,11 @@
       if(colHeights[c] + reserved[c] < ROWS) open.push(c);
     }
     if(!open.length) return -1;
-    if(!upgradeLevel('cardSense')){
+    if(!prestigeLevel('cardSense')){
       return open[(Math.random()*open.length)|0];
     }
     // Prefer columns that sit on a near-miss empty cell, then any open col.
-    const hints = findNearMisses();
+    const hints = getNearMisses();
     const scores = Object.fromEntries(open.map(c => [c, Math.random()*0.3]));
     for(const h of hints){
       for(const [c, r] of h.cells){
@@ -4056,60 +5434,23 @@
     return best;
   }
 
-  function tryAutoDrop(now){
-    const interval = autoDropIntervalMs();
-    if(!Number.isFinite(interval)) return;
+  function tryAutoDrop(){
+    const intervalTicks = autoDropIntervalTicks();
+    if(!Number.isFinite(intervalTicks)) return;
     if(gameOver) return;
-    // Keep dealing through flash/explode — freeDrop balls already support it.
-    if(now - lastAutoDropAt < interval) return;
-    if(balls.length >= MAX_IN_FLIGHT) return;
-    if(colHeights.every(h => h >= ROWS)) return;
+    if(autoDropTicks < intervalTicks) return;
+    if(balls.length >= MAX_AUTO_DROP_BALLS) return;
 
-    const count = Math.min(autoDropCount(), MAX_IN_FLIGHT - balls.length);
     const reserved = columnReservations();
-    let dropped = 0;
-    for(let i=0;i<count;i++){
-      if(balls.length >= MAX_IN_FLIGHT) break;
-      const col = pickAutoColumn(reserved);
-      if(col < 0) break;
-      dropAt(col*CELL + CELL/2, {autoCol: col});
-      reserved[col]++;
-      dropped++;
-    }
-    if(dropped > 0) lastAutoDropAt = now;
-  }
-
-  function stopHoldDrop(){
-    holdDropping = false;
-    holdDropCol = null;
-  }
-
-  function startHoldDrop(col){
-    if(!holdDealUnlocked() || inputBlocked()) return false;
-    holdDropping = true;
-    holdDropCol = col == null ? null : col;
-    lastHoldDropAt = 0; // fire immediately on press
-    tryHoldDrop(performance.now());
-    startLoop();
-    return true;
-  }
-
-  function tryHoldDrop(now){
-    if(!holdDropping || !holdDealUnlocked()) return;
-    if(gameOver){ stopHoldDrop(); return; }
-    const interval = holdDropIntervalMs();
-    if(!Number.isFinite(interval)) return;
-    if(now - lastHoldDropAt < interval) return;
-    if(balls.length >= MAX_IN_FLIGHT) return;
-    if(colHeights.every(h => h >= ROWS)) return;
-
-    if(holdDropCol != null){
-      if(colHeights[holdDropCol] >= ROWS) return;
-      dropAt(holdDropCol * CELL + CELL / 2, {autoCol: holdDropCol});
+    const col = pickAutoColumn(reserved);
+    if(col < 0){
+      // Board packed — still deal into the peg zone; pucks bounce until
+      // a floor clear or hand resolve opens a slot.
+      dropAt(Math.random() * (W - 28) + 14);
     } else {
-      dropAt(aimX);
+      dropAt(col*CELL + CELL/2, {autoCol: col});
     }
-    lastHoldDropAt = now;
+    autoDropTicks = 0;
   }
 
   function freshState(){
@@ -4128,8 +5469,14 @@
     popups = [];
     clearFlyingChips();
     pendingSuitBomb = null;
-    lastAutoDropAt = performance.now();
-    stopHoldDrop();
+    autoDropTicks = 0;
+    lastPhysicsTime = 0;
+    physicsAccumulator = 0;
+    fpsDisplay = 0;
+    fpsFrameCount = 0;
+    lastFpsSampleTime = 0;
+    lastPhysicsSteps = 0;
+    markHintsDirty();
     shoe = makeDeck().concat(makeDeck());
     nextCard = dealCard();
     updateNextUI();
@@ -4407,7 +5754,7 @@
   }
 
   function refreshButtons(){
-    // Column drop buttons removed — tap/hold the board to deal.
+    // Column drop buttons removed — tap the board to deal.
   }
 
   // ---- balls / animation state ----
@@ -4415,6 +5762,16 @@
   let looping = false;
   let resolveLooping = false;
   let aimX = W/2;
+  const PHYSICS_HZ = 60;
+  const PHYSICS_DT = 1 / PHYSICS_HZ;
+  const MAX_PHYSICS_STEPS = 20; // catch-up cap per frame after a hitch
+  let lastPhysicsTime = 0;
+  let physicsAccumulator = 0;
+  let fpsDisplay = 0;
+  let fpsFrameCount = 0;
+  let lastFpsSampleTime = 0;
+  let lastPhysicsSteps = 0;
+  let lastFrameMs = 0;
 
   const BALL_RADIUS = 14;
   const HOLE_R = 29;
@@ -4427,7 +5784,6 @@
 
   function dropAt(x, opts){
     if(gameOver) return;
-    if(colHeights.every(h=>h>=ROWS)) return;
     if(!nextCard) nextCard = dealCard();
     const card = nextCard;
     nextCard = dealCard();
@@ -4595,14 +5951,15 @@
         entry.row = row;
         entry.ball.row = row;
       } else {
-        col[row] = {suit: entry.card.suit, rank: entry.card.rank, angle: entry.angle||0};
+        col[row] = cloneCard(entry.card, {angle: entry.angle || 0});
       }
     }
     for(let r=0;r<ROWS;r++) grid[c][r] = col[r];
     colHeights[c] = stack[c].length;
+    markHintsDirty();
   }
 
-  const GRID_SETTLE_FRAMES = 360;
+  const GRID_SETTLE_FRAMES = 150;
 
   function enterGridColumn(ball){
     ball.phase = 'grid';
@@ -4693,26 +6050,61 @@
   }
 
   function resolveBallCollisions(){
-    for(let i=0;i<balls.length;i++){
-      for(let j=i+1;j<balls.length;j++){
-        const a = balls[i], b = balls[j];
-        if(a.phase==='grid' && b.phase==='grid' && a.targetCol===b.targetCol) continue;
-        const dx = b.x-a.x, dy = b.y-a.y;
-        const dist = Math.hypot(dx,dy);
-        const minDist = a.radius+b.radius;
-        if(dist < minDist && dist > 0.0001){
-          const nx = dx/dist, ny = dy/dist;
-          const overlap = (minDist-dist)/2;
-          a.x -= nx*overlap; a.y -= ny*overlap;
-          b.x += nx*overlap; b.y += ny*overlap;
-          const avn = a.vx*nx + a.vy*ny;
-          const bvn = b.vx*nx + b.vy*ny;
-          a.vx += (bvn-avn)*nx; a.vy += (bvn-avn)*ny;
-          b.vx += (avn-bvn)*nx; b.vy += (avn-bvn)*ny;
-          impartSpin(a, nx, ny);
-          impartSpin(b, -nx, -ny);
+    const n = balls.length;
+    if(n < 2) return;
+    if(n < 18){
+      for(let i=0;i<n;i++){
+        for(let j=i+1;j<n;j++) collideBalls(balls[i], balls[j]);
+      }
+      return;
+    }
+    const cellSize = 72;
+    const buckets = new Map();
+    for(let i=0;i<n;i++){
+      const b = balls[i];
+      const key = ((b.x / cellSize) | 0) + ',' + ((b.y / cellSize) | 0);
+      let bucket = buckets.get(key);
+      if(!bucket){ bucket = []; buckets.set(key, bucket); }
+      bucket.push(i);
+    }
+    const seen = new Set();
+    for(const [key, indices] of buckets){
+      const parts = key.split(',');
+      const cx = +parts[0], cy = +parts[1];
+      for(let ox=-1; ox<=1; ox++){
+        for(let oy=-1; oy<=1; oy++){
+          const neighbor = buckets.get((cx+ox)+','+(cy+oy));
+          if(!neighbor) continue;
+          for(const i of indices){
+            for(const j of neighbor){
+              if(j <= i) continue;
+              const pairKey = i < j ? i+','+j : j+','+i;
+              if(seen.has(pairKey)) continue;
+              seen.add(pairKey);
+              collideBalls(balls[i], balls[j]);
+            }
+          }
         }
       }
+    }
+  }
+
+  function collideBalls(a, b){
+    if(a.phase==='grid' && b.phase==='grid' && a.targetCol===b.targetCol) return;
+    const dx = b.x-a.x, dy = b.y-a.y;
+    const dist = Math.hypot(dx,dy);
+    const minDist = a.radius+b.radius;
+    if(dist < minDist && dist > 0.0001){
+      const nx = dx/dist, ny = dy/dist;
+      const overlap = (minDist-dist)/2;
+      a.x -= nx*overlap; a.y -= ny*overlap;
+      b.x += nx*overlap; b.y += ny*overlap;
+      const avn = a.vx*nx + a.vy*ny;
+      const bvn = b.vx*nx + b.vy*ny;
+      a.vx += (bvn-avn)*nx; a.vy += (bvn-avn)*ny;
+      b.vx += (avn-bvn)*nx; b.vy += (avn-bvn)*ny;
+      impartSpin(a, nx, ny);
+      impartSpin(b, -nx, -ny);
     }
   }
 
@@ -4729,8 +6121,6 @@
 
   function tick(){
     const now = performance.now();
-    tryAutoDrop(now);
-    tryHoldDrop(now);
     tryAutoSuitBomb(now);
     maybeAutoBuy(now);
     maybeAutoClaimQuests(now);
@@ -4738,19 +6128,29 @@
 
     const speed = physicsSpeed();
     const gravity = 0.42 * Math.min(speed, 3.2);
-    // Ease off multi-step when the peg zone is crowded.
-    const busy = balls.length > 18 ? 1 : Math.max(1, Math.min(3, Math.round(speed)));
-    const steps = busy;
     for(const p of pegs){ if(p.hit) p.hit--; }
     for(const path of bumperPaths){ if(path.hit) path.hit--; }
-
-    for(let s=0;s<steps;s++){
+    if(!lastPhysicsTime) lastPhysicsTime = now;
+    const frameDt = Math.min((now - lastPhysicsTime) / 1000, 0.15);
+    lastPhysicsTime = now;
+    physicsAccumulator += frameDt;
+    const stepBudget = Math.min(
+      MAX_PHYSICS_STEPS,
+      Math.max(2, Math.ceil(frameDt / PHYSICS_DT) + 1)
+    );
+    let physicsSteps = 0;
+    while(physicsAccumulator >= PHYSICS_DT && physicsSteps < stepBudget){
       for(const ball of balls){
-        stepBall(ball, gravity / steps);
+        stepBall(ball, gravity);
       }
       resolveBallCollisions();
       forceSeatStuckGridBalls();
+      physicsAccumulator -= PHYSICS_DT;
+      physicsSteps++;
     }
+    lastPhysicsSteps = physicsSteps;
+    autoDropTicks += physicsSteps;
+    tryAutoDrop();
     stepParticles();
 
     const landed = balls.filter(b=>b.landed);
@@ -4765,15 +6165,17 @@
     if(!resolving && boardIsFull() && !hasGridBalls()) beginFloorClear();
 
     draw();
+    lastFrameMs = performance.now() - now;
+    sampleFps(performance.now());
 
     const nowEnd = performance.now();
     const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
     const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
-    const bombAuto = upgradeLevel('autoSuitBomb') > 0
+    const bombAuto = prestigeLevel('autoSuitBomb') > 0
       && isAutoEnabled('autoSuitBomb')
       && suitBombUnlocked();
     if(balls.length>0 || particles.length>0 || popupsAlive || resolving
-      || Number.isFinite(autoDropIntervalMs()) || bombCharging || bombAuto){
+      || bombCharging || bombAuto || autoDealerActive()){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -4783,11 +6185,12 @@
   function finalizeDrop(ball){
     const col = ball.targetCol, row = ball.row;
     const angle = ball.angle || 0;
-    const card = {suit: ball.card.suit, rank: ball.card.rank, angle};
+    const card = cloneCard(ball.card, {angle});
     grid[col][row] = card;
+    markHintsDirty();
     if(ball.stackEntry){
       ball.stackEntry.type = 'piece';
-      ball.stackEntry.card = {suit: card.suit, rank: card.rank};
+      ball.stackEntry.card = cloneCard(card);
       ball.stackEntry.angle = angle;
       delete ball.stackEntry.ball;
     }
@@ -4821,12 +6224,15 @@
           for(let len=5; len>=3; len--){
             if(cards.length < len) continue;
             for(let i=0;i<=cards.length-len;i++){
-              const hand = evaluateCards(cards.slice(i, i+len));
+              const slice = cards.slice(i, i+len);
+              const hand = evaluateCards(slice);
               if(!hand) continue;
+              const cardMult = handCardMultiplier(slice);
               candidates.push({
                 i, len,
                 name: hand.name,
                 points: hand.points,
+                cardMult,
                 cells: cells.slice(i, i+len)
               });
             }
@@ -4841,8 +6247,9 @@
             groups.push({
               name: cand.name,
               points: cand.points,
+              cardMult: cand.cardMult,
               cells: cand.cells,
-              color: SUIT_COLOR[cards[cand.i].suit]
+              color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
             });
           }
         }
@@ -4902,13 +6309,13 @@
               const slice = cards.slice(i, i+4);
               const sliceCells = cells.slice(i, i+4);
               if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              const sameSuit = slice.every(card => card.suit === slice[0].suit);
+              const sameSuit = sliceSharesFlushSuit(slice);
               const straightish = canCompleteStraight(slice.map(card => card.rank));
               if(sameSuit && straightish){
                 sfWindows.add('4:'+i);
-                pushHint(sliceCells, 'sf4', 'SF', SUIT_COLOR[slice[0].suit], 50);
+                pushHint(sliceCells, 'sf4', 'SF', flushHintColor(slice), 50);
               } else if(sameSuit){
-                pushHint(sliceCells, 'flush4', 'flush', SUIT_COLOR[slice[0].suit], 40);
+                pushHint(sliceCells, 'flush4', 'flush', flushHintColor(slice), 40);
               } else if(straightish){
                 pushHint(sliceCells, 'straight4', 'straight', PEG, 35);
               }
@@ -4922,12 +6329,12 @@
               if(slice.some((_,k)=>scoringMask[i+k])) continue;
               // Covered by a 4-card SF window that includes this stub
               if(sfWindows.has('4:'+i) || sfWindows.has('4:'+(i-1))) continue;
-              const sameSuit = slice.every(card => card.suit === slice[0].suit);
+              const sameSuit = sliceSharesFlushSuit(slice);
               const straightish = isConnectedStraight3(slice.map(card => card.rank));
               if(sameSuit && straightish){
-                pushHint(sliceCells, 'sf3', 'SF', SUIT_COLOR[slice[0].suit], 28);
+                pushHint(sliceCells, 'sf3', 'SF', flushHintColor(slice), 28);
               } else if(sameSuit){
-                pushHint(sliceCells, 'flush3', 'flush', SUIT_COLOR[slice[0].suit], 18);
+                pushHint(sliceCells, 'flush3', 'flush', flushHintColor(slice), 18);
               } else if(straightish){
                 pushHint(sliceCells, 'straight3', 'straight', '#B8B0E0', 16);
               }
@@ -4942,7 +6349,7 @@
                 cells.slice(i, i+2),
                 'pair',
                 'trips',
-                SUIT_COLOR[cards[i].suit],
+                cardGlowColor(cards[i]),
                 22
               );
             }
@@ -4987,9 +6394,11 @@
   }
 
   function drawNearMissHints(){
+    if(!gameSettings.nearHandHints) return;
     if(gameOver || resolving) return;
-    const hints = findNearMisses();
+    const hints = getNearMisses();
     if(!hints.length) return;
+    const lite = perfLite();
 
     for(const h of hints){
       const pts = h.cells.map(([c,r]) => cellCenter(c,r));
@@ -5004,8 +6413,10 @@
       ctx.lineJoin = 'round';
       ctx.strokeStyle = h.color;
       ctx.globalAlpha = alpha;
-      ctx.shadowColor = h.color;
-      ctx.shadowBlur = strong ? 10 : 5;
+      if(!lite){
+        ctx.shadowColor = h.color;
+        ctx.shadowBlur = strong ? 10 : 5;
+      }
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
       for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -5054,31 +6465,48 @@
 
   function scoreGroups(groups, chainMultiplier){
     let pts = 0;
-    for(const g of groups) pts += g.points;
+    for(const g of groups) pts += g.points * (g.cardMult || 1);
     if(groups.length > 1) pts += (groups.length - 1);
     return pts * chainMultiplier;
   }
 
+  // Split `total` flying chips across `n` origins without exceeding the payout.
+  function chipFlyShares(total, n){
+    total = Math.max(0, Math.floor(total));
+    n = Math.max(0, Math.floor(n));
+    if(total <= 0 || n <= 0) return [];
+    const seats = Math.min(n, total);
+    const base = Math.floor(total / seats);
+    let rem = total - base * seats;
+    const shares = [];
+    for(let i = 0; i < seats; i++){
+      shares.push(base + (rem > 0 ? 1 : 0));
+      if(rem > 0) rem--;
+    }
+    return shares;
+  }
+
   function spawnHandChipFlies(groups, chainMult){
-    const mult = scoreMultiplier();
+    const mult = scoreMultiplier() * runMetaMultiplier();
     for(const g of groups){
-      const pts = Math.floor(g.points * chainMult * mult);
+      const pts = Math.floor(g.points * (g.cardMult || 1) * chainMult * mult);
       if(pts <= 0 || !g.cells || !g.cells.length) continue;
-      // Poker scores are small integers — juice the burst by hand strength
-      // and spit chips from every cleared seat so clears feel rewarding.
-      const perSeat = Math.min(8, 3 + Math.floor(g.points / 2) + (chainMult > 1 ? 1 : 0));
-      for(const [c, r] of g.cells){
+      // Spit from cleared seats, but never more sprites than chips earned.
+      const shares = chipFlyShares(pts, g.cells.length);
+      for(let i = 0; i < shares.length; i++){
+        const [c, r] = g.cells[i];
         spawnChipFly(
           c*CELL + CELL/2,
           PEG_ZONE + r*CELL + CELL/2,
-          pts,
-          { minCount: perSeat, burst: 1.35, maxCount: 10 }
+          shares[i],
+          { count: shares[i], maxCount: shares[i] }
         );
       }
     }
   }
 
-  // Floor clear wipes the bottom row — spit a fat burst from each seat.
+  // Floor clear wipes the bottom row — spit a burst from each seat, capped
+  // to the chips actually paid out.
   function spawnFloorChipFlies(groups, totalPts){
     totalPts = Math.floor(totalPts);
     if(totalPts <= 0) return;
@@ -5089,39 +6517,61 @@
     }
     if(!cells.length){
       spawnChipFly(W/2, PEG_ZONE + (ROWS-1)*CELL + CELL/2, totalPts, {
-        minCount: 14, burst: 1.5, maxCount: 22
+        count: Math.min(totalPts, chipFlyCountForAmount(totalPts)),
+        maxCount: totalPts
       });
       return;
     }
-    // Don't dilate the visual by splitting payout across seats — each wiped
-    // hole should throw a real handful of chips.
-    const perSeat = Math.min(10, Math.max(5, Math.ceil(chipFlyCountForAmount(totalPts) / 2)));
-    for(const [c, r] of cells){
+    const shares = chipFlyShares(totalPts, cells.length);
+    for(let i = 0; i < shares.length; i++){
+      const [c, r] = cells[i];
       spawnChipFly(
         c*CELL + CELL/2,
         PEG_ZONE + r*CELL + CELL/2,
-        totalPts,
-        { minCount: perSeat, burst: 1.25, maxCount: 10 }
+        shares[i],
+        { count: shares[i], maxCount: shares[i] }
       );
     }
   }
 
+  function groupGridCenter(g){
+    const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
+    const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
+    return {
+      x: avgC*CELL+CELL/2,
+      y: PEG_ZONE + avgR*CELL+CELL/2
+    };
+  }
+
+  function comboPopupPosition(groups){
+    let x = 0, y = 0;
+    for(const g of groups){
+      const c = groupGridCenter(g);
+      x += c.x;
+      y += c.y;
+    }
+    return {
+      x: x / groups.length,
+      // Sit on the grid just below the per-hand labels.
+      y: y / groups.length + CELL * 0.42
+    };
+  }
+
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
-    const mult = scoreMultiplier();
+    const mult = scoreMultiplier() * runMetaMultiplier();
     for(const g of groups){
-      const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
-      const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
-      const x = avgC*CELL+CELL/2;
-      const y = PEG_ZONE + avgR*CELL + CELL/2;
-      const pts = Math.floor(g.points * chainMult * mult);
+      const {x, y} = groupGridCenter(g);
+      const cardMult = g.cardMult || 1;
+      const pts = Math.floor(g.points * cardMult * chainMult * mult);
       const tier = handTextTier(g.name);
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
       const bangs = '!'.repeat(fx.bangs);
+      const multTag = cardMult > 1.001 ? (' ×' + cardMult.toFixed(2).replace(/\.00$/, '')) : '';
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + bangs + ' +' + pts,
+        text: g.name + multTag + bangs + ' +' + pts,
         color: brightenColor(g.color || '#ffffff', fx.bright),
         t0: now,
         duration: fx.duration,
@@ -5143,8 +6593,9 @@
       });
     }
     if(groups.length>1){
+      const comboPos = comboPopupPosition(groups);
       pushPopup({
-        x:W/2, y:PEG_ZONE*0.4 + (chainMult>1?34:0),
+        x: comboPos.x, y: comboPos.y,
         text:'COMBO ×'+groups.length+'!',
         color: PEG, t0:now, duration:1200,
         fontSize: 20, floatBoost: 36, tilt: -0.08, slam: 1.55, slamMs: 150, glow: 12
@@ -5154,7 +6605,7 @@
 
   function spawnExplosion(x, y, card){
     if(particles.length >= MAX_PARTICLES) return;
-    const color = card ? SUIT_COLOR[card.suit] : '#ffffff';
+    const color = card ? cardGlowColor(card) : '#ffffff';
     const budget = Math.max(0, MAX_PARTICLES - particles.length);
     const sparks = Math.min(12, budget);
     for(let i=0;i<sparks;i++){
@@ -5198,7 +6649,6 @@
   }
 
   function launchPuckFromCell(col, row, card, angle, stackPos, fromClearIndex){
-    if(balls.length >= MAX_CASCADE_BALLS) return false;
     const x = col*CELL + CELL/2 + (Math.random()*10-5);
     const y = PEG_ZONE + row*CELL + CELL/2;
     const heightBoost = Math.max(0, stackPos - fromClearIndex);
@@ -5211,7 +6661,7 @@
       phase: 'peg',
       targetCol: null,
       row: null,
-      card: {suit: card.suit, rank: card.rank},
+      card: cloneCard(card),
       angle: angle || 0,
       spin: (Math.random()-0.5)*0.5,
       frameSafety: 0,
@@ -5220,7 +6670,6 @@
       cascadeBall: true
     };
     balls.push(ball);
-    return true;
   }
 
   function applyExplosionClear(groups){
@@ -5238,7 +6687,7 @@
       let lowestClearedIdx = Infinity;
       for(let i=0;i<oldStack.length;i++){
         const oldRow = ROWS - 1 - i;
-        if(oldStack[i].type==='piece' && cleared.has(c+','+oldRow)){
+        if(cleared.has(c+','+oldRow)){
           lowestClearedIdx = Math.min(lowestClearedIdx, i);
         }
       }
@@ -5250,17 +6699,24 @@
         if(entry.type==='piece' && cleared.has(c+','+oldRow)){
           continue;
         }
+        if(entry.type==='ball' && cleared.has(c+','+oldRow)){
+          const b = entry.ball;
+          b.vx += (Math.random()-0.5)*6;
+          b.vy = Math.min(b.vy, 0) - (8 + Math.random()*4);
+          b.spin += (Math.random()-0.5)*0.4;
+          b.stackEntry = null;
+          b.targetCol = null;
+          b.row = null;
+          b.phase = 'peg';
+          b.frameSafety = 0;
+          b.gridAge = 0;
+          b.cascadeBall = true;
+          b.freeDrop = false;
+          continue;
+        }
         if(lowestClearedIdx !== Infinity && i > lowestClearedIdx){
           if(entry.type==='piece'){
-            // Cap cascade bodies for perf, but never leave pieces parked in
-            // the column — that made floor clears strand the bottom rows.
-            if(!launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx)){
-              spawnExplosion(
-                c*CELL+CELL/2,
-                PEG_ZONE+oldRow*CELL+CELL/2,
-                entry.card
-              );
-            }
+            launchPuckFromCell(c, oldRow, entry.card, entry.angle, i, lowestClearedIdx);
             continue;
           } else if(entry.type==='ball'){
             const b = entry.ball;
@@ -5286,7 +6742,10 @@
       stack[c] = survivors;
       rebuildColumnFromStack(c);
     }
+    const purgeSuit = groups.find(g => g.suitBomb)?.purgeSuit;
+    if(purgeSuit) purgeSuitBalls(purgeSuit);
     recomputeBumpers();
+    markHintsDirty();
     startLoop();
   }
 
@@ -5340,16 +6799,43 @@
     return cells;
   }
 
+  function findSuitBalls(suit){
+    return balls.filter(b => b.card && b.card.suit === suit);
+  }
+
+  function countSuitInPlay(suit){
+    return findSuitCells(suit).length + findSuitBalls(suit).length;
+  }
+
+  function purgeSuitBalls(suit){
+    const victims = findSuitBalls(suit);
+    if(!victims.length) return;
+    const colsTouched = new Set();
+    for(const b of victims){
+      spawnExplosion(b.x, b.y, b.card);
+      if(b.stackEntry != null && b.targetCol != null){
+        const col = b.targetCol;
+        const idx = stack[col].indexOf(b.stackEntry);
+        if(idx >= 0){
+          stack[col].splice(idx, 1);
+          colsTouched.add(col);
+        }
+      }
+    }
+    balls = balls.filter(b => !(b.card && b.card.suit === suit));
+    for(const c of colsTouched) rebuildColumnFromStack(c);
+  }
+
   function beginSuitBomb(suit, cells){
     resolving = true;
     resolveEpoch++;
-    pendingChain = 0;
-    chainStep = 0;
+    const inFlight = findSuitBalls(suit).length;
     currentGroups = [{
       name: 'SUIT PURGE ' + suit,
-      points: Math.max(1, cells.length),
+      points: Math.max(1, cells.length + inFlight),
       cells,
       suitBomb: true,
+      purgeSuit: suit,
       color: SUIT_COLOR[suit] || '#ffffff'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
@@ -5365,7 +6851,7 @@
     if(!suitBombReady(now) || gameOver) return false;
     if(!SUITS.includes(suit)) return false;
     const cells = findSuitCells(suit);
-    if(cells.length < 1) return false;
+    if(countSuitInPlay(suit) < 1) return false;
     // Spend the charge immediately so a mid-clear click still counts.
     suitBombReadyAt = now + suitBombCooldownMs();
     noteSuitPurge();
@@ -5384,7 +6870,7 @@
     const suit = pendingSuitBomb;
     pendingSuitBomb = null;
     const cells = findSuitCells(suit);
-    if(cells.length < 1){
+    if(countSuitInPlay(suit) < 1){
       updateSuitBombUI(performance.now(), true);
       return;
     }
@@ -5392,21 +6878,34 @@
   }
 
   function pickAutoSuitBombTarget(){
+    const inShoe = new Set(activeSuits());
     let best = null, bestCount = 0;
+    let bestExiled = null, bestExiledBoard = 0, bestExiledCount = 0;
     for(const s of SUITS){
-      const n = findSuitCells(s).length;
+      const board = findSuitCells(s).length;
+      const n = countSuitInPlay(s);
+      if(!n) continue;
+      if(!inShoe.has(s) && board > 0){
+        if(board > bestExiledBoard || (board === bestExiledBoard && n > bestExiledCount)){
+          bestExiledBoard = board;
+          bestExiledCount = n;
+          bestExiled = s;
+        }
+        continue;
+      }
       if(n > bestCount){
         bestCount = n;
         best = s;
       }
     }
+    if(bestExiled) return bestExiled;
     // Don't waste a charge on a lonely singleton.
     if(bestCount < 2) return null;
     return best;
   }
 
   function tryAutoSuitBomb(now){
-    if(!upgradeLevel('autoSuitBomb') || !isAutoEnabled('autoSuitBomb') || !suitBombReady(now)) return;
+    if(!prestigeLevel('autoSuitBomb') || !isAutoEnabled('autoSuitBomb') || !suitBombReady(now)) return;
     if(resolving || gameOver) return;
     const suit = pickAutoSuitBombTarget();
     if(!suit) return;
@@ -5454,10 +6953,18 @@
 
   function finishResolveOrChain(){
     const nextGroups = findPokerHands();
+    const suitBombResolve = currentGroups.some(g => g.suitBomb);
     if(nextGroups.length>0){
+      // After Suit Purge, pick up saved chain carryover before the next hand.
+      if(chainStep === 0 && pendingChain > 0){
+        chainStep = pendingChain;
+        pendingChain = 0;
+      }
       enterFlash(nextGroups);
     } else {
-      pendingChain = balls.length > 0 ? chainStep : 0;
+      if(!suitBombResolve){
+        pendingChain = balls.length > 0 ? chainStep : 0;
+      }
       resolving = false;
       chainStep = 0;
       if(boardIsFull() && !hasGridBalls()){
@@ -5473,9 +6980,7 @@
 
   function resolveTick(){
     const now = performance.now();
-    tryAutoDrop(now);
-    tryHoldDrop(now);
-    const speed = Math.min(physicsSpeed(), 2.8);
+    const speed = resolveSpeed();
     const flashMs = FLASH_MS / speed;
     const explodeMs = EXPLODE_MS / speed;
     if(resolving){
@@ -5484,8 +6989,8 @@
         if(elapsed >= flashMs){
           const isFloorClear = currentGroups.some(g => g.floorClear);
           if(!isFloorClear){
-            const chainMult = Math.max(1, chainStep + chainBonus());
-            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
+            const chainMult = computeChainMult(chainStep);
+            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier() * runMetaMultiplier());
             noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
@@ -5544,8 +7049,49 @@
 
   // ---- drawing ----
   // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
+  function drawWildIcon(target, x, y, size){
+    const rx = size * 0.42;
+    const ry = size * 0.30;
+    const reach = Math.max(rx, ry) * 1.25;
+    target.save();
+    target.translate(x, y);
+    target.beginPath();
+    target.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    target.clip();
+    for(let i = 0; i < 4; i++){
+      target.beginPath();
+      target.moveTo(0, 0);
+      target.arc(0, 0, reach, i * Math.PI / 2, (i + 1) * Math.PI / 2);
+      target.closePath();
+      target.fillStyle = WILD_ICON_COLORS[i];
+      target.fill();
+    }
+    target.restore();
+    target.beginPath();
+    target.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    target.strokeStyle = 'rgba(255,255,255,0.92)';
+    target.lineWidth = Math.max(1, size * 0.06);
+    target.stroke();
+  }
+
+  function paintSuitGlyph(target, suit, x, y, size, color){
+    target.save();
+    target.textAlign = 'center';
+    target.textBaseline = 'middle';
+    target.font = suitGlyphFont(size);
+    target.lineJoin = 'round';
+    target.miterLimit = 2;
+    const lineW = Math.max(1.2, size * 0.1);
+    target.lineWidth = lineW;
+    target.strokeStyle = 'rgba(8,6,16,0.85)';
+    target.strokeText(suit, x, y);
+    target.fillStyle = color;
+    target.fillText(suit, x, y);
+    target.restore();
+  }
+
   function drawChipGlyphs(target, card, radius){
-    const color = SUIT_COLOR[card.suit];
+    const color = cardGlowColor(card);
     target.textAlign = 'center';
     target.textBaseline = 'middle';
     const suitSize = Math.max(10, Math.round(radius * 0.74));
@@ -5566,16 +7112,11 @@
       target.fillText(text, x, y);
     }
 
-    // Suit underneath (drawn first)
-    stampGlyph(
-      card.suit,
-      suitX,
-      suitY,
-      color,
-      `bold ${suitSize}px 'Space Grotesk', sans-serif`,
-      Math.max(1.6, radius * 0.09)
-    );
-    // Rank on top, diagonally offset — Fraunces has a clearer Q tick.
+    if(isWild(card)){
+      drawWildIcon(target, suitX, suitY, radius * 0.95);
+    } else {
+      paintSuitGlyph(target, card.suit, suitX, suitY, suitSize, color);
+    }
     stampGlyph(
       rankLabel(card.rank),
       rankX,
@@ -5587,9 +7128,8 @@
   }
 
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
-    const color = SUIT_COLOR[card.suit];
-    ensureChipTextures();
-    const tex = chipTextures[card.suit];
+    const color = cardGlowColor(card);
+    const tex = chipTextureForCard(card);
     const d = radius * 2;
     target.save();
     target.translate(cx, cy);
@@ -5627,18 +7167,18 @@
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
-  function drawFlashPiece(cx, cy, card, elapsedFrac){
-    const color = SUIT_COLOR[card.suit];
+  function drawFlashPiece(cx, cy, card, elapsedFrac, pulses){
+    const color = cardGlowColor(card);
     // Uniform flash (rank juice lives in score text). Tiny scale + suit pulse.
-    const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * 7);
+    const pulseWaves = pulses || 7;
+    const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * pulseWaves);
     const r = 32 * pulse;
-    const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * 7));
+    const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * pulseWaves));
     ctx.save();
     ctx.translate(cx, cy);
     ctx.shadowColor = color;
     ctx.shadowBlur = 12 * (0.65 + 0.35 * heat);
-    ensureChipTextures();
-    const tex = chipTextures[card.suit];
+    const tex = chipTextureForCard(card);
     if(tex) ctx.drawImage(tex, -r, -r, r * 2, r * 2);
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 0.22 + 0.18 * heat;
@@ -5661,8 +7201,53 @@
     drawCardFace(ctx, b.x, b.y, b.card, b.angle||0, 32, true, 0);
   }
 
+  function perfLite(){
+    return !desktopMq.matches;
+  }
+
+  function shouldDrawTrails(){
+    if(balls.length > 36) return false;
+    if(perfLite() && balls.length > 10) return false;
+    return true;
+  }
+
+  function sampleFps(now){
+    if(!lastFpsSampleTime) lastFpsSampleTime = now;
+    fpsFrameCount++;
+    const elapsed = now - lastFpsSampleTime;
+    if(elapsed >= 500){
+      fpsDisplay = Math.round(fpsFrameCount * 1000 / elapsed);
+      fpsFrameCount = 0;
+      lastFpsSampleTime = now;
+    }
+  }
+
+  function drawFpsOverlay(){
+    if(!gameSettings.showFps) return;
+    const lines = [
+      fpsDisplay + ' fps · ' + Math.round(lastFrameMs) + 'ms',
+      lastPhysicsSteps + ' phys · ' + balls.length + ' balls'
+    ];
+    ctx.save();
+    ctx.font = "11px 'IBM Plex Mono', monospace";
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let y = 8;
+    for(const line of lines){
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(8,6,16,0.92)';
+      ctx.strokeText(line, 8, y);
+      ctx.fillStyle = 'rgba(241,238,251,0.72)';
+      ctx.fillText(line, 8, y);
+      y += 14;
+    }
+    ctx.restore();
+  }
+
   function draw(){
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0,0,W,H);
+    const lite = perfLite();
 
     const grad = ctx.createLinearGradient(0,0,0,PEG_ZONE);
     grad.addColorStop(0, '#1a1630');
@@ -5683,8 +7268,10 @@
       ctx.beginPath();
       ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
       ctx.fillStyle = p.hit ? '#ffffff' : PEG;
-      ctx.shadowColor = PEG;
-      ctx.shadowBlur = p.hit ? 18 : 6;
+      if(!lite){
+        ctx.shadowColor = PEG;
+        ctx.shadowBlur = p.hit ? 18 : 6;
+      }
       ctx.fill();
     }
     ctx.shadowBlur = 0;
@@ -5710,8 +7297,10 @@
       ctx.lineWidth = BUMPER_R * 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.shadowColor = BUMPER_COLOR;
-      ctx.shadowBlur = hit ? 28 : 12;
+      if(!lite){
+        ctx.shadowColor = BUMPER_COLOR;
+        ctx.shadowBlur = hit ? 28 : 12;
+      }
       ctx.stroke();
       strokeBumperPath(path);
       ctx.strokeStyle = hit ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)';
@@ -5725,13 +7314,15 @@
 
     for(const b of balls){
       if(b.phase==='grid' || b.y >= PEG_ZONE) continue;
-      for(let i=0;i<b.trail.length;i++){
-        const t = b.trail[i];
-        const alpha = (i+1)/b.trail.length * 0.25;
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,20,0,Math.PI*2);
-        ctx.fillStyle = trailRGBA(b.card, alpha);
-        ctx.fill();
+      if(shouldDrawTrails()){
+        for(let i=0;i<b.trail.length;i++){
+          const t = b.trail[i];
+          const alpha = (i+1)/b.trail.length * 0.25;
+          ctx.beginPath();
+          ctx.arc(t.x,t.y,20,0,Math.PI*2);
+          ctx.fillStyle = trailRGBA(b.card, alpha);
+          ctx.fill();
+        }
       }
     }
 
@@ -5743,8 +7334,9 @@
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
     const flashElapsed = resolvePhase==='flash'
-      ? Math.min(1,(performance.now()-resolvePhaseStart)/FLASH_MS)
+      ? Math.min(1,(performance.now()-resolvePhaseStart)/(FLASH_MS/resolveSpeed()))
       : 0;
+    const flashPulses = flashPulseCount();
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const val = grid[c][r];
@@ -5752,7 +7344,7 @@
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
         const key = c+','+r;
         if(flashCells && flashCells.has(key)){
-          drawFlashPiece(cx,cy,val,flashElapsed);
+          drawFlashPiece(cx,cy,val,flashElapsed, flashPulses);
         } else {
           drawPiece(cx,cy,val, false);
         }
@@ -5763,14 +7355,16 @@
     // must paint under the plate so upward flights don't cover the overlay.
     for(const b of balls){
       if(b.y < PEG_ZONE && b.phase !== 'grid') continue;
-      for(let i=0;i<b.trail.length;i++){
-        const t = b.trail[i];
-        if(t.y < PEG_ZONE) continue;
-        const alpha = (i+1)/b.trail.length * 0.25;
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,20,0,Math.PI*2);
-        ctx.fillStyle = trailRGBA(b.card, alpha);
-        ctx.fill();
+      if(shouldDrawTrails()){
+        for(let i=0;i<b.trail.length;i++){
+          const t = b.trail[i];
+          if(t.y < PEG_ZONE) continue;
+          const alpha = (i+1)/b.trail.length * 0.25;
+          ctx.beginPath();
+          ctx.arc(t.x,t.y,20,0,Math.PI*2);
+          ctx.fillStyle = trailRGBA(b.card, alpha);
+          ctx.fill();
+        }
       }
       drawBall(b);
     }
@@ -5807,6 +7401,24 @@
 
     ctx.drawImage(plateCanvas, 0, 0);
 
+    // Free pucks still inside the board face (explosion launches, etc.)
+    // draw on top of the plastic so the flight out of the column stays visible.
+    for(const b of balls){
+      if(b.phase==='grid' || b.y < PEG_ZONE) continue;
+      if(shouldDrawTrails()){
+        for(let i=0;i<b.trail.length;i++){
+          const t = b.trail[i];
+          if(t.y < PEG_ZONE) continue;
+          const alpha = (i+1)/b.trail.length * 0.25;
+          ctx.beginPath();
+          ctx.arc(t.x,t.y,20,0,Math.PI*2);
+          ctx.fillStyle = trailRGBA(b.card, alpha);
+          ctx.fill();
+        }
+      }
+      drawBall(b);
+    }
+
     // Near-miss guides sit on top of the plate so the dotted bridges stay
     // readable between holes (pairs, flush/straight draws).
     drawNearMissHints();
@@ -5816,8 +7428,10 @@
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
       ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 8;
+      if(!lite){
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+      }
       ctx.fill();
     }
     ctx.shadowBlur = 0;
@@ -5873,7 +7487,7 @@
     }
 
     if(!gameOver && nextCard){
-      const c = SUIT_COLOR[nextCard.suit];
+      const c = cardGlowColor(nextCard);
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
       ctx.lineTo(aimX+9, 6);
@@ -5887,6 +7501,8 @@
       // tiny spinning preview of the next card at the drop point
       drawCardFace(ctx, aimX, 38, nextCard, performance.now()/400, 12, false, 0);
     }
+
+    drawFpsOverlay();
   }
 
   // ---- UI wiring ----
@@ -5904,6 +7520,9 @@
   const autoStatusEl = document.getElementById('autoStatus');
   const autoStatusValEl = document.getElementById('autoStatusVal');
   const autoStatusFillEl = document.getElementById('autoStatusFill');
+  const settingShowFpsEl = document.getElementById('settingShowFps');
+  const settingNearHandHintsEl = document.getElementById('settingNearHandHints');
+  const settingChipAnimationEl = document.getElementById('settingChipAnimation');
   const upgradesEl = document.getElementById('upgrades');
   const prestigeUpgradesEl = document.getElementById('prestigeUpgrades');
   const questsEl = document.getElementById('quests');
@@ -5935,6 +7554,11 @@
   };
   let activeRailPanel = 'table';
   const nextLabel = document.getElementById('nextLabel');
+  const nextTier = document.getElementById('nextTier');
+  const nextRank = document.getElementById('nextRank');
+  const nextSuitGlyph = document.getElementById('nextSuitGlyph');
+  const NEXT_GLYPH_SIZE = 32;
+  const NEXT_GLYPH_CENTER = NEXT_GLYPH_SIZE / 2;
   const banner = document.getElementById('banner');
   const bannerText = document.getElementById('bannerText');
   const upgradeButtons = {};
@@ -5949,9 +7573,61 @@
     return desktopMq.matches;
   }
 
+  function hasUnviewedUpgradeUnlock(){
+    for(const def of UPGRADE_DEFS){
+      if((def.unlockAt || 1) <= 1) continue;
+      if(!upgradeUnlocked(def.id)) continue;
+      if(!seenUnlocks.upgrades.includes(def.id)) return true;
+    }
+    return false;
+  }
+
+  function hasNewUnlockBadge(panel){
+    if(panel === 'quests') return questsTabUnlocked() && !seenUnlocks.tabs.quests;
+    if(panel === 'achievements') return achievementsTabUnlocked() && !seenUnlocks.tabs.achievements;
+    if(panel === 'vip') return vipTabUnlocked() && !seenUnlocks.tabs.vip;
+    if(panel === 'upgrades') return upgradesTabUnlocked() && hasUnviewedUpgradeUnlock();
+    return false;
+  }
+
+  function markPanelUnlocksSeen(panel){
+    let changed = false;
+    if(panel === 'quests' && questsTabUnlocked() && !seenUnlocks.tabs.quests){
+      seenUnlocks.tabs.quests = true;
+      changed = true;
+    }
+    if(panel === 'achievements' && achievementsTabUnlocked() && !seenUnlocks.tabs.achievements){
+      seenUnlocks.tabs.achievements = true;
+      changed = true;
+    }
+    if(panel === 'vip' && vipTabUnlocked() && !seenUnlocks.tabs.vip){
+      seenUnlocks.tabs.vip = true;
+      changed = true;
+    }
+    if(panel === 'upgrades' && upgradesTabUnlocked()){
+      for(const def of UPGRADE_DEFS){
+        if((def.unlockAt || 1) <= 1) continue;
+        if(!upgradeUnlocked(def.id)) continue;
+        if(seenUnlocks.upgrades.includes(def.id)) continue;
+        seenUnlocks.upgrades.push(def.id);
+        changed = true;
+      }
+    }
+    if(changed) scheduleSave();
+  }
+
   function setTabBadge(panel, count){
     const el = tabBadges[panel];
     if(!el) return;
+    if(hasNewUnlockBadge(panel)){
+      el.hidden = false;
+      el.textContent = '';
+      el.classList.add('is-new');
+      el.setAttribute('aria-label', 'New unlock');
+      return;
+    }
+    el.classList.remove('is-new');
+    el.removeAttribute('aria-label');
     const n = Math.max(0, count | 0);
     if(n <= 0){
       el.hidden = true;
@@ -6005,7 +7681,7 @@
       appEl.classList.toggle('mode-shop', !tableMode);
     }
     if(stageEl){
-      stageEl.classList.toggle('is-active', tableMode || isDesktopLayout());
+      stageEl.classList.add('is-active');
     }
     for(const p of railPanels){
       p.classList.toggle('is-active', p.dataset.panel === panel);
@@ -6015,6 +7691,7 @@
       tab.classList.toggle('is-active', on);
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     }
+    markPanelUnlocksSeen(panel);
   }
 
   for(const tab of railTabs){
@@ -6182,14 +7859,30 @@
       }
     });
   }
+  if(autoStatusEl){
+    const toggleAutoDealer = ()=>{
+      if(upgradeLevel('autoDealer') <= 0) return;
+      setAutoEnabled('autoDealer', !isAutoEnabled('autoDealer'));
+    };
+    autoStatusEl.addEventListener('click', (e)=>{
+      e.preventDefault();
+      toggleAutoDealer();
+    });
+    autoStatusEl.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        toggleAutoDealer();
+      }
+    });
+  }
   if(levelModalClose) levelModalClose.addEventListener('click', closeLevelModal);
   if(levelModalBackdrop) levelModalBackdrop.addEventListener('click', closeLevelModal);
 
   function updateCompsHud(){
     if(compsHudValEl) compsHudValEl.textContent = formatNum(comps);
     if(compsBoxEl){
-      // Stay hidden until the first comp is earned.
-      compsBoxEl.hidden = !(comps > 0 || prestigeCount > 0);
+      // Stay hidden until the first comp is earned (or spent on VIP perks).
+      compsBoxEl.hidden = !vipProgressStarted();
     }
   }
 
@@ -6229,6 +7922,10 @@
     const interval = autoDropIntervalMs();
     const on = enabled && Number.isFinite(interval);
     autoStatusEl.classList.toggle('on', on);
+    autoStatusEl.title = enabled
+      ? 'Auto Dealer — click to pause'
+      : 'Auto Dealer — click to resume';
+    autoStatusEl.setAttribute('aria-label', autoStatusEl.title);
     if(!enabled){
       if(autoStatusValEl) autoStatusValEl.textContent = 'paused';
       if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
@@ -6239,15 +7936,19 @@
       if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
       return;
     }
-    const n = autoDropCount();
+    const intervalTicks = autoDropIntervalTicks();
+    const blocked = balls.length >= MAX_AUTO_DROP_BALLS;
     if(autoStatusValEl){
-      autoStatusValEl.textContent = formatInterval(interval) + (n > 1 ? ' ×' + n : '');
+      autoStatusValEl.textContent = blocked
+        ? 'waiting…'
+        : formatInterval(autoDropIntervalMs());
     }
     if(autoStatusFillEl){
-      const t = Math.max(0, Math.min(1, (now - lastAutoDropAt) / interval));
+      const t = blocked
+        ? 1
+        : Math.max(0, Math.min(1, autoDropTicks / intervalTicks));
       autoStatusFillEl.style.width = (t * 100) + '%';
     }
-    startLoop();
   }
 
   function fillUpgradeButton(btn, def, opts){
@@ -6279,20 +7980,31 @@
     if(toggle){
       toggle.hidden = !canToggle;
       if(canToggle){
-        const on = isAutoEnabled(def.id);
-        toggle.textContent = on ? 'On' : 'Off';
-        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
-        toggle.classList.toggle('is-off', !on);
+        if(def.id === 'suitBomb'){
+          const visible = suitBombUiVisible();
+          toggle.textContent = visible ? 'Hide' : 'Show';
+          toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !visible);
+        } else {
+          const on = isAutoEnabled(def.id);
+          toggle.textContent = on ? 'On' : 'Off';
+          toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !on);
+        }
       }
     }
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
     const boughtFill = btn.querySelector('.upgrade-progress-bought');
     if(def.maxLevel > 0){
+      const bonusPct = Math.min(100, (bonus / def.maxLevel) * 100);
+      const boughtPct = Math.min(100 - bonusPct, (bought / def.maxLevel) * 100);
       if(bonusFill){
-        bonusFill.style.width = Math.min(100, (effective / def.maxLevel) * 100) + '%';
+        bonusFill.style.left = '0%';
+        bonusFill.style.width = bonusPct + '%';
       }
       if(boughtFill){
-        boughtFill.style.width = Math.min(100, (bought / def.maxLevel) * 100) + '%';
+        boughtFill.style.left = bonusPct + '%';
+        boughtFill.style.width = boughtPct + '%';
       }
     }
     btn.querySelector('.upgrade-effect').textContent = opts.effect || '';
@@ -6316,8 +8028,7 @@
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
-      const revealed = upgradeUnlocked(def.id)
-        && (def.id !== 'autoSuitBomb' || suitBombUnlocked());
+      const revealed = upgradeUnlocked(def.id);
       const bought = purchasedLevel(def.id);
       const bonus = prestigeBonusLevels(def.id);
       const lvl = upgradeLevel(def.id);
@@ -6350,6 +8061,7 @@
     }
     // Keep buyable upgrades up top; sink completed ones.
     orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateRailTabAvailability();
   }
@@ -6395,19 +8107,21 @@
         const lvl = prestigeLevel(def.id);
         const maxed = lvl >= def.maxLevel;
         const cost = prestigeUpgradeCost(def);
-        const canAfford = !maxed && comps >= cost;
+        const needsSuitBomb = def.id === 'autoSuitBomb' && lvl < def.maxLevel && !suitBombUnlocked();
+        const canAfford = !maxed && !needsSuitBomb && comps >= cost;
         if(canAfford) vipReady++;
         fillUpgradeButton(btn, def, {
-          bought: lvl, bonus: 0, maxed, locked: false, cost, canAfford,
+          bought: lvl, bonus: 0, maxed, locked: needsSuitBomb, cost, canAfford,
           canToggle: !!(def.toggleable && lvl > 0),
           effect: prestigeEffectText(def),
-          costLabel: '',
+          costLabel: needsSuitBomb ? 'Needs Suit Purge' : '',
           unit: 'comps'
         });
         (maxed ? maxedList : active).push(btn);
       }
       orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
     }
+    if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
     setTabBadge('vip', vipReady);
     updateRailTabAvailability();
   }
@@ -6523,7 +8237,7 @@
   }
 
   function fillLockedQuestButton(btn, slotIndex){
-    const unlockLvl = slotIndex + 2;
+    const unlockLvl = questSlotUnlockLevel(slotIndex) || (slotIndex + 2);
     for(const r of QUEST_RARITIES) btn.classList.remove('rarity-' + r);
     btn.classList.remove('claimable', 'claimed');
     btn.classList.add('quest-locked');
@@ -6586,58 +8300,73 @@
     if(questSlotsMetaEl){
       questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
     }
+    if(activeRailPanel === 'quests') markPanelUnlocksSeen('quests');
     setTabBadge('quests', questReady);
   }
 
   function updateAchievementsUI(){
     if(!achievementsEl) return;
     let achieveReady = 0;
-    const claimable = [];
-    const active = [];
-    const done = [];
-    for(const def of ACHIEVEMENT_DEFS){
+    const visible = [];
+    for(let order = 0; order < ACHIEVEMENT_DEFS.length; order++){
+      const def = ACHIEVEMENT_DEFS[order];
       const btn = contractButtons[def.id];
       if(!btn) continue;
       const revealed = achievementRevealed(def);
       btn.hidden = !revealed;
       if(!revealed) continue;
+      const tier = achievementActiveTier(def);
+      const target = tier ? tier.target : 1;
       const progress = achievementProgress(def);
-      const complete = progress >= def.target;
-      const claimed = achievementIsClaimed(def);
-      const canClaim = complete && !claimed;
-      const stillSecret = !!(def.secret && !complete && !claimed);
+      const canClaim = achievementCanClaim(def);
+      const fullyClaimed = achievementIsFullyClaimed(def);
+      const stillSecret = !!(def.secret && !canClaim && achievementClaimedTier(def) === 0
+        && achievementStatValue(def) === 0);
       if(canClaim) achieveReady++;
       btn.disabled = !canClaim;
       btn.classList.toggle('claimable', canClaim);
-      btn.classList.toggle('claimed', claimed);
+      btn.classList.toggle('claimed', fullyClaimed);
       btn.classList.add('achievement');
       btn.querySelector('.quest-name').textContent = stillSecret ? '???' : def.name;
+      btn.querySelector('.quest-kind').textContent = stillSecret ? 'Achievement' : achievementKindLabel(def);
       btn.querySelector('.quest-desc').textContent = stillSecret
         ? 'Hidden achievement — keep playing.'
-        : def.desc;
+        : achievementDesc(def, tier);
+      const rewardEl = btn.querySelector('.quest-reward');
+      if(rewardEl){
+        rewardEl.textContent = stillSecret
+          ? '???'
+          : contractRewardText(tier ? tier.reward : {});
+      }
       const fill = btn.querySelector('.quest-bar > span');
       if(fill){
-        fill.style.width = Math.min(100, (progress / def.target) * 100) + '%';
+        fill.style.width = Math.min(100, (progress / target) * 100) + '%';
       }
       const progEl = btn.querySelector('.quest-prog');
       if(progEl){
         progEl.innerHTML = stillSecret
           ? '<b>?</b> / ?'
-          : ('<b>' + formatNum(progress) + '</b> / ' + formatNum(def.target));
+          : ('<b>' + formatNum(progress) + '</b> / ' + formatNum(target));
       }
       const actionEl = btn.querySelector('.quest-action');
       if(actionEl){
-        actionEl.textContent = claimed
-          ? 'Claimed'
+        actionEl.textContent = fullyClaimed
+          ? 'Complete'
           : (canClaim ? 'Claim reward' : 'In progress');
       }
-      if(canClaim) claimable.push(btn);
-      else if(claimed) done.push(btn);
-      else active.push(btn);
+      visible.push({
+        btn,
+        canClaim,
+        fullyClaimed,
+        ratio: stillSecret ? 0 : achievementProgressRatio(def),
+        order
+      });
     }
+    visible.sort(compareAchievementButtons);
     if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
+    if(activeRailPanel === 'achievements') markPanelUnlocksSeen('achievements');
     setTabBadge('achievements', achieveReady);
-    orderUpgradeButtons(achievementsEl, claimable.concat(active, done));
+    orderUpgradeButtons(achievementsEl, visible.map(entry => entry.btn));
   }
 
   function updateContractsUI(){
@@ -6647,14 +8376,17 @@
 
   function makeAchievementButton(def){
     const btn = makeQuestCardShell();
+    const tier = achievementActiveTier(def);
     btn.classList.add('achievement');
     btn.dataset.id = def.id;
     btn.querySelector('.quest-name').textContent = def.secret ? '???' : def.name;
-    btn.querySelector('.quest-kind').textContent = 'Achievement';
+    btn.querySelector('.quest-kind').textContent = def.secret ? 'Achievement' : achievementKindLabel(def);
     btn.querySelector('.quest-desc').textContent = def.secret
       ? 'Hidden achievement — keep playing.'
-      : def.desc;
-    btn.querySelector('.quest-reward').textContent = contractRewardText(def.reward);
+      : achievementDesc(def, tier);
+    btn.querySelector('.quest-reward').textContent = def.secret
+      ? '???'
+      : contractRewardText(tier ? tier.reward : {});
     btn.addEventListener('click', ()=>claimAchievement(def.id));
     return btn;
   }
@@ -6697,6 +8429,7 @@
 
   const suitBombBar = document.getElementById('suitBombBar');
   const suitBombStatus = document.getElementById('suitBombStatus');
+  const suitBombChargeFill = document.getElementById('suitBombChargeFill');
   const suitBombBtnsEl = document.getElementById('suitBombBtns');
   const suitBombButtons = {};
 
@@ -6708,12 +8441,56 @@
       btn.className = 'suit-btn';
       btn.dataset.suit = s;
       btn.setAttribute('aria-label', 'Purge ' + s);
-      btn.innerHTML = '<span class="cd-fill"></span><span class="suit-glyph"></span>';
-      btn.querySelector('.suit-glyph').textContent = s;
+      const fill = document.createElement('span');
+      fill.className = 'cd-fill';
+      const glyph = document.createElement('canvas');
+      glyph.className = 'suit-glyph';
+      glyph.width = 44;
+      glyph.height = 44;
+      glyph.setAttribute('aria-hidden', 'true');
+      paintSuitGlyph(glyph.getContext('2d'), s, 22, 22, 22, SUIT_COLOR[s]);
+      btn.append(fill, glyph);
       btn.addEventListener('click', ()=>castSuitBomb(s));
       suitBombBtnsEl.appendChild(btn);
       suitBombButtons[s] = btn;
     }
+    if(document.fonts && document.fonts.ready){
+      document.fonts.ready.then(repaintHudGlyphs);
+    }
+  }
+
+  function repaintSuitBombGlyphs(){
+    for(const s of SUITS){
+      const glyph = suitBombButtons[s]?.querySelector('.suit-glyph');
+      if(!glyph || glyph.tagName !== 'CANVAS') continue;
+      const ctx = glyph.getContext('2d');
+      ctx.clearRect(0, 0, glyph.width, glyph.height);
+      paintSuitGlyph(ctx, s, 22, 22, 22, SUIT_COLOR[s]);
+    }
+  }
+
+  function paintNextSuitGlyph(card){
+    const ctx = nextSuitGlyph.getContext('2d');
+    ctx.clearRect(0, 0, NEXT_GLYPH_SIZE, NEXT_GLYPH_SIZE);
+    if(!card){
+      nextSuitGlyph.hidden = true;
+      return;
+    }
+    nextSuitGlyph.hidden = false;
+    if(isWild(card)){
+      ctx.save();
+      ctx.translate(NEXT_GLYPH_CENTER, NEXT_GLYPH_CENTER);
+      ctx.scale(0.78, 1);
+      drawWildIcon(ctx, 0, 0, 18);
+      ctx.restore();
+    } else {
+      paintSuitGlyph(ctx, card.suit, NEXT_GLYPH_CENTER, NEXT_GLYPH_CENTER, 14, SUIT_COLOR[card.suit]);
+    }
+  }
+
+  function repaintHudGlyphs(){
+    repaintSuitBombGlyphs();
+    if(nextCard) paintNextSuitGlyph(nextCard);
   }
 
   let lastSuitBombUiAt = 0;
@@ -6724,13 +8501,35 @@
     if(!force && now - lastSuitBombUiAt < 120) return;
     lastSuitBombUiAt = now;
     const unlocked = suitBombUnlocked();
+    const showPicker = suitBombUiVisible();
+    const minimized = unlocked && !showPicker;
     suitBombBar.classList.toggle('show', unlocked);
-    if(!unlocked) return;
+    suitBombBar.classList.toggle('picker-hidden', minimized);
+    if(!unlocked){
+      suitBombBar.removeAttribute('data-target-suit');
+      suitBombBar.classList.remove('suit-bomb-flash');
+      if(suitBombChargeFill) suitBombChargeFill.style.width = '0%';
+      return;
+    }
 
     const cd = suitBombCooldownMs();
     const ready = suitBombReady(now);
-    const autoOwned = upgradeLevel('autoSuitBomb') > 0;
+    const autoOwned = prestigeLevel('autoSuitBomb') > 0;
     const auto = autoOwned && isAutoEnabled('autoSuitBomb');
+    const autoTarget = auto ? pickAutoSuitBombTarget() : null;
+    if(minimized){
+      if(autoTarget) suitBombBar.dataset.targetSuit = autoTarget;
+      else suitBombBar.removeAttribute('data-target-suit');
+      suitBombBar.classList.toggle('suit-bomb-flash', ready && !!autoTarget);
+      if(suitBombChargeFill){
+        const charge = ready ? 1 : Math.max(0, Math.min(1, 1 - (suitBombReadyAt - now) / cd));
+        suitBombChargeFill.style.width = (charge * 100) + '%';
+      }
+    } else {
+      suitBombBar.removeAttribute('data-target-suit');
+      suitBombBar.classList.remove('suit-bomb-flash');
+      if(suitBombChargeFill) suitBombChargeFill.style.width = '0%';
+    }
     if(ready){
       suitBombStatus.textContent = auto
         ? 'ready · auto'
@@ -6772,16 +8571,17 @@
       if(gone) continue;
       visible++;
       // Stay clickable during hand clears — cast queues until the board is free.
-      const canCast = ready && !gameOver && count > 0;
+      const total = count + inFlight[s];
+      const canCast = ready && !gameOver && total > 0;
       btn.disabled = !canCast && !queued;
       btn.classList.toggle('charging', !ready && !queued);
       btn.classList.toggle('queued', queued);
       btn.style.setProperty('--cd', Math.round((queued ? 1 : charge) * 100) + '%');
       btn.title = queued
         ? ('Queued purge ' + s)
-        : count
-          ? ('Purge ' + count + ' × ' + s)
-          : ('No ' + s + ' on board');
+        : total
+          ? ('Purge ' + total + ' × ' + s + (inFlight[s] ? ' (' + inFlight[s] + ' in flight)' : ''))
+          : ('No ' + s + ' in play');
     }
     suitBombBtnsEl.style.gridTemplateColumns =
       'repeat(' + Math.max(1, visible) + ', 1fr)';
@@ -6789,13 +8589,24 @@
 
   function updateNextUI(){
     if(!nextCard){
-      nextLabel.textContent = '—';
-      nextCtx.clearRect(0,0,nextPreview.width, nextPreview.height);
+      nextRank.textContent = '—';
+      nextTier.hidden = true;
+      nextTier.textContent = '';
+      paintNextSuitGlyph(null);
+      nextLabel.setAttribute('aria-label', 'No next card');
       return;
     }
-    nextLabel.textContent = cardFace(nextCard);
-    nextCtx.clearRect(0,0,nextPreview.width, nextPreview.height);
-    drawCardFace(nextCtx, 36, 36, nextCard, 0, 30, false, 0);
+    const tierMark = tierLabelShort(cardTier(nextCard));
+    if(tierMark){
+      nextTier.hidden = false;
+      nextTier.textContent = tierMark;
+    } else {
+      nextTier.hidden = true;
+      nextTier.textContent = '';
+    }
+    nextRank.textContent = rankLabel(nextCard.rank);
+    paintNextSuitGlyph(nextCard);
+    nextLabel.setAttribute('aria-label', 'Next card: ' + cardFace(nextCard));
   }
 
   document.getElementById('playAgain').addEventListener('click', ()=>{
@@ -6982,6 +8793,23 @@
     refreshButtons();
     draw();
   });
+  if(settingShowFpsEl){
+    settingShowFpsEl.addEventListener('change', ()=>{
+      setGameSetting('showFps', settingShowFpsEl.checked);
+      draw();
+    });
+  }
+  if(settingNearHandHintsEl){
+    settingNearHandHintsEl.addEventListener('change', ()=>{
+      setGameSetting('nearHandHints', settingNearHandHintsEl.checked);
+      draw();
+    });
+  }
+  if(settingChipAnimationEl){
+    settingChipAnimationEl.addEventListener('change', ()=>{
+      setGameSetting('chipAnimation', settingChipAnimationEl.checked);
+    });
+  }
 
   // ---- Table Tilt VIP (DeviceOrientation) ----
   // Permission is only requested when the perk is bought or toggled On.
@@ -7084,11 +8912,7 @@
     pointerDown = true;
     canvas.setPointerCapture(e.pointerId);
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
-    if(holdDealUnlocked()){
-      startHoldDrop(null);
-    } else {
-      draw();
-    }
+    draw();
   });
   canvas.addEventListener('pointermove', (e)=>{
     if(!pointerDown) return;
@@ -7099,16 +8923,11 @@
   function releasePointer(){
     if(!pointerDown) return;
     pointerDown = false;
-    if(holdDealUnlocked()){
-      stopHoldDrop();
-      return;
-    }
     if(!inputBlocked()) dropAt(aimX);
   }
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', ()=>{
     pointerDown = false;
-    stopHoldDrop();
   });
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
@@ -7119,28 +8938,33 @@
     if(upgradeLevel('autoDealer') > 0) updateAutoStatus(now);
     if(!looping && !resolveLooping){
       updateSuitBombUI(now);
-      tryAutoDrop(now);
-      tryHoldDrop(now);
       tryAutoSuitBomb(now);
       maybeAutoBuy(now);
       maybeAutoClaimQuests(now);
       const needLoop = balls.length || particles.length || resolving
-        || holdDropping
+        || autoDealerActive()
         || (prestigeLevel('pitBoss') > 0 && isAutoEnabled('pitBoss'))
         || (prestigeLevel('questDesk') > 0
           && isAutoEnabled('questDesk')
           && activeQuests.some(q => activeQuestComplete(q)))
-        || Number.isFinite(autoDropIntervalMs())
         || (suitBombUnlocked() && (
-          (upgradeLevel('autoSuitBomb') > 0 && isAutoEnabled('autoSuitBomb'))
+          (prestigeLevel('autoSuitBomb') > 0 && isAutoEnabled('autoSuitBomb'))
           || !suitBombReady(now)
         ));
       if(needLoop) startLoop();
-      else draw();
+      else {
+        const idleDrawMs = desktopMq.matches ? 0 : 72;
+        if(idleDrawMs === 0 || now - lastIdleDrawAt >= idleDrawMs){
+          draw();
+          lastIdleDrawAt = now;
+        }
+      }
     }
     requestAnimationFrame(idleSpin);
   }
 
+  loadSettings();
+  syncSettingsUI();
   loadSave();
   // Don't flash unlock animations for upgrades already available on load.
   for(const def of UPGRADE_DEFS){
