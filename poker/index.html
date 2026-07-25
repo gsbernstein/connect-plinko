@@ -147,12 +147,6 @@
     font-size:12px;
     color:var(--ink-dim);
   }
-  .next-card canvas{
-    width:36px;
-    height:36px;
-    border-radius:50%;
-    display:block;
-  }
   .next-card b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -400,6 +394,23 @@
   .rail-tab[data-panel="welcome"].is-active{border-color:rgba(46,138,110,0.5); color:var(--felt-bright);}
   .rail-tab[data-panel="upgrades"].is-active{border-color:rgba(46,138,110,0.45); color:var(--felt-bright);}
   .rail-tab[data-panel="quests"].is-active{border-color:rgba(126,200,163,0.45); color:#7EC8A3;}
+  .rail-tab[data-panel="quests"].quest-auto-claimed{
+    animation:questTabAutoClaim 1.1s ease;
+  }
+  .rail-tab[data-panel="quests"].quest-auto-claimed .rail-tab-badge{
+    animation:questTabBadgePop 1.1s ease;
+  }
+  @keyframes questTabAutoClaim{
+    0%,100%{box-shadow:none;border-color:transparent;}
+    18%{border-color:rgba(126,200,163,0.75);box-shadow:0 0 0 2px rgba(126,200,163,0.22), 0 0 14px rgba(126,200,163,0.28);}
+    42%{border-color:rgba(240,215,140,0.55);box-shadow:0 0 0 1px rgba(240,215,140,0.18), 0 0 10px rgba(240,215,140,0.2);}
+  }
+  @keyframes questTabBadgePop{
+    0%,100%{transform:scale(1);}
+    22%{transform:scale(1.28);}
+    48%{transform:scale(0.94);}
+    68%{transform:scale(1.08);}
+  }
   .rail-tab[data-panel="achievements"].is-active{border-color:rgba(240,215,140,0.45); color:#F0D78C;}
   .rail-tab[data-panel="vip"].is-active{border-color:rgba(230,195,92,0.5); color:#E6C35C;}
   .rail-tab[data-panel="settings"].is-active{border-color:#3a3558; color:var(--ink);}
@@ -659,6 +670,32 @@
   }
   .quest.claimable .quest-action{color:var(--felt-bright);}
   .quest.claimed .quest-action{color:var(--ink-dim);font-weight:500;}
+  .quest.quest-claiming{
+    animation:questClaimPop .32s ease forwards;
+    pointer-events:none;
+    z-index:1;
+  }
+  .quest.quest-claiming-auto{
+    animation-name:questClaimPopAuto;
+  }
+  @keyframes questClaimPop{
+    0%{transform:scale(1);filter:brightness(1);box-shadow:0 0 0 0 rgba(46,138,110,0.5);}
+    45%{transform:scale(1.03);filter:brightness(1.15);box-shadow:0 0 18px 3px rgba(46,138,110,0.35);}
+    100%{transform:scale(0.97);filter:brightness(0.85);opacity:0.45;}
+  }
+  @keyframes questClaimPopAuto{
+    0%{transform:scale(1);filter:brightness(1);box-shadow:0 0 0 0 rgba(240,215,140,0.45);}
+    45%{transform:scale(1.02);filter:brightness(1.12);box-shadow:0 0 16px 2px rgba(240,215,140,0.32);}
+    100%{transform:scale(0.97);filter:brightness(0.85);opacity:0.45;}
+  }
+  .quest.quest-rolling-in{
+    animation:questRollIn .42s ease;
+  }
+  @keyframes questRollIn{
+    0%{opacity:0;transform:translateY(-10px) scale(0.95);}
+    60%{opacity:1;transform:translateY(2px) scale(1.01);}
+    100%{opacity:1;transform:translateY(0) scale(1);}
+  }
   .upgrade{
     position:relative;
     display:flex;
@@ -901,7 +938,6 @@
     position:relative;
     overflow:hidden;
     border:1px solid #2a2545;
-    background:var(--panel-2);
     border-radius:10px;
     padding:10px 0;
     cursor:pointer;
@@ -910,14 +946,27 @@
     font-size:20px;
     line-height:1;
     color:var(--ink);
-    transition:transform .08s ease, border-color .15s ease, opacity .15s ease;
+    background:
+      radial-gradient(ellipse 130% 110% at 50% 8%, var(--felt-hi) 0%, var(--felt-mid) 52%, var(--felt-lo) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.12),
+      inset 0 -10px 18px rgba(0,0,0,0.18);
+    transition:transform .08s ease, border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  .suit-btn .suit-glyph{
+    position:relative;
+    z-index:1;
+    text-shadow:0 1px 2px rgba(0,0,0,0.45);
   }
   .suit-btn:hover:not(:disabled){
     transform:translateY(-1px);
-    border-color:#463d7a;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.14),
+      inset 0 -10px 18px rgba(0,0,0,0.18),
+      0 0 14px var(--suit-glow);
   }
   .suit-btn:disabled{
-    opacity:0.4;
+    opacity:0.42;
     cursor:not-allowed;
   }
   .suit-btn.gone{display:none;}
@@ -925,20 +974,63 @@
     position:absolute;
     left:0; right:0; bottom:0;
     height:0%;
-    background:rgba(139,127,255,0.22);
+    background:var(--suit-charge);
     pointer-events:none;
     transition:height .1s linear;
   }
   .suit-btn.charging .cd-fill{height:var(--cd, 0%);}
   .suit-btn.queued{
     opacity:1;
-    border-color:var(--peg);
-    box-shadow:0 0 0 1px rgba(139,127,255,0.35);
+    border-color:var(--suit-accent);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.14),
+      0 0 0 1px var(--suit-glow),
+      0 0 16px var(--suit-glow);
   }
-  .suit-btn[data-suit="♥"]{color:var(--heart);}
-  .suit-btn[data-suit="♦"]{color:var(--diamond);}
-  .suit-btn[data-suit="♠"]{color:var(--spade);}
-  .suit-btn[data-suit="♣"]{color:var(--club);}
+  .suit-btn[data-suit="♥"]{
+    --felt-hi:#C43A55;
+    --felt-mid:#7A1830;
+    --felt-lo:#3A0C18;
+    --suit-accent:var(--heart);
+    --suit-glow:rgba(255,77,109,0.38);
+    --suit-charge:rgba(255,77,109,0.28);
+    color:var(--heart);
+    border-color:rgba(196,58,85,0.55);
+  }
+  .suit-btn[data-suit="♦"]{
+    --felt-hi:#D0704A;
+    --felt-mid:#8A4824;
+    --felt-lo:#3A2010;
+    --suit-accent:var(--diamond);
+    --suit-glow:rgba(255,138,91,0.38);
+    --suit-charge:rgba(255,138,91,0.28);
+    color:var(--diamond);
+    border-color:rgba(208,112,74,0.55);
+  }
+  .suit-btn[data-suit="♠"]{
+    --felt-hi:#6E68A0;
+    --felt-mid:#3A3558;
+    --felt-lo:#1A1630;
+    --suit-accent:var(--spade);
+    --suit-glow:rgba(200,194,232,0.34);
+    --suit-charge:rgba(200,194,232,0.24);
+    color:var(--spade);
+    border-color:rgba(110,104,160,0.58);
+  }
+  .suit-btn[data-suit="♣"]{
+    --felt-hi:#4A9A78;
+    --felt-mid:#1F5A46;
+    --felt-lo:#0E2A22;
+    --suit-accent:var(--club);
+    --suit-glow:rgba(126,200,163,0.36);
+    --suit-charge:rgba(126,200,163,0.26);
+    color:var(--club);
+    border-color:rgba(74,154,120,0.55);
+  }
+  .suit-btn[data-suit="♥"]:hover:not(:disabled){border-color:var(--heart);}
+  .suit-btn[data-suit="♦"]:hover:not(:disabled){border-color:var(--diamond);}
+  .suit-btn[data-suit="♠"]:hover:not(:disabled){border-color:var(--spade);}
+  .suit-btn[data-suit="♣"]:hover:not(:disabled){border-color:var(--club);}
   .comps-pill{
     display:inline-flex;
     align-items:center;
@@ -1001,13 +1093,7 @@
     white-space:nowrap;
   }
   .level-left .hud-label::after{content:'\00a0';}
-  .next-card-meta{
-    display:flex;
-    align-items:baseline;
-    gap:0;
-  }
-  .next-card-meta .hud-label::after{content:'\00a0';}
-  .hud-mobile-only{display:none;}
+  .next-card .hud-label::after{content:'\00a0';}
   .level-pill b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -1081,6 +1167,16 @@
     100%{ transform:scale(1); }
   }
   @media (max-width:999px){
+    .app.mode-shop .stage{
+      flex:0 0 auto;
+      padding-bottom:0;
+      overflow:visible;
+    }
+    .app.mode-shop .stage .board-frame,
+    .app.mode-shop .stage .suit-bomb,
+    .app.mode-shop .stage .chip-fx-layer{
+      display:none !important;
+    }
     .hud{
       flex-wrap:nowrap;
       gap:4px;
@@ -1168,19 +1264,6 @@
       justify-content:center;
       gap:1px;
       padding:4px 2px;
-    }
-    .hud-mobile-only{display:block;}
-    .hud-desktop-only{display:none;}
-    .next-card-meta{
-      flex-direction:column;
-      align-items:center;
-      min-width:0;
-      width:100%;
-    }
-    .next-card canvas{
-      width:26px;
-      height:26px;
-      flex-shrink:0;
     }
     .next-card b{font-size:10px;max-width:100%;}
   }
@@ -1769,12 +1852,8 @@
         <div class="idle-bar" aria-hidden="true"><span id="autoStatusFill"></span></div>
       </div>
       <div class="next-card hud-tile">
-        <span class="hud-label hud-mobile-only">Next</span>
-        <canvas id="nextPreview" width="72" height="72"></canvas>
-        <div class="next-card-meta">
-          <span class="hud-label hud-desktop-only">Next</span>
-          <b class="hud-val" id="nextLabel">—</b>
-        </div>
+        <span class="hud-label">Next</span>
+        <b class="hud-val" id="nextLabel">—</b>
       </div>
     </div>
     <div class="level-toast" id="levelToast" role="status" aria-live="polite"></div>
@@ -1977,8 +2056,6 @@
   // Drive CSS aspect-ratio from the live bitmap so layout can't drift again.
   canvas.style.setProperty('--board-aspect', W + ' / ' + H);
   const ctx = canvas.getContext('2d');
-  const nextPreview = document.getElementById('nextPreview');
-  const nextCtx = nextPreview.getContext('2d');
 
   const PEG = getCSS('--peg');
   const PANEL = getCSS('--panel');
@@ -2020,8 +2097,29 @@
     if(r===13) return 'K';
     return String(r);
   }
-  function cardFace(card){ return rankLabel(card.rank) + card.suit; }
-  const CARD_TIER_LABELS = ['', 'Silver', 'Gold', 'Diamond'];
+  function cardFace(card){
+    if(isWild(card)) return rankLabel(card.rank) + ' W';
+    return rankLabel(card.rank) + card.suit;
+  }
+  const WILD_SUIT = '★';
+  const WILD_GLOW = '#E8ECF4';
+  const WILD_FELT = { hi:'#3A3A48', mid:'#1A1A24', lo:'#080810' };
+  const WILD_ACCENT = '#C8CCD8';
+  const WILD_ICON_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FDD835'];
+  function isWild(card){ return !!(card && card.wild); }
+  function cardGlowColor(card){
+    return isWild(card) ? WILD_GLOW : (SUIT_COLOR[card.suit] || '#ffffff');
+  }
+  function sliceSharesFlushSuit(cards){
+    const fixed = cards.filter(c => !isWild(c));
+    if(!fixed.length) return true;
+    const s = fixed[0].suit;
+    return fixed.every(c => c.suit === s);
+  }
+  function flushHintColor(cards){
+    const fixed = cards.find(c => !isWild(c));
+    return fixed ? SUIT_COLOR[fixed.suit] : WILD_GLOW;
+  }
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
   // Premium cards only swap the chip shell to a tier-colored felt; glyphs stay normal.
   const CARD_TIER_FELT = [
@@ -2037,10 +2135,19 @@
   }
   function cloneCard(card, extra){
     const c = {suit: card.suit, rank: card.rank};
+    if(isWild(card)) c.wild = true;
     const t = cardTier(card);
     if(t) c.tier = t;
     if(extra) Object.assign(c, extra);
     return c;
+  }
+  function wildCardChance(){
+    const lvl = upgradeLevel('wildCard');
+    if(!lvl) return 0;
+    return Math.min(0.22, 0.012 + lvl * 0.014);
+  }
+  function rollWildCard(){
+    return Math.random() < wildCardChance();
   }
   function premiumCutChances(){
     const lvl = upgradeLevel('premiumCut');
@@ -2070,7 +2177,7 @@
     return t === 3 ? '◆' : t === 2 ? '★' : t === 1 ? '✦' : '';
   }
   function trailRGBA(card, alpha){
-    const hex = SUIT_COLOR[card.suit] || '#ffffff';
+    const hex = cardGlowColor(card);
     const n = parseInt(hex.slice(1), 16);
     const r = (n>>16)&255, g = (n>>8)&255, b = n&255;
     return `rgba(${r},${g},${b},${alpha})`;
@@ -2081,6 +2188,7 @@
   const CHIP_TEX_SIZE = 128;
   const chipTextures = Object.create(null);
   const chipTierTextures = Object.create(null);
+  let chipWildTexture = null;
   let feltNoiseCanvas = null;
 
   function getFeltNoise(){
@@ -2205,7 +2313,17 @@
     }
   }
 
+  function ensureWildChipTexture(){
+    if(!chipWildTexture){
+      chipWildTexture = bakeChipTexture(WILD_FELT, WILD_ACCENT);
+    }
+  }
+
   function chipTextureForCard(card){
+    if(isWild(card)){
+      ensureWildChipTexture();
+      return chipWildTexture;
+    }
     const tier = cardTier(card);
     if(tier){
       ensureTierChipTextures();
@@ -2245,8 +2363,13 @@
   function dealCard(){
     if(shoe.length < 8) shoe = shoe.concat(makeDeck());
     const card = shoe.pop();
-    const tier = rollCardTier();
-    if(tier) card.tier = tier;
+    if(rollWildCard()){
+      card.wild = true;
+      card.suit = WILD_SUIT;
+    } else {
+      const tier = rollCardTier();
+      if(tier) card.tier = tier;
+    }
     return card;
   }
 
@@ -2267,11 +2390,10 @@
     const n = cards.length;
     if(n < 3) return null;
     const ranks = cards.map(c=>c.rank);
-    const suits = cards.map(c=>c.suit);
     const rankCounts = {};
     for(const r of ranks) rankCounts[r] = (rankCounts[r]||0)+1;
     const counts = Object.values(rankCounts).sort((a,b)=>b-a);
-    const flush = n>=5 && suits.every(s=>s===suits[0]);
+    const flush = n>=5 && sliceSharesFlushSuit(cards);
     const straight = n===5 && isStraightRanks(ranks);
 
     if(n===5 && flush && straight){
@@ -2390,6 +2512,15 @@
       costScale: 2.0,
       maxLevel: 15,
       unlockAt: 4
+    },
+    {
+      id: 'wildCard',
+      name: 'Wild Card',
+      desc: 'Chance to deal a wild card that counts as any suit for flushes. Higher levels deal them more often.',
+      baseCost: 175,
+      costScale: 2.0,
+      maxLevel: 12,
+      unlockAt: 5
     },
     {
       id: 'bumperPayout',
@@ -2517,6 +2648,7 @@
     'TWO PAIR': 'runTwoPairs'
   };
   const MAX_QUEST_SLOTS = 5;
+  const QUEST_CLAIM_ANIM_MS = 320;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
     common:    { label: 'Common',    weight: 52, targetMult: 1,   rewardMult: 1,   color: '#9aa3b5' },
@@ -3226,46 +3358,43 @@
     updateSuitBombUI(performance.now(), true);
   }
 
-  function claimActiveQuest(uid, opts){
-    opts = opts || {};
-    const idx = activeQuests.findIndex(q => q.uid === uid);
-    if(idx < 0) return null;
-    const q = activeQuests[idx];
-    if(!activeQuestComplete(q)) return null;
-    applyContractReward(q.reward);
-    const used = new Set(
-      activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
-    );
-    activeQuests[idx] = rollQuest(used);
-    if(!opts.deferUi){
-      refreshQuestUiAndSave();
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST · ' + q.name,
-        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
-        t0: performance.now(),
-        duration: 1400,
-        big: true
-      });
-      if(!resolving && !looping) startLoop();
-    }
-    return q;
+  function isQuestsPanelOpen(){
+    return activeRailPanel === 'quests';
   }
 
-  function tryAutoClaimQuests(){
-    if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
-    const claimed = [];
-    // Cap passes so a bad roll can never spin forever.
-    for(let guard = 0; guard < MAX_QUEST_SLOTS; guard++){
-      const ready = activeQuests.find(q => activeQuestComplete(q));
-      if(!ready) break;
-      const q = claimActiveQuest(ready.uid, { deferUi: true });
-      if(!q) break;
-      claimed.push(q);
-    }
-    if(!claimed.length) return 0;
-    refreshQuestUiAndSave();
+  function playQuestClaimEffect(btn, opts){
+    if(!btn) return;
+    opts = opts || {};
+    btn.classList.remove('quest-claiming', 'quest-claiming-auto', 'quest-rolling-in');
+    void btn.offsetWidth;
+    btn.classList.add('quest-claiming');
+    if(opts.auto) btn.classList.add('quest-claiming-auto');
+    clearTimeout(btn._questClaimTimer);
+    btn._questClaimTimer = setTimeout(()=>{
+      btn.classList.remove('quest-claiming', 'quest-claiming-auto');
+    }, QUEST_CLAIM_ANIM_MS + 40);
+  }
+
+  function playQuestRollIn(btn){
+    if(!btn) return;
+    btn.classList.remove('quest-claiming', 'quest-claiming-auto', 'quest-rolling-in');
+    void btn.offsetWidth;
+    btn.classList.add('quest-rolling-in');
+    clearTimeout(btn._questRollInTimer);
+    btn._questRollInTimer = setTimeout(()=>btn.classList.remove('quest-rolling-in'), 440);
+  }
+
+  function pulseQuestTabAutoClaim(){
+    const tab = questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+    if(!tab) return;
+    tab.classList.remove('quest-auto-claimed');
+    void tab.offsetWidth;
+    tab.classList.add('quest-auto-claimed');
+    clearTimeout(tab._questAutoClaimTimer);
+    tab._questAutoClaimTimer = setTimeout(()=>tab.classList.remove('quest-auto-claimed'), 1120);
+  }
+
+  function pushQuestClaimPopup(claimed){
     if(claimed.length === 1){
       const q = claimed[0];
       pushPopup({
@@ -3289,6 +3418,70 @@
       });
     }
     if(!resolving && !looping) startLoop();
+  }
+
+  function claimActiveQuest(uid, opts){
+    opts = opts || {};
+    const idx = activeQuests.findIndex(q => q.uid === uid);
+    if(idx < 0) return null;
+    const q = activeQuests[idx];
+    if(!activeQuestComplete(q)) return null;
+    const panelOpen = isQuestsPanelOpen();
+    const animateCard = panelOpen && opts.animate !== false && !opts.deferUi;
+
+    const finishClaim = ()=>{
+      applyContractReward(q.reward);
+      const used = new Set(
+        activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
+      );
+      activeQuests[idx] = rollQuest(used);
+      if(!opts.deferUi){
+        refreshQuestUiAndSave();
+        if(panelOpen) playQuestRollIn(questSlotButtons[idx]);
+        pushQuestClaimPopup([q]);
+      }
+      return q;
+    };
+
+    if(animateCard){
+      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto });
+      setTimeout(finishClaim, QUEST_CLAIM_ANIM_MS);
+      return q;
+    }
+
+    return finishClaim();
+  }
+
+  function tryAutoClaimQuests(){
+    if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
+    const claimed = [];
+    const claimedSlots = [];
+    const panelOpen = isQuestsPanelOpen();
+    // Cap passes so a bad roll can never spin forever.
+    for(let guard = 0; guard < MAX_QUEST_SLOTS; guard++){
+      const ready = activeQuests.find(q => activeQuestComplete(q));
+      if(!ready) break;
+      const idx = activeQuests.findIndex(x => x.uid === ready.uid);
+      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true });
+      const q = claimActiveQuest(ready.uid, { deferUi: true });
+      if(!q) break;
+      claimed.push(q);
+      claimedSlots.push(idx);
+    }
+    if(!claimed.length) return 0;
+
+    const finishUi = ()=>{
+      refreshQuestUiAndSave();
+      if(panelOpen){
+        for(const idx of claimedSlots) playQuestRollIn(questSlotButtons[idx]);
+      } else {
+        pulseQuestTabAutoClaim();
+      }
+      pushQuestClaimPopup(claimed);
+    };
+
+    if(panelOpen) setTimeout(finishUi, QUEST_CLAIM_ANIM_MS);
+    else finishUi();
     return claimed.length;
   }
 
@@ -3515,7 +3708,9 @@
   }
 
   function cardAllowed(card){
-    return !!(card && rankAllowed(card.rank) && activeSuits().includes(card.suit));
+    if(!card) return false;
+    if(isWild(card)) return rankAllowed(card.rank);
+    return rankAllowed(card.rank) && activeSuits().includes(card.suit);
   }
 
   function reshapeShoe(){
@@ -3795,14 +3990,12 @@
     if(gameSettings.chipAnimation === false) return;
     opts = opts || {};
     amount = Math.floor(amount);
-    if(amount <= 0 && !opts.count && !opts.minCount) return;
+    if(amount <= 0 && !opts.count) return;
     const budget = Math.max(0, MAX_FLYING_CHIPS - flyingChips.length);
     if(budget <= 0) return;
     let count = Number.isFinite(opts.count)
       ? Math.floor(opts.count)
       : chipFlyCountForAmount(Math.max(1, amount));
-    if(opts.minCount) count = Math.max(count, Math.floor(opts.minCount));
-    if(opts.burst && opts.burst > 1) count = Math.ceil(count * opts.burst);
     const maxFly = desktopMq.matches ? (opts.maxCount || 28) : 12;
     count = Math.min(count, budget, maxFly);
     // Never show more chips flying than were actually awarded.
@@ -3990,6 +4183,9 @@
         const pct = n => (n * 100).toFixed(n < 0.01 ? 1 : 0).replace(/\.0$/, '') + '%';
         return pct(silver) + ' silver · ' + pct(gold) + ' gold · ' + pct(diamond) + ' diamond';
       }
+      case 'wildCard':
+        if(!lvl) return 'No wilds';
+        return (wildCardChance() * 100).toFixed(1).replace(/\.0$/, '') + '% wild';
       case 'pinPayout':
         return lvl ? ('+' + pinHitPayout() + ' / peg') : 'No payout';
       case 'bumperPayout':
@@ -5279,7 +5475,7 @@
               points: cand.points,
               cardMult: cand.cardMult,
               cells: cand.cells,
-              color: SUIT_COLOR[cards[cand.i].suit]
+              color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
             });
           }
         }
@@ -5339,13 +5535,13 @@
               const slice = cards.slice(i, i+4);
               const sliceCells = cells.slice(i, i+4);
               if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              const sameSuit = slice.every(card => card.suit === slice[0].suit);
+              const sameSuit = sliceSharesFlushSuit(slice);
               const straightish = canCompleteStraight(slice.map(card => card.rank));
               if(sameSuit && straightish){
                 sfWindows.add('4:'+i);
-                pushHint(sliceCells, 'sf4', 'SF', SUIT_COLOR[slice[0].suit], 50);
+                pushHint(sliceCells, 'sf4', 'SF', flushHintColor(slice), 50);
               } else if(sameSuit){
-                pushHint(sliceCells, 'flush4', 'flush', SUIT_COLOR[slice[0].suit], 40);
+                pushHint(sliceCells, 'flush4', 'flush', flushHintColor(slice), 40);
               } else if(straightish){
                 pushHint(sliceCells, 'straight4', 'straight', PEG, 35);
               }
@@ -5359,12 +5555,12 @@
               if(slice.some((_,k)=>scoringMask[i+k])) continue;
               // Covered by a 4-card SF window that includes this stub
               if(sfWindows.has('4:'+i) || sfWindows.has('4:'+(i-1))) continue;
-              const sameSuit = slice.every(card => card.suit === slice[0].suit);
+              const sameSuit = sliceSharesFlushSuit(slice);
               const straightish = isConnectedStraight3(slice.map(card => card.rank));
               if(sameSuit && straightish){
-                pushHint(sliceCells, 'sf3', 'SF', SUIT_COLOR[slice[0].suit], 28);
+                pushHint(sliceCells, 'sf3', 'SF', flushHintColor(slice), 28);
               } else if(sameSuit){
-                pushHint(sliceCells, 'flush3', 'flush', SUIT_COLOR[slice[0].suit], 18);
+                pushHint(sliceCells, 'flush3', 'flush', flushHintColor(slice), 18);
               } else if(straightish){
                 pushHint(sliceCells, 'straight3', 'straight', '#B8B0E0', 16);
               }
@@ -5379,7 +5575,7 @@
                 cells.slice(i, i+2),
                 'pair',
                 'trips',
-                SUIT_COLOR[cards[i].suit],
+                cardGlowColor(cards[i]),
                 22
               );
             }
@@ -5614,7 +5810,7 @@
 
   function spawnExplosion(x, y, card){
     if(particles.length >= MAX_PARTICLES) return;
-    const color = card ? SUIT_COLOR[card.suit] : '#ffffff';
+    const color = card ? cardGlowColor(card) : '#ffffff';
     const budget = Math.max(0, MAX_PARTICLES - particles.length);
     const sparks = Math.min(12, budget);
     for(let i=0;i<sparks;i++){
@@ -6040,8 +6236,33 @@
 
   // ---- drawing ----
   // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
+  function drawWildIcon(target, x, y, size){
+    const rx = size * 0.42;
+    const ry = size * 0.30;
+    const reach = Math.max(rx, ry) * 1.25;
+    target.save();
+    target.translate(x, y);
+    target.beginPath();
+    target.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    target.clip();
+    for(let i = 0; i < 4; i++){
+      target.beginPath();
+      target.moveTo(0, 0);
+      target.arc(0, 0, reach, i * Math.PI / 2, (i + 1) * Math.PI / 2);
+      target.closePath();
+      target.fillStyle = WILD_ICON_COLORS[i];
+      target.fill();
+    }
+    target.restore();
+    target.beginPath();
+    target.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    target.strokeStyle = 'rgba(255,255,255,0.92)';
+    target.lineWidth = Math.max(1, size * 0.06);
+    target.stroke();
+  }
+
   function drawChipGlyphs(target, card, radius){
-    const color = SUIT_COLOR[card.suit];
+    const color = cardGlowColor(card);
     target.textAlign = 'center';
     target.textBaseline = 'middle';
     const suitSize = Math.max(10, Math.round(radius * 0.74));
@@ -6062,14 +6283,18 @@
       target.fillText(text, x, y);
     }
 
-    stampGlyph(
-      card.suit,
-      suitX,
-      suitY,
-      color,
-      `bold ${suitSize}px 'Space Grotesk', sans-serif`,
-      Math.max(1.6, radius * 0.09)
-    );
+    if(isWild(card)){
+      drawWildIcon(target, suitX, suitY, radius * 0.95);
+    } else {
+      stampGlyph(
+        card.suit,
+        suitX,
+        suitY,
+        color,
+        `bold ${suitSize}px 'Space Grotesk', sans-serif`,
+        Math.max(1.6, radius * 0.09)
+      );
+    }
     stampGlyph(
       rankLabel(card.rank),
       rankX,
@@ -6081,7 +6306,7 @@
   }
 
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
-    const color = SUIT_COLOR[card.suit];
+    const color = cardGlowColor(card);
     const tex = chipTextureForCard(card);
     const d = radius * 2;
     target.save();
@@ -6121,7 +6346,7 @@
   }
 
   function drawFlashPiece(cx, cy, card, elapsedFrac){
-    const color = SUIT_COLOR[card.suit];
+    const color = cardGlowColor(card);
     // Uniform flash (rank juice lives in score text). Tiny scale + suit pulse.
     const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * 7);
     const r = 32 * pulse;
@@ -6438,7 +6663,7 @@
     }
 
     if(!gameOver && nextCard){
-      const c = SUIT_COLOR[nextCard.suit];
+      const c = cardGlowColor(nextCard);
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
       ctx.lineTo(aimX+9, 6);
@@ -6575,7 +6800,7 @@
       appEl.classList.toggle('mode-shop', !tableMode);
     }
     if(stageEl){
-      stageEl.classList.toggle('is-active', tableMode || isDesktopLayout());
+      stageEl.classList.add('is-active');
     }
     for(const p of railPanels){
       p.classList.toggle('is-active', p.dataset.panel === panel);
@@ -7025,10 +7250,6 @@
       if(btn.classList.contains('is-disabled')) return;
       onBuy(def.id);
     };
-    btn.addEventListener('pointerdown', (e)=>{
-      if(e.target.closest('.upgrade-toggle')) return;
-      if(e.pointerType === 'touch') e.preventDefault();
-    });
     btn.addEventListener('click', (e)=>{
       if(e.target.closest('.upgrade-toggle')) return;
       tryBuy();
@@ -7370,13 +7591,10 @@
   function updateNextUI(){
     if(!nextCard){
       nextLabel.textContent = '—';
-      nextCtx.clearRect(0,0,nextPreview.width, nextPreview.height);
       return;
     }
     const tierMark = tierLabelShort(cardTier(nextCard));
     nextLabel.textContent = tierMark ? (tierMark + ' ' + cardFace(nextCard)) : cardFace(nextCard);
-    nextCtx.clearRect(0,0,nextPreview.width, nextPreview.height);
-    drawCardFace(nextCtx, 36, 36, nextCard, 0, 30, false, 0);
   }
 
   document.getElementById('playAgain').addEventListener('click', ()=>{
