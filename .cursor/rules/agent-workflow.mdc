@@ -35,4 +35,5 @@ git branch -r --merged origin/master | grep 'origin/cursor/'
 - Base branch for PRs: `master`.
 - This repo has no build or test command — validate with `python3 -m http.server 8080` and manual play when UI/gameplay changes.
 - Most edits are in `index.html` (classic) or `poker/index.html` (poker). Read `AGENTS.md` before wide exploration.
+- If your change affects areas covered in `AGENTS.md`, update that file in the same PR.
 - Bump `SAVE_VERSION` and migrate in `loadSave` when changing poker save shape.

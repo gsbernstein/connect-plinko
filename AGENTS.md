@@ -2,6 +2,10 @@
 
 Quick orientation for cloud agents and other automated contributors. Read this before exploring the tree.
 
+## Keeping this file current
+
+When you touch an area documented here — progression, saves, rail UI, pulse feedback, physics, etc. — **update `AGENTS.md` in the same PR** if your change adds symbols, moves line ranges, or changes behavior future agents need to know. Do not leave the guide stale; a one-line table row or a short bullet is enough. Player-facing copy still belongs in `README.md` when behavior is user-visible.
+
 ## What this repo is
 
 Static browser games — no build step, no package manager, no test suite. GitHub Pages deploys **`master`** from the repo root (`/`).
@@ -66,6 +70,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, …) — order = shop order |
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out |
 | `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias) |
+| `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
 | `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
@@ -94,6 +99,41 @@ Game design detail for players lives in `README.md`.
 | 6700–7100 | Floor clear, board-full escape, drawing cards on canvas |
 | 7500–8900 | Rail tabs, quest UI, modals, init, keeper loop |
 
+### Quest & achievement board UI
+
+Quests and achievements share one card shell (`makeQuestCardShell`):
+
+| Piece | Selector / function | Notes |
+|-------|---------------------|--------|
+| Quest list | `#quests`, `updateQuestsUI` | Per-run slots; progress via `activeQuestProgress` |
+| Achievement list | `#achievements`, `updateAchievementsUI` | Permanent; panel `#panelAchievements` |
+| Progress row | `.quest-progress-row` → `.quest-prog` | HTML: `<b>{numerator}</b> / {denominator}` |
+| Progress bar | `.quest-bar > span` | Width from `progress / target` |
+| Card styling | `.quest.achievement` | Gold accent (`#F0D78C`) on kind label + bar |
+
+**Achievement numerator rules**
+
+- Canonical value: `achievementProgress(def)` — `Math.floor(stat)` capped at the active tier target.
+- Display: `formatNum(progress)` inside `.quest-prog b` (also floors at render time for large numbers).
+- Completion still uses raw `achievementStatValue(def) >= tier.target` so claims are not delayed by flooring.
+- UI refresh is debounced via `scheduleContractsUI` (120 ms) → `updateContractsUI`.
+
+**Increment pulse (achievements only)**
+
+When the floored numerator rises, `pulseAchievementNumerator` adds `.prog-pulse` to `.quest.achievement .quest-prog b`. `achievementProgShown` (per achievement id) stores the last painted numerator so the first paint and tier resets do not pulse. Reset `achievementProgShown` in `buildContracts` when cards are rebuilt.
+
+### UI feedback (pulse animations)
+
+Reuse the existing land-pulse pattern instead of inventing new motion:
+
+| Target | Class | Helper | Keyframes |
+|--------|-------|--------|-----------|
+| Chip score box | `.score.chip-pulse` | `pulseScoreBox` | `chipLandPulse` |
+| VIP comps pill | `.comps-pill.comp-pulse` | `pulseCompsBox` | `compLandPulse` |
+| Achievement prog numerator | `.quest-prog b.prog-pulse` | `pulseAchievementNumerator` | `achievementProgPulse` |
+
+All helpers restart CSS animation with `el.classList.remove(...); void el.offsetWidth; el.classList.add(...)` and clear via `setTimeout` (~340 ms). Inline numerators that scale need `display: inline-block` on the `<b>` (see `.quest.achievement .quest-prog b`).
+
 ### Physics & board
 
 Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds per-column occupants (settled cards + in-flight balls); gravity/clear passes update ball target rows in place.
@@ -110,7 +150,8 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 |------|----------------|
 | New table upgrade | `UPGRADE_DEFS`, buy UI, any skill-specific logic |
 | New VIP perk | `PRESTIGE_DEFS`, comp shop, bonus helpers (`vipBonusLevel`, etc.) |
-| New achievement | `ACHIEVEMENT_DEFS`, claim/progress checks |
+| New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
+| Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
 | Hand scoring / stats | hand detection block ~6160+, `HAND_STAT` wiring |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
@@ -146,6 +187,7 @@ If the branch is merged, **do not** push new commits on it — check out `master
 - Do not split into modules without a clear request; the monolith pattern is deliberate.
 - Do not change `SAVE_KEY` or wipe saves without migration.
 - Do not edit unrelated game (classic vs poker) when the task targets one mode.
+- When you change documented behavior or add new symbols/helpers, update **`AGENTS.md`** (and `README.md` when players would notice).
 
 ## Player docs
 
