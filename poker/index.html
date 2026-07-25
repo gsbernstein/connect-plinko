@@ -6027,7 +6027,7 @@
   // Suit stays obvious; rank sits on top, diagonally offset, in Fraunces.
   function fontSizeFromCss(font){
     const m = /(\d+(?:\.\d+)?)\s*px/.exec(font);
-    return m ? parseFloat(m[1]) : 12;
+    return m ? parseFloat(m[1]) : NaN;
   }
 
   function metalGlyphGradient(target, stops, x, y, size){
