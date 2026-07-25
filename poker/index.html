@@ -2961,7 +2961,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 20;
+  const SAVE_VERSION = 21;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2974,11 +2974,27 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 29,
-      date: 'Jul 25, 2026',
+      id: 31,
+      date: 'Jul 26, 2026',
       title: 'Chips per second',
       items: [
         'The Chips HUD now shows a live chips/s rate from recent table earnings.'
+      ]
+    },
+    {
+      id: 30,
+      date: 'Jul 26, 2026',
+      title: 'Highest combo achievements',
+      items: [
+        'New infinite Multiway achievement for your biggest COMBO — climb ×2, ×3, ×4… one step at a time.'
+      ]
+    },
+    {
+      id: 29,
+      date: 'Jul 25, 2026',
+      title: 'Storm blasts knock chips',
+      items: [
+        'Storm the Beaches explosions now shove nearby falling chips outward — seating cards can get yanked back into the pegs.'
       ]
     },
     {
@@ -3621,6 +3637,18 @@
       ]
     },
     {
+      id: 'a_max_combo', kind: 'achievement', name: 'Multiway',
+      desc: 'Reach COMBO ×{n}.',
+      stat: 'maxCombo', unlockAt: 1, infinite: true,
+      scale: { targetStep: 1, compPerLevel: 2, compCap: 40 },
+      tiers: [
+        { target: 2, reward: { chips: 200 } },
+        { target: 3, reward: { comps: 2 } },
+        { target: 4, reward: { comps: 4 } },
+        { target: 5, reward: { comps: 8 } }
+      ]
+    },
+    {
       id: 'a_floor', kind: 'achievement', name: 'Janitor',
       desc: 'Trigger {n} floor clears lifetime.',
       stat: 'floorClears', unlockAt: 1, infinite: true,
@@ -3932,6 +3960,7 @@
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
+    maxCombo: 0,
     sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
@@ -4059,6 +4088,8 @@
   // Storm the Beaches: flood the table, but pins can shell falling cards.
   const STORM_BEACHES_SPAWN_MULT = 1 / 3; // ~3× faster Auto Dealer
   const STORM_BEACHES_EXPLODE_CHANCE = 0.22;
+  const STORM_BEACHES_BLAST_RADIUS = 120;
+  const STORM_BEACHES_BLAST_FORCE = 10;
 
   function stormBeachesSpawnMult(){
     return stormBeachesActive() ? STORM_BEACHES_SPAWN_MULT : 1;
@@ -4299,11 +4330,17 @@
     const last = seeds[seeds.length - 1];
     const extra = level - seeds.length;
     const scale = def.scale || {};
-    const targetGrowth = scale.targetGrowth != null ? scale.targetGrowth : 2.2;
-    const target = Math.max(
-      last.target + 1,
-      Math.ceil(last.target * Math.pow(targetGrowth, extra))
-    );
+    let target;
+    // Linear +N steps (e.g. COMBO ×2, ×3, ×4… with targetStep: 1) when set.
+    if(scale.targetStep != null && scale.targetStep > 0){
+      target = last.target + Math.floor(scale.targetStep) * extra;
+    } else {
+      const targetGrowth = scale.targetGrowth != null ? scale.targetGrowth : 2.2;
+      target = Math.max(
+        last.target + 1,
+        Math.ceil(last.target * Math.pow(targetGrowth, extra))
+      );
+    }
     return {
       target,
       reward: achievementScaledReward(def, level, last.reward, extra)
@@ -4797,6 +4834,10 @@
     if(n > 1){
       bumpStat('multiHandClears', 1);
       bumpStat('runMultiClears', 1);
+    }
+    if(n > (stats.maxCombo || 0)){
+      stats.maxCombo = n;
+      scheduleContractsUI();
     }
     if(chainMult > 1){
       bumpStat('chainClears', 1);
@@ -6147,6 +6188,11 @@
           versionDirty = true;
         }
       }
+      // Pre-maxCombo saves: any multi-hand clear means at least COMBO ×2.
+      if((data.v || 0) < 21 && (stats.maxCombo || 0) < 2 && (stats.multiHandClears || 0) > 0){
+        stats.maxCombo = 2;
+        versionDirty = true;
+      }
       appRelease = APP_RELEASE;
       // Stamp immediately so a refresh before the next gameplay save can't double-count.
       if(versionDirty || data.appRelease !== APP_RELEASE) scheduleSave();
@@ -6841,6 +6887,31 @@
     balls.push(twin);
   }
 
+  function applyStormBlast(origin){
+    const ox = origin.x, oy = origin.y;
+    const R = STORM_BEACHES_BLAST_RADIUS;
+    for(const b of balls){
+      if(b === origin || b.exploded || b.landed) continue;
+      // Only shove in-flight chips — settled board pieces stay put.
+      if(b.phase !== 'peg' && b.phase !== 'grid') continue;
+      const dx = b.x - ox, dy = b.y - oy;
+      const dist = Math.hypot(dx, dy);
+      if(dist < 0.0001 || dist > R) continue;
+      const falloff = 1 - dist / R;
+      const impulse = STORM_BEACHES_BLAST_FORCE * (0.4 + 0.6 * falloff * falloff);
+      const nx = dx / dist, ny = dy / dist;
+      b.vx += nx * impulse;
+      b.vy += ny * impulse - 2.2 * falloff;
+      b.vx = Math.max(-12, Math.min(12, b.vx));
+      b.vy = Math.max(-14, Math.min(15, b.vy));
+      b.spin += (nx > 0 ? 1 : -1) * (0.15 + 0.35 * falloff);
+      // A hard upward kick can yank a seating chip back into the pegs.
+      if(b.phase === 'grid' && b.vy < -0.5){
+        releaseBallToPegs(b);
+      }
+    }
+  }
+
   function detonateFallingBall(ball){
     if(!ball || ball.exploded) return;
     ball.exploded = true;
@@ -6848,6 +6919,7 @@
     ball.vy = 0;
     ball.spin = 0;
     spawnExplosion(ball.x, ball.y, ball.card);
+    applyStormBlast(ball);
     if(ball.stackEntry != null && ball.targetCol != null){
       const col = ball.targetCol;
       const idx = stack[col].indexOf(ball.stackEntry);
