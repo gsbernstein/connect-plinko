@@ -4148,6 +4148,10 @@
     lastAutoDropAt = performance.now();
     lastPhysicsTime = 0;
     physicsAccumulator = 0;
+    fpsDisplay = 0;
+    fpsFrameCount = 0;
+    lastFpsSampleTime = 0;
+    lastPhysicsSteps = 0;
     stopHoldDrop();
     markHintsDirty();
     shoe = makeDeck().concat(makeDeck());
@@ -4440,6 +4444,10 @@
   const MAX_PHYSICS_STEPS = 10; // catch-up cap per frame after a hitch
   let lastPhysicsTime = 0;
   let physicsAccumulator = 0;
+  let fpsDisplay = 0;
+  let fpsFrameCount = 0;
+  let lastFpsSampleTime = 0;
+  let lastPhysicsSteps = 0;
 
   const BALL_RADIUS = 14;
   const HOLE_R = 29;
@@ -4775,6 +4783,7 @@
       physicsAccumulator -= PHYSICS_DT;
       physicsSteps++;
     }
+    lastPhysicsSteps = physicsSteps;
     stepParticles();
 
     const landed = balls.filter(b=>b.landed);
@@ -5699,6 +5708,40 @@
     return !desktopMq.matches;
   }
 
+  function sampleFps(now){
+    if(!lastFpsSampleTime) lastFpsSampleTime = now;
+    fpsFrameCount++;
+    const elapsed = now - lastFpsSampleTime;
+    if(elapsed >= 500){
+      fpsDisplay = Math.round(fpsFrameCount * 1000 / elapsed);
+      fpsFrameCount = 0;
+      lastFpsSampleTime = now;
+    }
+  }
+
+  function drawFpsOverlay(){
+    const now = performance.now();
+    sampleFps(now);
+    const lines = [
+      fpsDisplay + ' fps',
+      lastPhysicsSteps + ' phys · ' + balls.length + ' balls'
+    ];
+    ctx.save();
+    ctx.font = "11px 'IBM Plex Mono', monospace";
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let y = 8;
+    for(const line of lines){
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(8,6,16,0.92)';
+      ctx.strokeText(line, 8, y);
+      ctx.fillStyle = 'rgba(241,238,251,0.72)';
+      ctx.fillText(line, 8, y);
+      y += 14;
+    }
+    ctx.restore();
+  }
+
   function draw(){
     ctx.clearRect(0,0,W,H);
     const lite = perfLite();
@@ -5948,6 +5991,8 @@
       // tiny spinning preview of the next card at the drop point
       drawCardFace(ctx, aimX, 38, nextCard, performance.now()/400, 12, false, 0);
     }
+
+    drawFpsOverlay();
   }
 
   // ---- UI wiring ----
