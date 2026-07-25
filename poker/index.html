@@ -394,6 +394,23 @@
   .rail-tab[data-panel="welcome"].is-active{border-color:rgba(46,138,110,0.5); color:var(--felt-bright);}
   .rail-tab[data-panel="upgrades"].is-active{border-color:rgba(46,138,110,0.45); color:var(--felt-bright);}
   .rail-tab[data-panel="quests"].is-active{border-color:rgba(126,200,163,0.45); color:#7EC8A3;}
+  .rail-tab[data-panel="quests"].quest-auto-claimed{
+    animation:questTabAutoClaim 1.1s ease;
+  }
+  .rail-tab[data-panel="quests"].quest-auto-claimed .rail-tab-badge{
+    animation:questTabBadgePop 1.1s ease;
+  }
+  @keyframes questTabAutoClaim{
+    0%,100%{box-shadow:none;border-color:transparent;}
+    18%{border-color:rgba(126,200,163,0.75);box-shadow:0 0 0 2px rgba(126,200,163,0.22), 0 0 14px rgba(126,200,163,0.28);}
+    42%{border-color:rgba(240,215,140,0.55);box-shadow:0 0 0 1px rgba(240,215,140,0.18), 0 0 10px rgba(240,215,140,0.2);}
+  }
+  @keyframes questTabBadgePop{
+    0%,100%{transform:scale(1);}
+    22%{transform:scale(1.28);}
+    48%{transform:scale(0.94);}
+    68%{transform:scale(1.08);}
+  }
   .rail-tab[data-panel="achievements"].is-active{border-color:rgba(240,215,140,0.45); color:#F0D78C;}
   .rail-tab[data-panel="vip"].is-active{border-color:rgba(230,195,92,0.5); color:#E6C35C;}
   .rail-tab[data-panel="settings"].is-active{border-color:#3a3558; color:var(--ink);}
@@ -653,6 +670,32 @@
   }
   .quest.claimable .quest-action{color:var(--felt-bright);}
   .quest.claimed .quest-action{color:var(--ink-dim);font-weight:500;}
+  .quest.quest-claiming{
+    animation:questClaimPop .32s ease forwards;
+    pointer-events:none;
+    z-index:1;
+  }
+  .quest.quest-claiming-auto{
+    animation-name:questClaimPopAuto;
+  }
+  @keyframes questClaimPop{
+    0%{transform:scale(1);filter:brightness(1);box-shadow:0 0 0 0 rgba(46,138,110,0.5);}
+    45%{transform:scale(1.03);filter:brightness(1.15);box-shadow:0 0 18px 3px rgba(46,138,110,0.35);}
+    100%{transform:scale(0.97);filter:brightness(0.85);opacity:0.45;}
+  }
+  @keyframes questClaimPopAuto{
+    0%{transform:scale(1);filter:brightness(1);box-shadow:0 0 0 0 rgba(240,215,140,0.45);}
+    45%{transform:scale(1.02);filter:brightness(1.12);box-shadow:0 0 16px 2px rgba(240,215,140,0.32);}
+    100%{transform:scale(0.97);filter:brightness(0.85);opacity:0.45;}
+  }
+  .quest.quest-rolling-in{
+    animation:questRollIn .42s ease;
+  }
+  @keyframes questRollIn{
+    0%{opacity:0;transform:translateY(-10px) scale(0.95);}
+    60%{opacity:1;transform:translateY(2px) scale(1.01);}
+    100%{opacity:1;transform:translateY(0) scale(1);}
+  }
   .upgrade{
     position:relative;
     display:flex;
@@ -2598,6 +2641,7 @@
     'TWO PAIR': 'runTwoPairs'
   };
   const MAX_QUEST_SLOTS = 5;
+  const QUEST_CLAIM_ANIM_MS = 320;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
     common:    { label: 'Common',    weight: 52, targetMult: 1,   rewardMult: 1,   color: '#9aa3b5' },
@@ -3307,46 +3351,43 @@
     updateSuitBombUI(performance.now(), true);
   }
 
-  function claimActiveQuest(uid, opts){
-    opts = opts || {};
-    const idx = activeQuests.findIndex(q => q.uid === uid);
-    if(idx < 0) return null;
-    const q = activeQuests[idx];
-    if(!activeQuestComplete(q)) return null;
-    applyContractReward(q.reward);
-    const used = new Set(
-      activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
-    );
-    activeQuests[idx] = rollQuest(used);
-    if(!opts.deferUi){
-      refreshQuestUiAndSave();
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST · ' + q.name,
-        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
-        t0: performance.now(),
-        duration: 1400,
-        big: true
-      });
-      if(!resolving && !looping) startLoop();
-    }
-    return q;
+  function isQuestsPanelOpen(){
+    return activeRailPanel === 'quests';
   }
 
-  function tryAutoClaimQuests(){
-    if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
-    const claimed = [];
-    // Cap passes so a bad roll can never spin forever.
-    for(let guard = 0; guard < MAX_QUEST_SLOTS; guard++){
-      const ready = activeQuests.find(q => activeQuestComplete(q));
-      if(!ready) break;
-      const q = claimActiveQuest(ready.uid, { deferUi: true });
-      if(!q) break;
-      claimed.push(q);
-    }
-    if(!claimed.length) return 0;
-    refreshQuestUiAndSave();
+  function playQuestClaimEffect(btn, opts){
+    if(!btn) return;
+    opts = opts || {};
+    btn.classList.remove('quest-claiming', 'quest-claiming-auto', 'quest-rolling-in');
+    void btn.offsetWidth;
+    btn.classList.add('quest-claiming');
+    if(opts.auto) btn.classList.add('quest-claiming-auto');
+    clearTimeout(btn._questClaimTimer);
+    btn._questClaimTimer = setTimeout(()=>{
+      btn.classList.remove('quest-claiming', 'quest-claiming-auto');
+    }, QUEST_CLAIM_ANIM_MS + 40);
+  }
+
+  function playQuestRollIn(btn){
+    if(!btn) return;
+    btn.classList.remove('quest-claiming', 'quest-claiming-auto', 'quest-rolling-in');
+    void btn.offsetWidth;
+    btn.classList.add('quest-rolling-in');
+    clearTimeout(btn._questRollInTimer);
+    btn._questRollInTimer = setTimeout(()=>btn.classList.remove('quest-rolling-in'), 440);
+  }
+
+  function pulseQuestTabAutoClaim(){
+    const tab = questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+    if(!tab) return;
+    tab.classList.remove('quest-auto-claimed');
+    void tab.offsetWidth;
+    tab.classList.add('quest-auto-claimed');
+    clearTimeout(tab._questAutoClaimTimer);
+    tab._questAutoClaimTimer = setTimeout(()=>tab.classList.remove('quest-auto-claimed'), 1120);
+  }
+
+  function pushQuestClaimPopup(claimed){
     if(claimed.length === 1){
       const q = claimed[0];
       pushPopup({
@@ -3370,6 +3411,70 @@
       });
     }
     if(!resolving && !looping) startLoop();
+  }
+
+  function claimActiveQuest(uid, opts){
+    opts = opts || {};
+    const idx = activeQuests.findIndex(q => q.uid === uid);
+    if(idx < 0) return null;
+    const q = activeQuests[idx];
+    if(!activeQuestComplete(q)) return null;
+    const panelOpen = isQuestsPanelOpen();
+    const animateCard = panelOpen && opts.animate !== false && !opts.deferUi;
+
+    const finishClaim = ()=>{
+      applyContractReward(q.reward);
+      const used = new Set(
+        activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
+      );
+      activeQuests[idx] = rollQuest(used);
+      if(!opts.deferUi){
+        refreshQuestUiAndSave();
+        if(panelOpen) playQuestRollIn(questSlotButtons[idx]);
+        pushQuestClaimPopup([q]);
+      }
+      return q;
+    };
+
+    if(animateCard){
+      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto });
+      setTimeout(finishClaim, QUEST_CLAIM_ANIM_MS);
+      return q;
+    }
+
+    return finishClaim();
+  }
+
+  function tryAutoClaimQuests(){
+    if(prestigeLevel('questDesk') <= 0 || !isAutoEnabled('questDesk')) return 0;
+    const claimed = [];
+    const claimedSlots = [];
+    const panelOpen = isQuestsPanelOpen();
+    // Cap passes so a bad roll can never spin forever.
+    for(let guard = 0; guard < MAX_QUEST_SLOTS; guard++){
+      const ready = activeQuests.find(q => activeQuestComplete(q));
+      if(!ready) break;
+      const idx = activeQuests.findIndex(x => x.uid === ready.uid);
+      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true });
+      const q = claimActiveQuest(ready.uid, { deferUi: true });
+      if(!q) break;
+      claimed.push(q);
+      claimedSlots.push(idx);
+    }
+    if(!claimed.length) return 0;
+
+    const finishUi = ()=>{
+      refreshQuestUiAndSave();
+      if(panelOpen){
+        for(const idx of claimedSlots) playQuestRollIn(questSlotButtons[idx]);
+      } else {
+        pulseQuestTabAutoClaim();
+      }
+      pushQuestClaimPopup(claimed);
+    };
+
+    if(panelOpen) setTimeout(finishUi, QUEST_CLAIM_ANIM_MS);
+    else finishUi();
     return claimed.length;
   }
 
