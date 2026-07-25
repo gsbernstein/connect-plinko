@@ -3780,14 +3780,12 @@
     if(gameSettings.chipAnimation === false) return;
     opts = opts || {};
     amount = Math.floor(amount);
-    if(amount <= 0 && !opts.count && !opts.minCount) return;
+    if(amount <= 0 && !opts.count) return;
     const budget = Math.max(0, MAX_FLYING_CHIPS - flyingChips.length);
     if(budget <= 0) return;
     let count = Number.isFinite(opts.count)
       ? Math.floor(opts.count)
       : chipFlyCountForAmount(Math.max(1, amount));
-    if(opts.minCount) count = Math.max(count, Math.floor(opts.minCount));
-    if(opts.burst && opts.burst > 1) count = Math.ceil(count * opts.burst);
     const maxFly = desktopMq.matches ? (opts.maxCount || 28) : 12;
     count = Math.min(count, budget, maxFly);
     // Never show more chips flying than were actually awarded.
