@@ -90,6 +90,8 @@
   .mode-row{
     display:flex;
     justify-content:center;
+    flex-wrap:wrap;
+    gap:14px 22px;
     width:100%;
     margin-top:-6px;
   }
@@ -265,6 +267,10 @@
     <label class="toggle">
       <input type="checkbox" id="vsComputerToggle">
       <span>🤖 Play vs Computer</span>
+    </label>
+    <label class="toggle" id="tiltToggleWrap" hidden>
+      <input type="checkbox" id="tiltToggle">
+      <span>Tilt to steer</span>
     </label>
   </div>
 
@@ -588,6 +594,10 @@
   let balls = [];
   let looping = false;
   let aimX = W/2;
+  // Gyro tilt (opt-in via "Tilt to steer"): -1..1 lean → peg-zone gravity only.
+  const MAX_TILT_DEG = 60;
+  let boardTilt = 0;
+  let tiltControlsOn = false;
 
   const BALL_RADIUS = 14;
   const HOLE_R = 29; // radius of the front-plate holes pucks are seen through
@@ -650,7 +660,10 @@
     ball.frameSafety++;
 
     if(ball.phase === 'peg'){
-      ball.vy += gravity;
+      // Opt-in device tilt: split gravity along the lean (artwork stays upright).
+      const tiltRad = (tiltControlsOn ? boardTilt : 0) * MAX_TILT_DEG * Math.PI / 180;
+      ball.vx += gravity * Math.sin(tiltRad);
+      ball.vy += gravity * Math.cos(tiltRad);
       ball.vy = Math.min(ball.vy, 15);
       // turbulence: constant small random push so the ball never settles
       // into a stable back-and-forth groove between two pegs
@@ -1681,6 +1694,78 @@
     refreshButtons();
     maybeTriggerAI(); // in case it's already the computer's turn
   });
+
+  // ---- gyro board tilt (opt-in; no permission until the toggle is checked) ----
+  const TILT_GAMMA_RANGE = 60; // degrees of device lean that maps to full ±60° gravity tilt
+  let gyroEnabled = false;
+  let gyroBaseline = null;
+  const tiltToggle = document.getElementById('tiltToggle');
+  const tiltToggleWrap = document.getElementById('tiltToggleWrap');
+
+  function screenOrientationAngle(){
+    if(typeof screen !== 'undefined' && screen.orientation && typeof screen.orientation.angle === 'number'){
+      return screen.orientation.angle;
+    }
+    return typeof window.orientation === 'number' ? window.orientation : 0;
+  }
+
+  // Horizontal lean relative to the upright board, accounting for screen rotation.
+  function deviceLeanX(e){
+    if(e.gamma == null && e.beta == null) return null;
+    const angle = ((screenOrientationAngle() % 360) + 360) % 360;
+    if(angle === 90) return e.beta;
+    if(angle === 270) return e.beta == null ? null : -e.beta;
+    if(angle === 180) return e.gamma == null ? null : -e.gamma;
+    return e.gamma;
+  }
+
+  function onDeviceOrientation(e){
+    if(!tiltControlsOn){
+      boardTilt = 0;
+      return;
+    }
+    const lean = deviceLeanX(e);
+    if(lean == null || Number.isNaN(lean)) return;
+    if(gyroBaseline == null) gyroBaseline = lean;
+    const raw = Math.max(-1, Math.min(1, (lean - gyroBaseline) / TILT_GAMMA_RANGE));
+    boardTilt += (raw - boardTilt) * 0.2;
+  }
+
+  function enableGyro(){
+    if(gyroEnabled) return Promise.resolve(true);
+    if(typeof window.DeviceOrientationEvent === 'undefined') return Promise.resolve(false);
+    const start = ()=>{
+      window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      gyroEnabled = true;
+      gyroBaseline = null;
+      return true;
+    };
+    if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+      return DeviceOrientationEvent.requestPermission()
+        .then(state => state === 'granted' ? start() : false)
+        .catch(()=>false);
+    }
+    start();
+    return Promise.resolve(true);
+  }
+
+  if(typeof window.DeviceOrientationEvent !== 'undefined' && tiltToggleWrap){
+    tiltToggleWrap.hidden = false;
+  }
+  if(tiltToggle){
+    tiltToggle.addEventListener('change', ()=>{
+      if(tiltToggle.checked){
+        enableGyro().then(ok => {
+          tiltControlsOn = !!ok;
+          if(!ok) tiltToggle.checked = false;
+          if(!ok) boardTilt = 0;
+        });
+      } else {
+        tiltControlsOn = false;
+        boardTilt = 0;
+      }
+    });
+  }
 
   // ---- continuous aim/drop on the canvas ----
   function canvasPos(evt){

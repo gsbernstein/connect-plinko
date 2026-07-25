@@ -3118,6 +3118,15 @@
       maxLevel: 5
     },
     {
+      id: 'tableTilt',
+      name: 'Table Tilt',
+      desc: 'Tilt your device to yank gravity up to ±60° through the pegs — just for fun. Motion permission only when you turn this on. Toggle On/Off anytime.',
+      baseCost: 2,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
       id: 'quickDeal',
       name: 'Quick Deal',
       desc: '+1 Auto Dealer level permanently (does not raise Auto Dealer’s buy cost). Capped at Auto Dealer max.',
@@ -3189,7 +3198,7 @@
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -3202,6 +3211,8 @@
   let suitBombReadyAt = 0;
   let pendingSuitBomb = null;
   let saveTimer = 0;
+  // Gyro tilt: -1..1 lean; degrees come from the Table Tilt VIP perk.
+  let boardTilt = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
   let questClaimed = Object.create(null); // achievement id -> claimed tier count
@@ -3304,6 +3315,22 @@
     if(on && (id === 'autoDealer' || id === 'autoSuitBomb') && !resolving && !looping){
       startLoop();
     }
+    if(id === 'tableTilt'){
+      if(on) activateTableTilt(true);
+      else boardTilt = 0;
+    }
+  }
+
+  function tableTiltUnlocked(){
+    return prestigeLevel('tableTilt') > 0;
+  }
+
+  function tableTiltActive(){
+    return tableTiltUnlocked() && isAutoEnabled('tableTilt');
+  }
+
+  function tableTiltMaxDeg(){
+    return prestigeLevel('tableTilt') > 0 ? 60 : 0;
   }
 
   // Permanent VIP bonus levels for a table skill (do not affect buy cost).
@@ -4924,6 +4951,10 @@
         return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
       case 'blindSpread':
         return blindSpreadEffectText(lvl);
+      case 'tableTilt':
+        if(!lvl) return 'Upright gravity';
+        if(!isAutoEnabled('tableTilt')) return 'Paused';
+        return 'Steer up to ±' + tableTiltMaxDeg() + '°';
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
@@ -5344,6 +5375,7 @@
     if((id === 'autoSuitBomb' || id === 'cardSense') && !resolving && !looping){
       startLoop();
     }
+    if(id === 'tableTilt') activateTableTilt(true);
   }
 
   function markHintsDirty(){
@@ -5810,7 +5842,11 @@
     ball.spin *= 0.992;
 
     if(ball.phase === 'peg'){
-      ball.vy += gravity;
+      // Table Tilt VIP: split gravity along device lean (artwork stays upright).
+      const maxDeg = tableTiltActive() ? tableTiltMaxDeg() : 0;
+      const tiltRad = boardTilt * maxDeg * Math.PI / 180;
+      ball.vx += gravity * Math.sin(tiltRad);
+      ball.vy += gravity * Math.cos(tiltRad);
       ball.vy = Math.min(ball.vy, 15);
       ball.vx += (Math.random()-0.5)*0.18;
       ball.vx = Math.max(-7, Math.min(7, ball.vx));
@@ -8775,6 +8811,82 @@
     });
   }
 
+  // ---- Table Tilt VIP (DeviceOrientation) ----
+  // Permission is only requested when the perk is bought or toggled On.
+  const TILT_GAMMA_RANGE = 60; // degrees of device lean that maps to full ±60° gravity tilt
+  let gyroEnabled = false;
+  let gyroBaseline = null;
+
+  function screenOrientationAngle(){
+    if(typeof screen !== 'undefined' && screen.orientation && typeof screen.orientation.angle === 'number'){
+      return screen.orientation.angle;
+    }
+    return typeof window.orientation === 'number' ? window.orientation : 0;
+  }
+
+  // Horizontal lean relative to the upright board, accounting for screen rotation.
+  function deviceLeanX(e){
+    if(e.gamma == null && e.beta == null) return null;
+    const angle = ((screenOrientationAngle() % 360) + 360) % 360;
+    if(angle === 90) return e.beta;
+    if(angle === 270) return e.beta == null ? null : -e.beta;
+    if(angle === 180) return e.gamma == null ? null : -e.gamma;
+    return e.gamma;
+  }
+
+  function onDeviceOrientation(e){
+    if(!tableTiltActive()){
+      boardTilt = 0;
+      return;
+    }
+    const lean = deviceLeanX(e);
+    if(lean == null || Number.isNaN(lean)) return;
+    if(gyroBaseline == null) gyroBaseline = lean;
+    const raw = Math.max(-1, Math.min(1, (lean - gyroBaseline) / TILT_GAMMA_RANGE));
+    boardTilt += (raw - boardTilt) * 0.2;
+  }
+
+  function enableGyro(){
+    if(gyroEnabled) return Promise.resolve(true);
+    if(typeof window.DeviceOrientationEvent === 'undefined') return Promise.resolve(false);
+    const start = ()=>{
+      window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      gyroEnabled = true;
+      gyroBaseline = null; // re-baseline to current hold pose
+      return true;
+    };
+    if(typeof DeviceOrientationEvent.requestPermission === 'function'){
+      return DeviceOrientationEvent.requestPermission()
+        .then(state => state === 'granted' ? start() : false)
+        .catch(()=>false);
+    }
+    start();
+    return Promise.resolve(true);
+  }
+
+  // fromUserGesture: iOS only allows the permission prompt during a tap.
+  // On load we may silently enable when no prompt is required.
+  function activateTableTilt(fromUserGesture){
+    if(!tableTiltActive()){
+      boardTilt = 0;
+      return Promise.resolve(false);
+    }
+    if(gyroEnabled) return Promise.resolve(true);
+    const needsPermission = typeof window.DeviceOrientationEvent !== 'undefined'
+      && typeof DeviceOrientationEvent.requestPermission === 'function';
+    if(needsPermission && !fromUserGesture) return Promise.resolve(false);
+    return enableGyro().then(ok => {
+      if(!ok && fromUserGesture){
+        // Denied — park the toggle so we don't keep prompting.
+        autoEnabled.tableTilt = false;
+        boardTilt = 0;
+        scheduleSave();
+        updatePrestigeUI();
+      }
+      return ok;
+    });
+  }
+
   function canvasPos(evt){
     const rect = canvas.getBoundingClientRect();
     const src = evt.touches ? evt.touches[0] : evt;
@@ -8872,6 +8984,8 @@
   refreshButtons();
   updateRailTabAvailability();
   setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
+  // Resume Table Tilt only when no permission prompt is needed (e.g. Android).
+  activateTableTilt(false);
   draw();
   requestAnimationFrame(idleSpin);
   window.addEventListener('beforeunload', persistSave);
