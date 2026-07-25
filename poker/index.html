@@ -2508,7 +2508,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 14;
+  const SAVE_VERSION = 15;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2974,10 +2974,10 @@
     {
       id: 'blindSpread',
       name: 'Open Blind',
-      desc: 'Each level extends Big Blind’s chip multiplier to another payout: Lv1 pin tips · Lv2 rail tax · Lv3 sweep stakes.',
+      desc: 'Each level extends Big Blind’s chip multiplier to another payout: pin tips → rail tax → sweep stakes → quests → level bonuses.',
       baseCost: 2,
       costScale: 1.95,
-      maxLevel: 3
+      maxLevel: 5
     },
     {
       id: 'quickDeal',
@@ -3475,7 +3475,7 @@
   function contractRewardText(reward){
     const r = reward || {};
     const parts = [];
-    if(r.chips) parts.push('+' + formatNum(r.chips) + ' chips');
+    if(r.chips) parts.push('+' + formatNum(blindBonusChips(r.chips, 'contracts')) + ' chips');
     if(r.comps) parts.push('+' + r.comps + ' VIP comps');
     if(r.runComps) parts.push('+' + r.runComps + ' Cash Out comps');
     if(r.prestige){
@@ -3493,10 +3493,11 @@
     opts = opts || {};
     const r = reward || {};
     if(r.chips){
-      score += r.chips;
+      const chips = blindBonusChips(r.chips, 'contracts');
+      score += chips;
       if(!opts.skipFly){
-        if(opts.originEl) spawnRewardParticles(opts.originEl, { chips: r.chips });
-        else spawnChipFly(W/2, PEG_ZONE * 0.38, r.chips);
+        if(opts.originEl) spawnRewardParticles(opts.originEl, { chips });
+        else spawnChipFly(W/2, PEG_ZONE * 0.38, chips);
       }
     }
     if(r.comps){
@@ -3924,25 +3925,47 @@
   }
 
   // VIP Open Blind — each level adds Big Blind’s multiplier to another payout type.
+  const BLIND_SPREAD_ORDER = ['pin', 'bumper', 'floor', 'contracts', 'levelBonus'];
+  const BLIND_SPREAD_LABELS = {
+    pin: 'pin tips',
+    bumper: 'rail tax',
+    floor: 'sweep stakes',
+    contracts: 'quests & achievements',
+    levelBonus: 'level bonuses'
+  };
+
   function blindSpreadLevel(){
     return prestigeLevel('blindSpread');
+  }
+
+  function blindSpreadTargets(spread){
+    spread = spread == null ? blindSpreadLevel() : Math.max(0, Math.floor(spread));
+    const targets = ['hands'];
+    for(let i = 0; i < spread && i < BLIND_SPREAD_ORDER.length; i++){
+      targets.push(BLIND_SPREAD_LABELS[BLIND_SPREAD_ORDER[i]]);
+    }
+    return targets;
+  }
+
+  function blindSpreadEffectText(spread){
+    if(upgradeLevel('bigBlind') <= 0) return 'Buy Big Blind first';
+    const mult = tableScoreMultiplier().toFixed(2).replace(/\.00$/, '');
+    return '×' + mult + ' on ' + blindSpreadTargets(spread).join(', ');
   }
 
   function blindMultiplier(category){
     if(upgradeLevel('bigBlind') <= 0) return 1;
     const mult = tableScoreMultiplier();
-    switch(category){
-      case 'hands':
-        return mult;
-      case 'pin':
-        return blindSpreadLevel() >= 1 ? mult : 1;
-      case 'bumper':
-        return blindSpreadLevel() >= 2 ? mult : 1;
-      case 'floor':
-        return blindSpreadLevel() >= 3 ? mult : 1;
-      default:
-        return 1;
-    }
+    if(category === 'hands') return mult;
+    const idx = BLIND_SPREAD_ORDER.indexOf(category);
+    if(idx < 0) return 1;
+    return blindSpreadLevel() > idx ? mult : 1;
+  }
+
+  function blindBonusChips(amount, category){
+    amount = Math.floor(amount);
+    if(amount <= 0) return 0;
+    return Math.floor(amount * blindMultiplier(category));
   }
 
   function scoreMultiplier(){
@@ -4101,7 +4124,7 @@
         parts.push('+' + bonus.comps + ' Cash Out comp' + (bonus.comps === 1 ? '' : 's'));
       }
       if(bonus.chips){
-        parts.push('+' + formatNum(bonus.chips) + ' chips');
+        parts.push('+' + formatNum(blindBonusChips(bonus.chips, 'levelBonus')) + ' chips');
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
@@ -4146,9 +4169,10 @@
     if(bonus){
       if(bonus.comps) runCompCredit += bonus.comps;
       if(bonus.chips){
-        score += bonus.chips;
+        const chips = blindBonusChips(bonus.chips, 'levelBonus');
+        score += chips;
         // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
-        if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, bonus.chips);
+        if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, chips);
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
@@ -4662,7 +4686,7 @@
           ? ('Every ' + formatInterval(autoDropIntervalMs()))
           : 'Paused';
       case 'bigBlind':
-        return '×' + tableScoreMultiplier().toFixed(2).replace(/\.00$/,'');
+        return lvl ? blindSpreadEffectText() : 'No bonus';
       case 'hotStreak':
         return lvl ? ('+' + lvl + ' chain') : 'No bonus';
       case 'premiumCut': {
@@ -4720,15 +4744,8 @@
           : 'Full price';
       case 'compCard':
         return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
-      case 'blindSpread':{
-        if(!upgradeLevel('bigBlind')) return 'Buy Big Blind first';
-        const targets = ['hands'];
-        if(lvl >= 1) targets.push('pin tips');
-        if(lvl >= 2) targets.push('rail tax');
-        if(lvl >= 3) targets.push('sweep stakes');
-        const mult = tableScoreMultiplier().toFixed(2).replace(/\.00$/, '');
-        return '×' + mult + ' on ' + targets.join(', ');
-      }
+      case 'blindSpread':
+        return blindSpreadEffectText(lvl);
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
