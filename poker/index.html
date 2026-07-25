@@ -135,6 +135,35 @@
     font-size:0;
   }
   .fly-spark::after{content:'';}
+  .quest-claim-toast{
+    position:absolute;
+    left:0;
+    top:0;
+    transform:translate(-50%, 0);
+    font:700 13px 'Space Grotesk',sans-serif;
+    letter-spacing:0.02em;
+    white-space:nowrap;
+    text-shadow:
+      0 0 10px rgba(0,0,0,0.95),
+      0 2px 6px rgba(0,0,0,0.85);
+    pointer-events:none;
+    z-index:60;
+    animation:questClaimToastOut 1.35s ease forwards;
+  }
+  @keyframes questClaimToastOut{
+    0%{
+      opacity:0;
+      transform:translate(-50%, 0) scale(0.88);
+    }
+    14%{
+      opacity:1;
+      transform:translate(-50%, 6px) scale(1.04);
+    }
+    100%{
+      opacity:0;
+      transform:translate(-50%, 54px) scale(1);
+    }
+  }
   .comps-pill.comp-pulse{
     animation:compLandPulse 0.32s ease-out;
   }
@@ -2545,7 +2574,7 @@
   const MAX_AUTO_DROP_BALLS = 264;
   const MAX_POPUPS = 36;
   const MAX_PARTICLES = 180;
-  const MAX_RUN_LEVEL = 40;
+  const MAX_RUN_LEVEL = 200;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
   const MIN_CASH_OUT_LEVEL = 8;
   // Shop order = array order. unlockAt = run level required to first reveal.
@@ -2666,18 +2695,31 @@
 
   // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
   // comps = Cash Out credit for this run (spent only when cashing out).
+  // metaMult / chainExp = multiplicative factors (2.0 = double), stack across late levels.
+  // Chip bonuses scale via levelChipReward() at every milestone, quest slot, and ×10 level.
   const LEVEL_BONUSES = {
-    5:  { comps: 1, chips: 40, label: '+1 Cash Out comp · +40 chips' },
+    5:  { comps: 1, label: '+1 Cash Out comp' },
     8:  { comps: 1, label: '+1 Cash Out comp · Cash Out unlocked' },
-    10: { comps: 1, upgrade: { id: 'autoDealer', n: 1 }, label: '+1 Cash Out comp · +1 Auto Dealer' },
+    10: { comps: 1, label: '+1 Cash Out comp' },
     12: { comps: 2, label: '+2 Cash Out comps' },
-    15: { comps: 2, prestige: 'seedStack', label: '+2 comps · VIP +1 Seed Stack' },
-    18: { comps: 2, upgrade: { id: 'bigBlind', n: 1 }, label: '+2 comps · +1 Big Blind' },
-    20: { comps: 3, prestige: 'houseEdge', label: '+3 comps · VIP +1 House Edge' },
+    15: { comps: 2, label: '+2 Cash Out comps' },
+    18: { comps: 2, label: '+2 Cash Out comps' },
+    20: { comps: 3, label: '+3 Cash Out comps' },
     25: { comps: 4, label: '+4 Cash Out comps' },
-    30: { comps: 5, prestige: 'rackDiscount', label: '+5 comps · VIP +1 Rack Discount' },
-    35: { comps: 6, prestige: 'compCard', label: '+6 comps · VIP +1 Comp Card' },
-    40: { comps: 8, prestige: 'quickDeal', label: '+8 comps · VIP +1 Quick Deal' }
+    30: { comps: 5, label: '+5 Cash Out comps' },
+    35: { comps: 6, label: '+6 Cash Out comps' },
+    40: { comps: 8, label: '+8 Cash Out comps' },
+    50: { comps: 10, metaMult: 2.0, label: '+10 comps · ×2 payout multipliers' },
+    60: { comps: 12, label: '+12 Cash Out comps' },
+    70: { comps: 14, chainExp: 2.0, label: '+14 comps · ×2 chain multiplier' },
+    80: { comps: 16, label: '+16 Cash Out comps' },
+    90: { comps: 18, label: '+18 Cash Out comps' },
+    100: { comps: 20, label: '+20 Cash Out comps' },
+    120: { comps: 24, metaMult: 2.0, label: '+24 comps · ×2 payout multipliers' },
+    140: { comps: 28, chainExp: 2.5, label: '+28 comps · ×2.5 chain multiplier' },
+    160: { comps: 32, label: '+32 Cash Out comps' },
+    180: { comps: 36, label: '+36 Cash Out comps' },
+    200: { comps: 50, metaMult: 2.5, chainExp: 2.0, label: '+50 comps · ×2.5 mults · ×2 chain' }
   };
 
   // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
@@ -2715,6 +2757,8 @@
     'STRAIGHT FLUSH': ['runStraights', 'runFlushes']
   };
   const MAX_QUEST_SLOTS = 5;
+  // Quest slots unlock at these run levels (spread across the full climb).
+  const QUEST_SLOT_UNLOCK_LEVELS = [2, 20, 45, 75, 110];
   const QUEST_CLAIM_ANIM_MS = 360;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
@@ -3263,6 +3307,18 @@
     return credit;
   }
 
+  function levelHasChipBonus(lvl){
+    if(lvl < 2) return false;
+    if(LEVEL_BONUSES[lvl]) return true;
+    if(QUEST_SLOT_UNLOCK_LEVELS.includes(lvl)) return true;
+    return lvl >= 10 && lvl % 10 === 0;
+  }
+
+  function levelChipReward(lvl){
+    if(!levelHasChipBonus(lvl)) return 0;
+    return Math.floor(8 * lvl + 6 * Math.pow(lvl, 1.25));
+  }
+
   function highestRunLevelReached(){
     return Math.max(runLevel, stats.maxRunLevel || 1);
   }
@@ -3285,14 +3341,23 @@
     return pendingComps() > 0;
   }
 
+  function questSlotUnlockLevel(slotIndex){
+    return QUEST_SLOT_UNLOCK_LEVELS[slotIndex] || null;
+  }
+
   function questSlotCap(){
-    // One slot per run level above 1, capped at 5.
-    return Math.min(MAX_QUEST_SLOTS, Math.max(0, runLevel - 1));
+    let cap = 0;
+    for(const unlockLvl of QUEST_SLOT_UNLOCK_LEVELS){
+      if(runLevel >= unlockLvl) cap++;
+      else break;
+    }
+    return Math.min(MAX_QUEST_SLOTS, cap);
   }
 
   function questsTabUnlocked(){
-    // First opens at run Lv 2; stays after Cash Out (slots still gate on this run).
-    return questSlotCap() > 0 || highestRunLevelReached() >= 2;
+    // First slot opens at run Lv 2; stays after Cash Out (slots still gate on this run).
+    const firstUnlock = QUEST_SLOT_UNLOCK_LEVELS[0] || 2;
+    return questSlotCap() > 0 || highestRunLevelReached() >= firstUnlock;
   }
 
   function upgradesTabUnlocked(){
@@ -3691,7 +3756,7 @@
 
   function pulseQuestTabAutoClaim(){
     spawnRailTabBurst('quests', { count: 6, popSpread: 20 });
-    const tab = questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+    const tab = getQuestsTabEl();
     if(!tab) return;
     const badge = tab.querySelector('.rail-tab-badge');
     if(badge){
@@ -3703,30 +3768,38 @@
     }
   }
 
+  function getQuestsTabEl(){
+    return questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+  }
+
+  function pushQuestClaimToast(quest, stackIndex){
+    const tab = getQuestsTabEl();
+    if(!tab || tab.hidden || !chipFxLayer || !quest) return;
+    const rect = tab.getBoundingClientRect();
+    const stage = chipFxLayer.getBoundingClientRect();
+    const x = rect.left - stage.left + rect.width * 0.5;
+    const y = rect.top - stage.top + rect.height + 6 + (stackIndex || 0) * 26;
+    const el = document.createElement('div');
+    el.className = 'quest-claim-toast';
+    const rarity = QUEST_RARITY[quest.rarity] || QUEST_RARITY.common;
+    el.style.color = rarity.color;
+    el.textContent = 'QUEST · ' + quest.name;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    chipFxLayer.appendChild(el);
+    const cleanup = ()=>{ if(el.parentNode) el.parentNode.removeChild(el); };
+    el.addEventListener('animationend', cleanup, { once: true });
+    setTimeout(cleanup, 1500);
+  }
+
   function pushQuestClaimPopup(claimed){
-    if(claimed.length === 1){
-      const q = claimed[0];
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST · ' + q.name,
-        color: (QUEST_RARITY[q.rarity] || QUEST_RARITY.common).color,
-        t0: performance.now(),
-        duration: 1400,
-        big: true
-      });
-    } else {
-      pushPopup({
-        x: W / 2,
-        y: PEG_ZONE * 0.38,
-        text: 'QUEST DESK · ×' + claimed.length,
-        color: '#F0D78C',
-        t0: performance.now(),
-        duration: 1400,
-        big: true
-      });
+    if(!claimed || !claimed.length) return;
+    for(let i = 0; i < claimed.length; i++){
+      const q = claimed[i];
+      const stackIndex = i;
+      if(i === 0) pushQuestClaimToast(q, stackIndex);
+      else setTimeout(() => pushQuestClaimToast(q, stackIndex), i * 140);
     }
-    if(!resolving && !looping) startLoop();
   }
 
   function claimActiveQuest(uid, opts){
@@ -3739,9 +3812,12 @@
     const animateCard = panelOpen && opts.animate !== false && !opts.deferUi;
 
     const finishClaim = ()=>{
+      const flyOrigin = animateCard
+        ? questSlotButtons[idx]
+        : getQuestsTabEl();
       applyContractReward(q.reward, {
-        skipFly: !!animateCard || !!opts.skipRewardFly,
-        originEl: animateCard ? questSlotButtons[idx] : null
+        skipFly: !!opts.skipRewardFly,
+        originEl: opts.skipRewardFly ? null : flyOrigin
       });
       const used = new Set(
         activeQuests.filter((_, i) => i !== idx).map(x => x.templateId)
@@ -3788,7 +3864,7 @@
         for(const idx of claimedSlots) playQuestRollIn(questSlotButtons[idx]);
       } else {
         pulseQuestTabAutoClaim();
-        const tab = questsTabEl || document.querySelector('.rail-tab[data-panel="quests"]');
+        const tab = getQuestsTabEl();
         for(const q of claimed){
           if(tab && q.reward) spawnRewardParticles(tab, q.reward);
         }
@@ -4007,24 +4083,61 @@
     return upgradeLevel('hotStreak');
   }
 
+  function runLevelBonusProduct(field){
+    let mult = 1;
+    for(let L = 2; L <= runLevel; L++){
+      const bonus = LEVEL_BONUSES[L];
+      if(bonus && bonus[field]) mult *= bonus[field];
+    }
+    return mult;
+  }
+
+  function runMetaMultiplier(){
+    return runLevelBonusProduct('metaMult');
+  }
+
+  function runChainMultiplier(){
+    return runLevelBonusProduct('chainExp');
+  }
+
+  function computeChainMult(chainStep){
+    const linear = Math.max(1, chainStep + chainBonus());
+    const mult = runChainMultiplier();
+    if(mult <= 1) return linear;
+    return Math.max(1, Math.floor(linear * mult));
+  }
+
+  function formatMultFactor(v, noun){
+    const text = (v % 1 === 0) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
+    return '×' + text + ' ' + noun;
+  }
+
+  function formatMetaMultBonus(v){
+    return formatMultFactor(v, 'payout multipliers');
+  }
+
+  function formatChainExpBonus(v){
+    return formatMultFactor(v, 'chain multiplier');
+  }
+
   function physicsSpeed(){
     return 1 + 0.22 * upgradeLevel('feltGrease');
   }
 
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? Math.floor(lvl * blindMultiplier('pin')) : 0;
+    return lvl ? Math.floor(lvl * blindMultiplier('pin') * runMetaMultiplier()) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper')) : 0;
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * runMetaMultiplier()) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
-    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor')) : 0;
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * runMetaMultiplier()) : 0;
   }
 
   function suitBombCooldownMs(){
@@ -4150,12 +4263,13 @@
       }
     }
     const bonus = LEVEL_BONUSES[lvl];
+    const chips = levelChipReward(lvl);
+    if(chips > 0){
+      parts.push('+' + formatNum(blindBonusChips(chips, 'levelBonus')) + ' chips');
+    }
     if(bonus){
       if(bonus.comps){
         parts.push('+' + bonus.comps + ' Cash Out comp' + (bonus.comps === 1 ? '' : 's'));
-      }
-      if(bonus.chips){
-        parts.push('+' + formatNum(blindBonusChips(bonus.chips, 'levelBonus')) + ' chips');
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
@@ -4166,22 +4280,19 @@
           }
         }
       }
-      if(bonus.prestige){
-        const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
-        if(pDef){
-          if(preview || prestigeLevel(pDef.id) < pDef.maxLevel){
-            parts.push('VIP +1 ' + pDef.name);
-          }
-        }
+      if(bonus.metaMult){
+        parts.push(formatMetaMultBonus(bonus.metaMult));
+      }
+      if(bonus.chainExp){
+        parts.push(formatChainExpBonus(bonus.chainExp));
       }
       if(bonus.label && !parts.length) parts.push(bonus.label);
     }
     if(lvl === MIN_CASH_OUT_LEVEL && firstTimeAtLevel){
       parts.push('VIP Lounge unlocked');
     }
-    // Slot i unlocks at run level i+1 (first slot at Lv 2).
-    if(lvl >= 2 && lvl <= MAX_QUEST_SLOTS + 1){
-      if(lvl === 2){
+    if(QUEST_SLOT_UNLOCK_LEVELS.includes(lvl)){
+      if(lvl === QUEST_SLOT_UNLOCK_LEVELS[0]){
         if(firstTimeAtLevel) parts.push('Quests unlocked');
       } else {
         parts.push('Quest slot +1');
@@ -4197,14 +4308,15 @@
     const firstTimeAtLevel = (stats.maxRunLevel || 1) < lvl;
     const parts = describeLevelRewardParts(lvl, { firstTimeAtLevel });
     const bonus = LEVEL_BONUSES[lvl];
+    const chips = levelChipReward(lvl);
+    if(chips > 0){
+      const awarded = blindBonusChips(chips, 'levelBonus');
+      score += awarded;
+      // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
+      if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, awarded);
+    }
     if(bonus){
       if(bonus.comps) runCompCredit += bonus.comps;
-      if(bonus.chips){
-        const chips = blindBonusChips(bonus.chips, 'levelBonus');
-        score += chips;
-        // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
-        if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, chips);
-      }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
         if(uDef){
@@ -4215,15 +4327,6 @@
             if(uDef.id === 'suitBomb' && beforeEff === 0){
               suitBombReadyAt = performance.now();
             }
-          }
-        }
-      }
-      if(bonus.prestige){
-        const pDef = PRESTIGE_DEFS.find(u => u.id === bonus.prestige);
-        if(pDef){
-          const before = prestigeLevel(pDef.id);
-          if(before < pDef.maxLevel){
-            prestigeUpgrades[pDef.id] = before + 1;
           }
         }
       }
@@ -6278,7 +6381,7 @@
   }
 
   function spawnHandChipFlies(groups, chainMult){
-    const mult = scoreMultiplier();
+    const mult = scoreMultiplier() * runMetaMultiplier();
     for(const g of groups){
       const pts = Math.floor(g.points * (g.cardMult || 1) * chainMult * mult);
       if(pts <= 0 || !g.cells || !g.cells.length) continue;
@@ -6325,14 +6428,34 @@
     }
   }
 
+  function groupGridCenter(g){
+    const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
+    const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
+    return {
+      x: avgC*CELL+CELL/2,
+      y: PEG_ZONE + avgR*CELL+CELL/2
+    };
+  }
+
+  function comboPopupPosition(groups){
+    let x = 0, y = 0;
+    for(const g of groups){
+      const c = groupGridCenter(g);
+      x += c.x;
+      y += c.y;
+    }
+    return {
+      x: x / groups.length,
+      // Sit on the grid just below the per-hand labels.
+      y: y / groups.length + CELL * 0.42
+    };
+  }
+
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
-    const mult = scoreMultiplier();
+    const mult = scoreMultiplier() * runMetaMultiplier();
     for(const g of groups){
-      const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
-      const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
-      const x = avgC*CELL+CELL/2;
-      const y = PEG_ZONE + avgR*CELL + CELL/2;
+      const {x, y} = groupGridCenter(g);
       const cardMult = g.cardMult || 1;
       const pts = Math.floor(g.points * cardMult * chainMult * mult);
       const tier = handTextTier(g.name);
@@ -6364,8 +6487,9 @@
       });
     }
     if(groups.length>1){
+      const comboPos = comboPopupPosition(groups);
       pushPopup({
-        x:W/2, y:PEG_ZONE*0.4 + (chainMult>1?34:0),
+        x: comboPos.x, y: comboPos.y,
         text:'COMBO ×'+groups.length+'!',
         color: PEG, t0:now, duration:1200,
         fontSize: 20, floatBoost: 36, tilt: -0.08, slam: 1.55, slamMs: 150, glow: 12
@@ -6599,8 +6723,6 @@
   function beginSuitBomb(suit, cells){
     resolving = true;
     resolveEpoch++;
-    pendingChain = 0;
-    chainStep = 0;
     const inFlight = findSuitBalls(suit).length;
     currentGroups = [{
       name: 'SUIT PURGE ' + suit,
@@ -6725,10 +6847,18 @@
 
   function finishResolveOrChain(){
     const nextGroups = findPokerHands();
+    const suitBombResolve = currentGroups.some(g => g.suitBomb);
     if(nextGroups.length>0){
+      // After Suit Purge, pick up saved chain carryover before the next hand.
+      if(chainStep === 0 && pendingChain > 0){
+        chainStep = pendingChain;
+        pendingChain = 0;
+      }
       enterFlash(nextGroups);
     } else {
-      pendingChain = balls.length > 0 ? chainStep : 0;
+      if(!suitBombResolve){
+        pendingChain = balls.length > 0 ? chainStep : 0;
+      }
       resolving = false;
       chainStep = 0;
       if(boardIsFull() && !hasGridBalls()){
@@ -6753,8 +6883,8 @@
         if(elapsed >= flashMs){
           const isFloorClear = currentGroups.some(g => g.floorClear);
           if(!isFloorClear){
-            const chainMult = Math.max(1, chainStep + chainBonus());
-            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier());
+            const chainMult = computeChainMult(chainStep);
+            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * scoreMultiplier() * runMetaMultiplier());
             noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
@@ -7944,7 +8074,7 @@
   }
 
   function fillLockedQuestButton(btn, slotIndex){
-    const unlockLvl = slotIndex + 2;
+    const unlockLvl = questSlotUnlockLevel(slotIndex) || (slotIndex + 2);
     for(const r of QUEST_RARITIES) btn.classList.remove('rarity-' + r);
     btn.classList.remove('claimable', 'claimed');
     btn.classList.add('quest-locked');
