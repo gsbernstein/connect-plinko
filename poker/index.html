@@ -2463,7 +2463,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 10;
+  const SAVE_VERSION = 11;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2744,7 +2744,8 @@
     {
       id: 'a_hands', kind: 'achievement', name: 'Table Regular',
       desc: 'Score {n} hands lifetime.',
-      stat: 'hands', unlockAt: 1,
+      stat: 'hands', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.5, compPerLevel: 1, compCap: 30 },
       tiers: [
         { target: 50, reward: { comps: 1 } },
         { target: 250, reward: { comps: 3 } },
@@ -2755,7 +2756,8 @@
     {
       id: 'a_flush', kind: 'achievement', name: 'Suited Up',
       desc: 'Score {n} Flushes.',
-      stat: 'flushes', unlockAt: 1,
+      stat: 'flushes', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 25 },
       tiers: [
         { target: 1, reward: { chips: 120, runComps: 1 } },
         { target: 10, reward: { comps: 1 } },
@@ -2766,7 +2768,8 @@
     {
       id: 'a_straight', kind: 'achievement', name: 'In Order',
       desc: 'Score {n} Straights.',
-      stat: 'straights', unlockAt: 1,
+      stat: 'straights', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 25 },
       tiers: [
         { target: 1, reward: { chips: 120 } },
         { target: 10, reward: { comps: 1 } },
@@ -2777,7 +2780,8 @@
     {
       id: 'a_fullhouse', kind: 'achievement', name: 'Full Boat',
       desc: 'Score {n} Full Houses.',
-      stat: 'fullHouses', unlockAt: 1,
+      stat: 'fullHouses', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.1, compPerLevel: 1, chipBase: 100, chipGrowth: 1.3, compCap: 25 },
       tiers: [
         { target: 1, reward: { chips: 200, comps: 1 } },
         { target: 5, reward: { comps: 2 } },
@@ -2788,7 +2792,8 @@
     {
       id: 'a_quads', kind: 'achievement', name: 'Quad Squad',
       desc: 'Score {n} Four of a Kinds.',
-      stat: 'fourKinds', unlockAt: 1,
+      stat: 'fourKinds', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.0, compPerLevel: 1, compCap: 30 },
       tiers: [
         { target: 1, reward: { comps: 2 } },
         { target: 3, reward: { comps: 3 } },
@@ -2799,7 +2804,8 @@
     {
       id: 'a_sf', kind: 'achievement', name: 'Painted Straight',
       desc: 'Score {n} Straight Flushes.',
-      stat: 'straightFlushes', secret: true,
+      stat: 'straightFlushes', secret: true, infinite: true,
+      scale: { targetGrowth: 1.85, compPerLevel: 1, compCap: 35 },
       tiers: [
         { target: 1, reward: { comps: 3 } },
         { target: 3, reward: { comps: 5 } },
@@ -2809,7 +2815,8 @@
     {
       id: 'a_royal', kind: 'achievement', name: 'Crown Jewel',
       desc: 'Score {n} Royal Flushes.',
-      stat: 'royalFlushes', secret: true,
+      stat: 'royalFlushes', secret: true, infinite: true,
+      scale: { targetGrowth: 1.75, compPerLevel: 2, compCap: 40 },
       tiers: [
         { target: 1, reward: { comps: 5, prestige: 'houseEdge' } },
         { target: 2, reward: { comps: 8 } },
@@ -2819,7 +2826,8 @@
     {
       id: 'a_combo', kind: 'achievement', name: 'Double Down',
       desc: 'Score {n} multi-hand clears.',
-      stat: 'multiHandClears', unlockAt: 1,
+      stat: 'multiHandClears', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.3, compPerLevel: 1, chipBase: 100, chipGrowth: 1.35, compCap: 25 },
       tiers: [
         { target: 1, reward: { chips: 150 } },
         { target: 10, reward: { comps: 1 } },
@@ -2830,7 +2838,8 @@
     {
       id: 'a_floor', kind: 'achievement', name: 'Janitor',
       desc: 'Trigger {n} floor clears lifetime.',
-      stat: 'floorClears', unlockAt: 1,
+      stat: 'floorClears', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.4, compPerLevel: 1, compCap: 30 },
       tiers: [
         { target: 10, reward: { comps: 2 } },
         { target: 50, reward: { comps: 3 } },
@@ -2841,7 +2850,8 @@
     {
       id: 'a_cashout', kind: 'achievement', name: 'Buy-In Club',
       desc: 'Cash Out {n} times.',
-      stat: 'cashOuts', unlockAt: 1,
+      stat: 'cashOuts', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 1.9, compPerLevel: 1, compCap: 35 },
       tiers: [
         { target: 1, reward: { comps: 1 } },
         { target: 5, reward: { comps: 3, prestige: 'compCard' } },
@@ -2862,7 +2872,8 @@
     {
       id: 'a_upgrades', kind: 'achievement', name: 'Rack Builder',
       desc: 'Buy {n} table upgrades.',
-      stat: 'upgradesBought', unlockAt: 1,
+      stat: 'upgradesBought', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.1, compPerLevel: 1, compCap: 30 },
       tiers: [
         { target: 20, reward: { comps: 2 } },
         { target: 50, reward: { comps: 3 } },
@@ -2873,7 +2884,8 @@
     {
       id: 'a_purges', kind: 'achievement', name: 'Suit Sanitizer',
       desc: 'Cast Suit Purge {n} times.',
-      stat: 'suitPurges', unlockAt: 11,
+      stat: 'suitPurges', unlockAt: 11, infinite: true,
+      scale: { targetGrowth: 2.3, compPerLevel: 1, compCap: 25 },
       tiers: [
         { target: 10, reward: { comps: 2 } },
         { target: 50, reward: { comps: 3 } },
@@ -3232,35 +3244,97 @@
     return Math.max(0, Math.min(QUEST_RARITIES.length - 1, prestigeLevel('questInk')));
   }
 
-  function achievementTiers(def){
+  function achievementSeedTiers(def){
     if(def.tiers && def.tiers.length) return def.tiers;
     if(def.target != null) return [{ target: def.target, reward: def.reward || {} }];
     return [];
   }
 
+  function achievementTiers(def){
+    return achievementSeedTiers(def);
+  }
+
   function achievementTierCount(def){
-    return achievementTiers(def).length;
+    if(def.infinite) return Infinity;
+    return achievementSeedTiers(def).length;
+  }
+
+  function achievementScaledReward(def, level, baseReward, extra){
+    baseReward = baseReward || {};
+    const scale = def.scale || {};
+    const r = {};
+    const compBase = baseReward.comps || scale.compBase || 1;
+    const compPer = scale.compPerLevel != null ? scale.compPerLevel : 1;
+    const compCap = scale.compCap || 30;
+    const comps = Math.min(compCap, Math.floor(compBase + extra * compPer));
+    if(comps > 0) r.comps = comps;
+
+    const chipBase = baseReward.chips || scale.chipBase || 0;
+    if(chipBase > 0){
+      const chipGrowth = scale.chipGrowth != null ? scale.chipGrowth : 1.35;
+      const chips = Math.floor(chipBase * Math.pow(chipGrowth, extra));
+      if(chips > 0) r.chips = chips;
+    }
+
+    const runCompEvery = scale.runCompEvery || 4;
+    if(extra > 0 && extra % runCompEvery === 0){
+      const runCap = scale.runCompCap || 5;
+      r.runComps = Math.min(runCap, 1 + Math.floor(extra / runCompEvery));
+    }
+    return r;
+  }
+
+  function achievementTierAt(def, level){
+    level = Math.max(1, Math.floor(level));
+    const seeds = achievementSeedTiers(def);
+    if(!seeds.length) return null;
+    if(level <= seeds.length) return seeds[level - 1];
+    if(!def.infinite) return null;
+
+    const last = seeds[seeds.length - 1];
+    const extra = level - seeds.length;
+    const scale = def.scale || {};
+    const targetGrowth = scale.targetGrowth != null ? scale.targetGrowth : 2.2;
+    const target = Math.max(
+      last.target + 1,
+      Math.ceil(last.target * Math.pow(targetGrowth, extra))
+    );
+    return {
+      target,
+      reward: achievementScaledReward(def, level, last.reward, extra)
+    };
   }
 
   function achievementClaimedTier(def){
     const v = questClaimed[def.id];
-    if(typeof v === 'number' && v > 0) return Math.min(v, achievementTierCount(def));
-    if(v === true) return achievementTierCount(def);
+    if(typeof v === 'number' && v > 0){
+      if(def.infinite) return v;
+      return Math.min(v, achievementSeedTiers(def).length);
+    }
+    if(v === true) return achievementSeedTiers(def).length;
     return 0;
   }
 
   function achievementIsFullyClaimed(def){
-    return achievementClaimedTier(def) >= achievementTierCount(def);
+    if(def.infinite) return false;
+    return achievementClaimedTier(def) >= achievementSeedTiers(def).length;
   }
 
   function achievementActiveTierIndex(def){
     const claimed = achievementClaimedTier(def);
-    if(claimed >= achievementTierCount(def)) return achievementTierCount(def) - 1;
+    if(!def.infinite && claimed >= achievementSeedTiers(def).length){
+      return achievementSeedTiers(def).length - 1;
+    }
     return claimed;
   }
 
   function achievementActiveTier(def){
-    return achievementTiers(def)[achievementActiveTierIndex(def)] || null;
+    const level = achievementClaimedTier(def) + 1;
+    if(!def.infinite && level > achievementSeedTiers(def).length){
+      const seeds = achievementSeedTiers(def);
+      return seeds[seeds.length - 1] || null;
+    }
+    return achievementTierAt(def, level);
   }
 
   function achievementStatValue(def){
@@ -3274,10 +3348,11 @@
   }
 
   function achievementKindLabel(def){
-    const total = achievementTierCount(def);
-    if(total <= 1) return 'Achievement';
     const claimed = achievementClaimedTier(def);
-    const active = Math.min(claimed + 1, total);
+    const active = claimed + 1;
+    if(def.infinite) return 'Lv ' + active;
+    const total = achievementSeedTiers(def).length;
+    if(total <= 1) return 'Achievement';
     if(achievementIsFullyClaimed(def)) return 'Lv ' + total + ' / ' + total;
     return 'Lv ' + active + ' / ' + total;
   }
@@ -3285,12 +3360,12 @@
   function achievementProgress(def){
     const tier = achievementActiveTier(def);
     if(!tier) return 0;
-    if(achievementIsFullyClaimed(def)) return tier.target;
+    if(!def.infinite && achievementIsFullyClaimed(def)) return tier.target;
     return Math.min(tier.target, achievementStatValue(def));
   }
 
   function achievementComplete(def){
-    if(achievementIsFullyClaimed(def)) return false;
+    if(!def.infinite && achievementIsFullyClaimed(def)) return false;
     const tier = achievementActiveTier(def);
     return !!tier && achievementStatValue(def) >= tier.target;
   }
@@ -3603,13 +3678,15 @@
   function claimAchievement(id){
     const def = ACHIEVEMENT_DEFS.find(c => c.id === id);
     if(!def || !achievementCanClaim(def)) return false;
-    const tierIdx = achievementActiveTierIndex(def);
-    const tier = achievementTiers(def)[tierIdx];
+    const level = achievementClaimedTier(def) + 1;
+    const tier = achievementTierAt(def, level);
     if(!tier) return false;
-    questClaimed[def.id] = tierIdx + 1;
+    questClaimed[def.id] = level;
     applyContractReward(tier.reward);
     refreshQuestUiAndSave();
-    const tierSuffix = achievementTierCount(def) > 1 ? ' Lv ' + (tierIdx + 1) : '';
+    const tierSuffix = (def.infinite || achievementSeedTiers(def).length > 1)
+      ? ' Lv ' + level
+      : '';
     pushPopup({
       x: W / 2,
       y: PEG_ZONE * 0.38,
@@ -4461,16 +4538,19 @@
           }
           const def = ACHIEVEMENT_DEFS.find(d => d.id === oldId);
           if(!def) continue;
-          const tierCount = achievementTierCount(def);
+          const tierCount = achievementSeedTiers(def).length;
           if(claimed === true) questClaimed[oldId] = tierCount;
           else if(typeof claimed === 'number' && claimed > 0){
-            questClaimed[oldId] = Math.min(tierCount, Math.floor(claimed));
+            questClaimed[oldId] = def.infinite
+              ? Math.floor(claimed)
+              : Math.min(tierCount, Math.floor(claimed));
           }
         }
         for(const [id, tier] of Object.entries(legacyMerged)){
           const def = ACHIEVEMENT_DEFS.find(d => d.id === id);
           if(!def) continue;
-          questClaimed[id] = Math.max(questClaimed[id] || 0, Math.min(achievementTierCount(def), tier));
+          const capped = def.infinite ? tier : Math.min(achievementSeedTiers(def).length, tier);
+          questClaimed[id] = Math.max(questClaimed[id] || 0, capped);
         }
       }
       if(typeof data.questUidSeq === 'number' && data.questUidSeq > 0){
@@ -7490,9 +7570,7 @@
       if(rewardEl){
         rewardEl.textContent = stillSecret
           ? '???'
-          : (fullyClaimed
-            ? 'All levels claimed'
-            : contractRewardText(tier ? tier.reward : {}));
+          : contractRewardText(tier ? tier.reward : {});
       }
       const fill = btn.querySelector('.quest-bar > span');
       if(fill){
