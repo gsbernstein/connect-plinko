@@ -2667,13 +2667,14 @@
   // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
   // comps = Cash Out credit for this run (spent only when cashing out).
   // metaMult = stacks on all payout multipliers; chainExp = exponent on chain clears.
+  // Chip bonuses scale via levelChipReward() at every milestone, quest slot, and ×10 level.
   const LEVEL_BONUSES = {
-    5:  { comps: 1, chips: 40, label: '+1 Cash Out comp · +40 chips' },
+    5:  { comps: 1, label: '+1 Cash Out comp' },
     8:  { comps: 1, label: '+1 Cash Out comp · Cash Out unlocked' },
-    10: { comps: 1, upgrade: { id: 'autoDealer', n: 1 }, label: '+1 Cash Out comp · +1 Auto Dealer' },
+    10: { comps: 1, label: '+1 Cash Out comp' },
     12: { comps: 2, label: '+2 Cash Out comps' },
     15: { comps: 2, label: '+2 Cash Out comps' },
-    18: { comps: 2, upgrade: { id: 'bigBlind', n: 1 }, label: '+2 comps · +1 Big Blind' },
+    18: { comps: 2, label: '+2 Cash Out comps' },
     20: { comps: 3, label: '+3 Cash Out comps' },
     25: { comps: 4, label: '+4 Cash Out comps' },
     30: { comps: 5, label: '+5 Cash Out comps' },
@@ -3275,6 +3276,18 @@
       if(bonus && bonus.comps) credit += bonus.comps;
     }
     return credit;
+  }
+
+  function levelHasChipBonus(lvl){
+    if(lvl < 2) return false;
+    if(LEVEL_BONUSES[lvl]) return true;
+    if(QUEST_SLOT_UNLOCK_LEVELS.includes(lvl)) return true;
+    return lvl >= 10 && lvl % 10 === 0;
+  }
+
+  function levelChipReward(lvl){
+    if(!levelHasChipBonus(lvl)) return 0;
+    return Math.floor(8 * lvl + 6 * Math.pow(lvl, 1.25));
   }
 
   function highestRunLevelReached(){
@@ -4205,12 +4218,13 @@
       }
     }
     const bonus = LEVEL_BONUSES[lvl];
+    const chips = levelChipReward(lvl);
+    if(chips > 0){
+      parts.push('+' + formatNum(blindBonusChips(chips, 'levelBonus')) + ' chips');
+    }
     if(bonus){
       if(bonus.comps){
         parts.push('+' + bonus.comps + ' Cash Out comp' + (bonus.comps === 1 ? '' : 's'));
-      }
-      if(bonus.chips){
-        parts.push('+' + formatNum(blindBonusChips(bonus.chips, 'levelBonus')) + ' chips');
       }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
@@ -4249,14 +4263,15 @@
     const firstTimeAtLevel = (stats.maxRunLevel || 1) < lvl;
     const parts = describeLevelRewardParts(lvl, { firstTimeAtLevel });
     const bonus = LEVEL_BONUSES[lvl];
+    const chips = levelChipReward(lvl);
+    if(chips > 0){
+      const awarded = blindBonusChips(chips, 'levelBonus');
+      score += awarded;
+      // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
+      if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, awarded);
+    }
     if(bonus){
       if(bonus.comps) runCompCredit += bonus.comps;
-      if(bonus.chips){
-        const chips = blindBonusChips(bonus.chips, 'levelBonus');
-        score += chips;
-        // Level bonus chips do not count as lifetime XP (avoids chain level-ups).
-        if(!silent) spawnChipFly(W/2, PEG_ZONE * 0.42, chips);
-      }
       if(bonus.upgrade){
         const uDef = UPGRADE_DEFS.find(u => u.id === bonus.upgrade.id);
         if(uDef){
