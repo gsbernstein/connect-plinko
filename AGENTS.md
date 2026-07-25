@@ -156,7 +156,7 @@ Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a r
 **Agents: keep this updated.** When you ship a player-visible Poker change (new upgrade/perk, progression tweak, notable UX), prepend a new object to `CHANGELOG` with:
 
 1. `id` — strictly greater than the current max (`CHANGELOG_LATEST_ID` is derived).
-2. `date` — short label (e.g. `'Jul 2026'`).
+2. `date` — calendar label with day (e.g. `'Jul 25, 2026'`), not month-only.
 3. `title` — one short headline.
 4. `items` — 1–4 concise player-facing bullets (skip pure docs/agent/internal fixes).
 

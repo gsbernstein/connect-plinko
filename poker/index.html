@@ -2743,10 +2743,11 @@
   // Newest-first. Bump id (monotonic) when adding an entry so the Settings
   // red badge lights up for players whose save has a lower seenChangelogId.
   // Keep entries player-facing; skip pure agent/docs/internal churn.
+  // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   const CHANGELOG = [
     {
-      id: 3,
-      date: 'Jul 2026',
+      id: 12,
+      date: 'Jul 25, 2026',
       title: 'Shop math & Auto Dealer',
       items: [
         'VIP skill bonuses now raise matching upgrade buy costs and surface Blind / payout / combo multipliers on shop rows.',
@@ -2754,24 +2755,109 @@
       ]
     },
     {
-      id: 2,
-      date: 'Jul 2026',
-      title: 'Table Tilt & Short Fuse',
+      id: 11,
+      date: 'Jul 25, 2026',
+      title: 'Table Tilt',
       items: [
         'New VIP perk Table Tilt steers peg falls from device motion (toggleable; permission only when you turn it on).',
+        'Portrait lock while tilt is active; baseline drift fixes for steadier lean.'
+      ]
+    },
+    {
+      id: 10,
+      date: 'Jul 25, 2026',
+      title: 'Short Fuse & Suit Purge UI',
+      items: [
         'Short Fuse speeds hand-clear explosions separately from Felt Grease ball physics.',
         'Minimized Suit Purge charge bar pins to the card bottom; auto-target suit flashes when casting.'
       ]
     },
     {
-      id: 1,
-      date: 'Jul 2026',
-      title: 'Progression rework',
+      id: 9,
+      date: 'Jul 25, 2026',
+      title: 'Deep run levels',
       items: [
-        'Run level climbs to 200 with quest slots at Lv 2 / 20 / 45 / 75 / 110 and late-game payout & combo multipliers.',
-        'VIP rework: Felt Wax, Hot Streak, Open Blind; Card Sense and Auto Purge moved to VIP perks.',
-        'Achievements gain infinite tiered levels, sort by progress, and pulse the numerator when it ticks up.',
-        'Rail tabs show a red dot the first time a section unlocks; Next HUD uses colored suit glyphs.'
+        'Run level climbs to 200 with quest slots at Lv 2 / 20 / 45 / 75 / 110.',
+        'Late-game payout and combo multipliers; chip bonuses spread across the climb.',
+        'Level-up toast removed; the level pill still pulses on level-up.'
+      ]
+    },
+    {
+      id: 8,
+      date: 'Jul 25, 2026',
+      title: 'VIP perk rework',
+      items: [
+        'Felt Wax, Hot Streak, and Open Blind join the VIP lounge.',
+        'Card Sense and Auto Purge move from the table shop to VIP perks.',
+        'Gold perk segments lead upgrade progress bars; VIP bonus levels count toward skill caps.'
+      ]
+    },
+    {
+      id: 7,
+      date: 'Jul 25, 2026',
+      title: 'Achievements & HUD polish',
+      items: [
+        'Achievements gain infinite tiered levels, sort by progress %, and pulse the numerator when it ticks up.',
+        'Higher hands count toward lower-category achievement stats; royal flush counts for straight flush goals.',
+        'Rail tabs show a red dot on first unlock; Next HUD uses colored suit glyphs; Auto HUD toggles Auto Dealer.'
+      ]
+    },
+    {
+      id: 6,
+      date: 'Jul 24, 2026',
+      title: 'Wild Card & Premium Cut',
+      items: [
+        'Wild Card upgrade deals Uno-style any-suit chips.',
+        'Premium Cut adds tiered card hand multipliers with metallic premium glyphs.',
+        'Compact stacked HUD tiles on mobile to stop layout jumping.'
+      ]
+    },
+    {
+      id: 5,
+      date: 'Jul 24, 2026',
+      title: 'Suit Purge & celebrations',
+      items: [
+        'Hide/Show toggle for the Suit Purge picker; lower cooldown at max level; purges pop in-flight cards.',
+        'Quest claim effects, reward particles, and auto-buy upgrade celebration.',
+        'Chips land on the tile edge with mobile tab particle bursts.'
+      ]
+    },
+    {
+      id: 4,
+      date: 'Jul 24, 2026',
+      title: 'Tiered achievements',
+      items: [
+        'Achievements unlock multiple claimable tiers with save migration.',
+        'Pit Boss becomes a single-level VIP perk; Hold Deal removed from VIP.'
+      ]
+    },
+    {
+      id: 3,
+      date: 'Jul 24, 2026',
+      title: 'Juice & settings',
+      items: [
+        'Chip pop-and-fly to the chip counter, with a setting to disable the animation.',
+        'Click the level pill to see unlocks so far and what’s next.',
+        'Felt-and-gold casino card textures; four-color suit glyphs.'
+      ]
+    },
+    {
+      id: 2,
+      date: 'Jul 24, 2026',
+      title: 'Welcome, VIP & quests',
+      items: [
+        'Welcome tab for first-time Poker; VIP Lounge unlocks with your first permanent comps.',
+        'Run levels, Cash Out prestige, and Contracts / quests join the sidebar.',
+        'Auto floor clear when the board packs full.'
+      ]
+    },
+    {
+      id: 1,
+      date: 'Jul 24, 2026',
+      title: 'Plinko Poker idle',
+      items: [
+        'Plinko Poker launches at /poker/ alongside classic Plinko Four.',
+        'Idle upgrades: spend chips on Auto Dealer, Big Blind, and table skills between hands.'
       ]
     }
   ];
