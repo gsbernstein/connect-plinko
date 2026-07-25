@@ -5,7 +5,7 @@
 <title>Plinko Poker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+Symbols+2:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0B0A14;
@@ -20,6 +20,7 @@
     --diamond:#FF8A5B;
     --spade:#C8C2E8;
     --club:#7EC8A3;
+    --suit-font:'Noto Sans Symbols 2','Segoe UI Symbol','Apple Symbols',sans-serif;
   }
   *{
     box-sizing:border-box;
@@ -2085,6 +2086,10 @@
   // ---- cards ----
   const SUITS = ['♠','♥','♦','♣'];
   const SUIT_COLOR = {'♠':SPADE,'♥':HEART,'♦':DIAMOND,'♣':CLUB};
+  const SUIT_FONT = getCSS('--suit-font') || "'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', sans-serif";
+  function suitGlyphFont(px){
+    return `700 ${px}px ${SUIT_FONT}`;
+  }
   const SUIT_INK = {'♠':'#1a1630','♥':'#5a1020','♦':'#5a2810','♣':'#0e2a22'};
   // Deep felt faces per suit — welcome-chip aesthetic, readable under gold type.
   const SUIT_FELT = {
@@ -6245,73 +6250,19 @@
     target.stroke();
   }
 
-  // Vector suit marks so spades/clubs keep lavender/green instead of emoji black.
-  function suitStemPath(target){
-    target.moveTo(-0.1, 0.18);
-    target.lineTo(-0.12, 0.68);
-    target.lineTo(0.12, 0.68);
-    target.lineTo(0.1, 0.18);
-    target.closePath();
-    target.moveTo(-0.24, 0.66);
-    target.lineTo(0.24, 0.66);
-    target.lineTo(0.18, 0.86);
-    target.lineTo(-0.18, 0.86);
-    target.closePath();
-  }
-
-  function suitIconPath(target, suit){
-    if(suit === '♥'){
-      target.moveTo(0, 0.3);
-      target.bezierCurveTo(0, 0.1, -0.5, -0.1, -0.5, -0.45);
-      target.bezierCurveTo(-0.5, -0.75, 0, -0.85, 0, -0.55);
-      target.bezierCurveTo(0, -0.85, 0.5, -0.75, 0.5, -0.45);
-      target.bezierCurveTo(0.5, -0.1, 0, 0.1, 0, 0.3);
-      target.closePath();
-      return;
-    }
-    if(suit === '♦'){
-      target.moveTo(0, -0.85);
-      target.lineTo(0.55, 0);
-      target.lineTo(0, 0.85);
-      target.lineTo(-0.55, 0);
-      target.closePath();
-      return;
-    }
-    if(suit === '♠'){
-      target.moveTo(0, -0.88);
-      target.bezierCurveTo(0.48, -0.88, 0.68, -0.52, 0.36, -0.14);
-      target.bezierCurveTo(0.68, -0.02, 0.52, 0.36, 0, 0.22);
-      target.bezierCurveTo(-0.52, 0.36, -0.68, -0.02, -0.36, -0.14);
-      target.bezierCurveTo(-0.68, -0.52, -0.48, -0.88, 0, -0.88);
-      target.closePath();
-      suitStemPath(target);
-      return;
-    }
-    if(suit === '♣'){
-      const r = 0.21;
-      target.arc(-0.3, -0.32, r, 0, Math.PI * 2);
-      target.moveTo(0.09, -0.32);
-      target.arc(0.3, -0.32, r, 0, Math.PI * 2);
-      target.moveTo(-0.21, -0.08);
-      target.arc(0, -0.02, r, 0, Math.PI * 2);
-      suitStemPath(target);
-    }
-  }
-
-  function drawSuitIcon(target, suit, x, y, size, color){
-    const scale = size * 0.5;
+  function paintSuitGlyph(target, suit, x, y, size, color){
     target.save();
-    target.translate(x, y);
-    target.scale(scale, scale);
-    target.beginPath();
-    suitIconPath(target, suit);
-    target.fillStyle = color;
-    target.strokeStyle = 'rgba(8,6,16,0.85)';
+    target.textAlign = 'center';
+    target.textBaseline = 'middle';
+    target.font = suitGlyphFont(size);
     target.lineJoin = 'round';
-    target.lineCap = 'round';
-    target.lineWidth = Math.max(0.12, 8 / size);
-    target.stroke();
-    target.fill();
+    target.miterLimit = 2;
+    const lineW = Math.max(1.2, size * 0.1);
+    target.lineWidth = lineW;
+    target.strokeStyle = 'rgba(8,6,16,0.85)';
+    target.strokeText(suit, x, y);
+    target.fillStyle = color;
+    target.fillText(suit, x, y);
     target.restore();
   }
 
@@ -6340,7 +6291,7 @@
     if(isWild(card)){
       drawWildIcon(target, suitX, suitY, radius * 0.95);
     } else {
-      drawSuitIcon(target, card.suit, suitX, suitY, suitSize * 0.95, color);
+      paintSuitGlyph(target, card.suit, suitX, suitY, suitSize, color);
     }
     stampGlyph(
       rankLabel(card.rank),
@@ -7561,11 +7512,24 @@
       glyph.width = 44;
       glyph.height = 44;
       glyph.setAttribute('aria-hidden', 'true');
-      drawSuitIcon(glyph.getContext('2d'), s, 22, 22, 22, SUIT_COLOR[s]);
+      paintSuitGlyph(glyph.getContext('2d'), s, 22, 22, 22, SUIT_COLOR[s]);
       btn.append(fill, glyph);
       btn.addEventListener('click', ()=>castSuitBomb(s));
       suitBombBtnsEl.appendChild(btn);
       suitBombButtons[s] = btn;
+    }
+    if(document.fonts && document.fonts.ready){
+      document.fonts.ready.then(repaintSuitBombGlyphs);
+    }
+  }
+
+  function repaintSuitBombGlyphs(){
+    for(const s of SUITS){
+      const glyph = suitBombButtons[s]?.querySelector('.suit-glyph');
+      if(!glyph || glyph.tagName !== 'CANVAS') continue;
+      const ctx = glyph.getContext('2d');
+      ctx.clearRect(0, 0, glyph.width, glyph.height);
+      paintSuitGlyph(ctx, s, 22, 22, 22, SUIT_COLOR[s]);
     }
   }
 
