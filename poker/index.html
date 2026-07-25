@@ -4649,7 +4649,9 @@
   let lastFrameMs = 0;
 
   const BALL_RADIUS = 14;
-  const HOLE_R = 29;
+  const PIECE_R = 32;
+  // Hole must clear the chip plus the premium tier foil ring drawn outside it.
+  const HOLE_R = PIECE_R + 6;
   const SAFETY_LIMIT = 420;
 
   function dropInColumn(col){
@@ -4786,7 +4788,6 @@
   }
 
   function collideBallWithSettledPieces(ball){
-    const PIECE_R = 32;
     for(let c=0;c<COLS;c++){
       const px = c*CELL + CELL/2;
       for(let i=0;i<stack[c].length;i++){
@@ -5986,14 +5987,14 @@
   }
 
   function drawPiece(cx, cy, card, isBall, highlight){
-    drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
+    drawCardFace(ctx, cx, cy, card, card.angle||0, PIECE_R, isBall, highlight);
   }
 
   function drawFlashPiece(cx, cy, card, elapsedFrac){
     const color = SUIT_COLOR[card.suit];
     // Uniform flash (rank juice lives in score text). Tiny scale + suit pulse.
     const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * 7);
-    const r = 32 * pulse;
+    const r = PIECE_R * pulse;
     const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * 7));
     ctx.save();
     ctx.translate(cx, cy);
@@ -6015,12 +6016,12 @@
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.stroke();
     ctx.rotate(card.angle || 0);
-    drawChipGlyphs(ctx, card, 32 * 0.92);
+    drawChipGlyphs(ctx, card, PIECE_R * 0.92);
     ctx.restore();
   }
 
   function drawBall(b){
-    drawCardFace(ctx, b.x, b.y, b.card, b.angle||0, 32, true, 0);
+    drawCardFace(ctx, b.x, b.y, b.card, b.angle||0, PIECE_R, true, 0);
   }
 
   function perfLite(){
