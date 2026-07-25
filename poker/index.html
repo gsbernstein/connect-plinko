@@ -4240,9 +4240,6 @@
   function grantLevelReward(lvl, opts){
     opts = opts || {};
     const silent = !!opts.silent;
-    // maxRunLevel updates after the level-up loop, so "prior" is still the peak.
-    const firstTimeAtLevel = (stats.maxRunLevel || 1) < lvl;
-    const parts = describeLevelRewardParts(lvl, { firstTimeAtLevel });
     const bonus = LEVEL_BONUSES[lvl];
     const chips = levelChipReward(lvl);
     if(chips > 0){
