@@ -2693,6 +2693,15 @@
     'THREE OF A KIND': 'runThreeKinds',
     'TWO PAIR': 'runTwoPairs'
   };
+  // Higher hands also count toward lower-category achievements and quests.
+  const HAND_STAT_ALSO = {
+    'ROYAL FLUSH': ['straightFlushes', 'straights', 'flushes'],
+    'STRAIGHT FLUSH': ['straights', 'flushes']
+  };
+  const RUN_HAND_STAT_ALSO = {
+    'ROYAL FLUSH': ['runStraightFlushes', 'runStraights', 'runFlushes'],
+    'STRAIGHT FLUSH': ['runStraights', 'runFlushes']
+  };
   const MAX_QUEST_SLOTS = 5;
   const QUEST_CLAIM_ANIM_MS = 360;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
@@ -3834,11 +3843,8 @@
       if(key) bumpStat(key, 1);
       const runKey = RUN_HAND_STAT[g.name];
       if(runKey) bumpStat(runKey, 1);
-      // Royal flush is a straight flush for achievements and run quests.
-      if(g.name === 'ROYAL FLUSH'){
-        bumpStat('straightFlushes', 1);
-        bumpStat('runStraightFlushes', 1);
-      }
+      for(const alsoKey of (HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
+      for(const alsoKey of (RUN_HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
     }
   }
 
