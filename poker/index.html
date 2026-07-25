@@ -2940,6 +2940,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 29,
+      date: 'Jul 25, 2026',
+      title: 'I Didn\'t Ask How Big the Room Was',
+      items: [
+        'New expensive VIP perk: explosions cast fireballs that light other cards on fire.',
+        'Burning cards drip chips until they ash out. Toggle On/Off anytime — pairs well with Storm the Beaches.'
+      ]
+    },
+    {
       id: 28,
       date: 'Jul 25, 2026',
       title: 'Premium rim polish',
@@ -3842,13 +3851,22 @@
       costScale: 1,
       maxLevel: 1,
       toggleable: true
+    },
+    {
+      id: 'bigRoom',
+      name: 'I Didn\'t Ask How Big the Room Was',
+      desc: 'Explosions cast fireballs that light other cards on fire. Burning cards drip chips until they ash out. Toggle On/Off anytime.',
+      baseCost: 80,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
     }
   ];
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'bigRoom'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -4024,6 +4042,28 @@
 
   function dropSpawnMult(){
     return pinSplitSpawnMult() * stormBeachesSpawnMult();
+  }
+
+  // I Didn't Ask How Big the Room Was: blasts hurl fireballs; ignited cards drip chips.
+  const BIG_ROOM_FIREBALLS_PER_BLAST = 2;
+  const BIG_ROOM_MAX_FIREBALLS = 28;
+  const BIG_ROOM_FIREBALL_SPEED = 9.5;
+  const BIG_ROOM_BURN_TICKS = 4;
+  const BIG_ROOM_BURN_TICK_MS = 420;
+  const BIG_ROOM_BURN_COLOR = '#FF7A3D';
+
+  function bigRoomUnlocked(){
+    return prestigeLevel('bigRoom') > 0;
+  }
+
+  function bigRoomActive(){
+    return bigRoomUnlocked() && isAutoEnabled('bigRoom');
+  }
+
+  function burnTickPayout(){
+    // Modest DoT — scales with Pin Tip / Blind / run meta so mid-game fire matters.
+    const pin = Math.max(1, upgradeLevel('pinPayout'));
+    return Math.max(1, Math.floor((2 + pin * 1.5) * blindMultiplier('pin') * runMetaMultiplier()));
   }
 
   function tableTiltUnlocked(){
@@ -5809,6 +5849,10 @@
         if(!lvl) return 'Steady landings';
         if(!isAutoEnabled('stormBeaches')) return 'Paused';
         return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% pin shells';
+      case 'bigRoom':
+        if(!lvl) return 'No fireballs';
+        if(!isAutoEnabled('bigRoom')) return 'Paused';
+        return 'Fireballs on blasts · ' + formatNum(burnTickPayout()) + ' / burn tick';
       default:
         return '';
     }
@@ -6351,6 +6395,7 @@
     heaterHoldUntilUse = false;
     flashCells = null;
     particles = [];
+    fireballs = [];
     popups = [];
     pendingSuitBomb = null;
     autoDropTicks = 0;
@@ -6582,6 +6627,7 @@
   }
   let flashCells = null;
   let particles = [];
+  let fireballs = []; // Big Room projectiles: {x,y,vx,vy,tx,ty,targetCol,targetRow,life}
   let popups = [];
   const FLASH_MS = 480, EXPLODE_MS = 280;
 
@@ -7169,6 +7215,8 @@
     autoDropTicks += physicsSteps;
     tryAutoDrop();
     stepParticles();
+    stepFireballs();
+    stepBurning(now);
 
     const landed = balls.filter(b=>b.landed);
     if(landed.length){
@@ -7191,7 +7239,8 @@
     const bombAuto = prestigeLevel('autoSuitBomb') > 0
       && isAutoEnabled('autoSuitBomb')
       && suitBombUnlocked();
-    if(balls.length>0 || particles.length>0 || popupsAlive || resolving
+    if(balls.length>0 || particles.length>0 || fireballs.length>0
+      || hasBurningCards() || popupsAlive || resolving
       || bombCharging || bombAuto || autoDealerActive()){
       requestAnimationFrame(tick);
     } else {
@@ -7669,38 +7718,271 @@
     }
   }
 
-  function spawnExplosion(x, y, card){
-    if(particles.length >= MAX_PARTICLES) return;
-    const color = card ? cardGlowColor(card) : '#ffffff';
-    const budget = Math.max(0, MAX_PARTICLES - particles.length);
-    const sparks = Math.min(12, budget);
-    for(let i=0;i<sparks;i++){
-      const ang = Math.random()*Math.PI*2;
-      const spd = 2.2 + Math.random()*6.5;
-      particles.push({
+  function spawnExplosion(x, y, card, opts){
+    opts = opts || {};
+    if(particles.length < MAX_PARTICLES){
+      const color = card ? cardGlowColor(card) : '#ffffff';
+      const budget = Math.max(0, MAX_PARTICLES - particles.length);
+      const sparks = Math.min(12, budget);
+      for(let i=0;i<sparks;i++){
+        const ang = Math.random()*Math.PI*2;
+        const spd = 2.2 + Math.random()*6.5;
+        particles.push({
+          x, y,
+          vx: Math.cos(ang)*spd,
+          vy: Math.sin(ang)*spd - 3.5,
+          r: 2.5 + Math.random()*5,
+          color,
+          life: 1,
+          decay: 0.018 + Math.random()*0.025
+        });
+      }
+      const flares = Math.min(3, Math.max(0, MAX_PARTICLES - particles.length));
+      for(let i=0;i<flares;i++){
+        const ang = -Math.PI/2 + (Math.random()-0.5)*1.4;
+        const spd = 5 + Math.random()*5;
+        particles.push({
+          x, y,
+          vx: Math.cos(ang)*spd,
+          vy: Math.sin(ang)*spd,
+          r: 5 + Math.random()*4,
+          color: '#ffffff',
+          life: 1,
+          decay: 0.03 + Math.random()*0.02
+        });
+      }
+    }
+    // Big Room: every blast can hurl fireballs at other settled cards.
+    if(bigRoomActive() && !opts.noFireball){
+      castFireballsFrom(x, y, opts.excludeKeys);
+    }
+  }
+
+  function cellCenter(col, row){
+    return {
+      x: col * CELL + CELL / 2,
+      y: PEG_ZONE + row * CELL + CELL / 2
+    };
+  }
+
+  function stackEntryAt(col, row){
+    if(col < 0 || col >= COLS || row < 0 || row >= ROWS) return null;
+    const i = ROWS - 1 - row;
+    const entry = stack[col][i];
+    if(!entry || entry.type !== 'piece') return null;
+    return entry;
+  }
+
+  function burningAt(col, row){
+    const entry = stackEntryAt(col, row);
+    return entry && entry.burning ? entry.burning : null;
+  }
+
+  function hasBurningCards(){
+    for(let c = 0; c < COLS; c++){
+      for(const entry of stack[c]){
+        if(entry.type === 'piece' && entry.burning) return true;
+      }
+    }
+    return false;
+  }
+
+  function collectFireballTargets(excludeKeys){
+    const exclude = excludeKeys || null;
+    const targets = [];
+    for(let c = 0; c < COLS; c++){
+      for(let i = 0; i < stack[c].length; i++){
+        const entry = stack[c][i];
+        if(entry.type !== 'piece') continue;
+        const row = ROWS - 1 - i;
+        const key = c + ',' + row;
+        if(exclude && exclude.has(key)) continue;
+        if(flashCells && flashCells.has(key)) continue;
+        if(entry.burning) continue;
+        targets.push({col: c, row, entry});
+      }
+    }
+    return targets;
+  }
+
+  function castFireballsFrom(x, y, excludeKeys){
+    if(!bigRoomActive()) return;
+    const room = BIG_ROOM_MAX_FIREBALLS - fireballs.length;
+    if(room <= 0) return;
+    const targets = collectFireballTargets(excludeKeys);
+    if(!targets.length) return;
+    // Prefer nearer cards so the room feels tight, then shuffle the shortlist.
+    targets.sort((a, b) => {
+      const ac = cellCenter(a.col, a.row);
+      const bc = cellCenter(b.col, b.row);
+      return (Math.hypot(ac.x - x, ac.y - y) - Math.hypot(bc.x - x, bc.y - y));
+    });
+    const pool = targets.slice(0, Math.min(targets.length, 6));
+    for(let i = pool.length - 1; i > 0; i--){
+      const j = (Math.random() * (i + 1)) | 0;
+      const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    const count = Math.min(BIG_ROOM_FIREBALLS_PER_BLAST, pool.length, room);
+    for(let i = 0; i < count; i++){
+      const t = pool[i];
+      const dest = cellCenter(t.col, t.row);
+      const dx = dest.x - x, dy = dest.y - y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const spd = BIG_ROOM_FIREBALL_SPEED * (0.85 + Math.random() * 0.3);
+      fireballs.push({
         x, y,
-        vx: Math.cos(ang)*spd,
-        vy: Math.sin(ang)*spd - 3.5,
-        r: 2.5 + Math.random()*5,
-        color,
+        vx: (dx / dist) * spd,
+        vy: (dy / dist) * spd,
+        tx: dest.x,
+        ty: dest.y,
+        targetCol: t.col,
+        targetEntry: t.entry,
         life: 1,
-        decay: 0.018 + Math.random()*0.025
+        trail: []
       });
     }
-    const flares = Math.min(3, Math.max(0, MAX_PARTICLES - particles.length));
-    for(let i=0;i<flares;i++){
-      const ang = -Math.PI/2 + (Math.random()-0.5)*1.4;
-      const spd = 5 + Math.random()*5;
-      particles.push({
-        x, y,
-        vx: Math.cos(ang)*spd,
-        vy: Math.sin(ang)*spd,
-        r: 5 + Math.random()*4,
-        color: '#ffffff',
-        life: 1,
-        decay: 0.03 + Math.random()*0.02
-      });
+    if(fireballs.length && !looping) startLoop();
+  }
+
+  function igniteStackEntry(entry, col, row){
+    if(!entry || entry.type !== 'piece' || entry.burning) return false;
+    const now = performance.now();
+    entry.burning = {
+      ticksLeft: BIG_ROOM_BURN_TICKS,
+      nextTickAt: now + BIG_ROOM_BURN_TICK_MS * 0.35,
+      startedAt: now
+    };
+    const pos = cellCenter(col, row);
+    pushPopup({
+      x: pos.x, y: pos.y - 10,
+      text: 'FIRE!',
+      color: BIG_ROOM_BURN_COLOR,
+      t0: performance.now(),
+      duration: 700,
+      fontSize: 15, floatBoost: 28, tilt: 0.06, slam: 1.25, slamMs: 110, glow: 12
+    });
+    // Small ember burst on ignition.
+    if(particles.length < MAX_PARTICLES){
+      const n = Math.min(5, MAX_PARTICLES - particles.length);
+      for(let i = 0; i < n; i++){
+        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+        const spd = 1.5 + Math.random() * 3;
+        particles.push({
+          x: pos.x, y: pos.y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          r: 2 + Math.random() * 3,
+          color: i % 2 ? BIG_ROOM_BURN_COLOR : '#FFD27A',
+          life: 1,
+          decay: 0.04 + Math.random() * 0.03
+        });
+      }
     }
+    return true;
+  }
+
+  function ashOutStackEntry(col, stackIndex){
+    const entry = stack[col][stackIndex];
+    if(!entry || entry.type !== 'piece') return;
+    const row = ROWS - 1 - stackIndex;
+    const pos = cellCenter(col, row);
+    spawnExplosion(pos.x, pos.y, entry.card, {noFireball: true});
+    stack[col].splice(stackIndex, 1);
+    rebuildColumnFromStack(col);
+    recomputeBumpers();
+    markHintsDirty();
+    if(!resolving) maybeStartResolve();
+  }
+
+  function stepFireballs(){
+    if(!fireballs.length) return;
+    const next = [];
+    for(const fb of fireballs){
+      fb.x += fb.vx;
+      fb.y += fb.vy;
+      fb.trail.push({x: fb.x, y: fb.y});
+      if(fb.trail.length > 7) fb.trail.shift();
+      // Home on the entry object so column collapses don't orphan the aim point.
+      const col = fb.targetCol;
+      const entry = fb.targetEntry;
+      const idx = (col != null && entry) ? stack[col].indexOf(entry) : -1;
+      if(idx >= 0 && entry.type === 'piece'){
+        const row = ROWS - 1 - idx;
+        const dest = cellCenter(col, row);
+        fb.tx = dest.x;
+        fb.ty = dest.y;
+        const dx = dest.x - fb.x, dy = dest.y - fb.y;
+        const dist = Math.hypot(dx, dy);
+        if(dist < 22){
+          igniteStackEntry(entry, col, row);
+          continue;
+        }
+        // Soft steer toward the seat.
+        fb.vx += (dx / dist) * 0.55;
+        fb.vy += (dy / dist) * 0.55;
+        const spd = Math.hypot(fb.vx, fb.vy) || 1;
+        const cap = BIG_ROOM_FIREBALL_SPEED * 1.25;
+        if(spd > cap){
+          fb.vx = fb.vx / spd * cap;
+          fb.vy = fb.vy / spd * cap;
+        }
+      } else {
+        // Target vacated — coast and expire.
+        fb.life -= 0.04;
+        if(fb.life <= 0) continue;
+      }
+      if(fb.x < -40 || fb.x > W + 40 || fb.y < -40 || fb.y > H + 40) continue;
+      next.push(fb);
+    }
+    fireballs = next;
+  }
+
+  function stepBurning(now){
+    if(resolving) return;
+    let anyAsh = false;
+    for(let c = 0; c < COLS; c++){
+      // Walk top-down so splices don't skip entries.
+      for(let i = stack[c].length - 1; i >= 0; i--){
+        const entry = stack[c][i];
+        if(entry.type !== 'piece' || !entry.burning) continue;
+        const burn = entry.burning;
+        const row = ROWS - 1 - i;
+        const pos = cellCenter(c, row);
+        // Rising ember wisps while aflame.
+        if(particles.length < MAX_PARTICLES && Math.random() < 0.35){
+          particles.push({
+            x: pos.x + (Math.random() - 0.5) * 18,
+            y: pos.y + (Math.random() - 0.5) * 10,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: -1.2 - Math.random() * 1.8,
+            r: 1.5 + Math.random() * 2.5,
+            color: Math.random() < 0.4 ? '#FFD27A' : BIG_ROOM_BURN_COLOR,
+            life: 1,
+            decay: 0.05 + Math.random() * 0.04
+          });
+        }
+        if(now < burn.nextTickAt) continue;
+        const payout = burnTickPayout();
+        if(payout > 0){
+          awardChips(payout, pos);
+          pushPopup({
+            x: pos.x, y: pos.y - 8,
+            text: '+' + payout,
+            color: BIG_ROOM_BURN_COLOR,
+            t0: now,
+            duration: 650,
+            fontSize: 14, floatBoost: 26, tilt: 0.04, slam: 1.15, slamMs: 90, glow: 10
+          });
+        }
+        burn.ticksLeft--;
+        burn.nextTickAt = now + BIG_ROOM_BURN_TICK_MS;
+        if(burn.ticksLeft <= 0){
+          ashOutStackEntry(c, i);
+          anyAsh = true;
+        }
+      }
+    }
+    if(anyAsh) refreshButtons();
   }
 
   function stepParticles(){
@@ -7745,7 +8027,11 @@
     for(const key of cleared){
       const [c,r] = key.split(',').map(Number);
       const card = grid[c][r];
-      if(card) spawnExplosion(c*CELL+CELL/2, PEG_ZONE+r*CELL+CELL/2, card);
+      if(card){
+        spawnExplosion(c*CELL+CELL/2, PEG_ZONE+r*CELL+CELL/2, card, {
+          excludeKeys: cleared
+        });
+      }
     }
 
     for(let c=0;c<COLS;c++){
@@ -8248,6 +8534,73 @@
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
+  function drawBurningOverlay(cx, cy, burn, now){
+    if(!burn) return;
+    const age = Math.max(0, (now - (burn.startedAt || now)) / 1000);
+    const flicker = 0.55 + 0.45 * Math.abs(Math.sin(age * 14 + cx * 0.01));
+    const ticksFrac = Math.max(0.2, (burn.ticksLeft || 1) / BIG_ROOM_BURN_TICKS);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.shadowColor = BIG_ROOM_BURN_COLOR;
+    ctx.shadowBlur = 16 + 10 * flicker;
+    ctx.globalAlpha = 0.22 + 0.28 * flicker * ticksFrac;
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.fillStyle = BIG_ROOM_BURN_COLOR;
+    ctx.fill();
+    ctx.globalAlpha = 0.35 + 0.4 * flicker;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#FFD27A';
+    ctx.beginPath();
+    ctx.arc(0, 0, 32, 0, Math.PI * 2);
+    ctx.stroke();
+    // Simple flame tongues above the chip.
+    ctx.shadowBlur = 8;
+    ctx.globalAlpha = 0.55 + 0.35 * flicker;
+    for(let i = 0; i < 3; i++){
+      const ox = (i - 1) * 9;
+      const h = 10 + 7 * flicker + (i === 1 ? 4 : 0);
+      ctx.beginPath();
+      ctx.moveTo(ox - 4, -18);
+      ctx.quadraticCurveTo(ox + Math.sin(age * 18 + i) * 3, -18 - h, ox + 4, -18);
+      ctx.fillStyle = i === 1 ? '#FFD27A' : BIG_ROOM_BURN_COLOR;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawFireballs(lite){
+    if(!fireballs.length) return;
+    for(const fb of fireballs){
+      if(fb.trail && fb.trail.length){
+        for(let i = 0; i < fb.trail.length; i++){
+          const t = fb.trail[i];
+          const a = ((i + 1) / fb.trail.length) * 0.45;
+          ctx.globalAlpha = a;
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 4 + i * 0.6, 0, Math.PI * 2);
+          ctx.fillStyle = i % 2 ? '#FFD27A' : BIG_ROOM_BURN_COLOR;
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = Math.max(0.4, fb.life || 1);
+      ctx.beginPath();
+      ctx.arc(fb.x, fb.y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFD27A';
+      if(!lite){
+        ctx.shadowColor = BIG_ROOM_BURN_COLOR;
+        ctx.shadowBlur = 14;
+      }
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(fb.x, fb.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff6e0';
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
   function drawFlashPiece(cx, cy, card, elapsedFrac, pulses){
     const color = cardGlowColor(card);
     // Uniform flash (rank juice lives in score text). Tiny scale + suit pulse.
@@ -8417,8 +8770,9 @@
     ctx.fillStyle = BG;
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
+    const nowDraw = performance.now();
     const flashElapsed = resolvePhase==='flash'
-      ? Math.min(1,(performance.now()-resolvePhaseStart)/(FLASH_MS/resolveSpeed()))
+      ? Math.min(1,(nowDraw-resolvePhaseStart)/(FLASH_MS/resolveSpeed()))
       : 0;
     const flashPulses = flashPulseCount();
     for(let c=0;c<COLS;c++){
@@ -8485,6 +8839,22 @@
 
     ctx.drawImage(plateCanvas, 0, 0);
 
+    // Big Room burn FX sits above the plastic so flame tongues aren't clipped
+    // by the plate between holes.
+    for(let c=0;c<COLS;c++){
+      for(let r=0;r<ROWS;r++){
+        if(!grid[c][r]) continue;
+        const burn = burningAt(c, r);
+        if(!burn) continue;
+        drawBurningOverlay(
+          c*CELL+CELL/2,
+          PEG_ZONE + r*CELL + CELL/2,
+          burn,
+          nowDraw
+        );
+      }
+    }
+
     // Free pucks still inside the board face (explosion launches, etc.)
     // draw on top of the plastic so the flight out of the column stays visible.
     for(const b of balls){
@@ -8520,6 +8890,8 @@
     }
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
+
+    drawFireballs(lite);
 
     const nowP = performance.now();
     popups = popups.filter(p => nowP - p.t0 < p.duration);
@@ -10281,7 +10653,8 @@
       tryAutoSuitBomb(now);
       maybeAutoBuy(now);
       maybeAutoClaimQuests(now);
-      const needLoop = balls.length || particles.length || resolving
+      const needLoop = balls.length || particles.length || fireballs.length
+        || hasBurningCards() || resolving
         || autoDealerActive()
         || (prestigeLevel('pitBoss') > 0 && isAutoEnabled('pitBoss'))
         || (prestigeLevel('questDesk') > 0
