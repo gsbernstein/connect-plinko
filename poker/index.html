@@ -3120,7 +3120,7 @@
     {
       id: 'tableTilt',
       name: 'Table Tilt',
-      desc: 'Tilt your device to yank gravity up to ±60° through the pegs — just for fun. Motion permission only when you turn this on. Toggle On/Off anytime.',
+      desc: 'Tilt your device to yank gravity up to ±60° through the pegs — just for fun. Asks for motion access when turned on, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
       baseCost: 2,
       costScale: 1,
       maxLevel: 1,
@@ -3317,7 +3317,7 @@
     }
     if(id === 'tableTilt'){
       if(on) activateTableTilt(true);
-      else boardTilt = 0;
+      else deactivateTableTilt();
     }
   }
 
@@ -8811,11 +8811,34 @@
     });
   }
 
-  // ---- Table Tilt VIP (DeviceOrientation) ----
-  // Permission is only requested when the perk is bought or toggled On.
-  const TILT_GAMMA_RANGE = 60; // degrees of device lean that maps to full ±60° gravity tilt
+  // ---- Table Tilt VIP (device motion / orientation) ----
+  // Permission + optional fullscreen/orientation lock only when turned On.
+  const TILT_RANGE_DEG = 50; // device lean past deadzone that maps to full ±60° gravity
+  const TILT_DEADZONE_DEG = 6;
+  const TILT_BASELINE_MS = 500; // ignore tap-wobble when capturing neutral hold
   let gyroEnabled = false;
   let gyroBaseline = null;
+  let gyroBaselineSamples = [];
+  let gyroBaselineUntil = 0;
+  let lastMotionLeanAt = 0;
+  let tiltLockedOrientation = false;
+  let tiltEnteredFullscreen = false;
+
+  function resetGyroBaseline(){
+    gyroBaseline = null;
+    gyroBaselineSamples = [];
+    gyroBaselineUntil = 0;
+    boardTilt = 0;
+  }
+
+  // Gravity-plane lean in degrees (0 = upright). Prefer DeviceMotion — more stable
+  // than gamma/beta across Chrome portrait holds. abs(ay) so iOS (−Y) and Android (+Y)
+  // upright readings both map to 0.
+  function leanFromGravity(ax, ay){
+    if(ax == null || ay == null) return null;
+    if(Math.hypot(ax, ay) < 4) return null; // too flat / unreliable
+    return Math.atan2(ax, Math.abs(ay)) * (180 / Math.PI);
+  }
 
   function screenOrientationAngle(){
     if(typeof screen !== 'undefined' && screen.orientation && typeof screen.orientation.angle === 'number'){
@@ -8824,8 +8847,8 @@
     return typeof window.orientation === 'number' ? window.orientation : 0;
   }
 
-  // Horizontal lean relative to the upright board, accounting for screen rotation.
-  function deviceLeanX(e){
+  // Fallback: DeviceOrientation gamma/beta mapped to screen-horizontal lean.
+  function leanFromOrientation(e){
     if(e.gamma == null && e.beta == null) return null;
     const angle = ((screenOrientationAngle() % 360) + 360) % 360;
     if(angle === 90) return e.beta;
@@ -8834,29 +8857,100 @@
     return e.gamma;
   }
 
-  function onDeviceOrientation(e){
+  function applyLeanSample(lean){
     if(!tableTiltActive()){
       boardTilt = 0;
       return;
     }
-    const lean = deviceLeanX(e);
     if(lean == null || Number.isNaN(lean)) return;
-    if(gyroBaseline == null) gyroBaseline = lean;
-    const raw = Math.max(-1, Math.min(1, (lean - gyroBaseline) / TILT_GAMMA_RANGE));
-    boardTilt += (raw - boardTilt) * 0.2;
+    const now = performance.now();
+    if(gyroBaseline == null){
+      if(!gyroBaselineUntil) gyroBaselineUntil = now + TILT_BASELINE_MS;
+      gyroBaselineSamples.push(lean);
+      boardTilt = 0;
+      if(now < gyroBaselineUntil) return;
+      const sorted = gyroBaselineSamples.slice().sort((a, b) => a - b);
+      gyroBaseline = sorted[(sorted.length / 2) | 0];
+      gyroBaselineSamples = [];
+    }
+    let delta = lean - gyroBaseline;
+    if(Math.abs(delta) < TILT_DEADZONE_DEG) delta = 0;
+    else delta -= Math.sign(delta) * TILT_DEADZONE_DEG;
+    const raw = Math.max(-1, Math.min(1, delta / TILT_RANGE_DEG));
+    boardTilt += (raw - boardTilt) * 0.28;
+  }
+
+  function onDeviceMotion(e){
+    const a = e.accelerationIncludingGravity;
+    if(!a) return;
+    const lean = leanFromGravity(a.x, a.y);
+    if(lean == null) return;
+    lastMotionLeanAt = performance.now();
+    applyLeanSample(lean);
+  }
+
+  function onDeviceOrientation(e){
+    // Motion is preferred; orientation is backup when motion isn't arriving.
+    if(performance.now() - lastMotionLeanAt < 400) return;
+    applyLeanSample(leanFromOrientation(e));
+  }
+
+  function lockScreenForTilt(){
+    const tryLock = ()=>{
+      if(!screen.orientation || typeof screen.orientation.lock !== 'function'){
+        return Promise.resolve();
+      }
+      return screen.orientation.lock('portrait').then(()=>{
+        tiltLockedOrientation = true;
+      }).catch(()=>{});
+    };
+    if(document.fullscreenElement) return tryLock();
+    const root = document.documentElement;
+    if(typeof root.requestFullscreen !== 'function') return tryLock();
+    return root.requestFullscreen().then(()=>{
+      tiltEnteredFullscreen = true;
+      return tryLock();
+    }).catch(()=> tryLock());
+  }
+
+  function unlockScreenForTilt(){
+    if(tiltLockedOrientation && screen.orientation && typeof screen.orientation.unlock === 'function'){
+      try{ screen.orientation.unlock(); }catch(err){ /* ignore */ }
+      tiltLockedOrientation = false;
+    }
+    if(tiltEnteredFullscreen && document.fullscreenElement && typeof document.exitFullscreen === 'function'){
+      tiltEnteredFullscreen = false;
+      document.exitFullscreen().catch(()=>{});
+    }
   }
 
   function enableGyro(){
-    if(gyroEnabled) return Promise.resolve(true);
-    if(typeof window.DeviceOrientationEvent === 'undefined') return Promise.resolve(false);
+    const canOrient = typeof window.DeviceOrientationEvent !== 'undefined';
+    const canMotion = typeof window.DeviceMotionEvent !== 'undefined';
+    if(!canOrient && !canMotion) return Promise.resolve(false);
+    if(gyroEnabled){
+      resetGyroBaseline();
+      return Promise.resolve(true);
+    }
     const start = ()=>{
-      window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      if(canMotion) window.addEventListener('devicemotion', onDeviceMotion, true);
+      if(canOrient) window.addEventListener('deviceorientation', onDeviceOrientation, true);
       gyroEnabled = true;
-      gyroBaseline = null; // re-baseline to current hold pose
+      resetGyroBaseline();
       return true;
     };
-    if(typeof DeviceOrientationEvent.requestPermission === 'function'){
-      return DeviceOrientationEvent.requestPermission()
+    // iOS: motion + orientation share the same permission gate on modern Safari.
+    const orientPerm = typeof DeviceOrientationEvent !== 'undefined'
+      && typeof DeviceOrientationEvent.requestPermission === 'function'
+      ? DeviceOrientationEvent.requestPermission
+      : null;
+    const motionPerm = typeof DeviceMotionEvent !== 'undefined'
+      && typeof DeviceMotionEvent.requestPermission === 'function'
+      ? DeviceMotionEvent.requestPermission
+      : null;
+    if(orientPerm || motionPerm){
+      const req = orientPerm || motionPerm;
+      return req.call(orientPerm ? DeviceOrientationEvent : DeviceMotionEvent)
         .then(state => state === 'granted' ? start() : false)
         .catch(()=>false);
     }
@@ -8864,26 +8958,39 @@
     return Promise.resolve(true);
   }
 
-  // fromUserGesture: iOS only allows the permission prompt during a tap.
-  // On load we may silently enable when no prompt is required.
+  function deactivateTableTilt(){
+    boardTilt = 0;
+    resetGyroBaseline();
+    unlockScreenForTilt();
+  }
+
+  // fromUserGesture: iOS permission + Chrome orientation.lock need a tap.
+  // On load we may silently enable sensors when no prompt is required.
   function activateTableTilt(fromUserGesture){
     if(!tableTiltActive()){
-      boardTilt = 0;
+      deactivateTableTilt();
       return Promise.resolve(false);
     }
-    if(gyroEnabled) return Promise.resolve(true);
-    const needsPermission = typeof window.DeviceOrientationEvent !== 'undefined'
-      && typeof DeviceOrientationEvent.requestPermission === 'function';
+    const needsPermission = (
+      (typeof DeviceOrientationEvent !== 'undefined'
+        && typeof DeviceOrientationEvent.requestPermission === 'function')
+      || (typeof DeviceMotionEvent !== 'undefined'
+        && typeof DeviceMotionEvent.requestPermission === 'function')
+    );
     if(needsPermission && !fromUserGesture) return Promise.resolve(false);
     return enableGyro().then(ok => {
-      if(!ok && fromUserGesture){
-        // Denied — park the toggle so we don't keep prompting.
-        autoEnabled.tableTilt = false;
-        boardTilt = 0;
-        scheduleSave();
-        updatePrestigeUI();
+      if(!ok){
+        if(fromUserGesture){
+          autoEnabled.tableTilt = false;
+          deactivateTableTilt();
+          scheduleSave();
+          updatePrestigeUI();
+        }
+        return false;
       }
-      return ok;
+      resetGyroBaseline();
+      if(fromUserGesture) lockScreenForTilt();
+      return true;
     });
   }
 
