@@ -69,7 +69,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | Symbol | Purpose |
 |--------|---------|
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, …) — order = shop order |
-| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, …) |
+| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, `pinSplit`, …) |
+| `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Pin Split: ~10× slower drops; bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
 | `boardDuplicateExtras` / `cardCountingMultiplier` / `handPayoutMultiplier` | Card Counting duplicate extras → hand payout mult |
 | `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels) |
@@ -191,7 +192,8 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Task | Where to edit |
 |------|----------------|
 | New table upgrade | `UPGRADE_DEFS`, buy UI, any skill-specific logic |
-| New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` |
+| New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier`; Pin Split via `pinSplitActive` / peg hit in `stepBall` |
+| Pin Split spawn / split | `autoDropIntervalMs` × `pinSplitSpawnMult`, `manualDropCooldownMs` in `dropAt`, `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` |
 | New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
