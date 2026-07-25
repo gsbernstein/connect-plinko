@@ -2945,7 +2945,7 @@
       title: 'Premium rim polish',
       items: [
         'Silver, Gold, and Diamond cards keep a metallic rim — the center stays suit felt.',
-        'Suit glyphs sit a touch lower on the chip for clearer balance with the rank.'
+        'Suit glyphs sit lower on the chip; grid windows open a bit so premium rims stay visible.'
       ]
     },
     {
@@ -6541,7 +6541,8 @@
   let lastFrameMs = 0;
 
   const BALL_RADIUS = 14;
-  const HOLE_R = 29;
+  // Chip draw radius is 32 — open windows a bit so premium rims aren't clipped.
+  const HOLE_R = 34;
   const SAFETY_LIMIT = 420;
 
   function dropInColumn(col){
@@ -7919,7 +7920,7 @@
     const rankSize = Math.max(10, Math.round(radius * 0.70));
     const strokeW = Math.max(1.4, radius * 0.075);
     const suitX = radius * 0.12;
-    const suitY = radius * 0.26;
+    const suitY = radius * 0.40;
     const rankX = -radius * 0.14;
     const rankY = -radius * 0.20;
     function stampGlyph(text, x, y, fill, font, lineW){
