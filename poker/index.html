@@ -2556,6 +2556,7 @@
     if(isWild(card)) c.wild = true;
     const t = cardTier(card);
     if(t) c.tier = t;
+    if(card && card.spikes) c.spikes = true;
     if(extra) Object.assign(c, extra);
     return c;
   }
@@ -2804,6 +2805,10 @@
       const tier = rollCardTier();
       if(tier) card.tier = tier;
     }
+    // Siege Weapons: some dealt cards grow spikes when the perk is owned.
+    if(siegeWeaponsUnlocked() && Math.random() < SIEGE_SPIKE_CHANCE){
+      card.spikes = true;
+    }
     return card;
   }
 
@@ -2939,6 +2944,15 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 29,
+      date: 'Jul 25, 2026',
+      title: 'Siege Weapons VIP perk',
+      items: [
+        'New VIP perk: Siege Weapons — some cards grow spikes that smash bumpers and clear the top row.',
+        'Upgrade again so spiked cards can temporarily shatter pins on contact.'
+      ]
+    },
     {
       id: 28,
       date: 'Jul 25, 2026',
@@ -3842,6 +3856,14 @@
       costScale: 1,
       maxLevel: 1,
       toggleable: true
+    },
+    {
+      id: 'siegeWeapons',
+      name: 'Siege Weapons',
+      desc: 'Some cards grow spikes. Spiked cards smash bumpers and clear the whole top row. Upgrade again: spikes can temporarily shatter pins on contact.',
+      baseCost: 55,
+      costScale: 2.2,
+      maxLevel: 2
     }
   ];
 
@@ -4024,6 +4046,23 @@
 
   function dropSpawnMult(){
     return pinSplitSpawnMult() * stormBeachesSpawnMult();
+  }
+
+  // Siege Weapons: spiked cards smash bumpers (top-row clear); Lv2 shatters pins awhile.
+  const SIEGE_SPIKE_CHANCE = 0.18;
+  const SIEGE_PIN_BREAK_FRAMES = 200; // ~3.3s at 60fps physics ticks
+  let pendingSiegeClear = false;
+
+  function siegeWeaponsUnlocked(){
+    return prestigeLevel('siegeWeapons') > 0;
+  }
+
+  function siegeWeaponsLevel(){
+    return prestigeLevel('siegeWeapons');
+  }
+
+  function siegeCanBreakPins(){
+    return siegeWeaponsLevel() >= 2;
   }
 
   function tableTiltUnlocked(){
@@ -4748,7 +4787,7 @@
 
   function noteHandClear(groups, chainMult){
     if(!groups || !groups.length) return;
-    if(groups.some(g => g.floorClear || g.suitBomb)) return;
+    if(groups.some(g => g.floorClear || g.suitBomb || g.siegeClear)) return;
     const n = groups.length;
     bumpStat('hands', n);
     bumpStat('runHands', n);
@@ -5809,6 +5848,12 @@
         if(!lvl) return 'Steady landings';
         if(!isAutoEnabled('stormBeaches')) return 'Paused';
         return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% pin shells';
+      case 'siegeWeapons':
+        if(!lvl) return 'Smooth rims';
+        if(lvl >= 2){
+          return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · smash bumpers & pins';
+        }
+        return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · smash bumpers';
       default:
         return '';
     }
@@ -6348,11 +6393,13 @@
     currentGroups = [];
     chainStep = 0;
     pendingChain = 0;
+    pendingSiegeClear = false;
     heaterHoldUntilUse = false;
     flashCells = null;
     particles = [];
     popups = [];
     pendingSuitBomb = null;
+    for(const p of pegs){ p.hit = 0; p.broken = 0; }
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
     lastManualDropAt = 0;
@@ -6525,6 +6572,22 @@
       const dist = Math.hypot(dx, dy);
       const minDist = ball.radius + BUMPER_R;
       if(dist >= minDist || dist <= 0.0001) continue;
+
+      // Siege Weapons: spiked cards punch through bumpers and clear the top row.
+      if(ball.card && ball.card.spikes && siegeWeaponsUnlocked() && !ball.siegeUsed){
+        ball.siegeUsed = true;
+        spawnExplosion(closest.x, closest.y, ball.card);
+        spawnExplosion(ball.x, ball.y, ball.card);
+        rail.hit = 18;
+        // Drive through toward the grid instead of bouncing back up.
+        ball.y = Math.max(ball.y, closest.y + 4);
+        ball.vy = Math.max(Math.abs(ball.vy), 5);
+        ball.vx *= 0.45;
+        ball.spin += (Math.random() - 0.5) * 0.8;
+        queueSiegeClear();
+        continue;
+      }
+
       const nx = dx/dist, ny = dy/dist;
       ball.x = closest.x + nx*minDist;
       ball.y = closest.y + ny*minDist;
@@ -6573,8 +6636,8 @@
   // Persist active heater across refresh / update (board itself stays session-only).
   function heaterChainForSave(){
     if(resolving && currentGroups && currentGroups.some(g => g.floorClear)) return 0;
-    // Suit Purge keeps the heater in pendingChain; hand resolves use chainStep.
-    if(resolving && currentGroups && currentGroups.some(g => g.suitBomb)){
+    // Suit Purge / Siege keep the heater in pendingChain; hand resolves use chainStep.
+    if(resolving && currentGroups && currentGroups.some(g => g.suitBomb || g.siegeClear)){
       return Math.max(0, pendingChain | 0);
     }
     if(resolving) return Math.max(0, chainStep | 0);
@@ -6866,6 +6929,7 @@
       }
 
       for(const p of pegs){
+        if(p.broken) continue;
         const dx = ball.x - p.x, dy = ball.y - p.y;
         const dist = Math.hypot(dx,dy);
         const minDist = ball.radius + p.r;
@@ -6890,6 +6954,11 @@
             }
           }
           p.hit = 10;
+          // Siege Weapons Lv2: spiked cards temporarily shatter pins on fresh hits.
+          if(freshHit && ball.card && ball.card.spikes && siegeCanBreakPins()){
+            p.broken = SIEGE_PIN_BREAK_FRAMES;
+            spawnExplosion(p.x, p.y, ball.card);
+          }
           // Storm the Beaches: fresh pin contacts can shell the card mid-fall.
           if(freshHit && stormBeachesActive() && !ball.cascadeBall
               && Math.random() < STORM_BEACHES_EXPLODE_CHANCE){
@@ -7144,7 +7213,10 @@
 
     const speed = physicsSpeed();
     const gravity = 0.42 * Math.min(speed, 3.2);
-    for(const p of pegs){ if(p.hit) p.hit--; }
+    for(const p of pegs){
+      if(p.hit) p.hit--;
+      if(p.broken) p.broken--;
+    }
     for(const path of bumperPaths){ if(path.hit) path.hit--; }
     if(!lastPhysicsTime) lastPhysicsTime = now;
     const frameDt = Math.min((now - lastPhysicsTime) / 1000, 0.15);
@@ -7823,6 +7895,54 @@
     return balls.some(b => b.phase==='grid');
   }
 
+  function queueSiegeClear(){
+    if(gameOver) return;
+    if(resolving){
+      pendingSiegeClear = true;
+      return;
+    }
+    beginSiegeClear();
+  }
+
+  // Siege Weapons: spiked bumper smash clears the whole top row (opens bumpers).
+  // Preserves Hot Streak carryover like Suit Purge — no fake CHAIN banner.
+  function beginSiegeClear(){
+    if(gameOver) return false;
+    const row = 0;
+    const cells = [];
+    for(let c=0;c<COLS;c++){
+      if(grid[c][row]) cells.push([c, row]);
+    }
+    if(!cells.length){
+      pendingSiegeClear = false;
+      return false;
+    }
+    if(resolving){
+      pendingSiegeClear = true;
+      return true;
+    }
+    resolving = true;
+    resolveEpoch++;
+    if(chainStep > 0){
+      pendingChain = Math.max(pendingChain, chainStep);
+    }
+    chainStep = 0;
+    const first = grid[cells[0][0]][row];
+    currentGroups = [{
+      name: 'SIEGE',
+      points: 0,
+      cells,
+      siegeClear: true,
+      color: first ? cardGlowColor(first) : '#C4CCD8'
+    }];
+    flashCells = new Set(cells.map(([c,r]) => c+','+r));
+    resolvePhase = 'flash';
+    resolvePhaseStart = performance.now();
+    refreshButtons();
+    startResolveLoop();
+    return true;
+  }
+
   // Board-full escape hatch: nuke the entire bottom row (no points). Pieces
   // above get flung back into the pegs — same blast as a hand clear.
   // Peg-zone pucks are left alone; once columns open they'll fall in.
@@ -8029,19 +8149,27 @@
   function finishResolveOrChain(){
     const nextGroups = findPokerHands();
     const suitBombResolve = currentGroups.some(g => g.suitBomb);
+    const siegeResolve = currentGroups.some(g => g.siegeClear);
     if(nextGroups.length>0){
-      // After Suit Purge, pick up saved chain carryover before the next hand.
+      // After Suit Purge / Siege, pick up saved chain carryover before the next hand.
       if(chainStep === 0 && pendingChain > 0){
         chainStep = pendingChain;
         pendingChain = 0;
       }
       enterFlash(nextGroups);
     } else {
-      if(!suitBombResolve){
+      if(!suitBombResolve && !siegeResolve){
         pendingChain = balls.length > 0 ? chainStep : 0;
       }
       resolving = false;
       chainStep = 0;
+      if(pendingSiegeClear){
+        pendingSiegeClear = false;
+        if(beginSiegeClear()){
+          scheduleSave();
+          return;
+        }
+      }
       if(boardIsFull() && !hasGridBalls()){
         pendingChain = 0;
         beginFloorClear();
@@ -8065,7 +8193,8 @@
       if(resolvePhase==='flash'){
         if(elapsed >= flashMs){
           const isFloorClear = currentGroups.some(g => g.floorClear);
-          if(!isFloorClear){
+          const isSiegeClear = currentGroups.some(g => g.siegeClear);
+          if(!isFloorClear && !isSiegeClear){
             // Suit Purge bridges a heater without consuming it — keep pendingChain
             // for the next real hand. Scoring at chainStep 0 would otherwise flash
             // a low CHAIN ×N from Hot Streak alone, then jump back up.
@@ -8079,6 +8208,27 @@
             updateShopUI();
             spawnPopups(currentGroups, pts, chainMult);
             spawnHandChipFlies(currentGroups, chainMult);
+          } else if(isSiegeClear){
+            const siegeCells = currentGroups.flatMap(g => g.siegeClear ? g.cells : []);
+            const siegeY = siegeCells.length
+              ? PEG_ZONE + siegeCells.reduce((s, cell)=>s+cell[1], 0)/siegeCells.length*CELL + CELL/2
+              : PEG_ZONE + CELL/2;
+            const siegeX = siegeCells.length
+              ? siegeCells.reduce((s, cell)=>s+cell[0], 0)/siegeCells.length*CELL + CELL/2
+              : W/2;
+            clearTimeout(shopUiTimer);
+            flushScoreUI();
+            updateShopUI();
+            pushPopup({
+              x: siegeX,
+              y: siegeY,
+              text: 'SIEGE!',
+              color: '#D8DEE8',
+              t0: performance.now(),
+              duration: 900,
+              big: true,
+              fontSize: 28, floatBoost: 42, tilt: 0.1, slam: 1.85, slamMs: 150, glow: 16
+            });
           } else {
             const floorPts = floorClearPayout();
             const floorCells = currentGroups.flatMap(g => g.floorClear ? g.cells : []);
@@ -8233,12 +8383,36 @@
     }
     target.shadowBlur = 0;
     drawChipGlyphs(target, card, radius);
+    if(card && card.spikes) drawCardSpikes(target, radius);
 
     if(highlight){
       target.beginPath();
       target.arc(0, 0, radius + 2, 0, Math.PI * 2);
       target.strokeStyle = `rgba(255,255,255,${0.25 + 0.55 * highlight})`;
       target.lineWidth = 3;
+      target.stroke();
+    }
+    target.restore();
+  }
+
+  // Siege Weapons: steel spike studs around the rim (drawn in card local space).
+  function drawCardSpikes(target, radius){
+    const n = 6;
+    const baseR = radius * 0.88;
+    const tipR = radius * 1.18;
+    const half = Math.PI / n * 0.28;
+    target.save();
+    for(let i = 0; i < n; i++){
+      const a = -Math.PI / 2 + (i * Math.PI * 2) / n;
+      target.beginPath();
+      target.moveTo(Math.cos(a - half) * baseR, Math.sin(a - half) * baseR);
+      target.lineTo(Math.cos(a) * tipR, Math.sin(a) * tipR);
+      target.lineTo(Math.cos(a + half) * baseR, Math.sin(a + half) * baseR);
+      target.closePath();
+      target.fillStyle = '#B8C0CC';
+      target.fill();
+      target.strokeStyle = 'rgba(40,44,52,0.55)';
+      target.lineWidth = Math.max(0.8, radius * 0.04);
       target.stroke();
     }
     target.restore();
@@ -8275,6 +8449,7 @@
     ctx.stroke();
     ctx.rotate(card.angle || 0);
     drawChipGlyphs(ctx, card, 32 * 0.92);
+    if(card && card.spikes) drawCardSpikes(ctx, 32 * 0.92);
     ctx.restore();
   }
 
@@ -8349,6 +8524,20 @@
     }
 
     for(const p of pegs){
+      if(p.broken){
+        // Siege Weapons Lv2: shattered pin — faint crater until it reforms.
+        const fade = Math.max(0.12, Math.min(0.4, p.broken / SIEGE_PIN_BREAK_FRAMES));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 1.15, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(200,210,220,${fade})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 0.45, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(180,190,200,${fade * 0.55})`;
+        ctx.fill();
+        continue;
+      }
       ctx.beginPath();
       ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
       ctx.fillStyle = p.hit ? '#ffffff' : PEG;
