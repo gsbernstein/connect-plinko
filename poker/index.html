@@ -322,6 +322,104 @@
     font-size:12px;
     line-height:1.45;
   }
+  .settings-changelog{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    width:100%;
+    margin-top:4px;
+    padding-top:14px;
+    border-top:1px solid #2a2545;
+  }
+  .settings-changelog-head{
+    margin:0;
+    color:var(--ink);
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+  }
+  .changelog-entry{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    padding:0 0 12px;
+    border-bottom:1px solid #2a2545;
+  }
+  .changelog-entry:last-child{
+    padding-bottom:0;
+    border-bottom:none;
+  }
+  .changelog-entry.is-new{
+    margin:0 -6px;
+    padding:10px 10px 12px;
+    border:1px solid rgba(232,93,106,0.35);
+    border-radius:10px;
+    border-bottom-color:rgba(232,93,106,0.35);
+    background:rgba(232,93,106,0.08);
+  }
+  .changelog-entry.is-new + .changelog-entry{
+    margin-top:2px;
+  }
+  .changelog-entry.is-new:last-child{
+    padding-bottom:10px;
+  }
+  .changelog-meta{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .changelog-title-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
+  }
+  .changelog-title{
+    margin:0;
+    color:var(--ink);
+    font-size:13px;
+    font-weight:700;
+    line-height:1.3;
+  }
+  .changelog-new-tag{
+    flex:0 0 auto;
+    padding:2px 6px;
+    border-radius:999px;
+    background:#e85d6a;
+    color:#1a0c10;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:9px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    line-height:1.2;
+  }
+  .changelog-date{
+    flex:0 0 auto;
+    color:var(--ink-dim);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+  }
+  .changelog-items{
+    margin:0;
+    padding:0 0 0 16px;
+    color:var(--ink-dim);
+    font-size:12px;
+    line-height:1.45;
+  }
+  .changelog-items li{margin:0 0 4px;}
+  .changelog-items li:last-child{margin-bottom:0;}
+  .settings-danger{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:100%;
+    margin-top:4px;
+    padding-top:14px;
+    border-top:1px solid #2a2545;
+  }
   .settings-toggles{
     display:flex;
     flex-direction:column;
@@ -2108,7 +2206,6 @@
         <div class="shop-head">
           <h2>Settings</h2>
         </div>
-        <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
         <div class="settings-toggles">
           <label class="settings-toggle">
             <span>Show FPS counter</span>
@@ -2126,7 +2223,14 @@
             <span class="settings-toggle-ui" aria-hidden="true">On</span>
           </label>
         </div>
-        <button type="button" class="reset" id="resetScores">Reset all progress</button>
+        <div class="settings-changelog" aria-label="Changelog">
+          <p class="settings-changelog-head">What’s new</p>
+          <div id="changelogList"></div>
+        </div>
+        <div class="settings-danger">
+          <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
+          <button type="button" class="reset" id="resetScores">Reset all progress</button>
+        </div>
       </section>
     </div>
 
@@ -2155,6 +2259,7 @@
       </button>
       <button type="button" class="rail-tab" data-panel="settings" aria-selected="false">
         <span class="rail-tab-label">Settings</span>
+        <span class="rail-tab-badge is-new" id="badgeSettings" hidden aria-label="New updates"></span>
       </button>
     </nav>
   </aside>
@@ -2634,7 +2739,132 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 17;
+  const SAVE_VERSION = 18;
+  // Newest-first. Bump id (monotonic) when adding an entry so the Settings
+  // red badge lights up for players whose save has a lower seenChangelogId.
+  // Keep entries player-facing; skip pure agent/docs/internal churn.
+  // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
+  const CHANGELOG = [
+    {
+      id: 12,
+      date: 'Jul 25, 2026',
+      title: 'Shop math & Auto Dealer',
+      items: [
+        'VIP skill bonuses now raise matching upgrade buy costs and surface Blind / payout / combo multipliers on shop rows.',
+        'Auto Dealer caps at Lv 12 with steeper costs.',
+        'The Auto HUD bar fills better at fast rates.'
+      ]
+    },
+    {
+      id: 11,
+      date: 'Jul 25, 2026',
+      title: 'WIP: Table Tilt',
+      items: [
+        'New VIP perk Table Tilt steers peg falls from device motion (if supported).',
+        'Attempt portrait lock while tilt is active.'
+      ]
+    },
+    {
+      id: 10,
+      date: 'Jul 25, 2026',
+      title: 'Short Fuse & Suit Purge UI',
+      items: [
+        'Short Fuse speeds hand-clear explosions separately from Felt Grease ball physics.',
+        'Suit Purge charge bar when minimized; suit color flashes when auto-casting.'
+      ]
+    },
+    {
+      id: 9,
+      date: 'Jul 25, 2026',
+      title: 'Deep run levels',
+      items: [
+        'Run level climbs to 200.',
+        'Additional quest slots unlock later.',
+        'Late-game payout and combo multipliers; chip bonuses spread across the climb.',
+        'Level-up toast removed.'
+      ]
+    },
+    {
+      id: 8,
+      date: 'Jul 25, 2026',
+      title: 'VIP perk rework',
+      items: [
+        'Felt Wax, Hot Streak, and Open Blind join the VIP lounge.',
+        'Card Sense and Auto Purge move from the table shop to VIP perks.',
+        'Gold perk segments lead upgrade progress bars; VIP bonus levels count toward skill caps.'
+      ]
+    },
+    {
+      id: 7,
+      date: 'Jul 25, 2026',
+      title: 'Achievements & HUD polish',
+      items: [
+        'Achievements gain infinite tiered levels, sort by progress %, and pulse the numerator when it ticks up.',
+        'Fix: Higher hands count toward lower-category achievement stats; royal flush counts for straight flush goals.',
+        'Tabs buttons show a red dot on new unlocks; Auto HUD toggles Auto Dealer.'
+      ]
+    },
+    {
+      id: 6,
+      date: 'Jul 24, 2026',
+      title: 'Wild Card & Premium Cut',
+      items: [
+        'Wild Card upgrade deals Uno-style any-suit chips.',
+        'Premium Cut adds tiered card hand multipliers with metallic premium glyphs.',
+        'Compact stacked HUD tiles on mobile to stop layout jumping.'
+      ]
+    },
+    {
+      id: 5,
+      date: 'Jul 24, 2026',
+      title: 'Suit Purge & celebrations',
+      items: [
+        'Hide/Show toggle for the Suit Purge picker; lower cooldown at max level; purges pop in-flight cards.',
+        'Quest claim effects, reward particles, and auto-buy upgrade celebration.',
+        'Chips land on the tile edge with mobile tab particle bursts.'
+      ]
+    },
+    {
+      id: 4,
+      date: 'Jul 24, 2026',
+      title: 'Tiered achievements',
+      items: [
+        'Achievements unlock multiple claimable tiers with save migration.',
+        'Pit Boss becomes a single-level VIP perk; Hold Deal removed from VIP.'
+      ]
+    },
+    {
+      id: 3,
+      date: 'Jul 24, 2026',
+      title: 'Juice & settings',
+      items: [
+        'Chip pop-and-fly to the chip counter, with a setting to disable the animation.',
+        'Click the level pill to see unlocks so far and what’s next.',
+        'Felt-and-gold casino card textures; four-color suit glyphs.'
+      ]
+    },
+    {
+      id: 2,
+      date: 'Jul 24, 2026',
+      title: 'Welcome, VIP & quests',
+      items: [
+        'Welcome tab for first-time Poker.',
+        'VIP Lounge unlocks with your first permanent comps.',
+        'Levels, prestige, and quests join the sidebar.',
+        'Auto floor clear when the board is full.'
+      ]
+    },
+    {
+      id: 1,
+      date: 'Jul 24, 2026',
+      title: 'Plinko Poker idle',
+      items: [
+        'Plinko Poker launches.',
+        'Idle upgrades: spend chips on Auto Dealer, Big Blind, and table skills between hands.'
+      ]
+    }
+  ];
+  const CHANGELOG_LATEST_ID = CHANGELOG.reduce((max, e) => Math.max(max, e.id | 0), 0);
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -3240,6 +3470,8 @@
     tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
     upgrades: []
   };
+  // Highest CHANGELOG entry id the player has opened in Settings (0 = none).
+  let seenChangelogId = 0;
   const EMPTY_STATS = {
     hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
@@ -5066,6 +5298,7 @@
         autoEnabled,
         suitBombCdLeft: cdLeft,
         seenUnlocks,
+        seenChangelogId,
         v: SAVE_VERSION
       }));
     }catch(_){ /* private mode / quota */ }
@@ -5226,6 +5459,12 @@
           .filter(d => (d.unlockAt || 1) > 1 && upgradeUnlocked(d.id))
           .map(d => d.id);
       }
+      // Missing / invalid → 0 so existing saves badge the seeded changelog once.
+      if(typeof data.seenChangelogId === 'number' && data.seenChangelogId >= 0){
+        seenChangelogId = Math.floor(data.seenChangelogId);
+      } else {
+        seenChangelogId = 0;
+      }
     }catch(_){ /* corrupt save */ }
   }
 
@@ -5251,6 +5490,8 @@
       tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
       upgrades: []
     };
+    // Reset is launched from Settings — keep changelog marked seen.
+    seenChangelogId = CHANGELOG_LATEST_ID;
     persistSave();
     updateScoreUI();
     updateShopUI();
@@ -5259,6 +5500,7 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateSettingsChangelogBadge();
     // Reset is launched from Settings (always unlocked), so tab gating alone
     // won't leave FTUE — jump back to the first-run default panel.
     setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
@@ -7600,9 +7842,83 @@
     upgrades: document.getElementById('badgeUpgrades'),
     quests: document.getElementById('badgeQuests'),
     achievements: document.getElementById('badgeAchievements'),
-    vip: document.getElementById('badgeVip')
+    vip: document.getElementById('badgeVip'),
+    settings: document.getElementById('badgeSettings')
   };
+  const changelogListEl = document.getElementById('changelogList');
   let activeRailPanel = 'table';
+  // Entries with id > this floor show as New for the current Settings visit.
+  // Set from seenChangelogId when opening Settings (before markChangelogSeen).
+  let changelogHighlightFloor = 0;
+
+  function hasUnseenChangelog(){
+    return CHANGELOG_LATEST_ID > (seenChangelogId | 0);
+  }
+
+  function updateSettingsChangelogBadge(){
+    const el = tabBadges.settings;
+    if(!el) return;
+    const unseen = hasUnseenChangelog();
+    el.hidden = !unseen;
+    el.textContent = '';
+    el.classList.toggle('is-new', true);
+    if(unseen) el.setAttribute('aria-label', 'New updates');
+    else el.removeAttribute('aria-label');
+  }
+
+  function markChangelogSeen(){
+    if(seenChangelogId >= CHANGELOG_LATEST_ID) return;
+    seenChangelogId = CHANGELOG_LATEST_ID;
+    scheduleSave();
+    updateSettingsChangelogBadge();
+  }
+
+  function openSettingsChangelog(){
+    // Capture pre-open floor so New highlights survive markChangelogSeen.
+    changelogHighlightFloor = seenChangelogId | 0;
+    renderChangelog();
+    markChangelogSeen();
+  }
+
+  function renderChangelog(){
+    if(!changelogListEl) return;
+    changelogListEl.textContent = '';
+    for(const entry of CHANGELOG){
+      const isNew = (entry.id | 0) > changelogHighlightFloor;
+      const wrap = document.createElement('article');
+      wrap.className = 'changelog-entry' + (isNew ? ' is-new' : '');
+      if(isNew) wrap.setAttribute('aria-label', 'New: ' + entry.title);
+      const meta = document.createElement('div');
+      meta.className = 'changelog-meta';
+      const titleRow = document.createElement('div');
+      titleRow.className = 'changelog-title-row';
+      const title = document.createElement('h3');
+      title.className = 'changelog-title';
+      title.textContent = entry.title;
+      titleRow.appendChild(title);
+      if(isNew){
+        const tag = document.createElement('span');
+        tag.className = 'changelog-new-tag';
+        tag.textContent = 'New';
+        titleRow.appendChild(tag);
+      }
+      const date = document.createElement('span');
+      date.className = 'changelog-date';
+      date.textContent = entry.date || '';
+      meta.appendChild(titleRow);
+      meta.appendChild(date);
+      const list = document.createElement('ul');
+      list.className = 'changelog-items';
+      for(const item of (entry.items || [])){
+        const li = document.createElement('li');
+        li.textContent = item;
+        list.appendChild(li);
+      }
+      wrap.appendChild(meta);
+      wrap.appendChild(list);
+      changelogListEl.appendChild(wrap);
+    }
+  }
   const nextLabel = document.getElementById('nextLabel');
   const nextTier = document.getElementById('nextTier');
   const nextRank = document.getElementById('nextRank');
@@ -7742,6 +8058,7 @@
       tab.setAttribute('aria-selected', on ? 'true' : 'false');
     }
     markPanelUnlocksSeen(panel);
+    if(panel === 'settings') openSettingsChangelog();
   }
 
   for(const tab of railTabs){
@@ -9139,6 +9456,8 @@
   buildShop();
   buildSuitBombUI();
   freshState();
+  renderChangelog();
+  updateSettingsChangelogBadge();
   updateScoreUI();
   updateLevelUI();
   updateAutoStatus();
