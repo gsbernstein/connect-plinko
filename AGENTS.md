@@ -24,13 +24,14 @@ Each page links to the other via a Classic / Poker toggle.
 ├── index.html          # Plinko Four (~1,740 lines) — HTML + CSS + JS in one file
 ├── poker/
 │   ├── index.html      # Plinko Poker (~8,880 lines) — same pattern
+│   ├── version.json    # Poker release id (`v`) polled for refresh prompts
 │   └── welcome-chip.png
 ├── .nojekyll           # required for GitHub Pages
 ├── README.md           # player-facing overview
 └── AGENTS.md           # this file
 ```
 
-There are no other source directories. Almost all work lands in one of the two `index.html` files.
+There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `poker/version.json` when shipping a Poker refresh-worthy deploy).
 
 ## Local dev
 
@@ -78,7 +79,9 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
-| `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`) |
+| `APP_RELEASE` | Alias of `CHANGELOG_LATEST_ID`; must match `poker/version.json` `v` |
+| `RELEASE_URL` / `startReleasePolling` | Polls `poker/version.json` (cache-bust); shows `#updateBanner` when remote `v` is newer |
+| `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 
 ### Progression model (high level)
@@ -163,8 +166,15 @@ Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a r
 2. `date` — calendar label with day (e.g. `'Jul 25, 2026'`), not month-only.
 3. `title` — one short headline.
 4. `items` — 1–4 concise player-facing bullets (skip pure docs/agent/internal fixes).
+5. Set `poker/version.json` `"v"` to that same new `id` (release poll uses it; `APP_RELEASE` is `CHANGELOG_LATEST_ID`).
 
 That new `id` lights the Settings badge and highlights only that entry (and any other unseen ids) for returning saves. Do not reuse or renumber old ids. Render path: `openSettingsChangelog` / `renderChangelog` → `#changelogList`; badge: `updateSettingsChangelogBadge`.
+
+### Release poll (refresh banner)
+
+Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes and when the tab becomes visible. The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`**; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
+
+No separate release counter — bumping a changelog `id` and setting `poker/version.json` `"v"` to match is enough. Missed `version.json` bumps only delay the refresh prompt.
 
 ## Common agent tasks
 
@@ -179,6 +189,7 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 | Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `autoEnabled.suitBomb`, `updateSuitBombUI`; first Auto Purge buy collapses picker; tap bar chrome toggles Hide/Show |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
 | Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
+| Prompt open Poker tabs to refresh after deploy | Same as changelog: new `CHANGELOG` `id` + set `poker/version.json` `v` to that id |
 | Classic gameplay | `index.html` only |
 
 ## Git & PR workflow
