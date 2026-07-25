@@ -3283,7 +3283,6 @@
     persistSettings();
     syncSettingsUI();
     if(key === 'nearHandHints') markHintsDirty();
-    if(key === 'chipAnimation' && !gameSettings.chipAnimation) clearFlyingChips();
     startLoop();
   }
 
@@ -4719,17 +4718,6 @@
     el._progPulseTimer = setTimeout(()=>el.classList.remove('prog-pulse'), 340);
   }
 
-  function clearFlyingChips(){
-    for(const c of flyingChips){
-      if(c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el);
-    }
-    flyingChips = [];
-    if(chipFlyRaf){
-      cancelAnimationFrame(chipFlyRaf);
-      chipFlyRaf = 0;
-    }
-  }
-
   function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
   function easeInOutCubic(t){
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -5529,7 +5517,6 @@
     flashCells = null;
     particles = [];
     popups = [];
-    clearFlyingChips();
     pendingSuitBomb = null;
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
