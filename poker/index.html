@@ -2810,12 +2810,12 @@
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
   const SAVE_VERSION = 18;
-  // Must match version.json "v" at the repo root. Bump both (and classic
-  // APP_RELEASE) when shipping a deploy you want long-lived tabs to refresh for.
+  // Must match poker/version.json "v". Bump both when shipping a Poker deploy
+  // you want long-lived tabs to refresh for.
   const APP_RELEASE = 1;
-  const RELEASE_URL = new URL('../version.json', location.href).href;
+  const RELEASE_URL = new URL('version.json', location.href).href;
   const RELEASE_POLL_MS = 5 * 60 * 1000;
-  const RELEASE_DISMISS_KEY = 'plinkoReleaseDismissed';
+  const RELEASE_DISMISS_KEY = 'plinkoPokerReleaseDismissed';
   // Newest-first. Bump id (monotonic) when adding an entry so the Settings
   // red badge lights up for players whose save has a lower seenChangelogId.
   // Keep entries player-facing; skip pure agent/docs/internal churn.
@@ -2826,7 +2826,7 @@
       date: 'Jul 25, 2026',
       title: 'Update prompt',
       items: [
-        'If a new version ships while your tab is still open, a banner offers Refresh so you pick up the latest build.'
+        'If a new Poker build ships while your tab is still open, a banner offers Refresh so you pick up the latest.'
       ]
     },
     {

@@ -24,14 +24,14 @@ Each page links to the other via a Classic / Poker toggle.
 ├── index.html          # Plinko Four (~1,740 lines) — HTML + CSS + JS in one file
 ├── poker/
 │   ├── index.html      # Plinko Poker (~8,880 lines) — same pattern
+│   ├── version.json    # Poker release id (`v`) polled for refresh prompts
 │   └── welcome-chip.png
-├── version.json        # hosted release id (`v`) polled by both games
 ├── .nojekyll           # required for GitHub Pages
 ├── README.md           # player-facing overview
 └── AGENTS.md           # this file
 ```
 
-There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `version.json` when shipping a refresh-worthy deploy).
+There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `poker/version.json` when shipping a Poker refresh-worthy deploy).
 
 ## Local dev
 
@@ -79,8 +79,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
-| `APP_RELEASE` | Baked-in build id; must match root `version.json` `v` (also in classic `index.html`) |
-| `RELEASE_URL` / `startReleasePolling` | Polls `version.json` (cache-bust); shows `#updateBanner` when remote `v` is newer |
+| `APP_RELEASE` | Baked-in Poker build id; must match `poker/version.json` `v` |
+| `RELEASE_URL` / `startReleasePolling` | Polls `poker/version.json` (cache-bust); shows `#updateBanner` when remote `v` is newer |
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`) |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 
@@ -167,14 +167,14 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 
 ### Release poll (refresh banner)
 
-Both games poll root **`version.json`** (`{ "v": <int> }`) every 5 minutes and when the tab becomes visible. Each page bakes in `APP_RELEASE`; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload; Poker also `persistSave`s first). Dismiss stores that remote `v` in `localStorage` (`plinkoReleaseDismissed`) so the same release is not re-prompted.
+Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes and when the tab becomes visible. The page bakes in `APP_RELEASE`; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
 
-**Agents: bump on player-visible deploys** (or any change you want open tabs to pick up):
+**Agents: bump on Poker player-visible deploys** (or any Poker change you want open tabs to pick up):
 
-1. Increment `v` in `/version.json`.
-2. Set `APP_RELEASE` to the same integer in **both** `index.html` and `poker/index.html`.
+1. Increment `v` in `poker/version.json`.
+2. Set `APP_RELEASE` in `poker/index.html` to the same integer.
 
-Do not renumber downward. Missed bumps only delay the prompt; mismatched page constants can leave one mode silent.
+Do not renumber downward. Missed bumps only delay the prompt.
 
 ## Common agent tasks
 
@@ -189,7 +189,7 @@ Do not renumber downward. Missed bumps only delay the prompt; mismatched page co
 | Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `autoEnabled.suitBomb`, `updateSuitBombUI`; first Auto Purge buy collapses picker; tap bar chrome toggles Hide/Show |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
 | Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
-| Prompt open tabs to refresh after deploy | Bump `version.json` `v` + both `APP_RELEASE` constants; see **Release poll** above |
+| Prompt open Poker tabs to refresh after deploy | Bump `poker/version.json` `v` + Poker `APP_RELEASE`; see **Release poll** above |
 | Classic gameplay | `index.html` only |
 
 ## Git & PR workflow
