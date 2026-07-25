@@ -595,7 +595,7 @@
   let looping = false;
   let aimX = W/2;
   // Gyro tilt (opt-in via "Tilt to steer"): -1..1 lean → peg-zone gravity only.
-  const MAX_TILT_DEG = 10;
+  const MAX_TILT_DEG = 60;
   let boardTilt = 0;
   let tiltControlsOn = false;
 
@@ -1682,7 +1682,7 @@
   });
 
   // ---- gyro board tilt (opt-in; no permission until the toggle is checked) ----
-  const TILT_GAMMA_RANGE = 30; // degrees of device lean that maps to full board tilt
+  const TILT_GAMMA_RANGE = 60; // degrees of device lean that maps to full ±60° gravity tilt
   let gyroEnabled = false;
   let gyroBaseline = null;
   const tiltToggle = document.getElementById('tiltToggle');

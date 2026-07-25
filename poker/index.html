@@ -2454,10 +2454,10 @@
     {
       id: 'tableTilt',
       name: 'Table Tilt',
-      desc: 'Tilt your device to steer cards through the pegs. Motion permission is only requested when you turn this on. Toggle On/Off anytime.',
+      desc: 'Tilt your device to yank gravity up to ±60° through the pegs — just for fun. Motion permission only when you turn this on. Toggle On/Off anytime.',
       baseCost: 2,
-      costScale: 1.85,
-      maxLevel: 5,
+      costScale: 1,
+      maxLevel: 1,
       toggleable: true
     },
     {
@@ -2575,11 +2575,8 @@
     return tableTiltUnlocked() && isAutoEnabled('tableTilt');
   }
 
-  // Lv1 = ±6°, up to Lv5 = ±14°.
   function tableTiltMaxDeg(){
-    const lvl = prestigeLevel('tableTilt');
-    if(lvl <= 0) return 0;
-    return 4 + lvl * 2;
+    return prestigeLevel('tableTilt') > 0 ? 60 : 0;
   }
 
   // Permanent VIP bonus levels for a table skill (do not affect buy cost).
@@ -6988,7 +6985,7 @@
 
   // ---- Table Tilt VIP (DeviceOrientation) ----
   // Permission is only requested when the perk is bought or toggled On.
-  const TILT_GAMMA_RANGE = 30; // degrees of device lean that maps to full board tilt
+  const TILT_GAMMA_RANGE = 60; // degrees of device lean that maps to full ±60° gravity tilt
   let gyroEnabled = false;
   let gyroBaseline = null;
 
