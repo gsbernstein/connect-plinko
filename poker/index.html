@@ -3947,68 +3947,6 @@
     return pinSplitActive() ? PIN_SPLIT_MANUAL_COOLDOWN_MS : 0;
   }
 
-  function splitRadiusForGen(gen){
-    return Math.max(PIN_SPLIT_MIN_R, BALL_RADIUS * Math.pow(PIN_SPLIT_SCALE, gen || 0));
-  }
-
-  function splitDrawRadiusForGen(gen){
-    return Math.max(8, 32 * Math.pow(PIN_SPLIT_SCALE, gen || 0));
-  }
-
-  function canSplitBall(ball){
-    if(!pinSplitActive()) return false;
-    if(!ball || ball.phase !== 'peg') return false;
-    if(ball.cascadeBall) return false;
-    if((ball.splitGen || 0) >= PIN_SPLIT_MAX_GEN) return false;
-    if((ball.splitLock || 0) > 0) return false;
-    if(balls.length >= MAX_AUTO_DROP_BALLS) return false;
-    return true;
-  }
-
-  function spawnSplitTwin(parent, nx, ny){
-    const gen = (parent.splitGen || 0) + 1;
-    parent.splitGen = gen;
-    parent.radius = splitRadiusForGen(gen);
-    parent.splitLock = PIN_SPLIT_LOCK_FRAMES;
-
-    const twin = {
-      x: parent.x,
-      y: parent.y,
-      vx: parent.vx,
-      vy: parent.vy,
-      radius: parent.radius,
-      phase: 'peg',
-      targetCol: null,
-      autoCol: null,
-      row: null,
-      card: cloneCard(parent.card),
-      angle: parent.angle + (Math.random() * 0.8 - 0.4),
-      spin: -parent.spin || (Math.random() - 0.5) * 0.25,
-      frameSafety: 0,
-      trail: [],
-      freeDrop: !!parent.freeDrop,
-      dropEpoch: parent.dropEpoch,
-      splitGen: gen,
-      splitLock: PIN_SPLIT_LOCK_FRAMES,
-      splitChild: true
-    };
-
-    // Peel apart along the contact tangent so they don't re-collide the same pin.
-    const tx = -ny, ty = nx;
-    const sep = parent.radius * 0.9 + 2;
-    parent.x -= tx * sep;
-    parent.y -= ty * sep;
-    twin.x += tx * sep;
-    twin.y += ty * sep;
-    parent.vx -= tx * 1.8;
-    parent.vy -= ty * 0.55;
-    twin.vx += tx * 1.8;
-    twin.vy += ty * 0.55;
-    parent.spin -= 0.12;
-    twin.spin += 0.12;
-    balls.push(twin);
-  }
-
   function tableTiltUnlocked(){
     return prestigeLevel('tableTilt') > 0;
   }
@@ -6626,6 +6564,68 @@
   const BALL_RADIUS = 14;
   const HOLE_R = 29;
   const SAFETY_LIMIT = 420;
+
+  function splitRadiusForGen(gen){
+    return Math.max(PIN_SPLIT_MIN_R, BALL_RADIUS * Math.pow(PIN_SPLIT_SCALE, gen || 0));
+  }
+
+  function splitDrawRadiusForGen(gen){
+    return Math.max(8, 32 * Math.pow(PIN_SPLIT_SCALE, gen || 0));
+  }
+
+  function canSplitBall(ball){
+    if(!pinSplitActive()) return false;
+    if(!ball || ball.phase !== 'peg') return false;
+    if(ball.cascadeBall) return false;
+    if((ball.splitGen || 0) >= PIN_SPLIT_MAX_GEN) return false;
+    if((ball.splitLock || 0) > 0) return false;
+    if(balls.length >= MAX_AUTO_DROP_BALLS) return false;
+    return true;
+  }
+
+  function spawnSplitTwin(parent, nx, ny){
+    const gen = (parent.splitGen || 0) + 1;
+    parent.splitGen = gen;
+    parent.radius = splitRadiusForGen(gen);
+    parent.splitLock = PIN_SPLIT_LOCK_FRAMES;
+
+    const twin = {
+      x: parent.x,
+      y: parent.y,
+      vx: parent.vx,
+      vy: parent.vy,
+      radius: parent.radius,
+      phase: 'peg',
+      targetCol: null,
+      autoCol: null,
+      row: null,
+      card: cloneCard(parent.card),
+      angle: parent.angle + (Math.random() * 0.8 - 0.4),
+      spin: -parent.spin || (Math.random() - 0.5) * 0.25,
+      frameSafety: 0,
+      trail: [],
+      freeDrop: !!parent.freeDrop,
+      dropEpoch: parent.dropEpoch,
+      splitGen: gen,
+      splitLock: PIN_SPLIT_LOCK_FRAMES,
+      splitChild: true
+    };
+
+    // Peel apart along the contact tangent so they don't re-collide the same pin.
+    const tx = -ny, ty = nx;
+    const sep = parent.radius * 0.9 + 2;
+    parent.x -= tx * sep;
+    parent.y -= ty * sep;
+    twin.x += tx * sep;
+    twin.y += ty * sep;
+    parent.vx -= tx * 1.8;
+    parent.vy -= ty * 0.55;
+    twin.vx += tx * 1.8;
+    twin.vy += ty * 0.55;
+    parent.spin -= 0.12;
+    twin.spin += 0.12;
+    balls.push(twin);
+  }
 
   function dropInColumn(col){
     if(inputBlocked()) return;
