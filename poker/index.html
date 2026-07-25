@@ -2458,7 +2458,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 7;
+  const SAVE_VERSION = 8;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2480,15 +2480,6 @@
       maxLevel: 30,
       unlockAt: 1,
       toggleable: true
-    },
-    {
-      id: 'multiDeal',
-      name: 'Multi Deal',
-      desc: 'Drop extra cards each auto tick.',
-      baseCost: 80,
-      costScale: 2.05,
-      maxLevel: 8,
-      unlockAt: 2
     },
     {
       id: 'bigBlind',
@@ -2876,10 +2867,10 @@
     {
       id: 'holdDeal',
       name: 'Hold Deal',
-      desc: 'Hold on the board or a column to keep dropping cards. Always available. Higher levels deal faster.',
-      baseCost: 2,
-      costScale: 1.85,
-      maxLevel: 12
+      desc: 'Hold on the board or a column to keep dropping cards as fast as you can tap. Always available.',
+      baseCost: 8,
+      costScale: 1,
+      maxLevel: 1
     },
     {
       id: 'quickDeal',
@@ -3612,11 +3603,11 @@
   function autoDropIntervalMs(){
     const lvl = upgradeLevel('autoDealer');
     if(lvl <= 0 || !isAutoEnabled('autoDealer')) return Infinity;
-    // Steep through the teens (~3.2s → ~86ms by Lv12), then a gentler
-    // cut so Lv13–30 still matter, flooring at 40ms near the top.
-    const early = 3200 * Math.pow(0.72, Math.min(lvl, 12) - 1);
-    const late = early * Math.pow(0.94, Math.max(0, lvl - 12));
-    return Math.max(40, Math.floor(late));
+    // Steep through the teens (~2.4s → ~55ms by Lv12), then a gentler
+    // cut so Lv13–30 still matter, flooring at 16ms near the top.
+    const early = 2400 * Math.pow(0.68, Math.min(lvl, 12) - 1);
+    const late = early * Math.pow(0.92, Math.max(0, lvl - 12));
+    return Math.max(16, Math.floor(late));
   }
 
   function autoDropIntervalTicks(){
@@ -3631,19 +3622,12 @@
       && Number.isFinite(autoDropIntervalMs());
   }
 
-  function autoDropCount(){
-    return 1 + upgradeLevel('multiDeal');
-  }
-
   function holdDealUnlocked(){
     return prestigeLevel('holdDeal') > 0;
   }
 
   function holdDropIntervalMs(){
-    const lvl = prestigeLevel('holdDeal');
-    if(lvl <= 0) return Infinity;
-    // ~400ms at Lv1, under 150ms by Lv6, floors at 70ms.
-    return Math.max(70, Math.floor(400 * Math.pow(0.82, lvl - 1)));
+    return holdDealUnlocked() ? 0 : Infinity;
   }
 
   function tableScoreMultiplier(){
@@ -4175,8 +4159,6 @@
         return isAutoEnabled('autoDealer')
           ? ('Every ' + formatInterval(autoDropIntervalMs()))
           : 'Paused';
-      case 'multiDeal':
-        return (1 + lvl) + ' card' + (1+lvl === 1 ? '' : 's') + '/tick';
       case 'bigBlind':
         return '×' + tableScoreMultiplier().toFixed(2).replace(/\.00$/,'');
       case 'hotStreak':
@@ -4240,9 +4222,7 @@
       case 'compCard':
         return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
       case 'holdDeal':
-        return lvl
-          ? ('Hold every ' + formatInterval(holdDropIntervalMs()))
-          : 'Click to drop';
+        return lvl ? 'Hold to deal fast' : 'Click to drop';
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
@@ -4343,6 +4323,12 @@
           Math.floor(data.upgrades.holdDeal)
         );
         if(migrated > prestigeLevel('holdDeal')) prestigeUpgrades.holdDeal = migrated;
+      }
+      // Retired Multi Deal — each level becomes one Auto Dealer level.
+      if(data.upgrades && typeof data.upgrades.multiDeal === 'number' && data.upgrades.multiDeal > 0){
+        const autoDef = UPGRADE_DEFS.find(u => u.id === 'autoDealer');
+        const migrated = Math.min(autoDef.maxLevel, Math.floor(data.upgrades.multiDeal));
+        if(migrated > upgradeLevel('autoDealer')) upgrades.autoDealer = migrated;
       }
       // Purchased levels can't push effective skill past max once VIP bonus applies.
       for(const def of UPGRADE_DEFS){
@@ -4587,7 +4573,7 @@
   function columnReservations(){
     const reserved = Array(COLS).fill(0);
     // Only reserve columns for balls close to seating — peg-zone pucks
-    // shouldn't block Multi Deal from picking open columns.
+    // shouldn't block auto-deal from picking open columns.
     const reserveY = PEG_ZONE - 110;
     for(const b of balls){
       if(b.phase === 'grid' && b.targetCol != null){
@@ -4634,22 +4620,16 @@
     if(autoDropTicks < intervalTicks) return;
     if(balls.length >= MAX_AUTO_DROP_BALLS) return;
 
-    const count = autoDropCount();
     const reserved = columnReservations();
-    let dropped = 0;
-    for(let i=0;i<count;i++){
-      const col = pickAutoColumn(reserved);
-      if(col < 0){
-        // Board packed — still deal into the peg zone; pucks bounce until
-        // a floor clear or hand resolve opens a slot.
-        dropAt(Math.random() * (W - 28) + 14);
-      } else {
-        dropAt(col*CELL + CELL/2, {autoCol: col});
-        reserved[col]++;
-      }
-      dropped++;
+    const col = pickAutoColumn(reserved);
+    if(col < 0){
+      // Board packed — still deal into the peg zone; pucks bounce until
+      // a floor clear or hand resolve opens a slot.
+      dropAt(Math.random() * (W - 28) + 14);
+    } else {
+      dropAt(col*CELL + CELL/2, {autoCol: col});
     }
-    if(dropped > 0) autoDropTicks = 0;
+    autoDropTicks = 0;
   }
 
   function stopHoldDrop(){
@@ -7101,13 +7081,12 @@
       if(autoStatusFillEl) autoStatusFillEl.style.width = '0%';
       return;
     }
-    const n = autoDropCount();
     const intervalTicks = autoDropIntervalTicks();
     const blocked = balls.length >= MAX_AUTO_DROP_BALLS;
     if(autoStatusValEl){
       autoStatusValEl.textContent = blocked
         ? 'waiting…'
-        : formatInterval(interval) + (n > 1 ? ' ×' + n : '');
+        : formatInterval(autoDropIntervalMs());
     }
     if(autoStatusFillEl){
       const t = blocked
