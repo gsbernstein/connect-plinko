@@ -1136,6 +1136,16 @@
     100%{ transform:scale(1); }
   }
   @media (max-width:999px){
+    .app.mode-shop .stage{
+      flex:0 0 auto;
+      padding-bottom:0;
+      overflow:visible;
+    }
+    .app.mode-shop .stage .board-frame,
+    .app.mode-shop .stage .suit-bomb,
+    .app.mode-shop .stage .chip-fx-layer{
+      display:none !important;
+    }
     .hud{
       flex-wrap:nowrap;
       gap:4px;
@@ -6775,7 +6785,7 @@
       appEl.classList.toggle('mode-shop', !tableMode);
     }
     if(stageEl){
-      stageEl.classList.toggle('is-active', tableMode || isDesktopLayout());
+      stageEl.classList.add('is-active');
     }
     for(const p of railPanels){
       p.classList.toggle('is-active', p.dataset.panel === panel);
