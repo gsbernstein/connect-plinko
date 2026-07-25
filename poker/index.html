@@ -2508,7 +2508,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 13;
+  const SAVE_VERSION = 14;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2970,6 +2970,14 @@
       baseCost: 3,
       costScale: 2.0,
       maxLevel: 8
+    },
+    {
+      id: 'blindSpread',
+      name: 'Open Blind',
+      desc: 'Each level extends Big Blind’s chip multiplier to another payout: Lv1 pin tips · Lv2 rail tax · Lv3 sweep stakes.',
+      baseCost: 2,
+      costScale: 1.95,
+      maxLevel: 3
     },
     {
       id: 'quickDeal',
@@ -3915,8 +3923,30 @@
     return 1 + 0.25 * upgradeLevel('bigBlind');
   }
 
+  // VIP Open Blind — each level adds Big Blind’s multiplier to another payout type.
+  function blindSpreadLevel(){
+    return prestigeLevel('blindSpread');
+  }
+
+  function blindMultiplier(category){
+    if(upgradeLevel('bigBlind') <= 0) return 1;
+    const mult = tableScoreMultiplier();
+    switch(category){
+      case 'hands':
+        return mult;
+      case 'pin':
+        return blindSpreadLevel() >= 1 ? mult : 1;
+      case 'bumper':
+        return blindSpreadLevel() >= 2 ? mult : 1;
+      case 'floor':
+        return blindSpreadLevel() >= 3 ? mult : 1;
+      default:
+        return 1;
+    }
+  }
+
   function scoreMultiplier(){
-    return tableScoreMultiplier();
+    return blindMultiplier('hands');
   }
 
   function chainBonus(){
@@ -3929,18 +3959,18 @@
 
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? lvl : 0;
+    return lvl ? Math.floor(lvl * blindMultiplier('pin')) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? lvl * 2 : 0;
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper')) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
-    return lvl ? Math.floor(lvl * 75 * scoreMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor')) : 0;
   }
 
   function suitBombCooldownMs(){
@@ -4690,6 +4720,15 @@
           : 'Full price';
       case 'compCard':
         return lvl ? ('+' + Math.round(15 * lvl) + '% comps') : 'Base comps';
+      case 'blindSpread':{
+        if(!upgradeLevel('bigBlind')) return 'Buy Big Blind first';
+        const targets = ['hands'];
+        if(lvl >= 1) targets.push('pin tips');
+        if(lvl >= 2) targets.push('rail tax');
+        if(lvl >= 3) targets.push('sweep stakes');
+        const mult = tableScoreMultiplier().toFixed(2).replace(/\.00$/, '');
+        return '×' + mult + ' on ' + targets.join(', ');
+      }
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
