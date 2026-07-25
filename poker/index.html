@@ -916,6 +916,7 @@
   }
   .suit-bomb.show{display:flex;}
   .suit-bomb.picker-hidden{padding-bottom:8px;}
+  .suit-bomb.picker-hidden .suit-bomb-btns{display:none;}
   .suit-bomb-head{
     display:flex;
     justify-content:space-between;
@@ -7016,10 +7017,17 @@
     if(toggle){
       toggle.hidden = !canToggle;
       if(canToggle){
-        const on = isAutoEnabled(def.id);
-        toggle.textContent = on ? 'On' : 'Off';
-        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
-        toggle.classList.toggle('is-off', !on);
+        if(def.id === 'suitBomb'){
+          const visible = suitBombUiVisible();
+          toggle.textContent = visible ? 'Hide' : 'Show';
+          toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !visible);
+        } else {
+          const on = isAutoEnabled(def.id);
+          toggle.textContent = on ? 'On' : 'Off';
+          toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !on);
+        }
       }
     }
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
@@ -7484,7 +7492,6 @@
     const showPicker = suitBombUiVisible();
     suitBombBar.classList.toggle('show', unlocked);
     suitBombBar.classList.toggle('picker-hidden', unlocked && !showPicker);
-    if(suitBombBtnsEl) suitBombBtnsEl.hidden = !showPicker;
     if(!unlocked) return;
 
     const cd = suitBombCooldownMs();
