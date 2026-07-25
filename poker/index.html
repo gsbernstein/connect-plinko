@@ -215,6 +215,28 @@
     min-width:4ch;
     text-align:right;
   }
+  .score-stack{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:1px;
+    min-width:4ch;
+  }
+  .score-stack b{
+    min-width:0;
+    width:100%;
+  }
+  .chip-rate{
+    display:block;
+    width:100%;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:10px;
+    line-height:1.15;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink-dim);
+    opacity:0.9;
+    text-align:right;
+  }
   .next-card{
     display:flex;
     align-items:center;
@@ -886,7 +908,11 @@
     border-color:#3a3558;
   }
   .quest.achievement .quest-kind{color:#F0D78C;}
-  .quest.rarity-common{border-color:#3a3558;}
+  .quest.rarity-common{
+    border-color:rgba(232,236,244,0.42);
+    box-shadow:0 0 0 1px rgba(232,236,244,0.08);
+  }
+  .quest.rarity-common .quest-kind{color:#E8ECF0;}
   .quest.rarity-uncommon{border-color:rgba(126,200,163,0.55);}
   .quest.rarity-rare{border-color:rgba(110,168,255,0.55);}
   .quest.rarity-epic{border-color:rgba(192,132,252,0.55);}
@@ -987,12 +1013,12 @@
   }
   @keyframes questClaimDissolve{
     0%{filter:brightness(1);opacity:1;box-shadow:none;}
-    18%{filter:brightness(1.18);box-shadow:0 0 14px 2px rgba(46,138,110,0.22);}
+    18%{filter:brightness(1.18);box-shadow:var(--quest-spark-glow, 0 0 14px 2px rgba(46,138,110,0.22));}
     100%{filter:brightness(0.82);opacity:0.38;transform:scale(0.985);}
   }
   @keyframes questClaimDissolveAuto{
     0%{filter:brightness(1);opacity:1;box-shadow:none;}
-    18%{filter:brightness(1.14);box-shadow:0 0 12px 2px rgba(240,215,140,0.2);}
+    18%{filter:brightness(1.14);box-shadow:var(--quest-spark-glow, 0 0 12px 2px rgba(240,215,140,0.2));}
     100%{filter:brightness(0.82);opacity:0.38;transform:scale(0.985);}
   }
   .quest.quest-rolling-in{
@@ -1600,6 +1626,15 @@
       text-overflow:ellipsis;
       justify-content:center;
     }
+    .score-stack{
+      align-items:center;
+      width:100%;
+      min-width:0;
+    }
+    .chip-rate{
+      text-align:center;
+      font-size:9px;
+    }
     .level-pill{
       padding:5px 2px 4px;
       gap:2px;
@@ -2193,7 +2228,10 @@
     <div class="hud">
       <div class="score hud-tile active" id="scoreBox">
         <span class="hud-label">Chips</span>
-        <b class="hud-val" id="scoreVal">0</b>
+        <span class="score-stack">
+          <b class="hud-val" id="scoreVal">0</b>
+          <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
+        </span>
       </div>
       <div class="level-pill hud-tile" id="levelBox" role="button" tabindex="0"
            title="Run level — click for unlocks" aria-label="Run level — show unlocks">
@@ -2557,6 +2595,7 @@
     const t = cardTier(card);
     if(t) c.tier = t;
     if(card && card.crowned) c.crowned = true;
+    if(card && card.spikes) c.spikes = true;
     if(extra) Object.assign(c, extra);
     return c;
   }
@@ -2805,6 +2844,10 @@
       const tier = rollCardTier();
       if(tier) card.tier = tier;
     }
+    // Siege Weapons: some dealt cards grow spikes when the perk is owned.
+    if(siegeWeaponsActive() && Math.random() < SIEGE_SPIKE_CHANCE){
+      card.spikes = true;
+    }
     return card;
   }
 
@@ -2928,7 +2971,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 20;
+  const SAVE_VERSION = 23;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2941,12 +2984,130 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 29,
-      date: 'Jul 25, 2026',
+      id: 44,
+      date: 'Jul 27, 2026',
       title: 'King Me VIP perk',
       items: [
         'New expensive VIP perk: King Me — kings that reach the bottom row get crowned with a second king on top.',
         'Crowned kings leap diagonally over cards for big chips, then explode after a few jumps. Toggle On/Off anytime.'
+      ]
+    },
+    {
+      id: 43,
+      date: 'Jul 27, 2026',
+      title: 'Pit Boss speed-up',
+      items: [
+        'Pit Boss auto-buys up to five affordable upgrades per tick again — no extra VIP levels required.'
+      ]
+    },
+    {
+      id: 42,
+      date: 'Jul 27, 2026',
+      title: 'Upgrade balance pass',
+      items: [
+        'Hot Streak caps at Lv 10. VIP skill perks (Quick Deal, Pin Privilege, Felt Wax, House Edge) raise their paired table upgrade chip costs like normal levels.',
+        'Auto Dealer stays cheap through Lv 6, then shifts to a pricier curve for top speed. Multi Deal is back: +25% extra-card chance per level on each auto tick; above 100% can deal multiple.',
+        'Short Fuse is toggleable — pause fast clears when stacking combos or Card Counting pairs.',
+        'Suit Purge shop toggle arms/disarms the blast (bar tap minimizes suit buttons). Purges pay per card; auto-target avoids breaking duplicate pairs.',
+        'Siege Weapons: bumper smash clears a column (Lv 1), every column on that bumper (Lv 2), or slams the landing column for a combo payout (Lv 3). Bumper hits pay Rail Tax.',
+        'Storm the Beaches pays chips for every card that survives the peg gauntlet and enters the columns.'
+      ]
+    },
+    {
+      id: 39,
+      date: 'Jul 27, 2026',
+      title: 'Deep Stack to Lv 200',
+      items: [
+        'Deep Stack achievement tiers now span the full run climb through level 200.'
+      ]
+    },
+    {
+      id: 38,
+      date: 'Jul 27, 2026',
+      title: 'Big pots & trophy case',
+      items: [
+        'New Big Pot achievement tracks your highest single-hand chip payout.',
+        'New Combo Payday achievement tracks your biggest COMBO resolve (all hands combined).',
+        'New Trophy Case achievement rewards claiming achievement tiers.',
+        'Double Down no longer duplicates the first COMBO milestone — C-Combo owns ×2.'
+      ]
+    },
+    {
+      id: 37,
+      date: 'Jul 26, 2026',
+      title: 'Card Counting tiers',
+      items: [
+        'Card Counting is back to eight +8% duplicate levels, with a ninth tier that multiplies level payout by paired-card products.',
+        'Table Tilt moved to the bottom of the VIP lounge.'
+      ]
+    },
+    {
+      id: 36,
+      date: 'Jul 26, 2026',
+      title: 'Quest sparkle colors',
+      items: [
+        'Quest claim sparkles and glows now match the quest rarity color.',
+        'Auto-claim tab bursts tint particles from the claimed quest tier.'
+      ]
+    },
+    {
+      id: 35,
+      date: 'Jul 26, 2026',
+      title: 'Quest Ink odds',
+      items: [
+        'Quest Ink now shifts rolled quest odds toward higher rarities — max level makes Rare the most common roll.',
+        'Common quest cards use a white accent instead of the default green label.'
+      ]
+    },
+    {
+      id: 34,
+      date: 'Jul 26, 2026',
+      title: 'VIP and achievement polish',
+      items: [
+        'Achievement and VIP perk names updated.',
+        'Siege Weapons can be toggled On/Off in the VIP lounge.',
+        'Card Counting now multiplies your level payout mult by the product of paired cards on the board.'
+      ]
+    },
+    {
+      id: 33,
+      date: 'Jul 26, 2026',
+      title: 'Storm the Beaches blast',
+      items: [
+        'Pin-shell explosions blast nearby chips outward — bigger radius, stronger shove, fades with distance.'
+      ]
+    },
+    {
+      id: 32,
+      date: 'Jul 25, 2026',
+      title: 'Siege Weapons VIP perk',
+      items: [
+        'New VIP perk: Siege Weapons — some cards grow spikes that smash bumpers and clear the top row.',
+        'Upgrade again so spiked cards can temporarily shatter pins on contact.'
+      ]
+    },
+    {
+      id: 31,
+      date: 'Jul 26, 2026',
+      title: 'Chips per second',
+      items: [
+        'The Chips HUD now shows a live chips/s rate from recent table earnings.'
+      ]
+    },
+    {
+      id: 30,
+      date: 'Jul 26, 2026',
+      title: 'Highest combo achievements',
+      items: [
+        'New infinite Multiway achievement for your biggest COMBO — climb ×2, ×3, ×4… one step at a time.'
+      ]
+    },
+    {
+      id: 29,
+      date: 'Jul 25, 2026',
+      title: 'Storm blasts knock chips',
+      items: [
+        'Storm the Beaches explosions now shove nearby falling chips outward — seating cards can get yanked back into the pegs.'
       ]
     },
     {
@@ -3228,7 +3389,20 @@
       costScale: 1.58,
       maxLevel: 12,
       unlockAt: 1,
-      toggleable: true
+      toggleable: true,
+      // Cheap through Lv 6 (~400ms); pricier curve for Lv 7–12 top speed.
+      costLateAt: 6,
+      costLateBase: 380,
+      costLateScale: 2.12
+    },
+    {
+      id: 'multiDeal',
+      name: 'Multi Deal',
+      desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple.',
+      baseCost: 280,
+      costScale: 2.35,
+      maxLevel: 12,
+      unlockAt: 4
     },
     {
       id: 'bigBlind',
@@ -3245,7 +3419,7 @@
       desc: '+1 effective chain multiplier per level.',
       baseCost: 120,
       costScale: 2.0,
-      maxLevel: 50,
+      maxLevel: 10,
       unlockAt: 4
     },
     {
@@ -3305,11 +3479,12 @@
     {
       id: 'shortFuse',
       name: 'Short Fuse',
-      desc: 'Cards explode faster.',
+      desc: 'Cards explode faster. Toggle Off to slow clears when stacking combos or Card Counting pairs.',
       baseCost: 80,
       costScale: 1.85,
       maxLevel: 12,
-      unlockAt: 9
+      unlockAt: 9,
+      toggleable: true
     },
     {
       id: 'highCut',
@@ -3323,7 +3498,7 @@
     {
       id: 'suitBomb',
       name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board. Recharges over time; levels shorten the wait. Toggle to hide the suit picker.',
+      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle Off to pause; tap the bar to hide suit buttons.',
       baseCost: 400,
       costScale: 1.85,
       maxLevel: 12,
@@ -3410,12 +3585,20 @@
   const QUEST_CLAIM_ANIM_MS = 360;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
-    common:    { label: 'Common',    weight: 52, targetMult: 1,   rewardMult: 1,   color: '#9aa3b5' },
-    uncommon:  { label: 'Uncommon',  weight: 28, targetMult: 1.5, rewardMult: 1.7, color: '#7EC8A3' },
-    rare:      { label: 'Rare',      weight: 14, targetMult: 2.2, rewardMult: 2.6, color: '#6EA8FF' },
-    epic:      { label: 'Epic',      weight: 5,  targetMult: 3.2, rewardMult: 4,   color: '#C084FC' },
-    legendary: { label: 'Legendary', weight: 1,  targetMult: 4.5, rewardMult: 6.5, color: '#E6C35C' }
+    common:    { label: 'Common',    targetMult: 1,   rewardMult: 1,   color: '#E8ECF0' },
+    uncommon:  { label: 'Uncommon',  targetMult: 1.5, rewardMult: 1.7, color: '#7EC8A3' },
+    rare:      { label: 'Rare',      targetMult: 2.2, rewardMult: 2.6, color: '#6EA8FF' },
+    epic:      { label: 'Epic',      targetMult: 3.2, rewardMult: 4,   color: '#C084FC' },
+    legendary: { label: 'Legendary', targetMult: 4.5, rewardMult: 6.5, color: '#E6C35C' }
   };
+  // Quest Ink level (0–4) → roll weights [common … legendary]; higher Ink shifts odds up-tier.
+  const QUEST_RARITY_WEIGHTS_BY_INK = [
+    [100, 0, 0, 0, 0],
+    [58, 42, 0, 0, 0],
+    [36, 38, 26, 0, 0],
+    [16, 28, 34, 22, 0],
+    [6, 20, 40, 26, 8]
+  ];
   // Templates for rolled run quests. {n} in desc is replaced with the scaled target.
   const QUEST_TEMPLATES = [
     {
@@ -3519,7 +3702,7 @@
       ]
     },
     {
-      id: 'a_straight', kind: 'achievement', name: 'In Order',
+      id: 'a_straight', kind: 'achievement', name: 'All In Order',
       desc: 'Score {n} Straights.',
       stat: 'straights', unlockAt: 1, infinite: true,
       scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 25 },
@@ -3582,15 +3765,50 @@
       stat: 'multiHandClears', unlockAt: 1, infinite: true,
       scale: { targetGrowth: 2.3, compPerLevel: 1, chipBase: 100, chipGrowth: 1.35, compCap: 25 },
       tiers: [
-        { target: 1, reward: { chips: 150 } },
         { target: 10, reward: { comps: 1 } },
         { target: 50, reward: { comps: 3 } },
         { target: 200, reward: { comps: 5 } }
       ]
     },
     {
+      id: 'a_max_combo', kind: 'achievement', name: 'C-Combo',
+      desc: 'Reach COMBO ×{n}.',
+      stat: 'maxCombo', unlockAt: 1, infinite: true,
+      scale: { targetStep: 1, compPerLevel: 2, compCap: 40 },
+      tiers: [
+        { target: 2, reward: { chips: 200 } },
+        { target: 3, reward: { comps: 2 } },
+        { target: 4, reward: { comps: 4 } },
+        { target: 5, reward: { comps: 8 } }
+      ]
+    },
+    {
+      id: 'a_hand_payout', kind: 'achievement', name: 'Big Pot',
+      desc: 'Score a single hand worth {n} chips or more.',
+      stat: 'maxHandPayout', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 30 },
+      tiers: [
+        { target: 50, reward: { chips: 100 } },
+        { target: 200, reward: { comps: 1 } },
+        { target: 1000, reward: { comps: 2 } },
+        { target: 5000, reward: { comps: 4 } }
+      ]
+    },
+    {
+      id: 'a_combo_payout', kind: 'achievement', name: 'Combo Payday',
+      desc: 'Score a COMBO resolve worth {n} chips or more.',
+      stat: 'maxComboPayout', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 120, chipGrowth: 1.35, compCap: 30 },
+      tiers: [
+        { target: 100, reward: { chips: 150 } },
+        { target: 500, reward: { comps: 1 } },
+        { target: 2500, reward: { comps: 2 } },
+        { target: 10000, reward: { comps: 4 } }
+      ]
+    },
+    {
       id: 'a_floor', kind: 'achievement', name: 'Janitor',
-      desc: 'Trigger {n} floor clears lifetime.',
+      desc: 'Trigger {n} floor clears.',
       stat: 'floorClears', unlockAt: 1, infinite: true,
       scale: { targetGrowth: 2.4, compPerLevel: 1, compCap: 30 },
       tiers: [
@@ -3618,8 +3836,10 @@
       stat: 'maxRunLevel', unlockAt: 1,
       tiers: [
         { target: 20, reward: { comps: 3 } },
-        { target: 30, reward: { comps: 4 } },
-        { target: 40, reward: { comps: 6 } }
+        { target: 50, reward: { comps: 4 } },
+        { target: 100, reward: { comps: 6 } },
+        { target: 150, reward: { comps: 8 } },
+        { target: 200, reward: { comps: 12 } }
       ]
     },
     {
@@ -3670,6 +3890,18 @@
       ]
     },
     {
+      id: 'a_claims', kind: 'achievement', name: 'Trophy Case',
+      desc: 'Claim {n} achievement reward(s).',
+      stat: 'achievementClaims', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.1, compPerLevel: 1, chipBase: 40, chipGrowth: 1.3, compCap: 25 },
+      tiers: [
+        { target: 3, reward: { chips: 75 } },
+        { target: 10, reward: { comps: 1 } },
+        { target: 25, reward: { comps: 2 } },
+        { target: 60, reward: { comps: 4 } }
+      ]
+    },
+    {
       id: 'a_settings', kind: 'achievement', name: 'House Rules',
       desc: 'Open Settings for the first time.',
       stat: 'settingsOpened', unlockAt: 1,
@@ -3706,7 +3938,7 @@
     {
       id: 'houseEdge',
       name: 'House Edge',
-      desc: '+1 Hot Streak level permanently. Capped at Hot Streak max.',
+      desc: '+1 Hot Streak level permanently. Raises Hot Streak’s buy cost like a normal level. Capped at Hot Streak max.',
       baseCost: 1,
       costScale: 1.65,
       maxLevel: 40
@@ -3744,18 +3976,9 @@
       maxLevel: 5
     },
     {
-      id: 'tableTilt',
-      name: 'Table Tilt',
-      desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
-      baseCost: 2,
-      costScale: 1,
-      maxLevel: 1,
-      toggleable: true
-    },
-    {
       id: 'quickDeal',
       name: 'Quick Deal',
-      desc: '+1 Auto Dealer level permanently. Capped at Auto Dealer max.',
+      desc: '+1 Auto Dealer level permanently. Raises Auto Dealer’s buy cost like a normal level. Capped at Auto Dealer max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3763,7 +3986,7 @@
     {
       id: 'pinPrivilege',
       name: 'Pin Privilege',
-      desc: '+1 Pin Tip level permanently. Capped at Pin Tip max.',
+      desc: '+1 Pin Tip level permanently. Raises Pin Tip’s buy cost like a normal level. Capped at Pin Tip max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3771,7 +3994,7 @@
     {
       id: 'feltWax',
       name: 'Felt Wax',
-      desc: '+1 Felt Grease level permanently. Capped at Felt Grease max.',
+      desc: '+1 Felt Grease level permanently. Raises Felt Grease’s buy cost like a normal level. Capped at Felt Grease max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3813,7 +4036,7 @@
     {
       id: 'pitBoss',
       name: 'Pit Boss',
-      desc: 'Automatically buy the cheapest affordable table upgrade. Toggle On/Off anytime.',
+      desc: 'Automatically buy the cheapest affordable table upgrades each tick. Toggle On/Off anytime.',
       baseCost: 12,
       costScale: 1,
       maxLevel: 1,
@@ -3830,14 +4053,14 @@
     {
       id: 'cardCounting',
       name: 'Card Counting',
-      desc: 'Hand payouts gain a bonus for every duplicate card on the table (same rank and suit).',
+      desc: 'Lv1–8: +8% hand payout per duplicate on the board per level. Lv9: multiply your level payout mult by paired-card products (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
       baseCost: 6,
       costScale: 1.9,
-      maxLevel: 8
+      maxLevel: 9
     },
     {
       id: 'pinSplit',
-      name: 'Pin Split',
+      name: 'Percussive Mitosis',
       desc: 'Drops come ~10× slower, but cards bifurcate when they hit a pin — shrinking each bounce, then snapping back to full size in the columns. Toggle On/Off anytime.',
       baseCost: 75,
       costScale: 1,
@@ -3847,10 +4070,19 @@
     {
       id: 'stormBeaches',
       name: 'Storm the Beaches',
-      desc: 'Auto Dealer runs ~3× faster, but cards can randomly explode when they hit a pin. High volume, high casualties. Toggle On/Off anytime.',
+      desc: 'Auto Dealer runs ~3× faster, but cards can randomly explode when they hit a pin. Survivors that reach the columns earn chips. High volume, high casualties. Toggle On/Off anytime.',
       baseCost: 75,
       costScale: 1,
       maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'siegeWeapons',
+      name: 'Siege Weapons',
+      desc: 'Spiked cards smash bumpers for Rail Tax and clear columns. Lv 2: every column on that bumper. Lv 3: landing slam clears the column with combo payout. Toggle On/Off anytime.',
+      baseCost: 55,
+      costScale: 2.2,
+      maxLevel: 3,
       toggleable: true
     },
     {
@@ -3861,13 +4093,22 @@
       costScale: 1,
       maxLevel: 1,
       toggleable: true
+    },
+    {
+      id: 'tableTilt',
+      name: 'Table Tilt',
+      desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
+      baseCost: 2,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
     }
   ];
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'kingMe'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'shortFuse'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -3880,12 +4121,14 @@
   let nearMissCache = null;
   let hintsDirty = true;
   let suitBombReadyAt = 0;
+  let suitBombPickerMinimized = false;
   let pendingSuitBomb = null;
   let saveTimer = 0;
   // Gyro tilt: -1..1 lean; degrees come from the Table Tilt VIP perk.
   let boardTilt = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
+  let countingUiTimer = 0;
   let achievementProgShown = Object.create(null); // achievement id -> last painted numerator
   let questClaimed = Object.create(null); // achievement id -> claimed tier count
   let activeQuests = []; // rolled run quests in slots
@@ -3909,6 +4152,7 @@
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
+    maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, achievementClaims: 0,
     sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
@@ -3977,7 +4221,15 @@
   }
 
   function suitBombUiVisible(){
-    return upgradeLevel('suitBomb') > 0 && isAutoEnabled('suitBomb');
+    return upgradeLevel('suitBomb') > 0 && !suitBombPickerMinimized;
+  }
+
+  function suitPurgeActive(){
+    return suitBombUnlocked() && isAutoEnabled('suitBomb');
+  }
+
+  function shortFuseActive(){
+    return upgradeLevel('shortFuse') > 0 && isAutoEnabled('shortFuse');
   }
 
   function setAutoEnabled(id, on){
@@ -4036,6 +4288,13 @@
   // Storm the Beaches: flood the table, but pins can shell falling cards.
   const STORM_BEACHES_SPAWN_MULT = 1 / 3; // ~3× faster Auto Dealer
   const STORM_BEACHES_EXPLODE_CHANCE = 0.22;
+  const STORM_BEACHES_BLAST_RADIUS = 280;
+  const STORM_BEACHES_BLAST_FORCE = 70;
+  const STORM_BEACHES_KNOCKBACK_FRAMES = 55;
+
+  // Pit Boss: fixed batch per tick (no extra VIP levels).
+  const PIT_BOSS_BUY_BATCH = 5;
+  const PIT_BOSS_BUY_INTERVAL_MS = 140;
 
   function stormBeachesSpawnMult(){
     return stormBeachesActive() ? STORM_BEACHES_SPAWN_MULT : 1;
@@ -4060,6 +4319,63 @@
 
   function dropSpawnMult(){
     return pinSplitSpawnMult() * stormBeachesSpawnMult();
+  }
+
+  // Siege Weapons: spiked cards smash bumpers (top-row clear); Lv2 shatters pins awhile.
+  const SIEGE_SPIKE_CHANCE = 0.18;
+  const SIEGE_PIN_BREAK_FRAMES = 200; // ~3.3s at 60fps physics ticks
+  let pendingSiegeClear = null; // {cols: number[]} queued bumper smash
+  let pendingSiegeLand = null; // {ball, col} finish column entry after Lv3 slam
+
+  function siegeWeaponsUnlocked(){
+    return prestigeLevel('siegeWeapons') > 0;
+  }
+
+  function siegeWeaponsActive(){
+    return siegeWeaponsUnlocked() && isAutoEnabled('siegeWeapons');
+  }
+
+  function siegeWeaponsLevel(){
+    return prestigeLevel('siegeWeapons');
+  }
+
+  function stormBeachLandingPayout(){
+    if(!stormBeachesActive()) return 0;
+    const pin = pinHitPayout();
+    return Math.max(1, Math.floor((pin > 0 ? pin * 2 : 10) * effectiveMetaMultiplier()));
+  }
+
+  function siegeCardPayout(){
+    const lvl = siegeWeaponsLevel();
+    if(lvl <= 0) return 0;
+    return Math.max(1, Math.floor(lvl * 12 * effectiveMetaMultiplier()));
+  }
+
+  function siegeColumnsForBumperHit(ball, rail){
+    const lvl = siegeWeaponsLevel();
+    if(lvl < 1) return [];
+    if(lvl >= 2 && rail && rail.startCol != null){
+      const cols = [];
+      for(let c = rail.startCol; c <= rail.endCol; c++) cols.push(c);
+      return cols;
+    }
+    const c = Math.min(COLS - 1, Math.max(0, Math.floor(ball.x / CELL)));
+    return [c];
+  }
+
+  function siegeCellsForColumns(cols){
+    const cells = [];
+    const seen = new Set();
+    for(const c of cols){
+      for(let r = 0; r < ROWS; r++){
+        if(!grid[c][r]) continue;
+        const key = c + ',' + r;
+        if(seen.has(key)) continue;
+        seen.add(key);
+        cells.push([c, r]);
+      }
+    }
+    return cells;
   }
 
   function tableTiltUnlocked(){
@@ -4293,11 +4609,17 @@
     const last = seeds[seeds.length - 1];
     const extra = level - seeds.length;
     const scale = def.scale || {};
-    const targetGrowth = scale.targetGrowth != null ? scale.targetGrowth : 2.2;
-    const target = Math.max(
-      last.target + 1,
-      Math.ceil(last.target * Math.pow(targetGrowth, extra))
-    );
+    let target;
+    // Linear +N steps (e.g. COMBO ×2, ×3, ×4… with targetStep: 1) when set.
+    if(scale.targetStep != null && scale.targetStep > 0){
+      target = last.target + Math.floor(scale.targetStep) * extra;
+    } else {
+      const targetGrowth = scale.targetGrowth != null ? scale.targetGrowth : 2.2;
+      target = Math.max(
+        last.target + 1,
+        Math.ceil(last.target * Math.pow(targetGrowth, extra))
+      );
+    }
     return {
       target,
       reward: achievementScaledReward(def, level, last.reward, extra)
@@ -4344,6 +4666,15 @@
     tier = tier || achievementActiveTier(def);
     if(!tier) return def.desc || '';
     return (def.desc || '').replace(/\{n\}/g, formatNum(tier.target));
+  }
+
+  function achievementName(def, tier){
+    tier = tier || achievementActiveTier(def);
+    if(def.id === 'a_max_combo' && tier){
+      const n = Math.max(2, tier.target | 0);
+      return 'C-'.repeat(n - 1) + 'Combo';
+    }
+    return def.name;
   }
 
   function achievementKindLabel(def){
@@ -4481,11 +4812,13 @@
 
   function pickQuestRarity(){
     const maxIdx = maxQuestRarityIndex();
+    const table = QUEST_RARITY_WEIGHTS_BY_INK[maxIdx] || QUEST_RARITY_WEIGHTS_BY_INK[0];
     let total = 0;
     const pool = [];
     for(let i = 0; i <= maxIdx; i++){
       const id = QUEST_RARITIES[i];
-      const w = QUEST_RARITY[id].weight;
+      const w = table[i] || 0;
+      if(w <= 0) continue;
       pool.push({ id, w });
       total += w;
     }
@@ -4569,13 +4902,60 @@
     return activeRailPanel === 'upgrades';
   }
 
+  function questRarityColor(rarity){
+    return (QUEST_RARITY[rarity] || QUEST_RARITY.common).color;
+  }
+
+  function hexToRgba(hex, alpha){
+    if(!hex || hex[0] !== '#' || (hex.length !== 7 && hex.length !== 4)) return 'rgba(126,200,163,' + (alpha || 1) + ')';
+    let r, g, b;
+    if(hex.length === 4){
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else {
+      r = parseInt(hex.slice(1, 3), 16);
+      g = parseInt(hex.slice(3, 5), 16);
+      b = parseInt(hex.slice(5, 7), 16);
+    }
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha == null ? 1 : alpha) + ')';
+  }
+
+  function styleFlySpark(el, color){
+    const c = color || questRarityColor('uncommon');
+    el.style.background = 'radial-gradient(circle, #fff 0%, ' + c + ' 45%, transparent 100%)';
+    el.style.boxShadow = '0 0 6px ' + hexToRgba(c, 0.65);
+  }
+
+  function questSparkGlowShadow(color, alpha){
+    return '0 0 14px 2px ' + hexToRgba(color, alpha == null ? 0.28 : alpha);
+  }
+
+  function questSparkColors(quests){
+    if(!quests || !quests.length) return [questRarityColor('uncommon')];
+    return quests.map(q => questRarityColor(q.rarity));
+  }
+
   function playQuestClaimEffect(btn, opts){
     if(!btn) return;
     opts = opts || {};
+    const rarityColor = opts.rarity ? questRarityColor(opts.rarity) : null;
     btn.classList.remove('quest-claiming', 'quest-claiming-auto', 'quest-rolling-in');
     void btn.offsetWidth;
     btn.classList.add('quest-claiming');
     if(opts.auto) btn.classList.add('quest-claiming-auto');
+    if(rarityColor){
+      btn.style.setProperty('--quest-spark-glow', questSparkGlowShadow(rarityColor));
+      spawnFlyBurst(elementStagePoint(btn), {
+        count: 5,
+        className: 'fly-spark',
+        sparkColor: rarityColor,
+        flyToTarget: false,
+        popSpread: 24,
+        duration: 360,
+        maxCount: 6
+      });
+    }
     if(opts.reward) spawnRewardParticles(btn, opts.reward);
     clearTimeout(btn._questClaimTimer);
     btn._questClaimTimer = setTimeout(()=>{
@@ -4592,8 +4972,14 @@
     btn._questRollInTimer = setTimeout(()=>btn.classList.remove('quest-rolling-in'), 440);
   }
 
-  function pulseQuestTabAutoClaim(){
-    spawnRailTabBurst('quests', { count: 6, popSpread: 20 });
+  function pulseQuestTabAutoClaim(claimed){
+    const sparkColors = questSparkColors(claimed);
+    spawnRailTabBurst('quests', {
+      count: 6,
+      popSpread: 20,
+      sparkColors: sparkColors.length > 1 ? sparkColors : null,
+      sparkColor: sparkColors[0]
+    });
     const tab = getQuestsTabEl();
     if(!tab) return;
     const badge = tab.querySelector('.rail-tab-badge');
@@ -4670,7 +5056,7 @@
     };
 
     if(animateCard){
-      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto, reward: q.reward });
+      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto, reward: q.reward, rarity: q.rarity });
       setTimeout(finishClaim, QUEST_CLAIM_ANIM_MS);
       return q;
     }
@@ -4688,7 +5074,7 @@
       const ready = activeQuests.find(q => activeQuestComplete(q));
       if(!ready) break;
       const idx = activeQuests.findIndex(x => x.uid === ready.uid);
-      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true, reward: ready.reward });
+      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true, reward: ready.reward, rarity: ready.rarity });
       const q = claimActiveQuest(ready.uid, { deferUi: true, skipRewardFly: true });
       if(!q) break;
       claimed.push(q);
@@ -4701,7 +5087,7 @@
       if(panelOpen){
         for(const idx of claimedSlots) playQuestRollIn(questSlotButtons[idx]);
       } else {
-        pulseQuestTabAutoClaim();
+        pulseQuestTabAutoClaim(claimed);
         const tab = getQuestsTabEl();
         for(const q of claimed){
           if(tab && q.reward) spawnRewardParticles(tab, q.reward);
@@ -4733,6 +5119,7 @@
     const tier = achievementTierAt(def, level);
     if(!tier) return false;
     questClaimed[def.id] = level;
+    bumpStat('achievementClaims', 1);
     applyContractReward(tier.reward);
     refreshQuestUiAndSave();
     const tierSuffix = (def.infinite || achievementSeedTiers(def).length > 1)
@@ -4741,7 +5128,7 @@
     pushPopup({
       x: W / 2,
       y: PEG_ZONE * 0.38,
-      text: 'ACHIEVE · ' + def.name + tierSuffix,
+      text: 'ACHIEVE · ' + achievementName(def, tier) + tierSuffix,
       color: '#F0D78C',
       t0: performance.now(),
       duration: 1400,
@@ -4782,15 +5169,40 @@
     scheduleContractsUI();
   }
 
+  function noteResolvePayout(groups, chainMult){
+    if(!groups || !groups.length) return;
+    const payMult = handPayoutMultiplier();
+    let bestHand = 0;
+    for(const g of groups){
+      const handPts = Math.floor(g.points * (g.cardMult || 1) * chainMult * payMult);
+      if(handPts > bestHand) bestHand = handPts;
+    }
+    if(bestHand > (stats.maxHandPayout || 0)){
+      stats.maxHandPayout = bestHand;
+      scheduleContractsUI();
+    }
+    if(groups.length > 1){
+      const comboPts = Math.floor(scoreGroups(groups, chainMult) * payMult);
+      if(comboPts > (stats.maxComboPayout || 0)){
+        stats.maxComboPayout = comboPts;
+        scheduleContractsUI();
+      }
+    }
+  }
+
   function noteHandClear(groups, chainMult){
     if(!groups || !groups.length) return;
-    if(groups.some(g => g.floorClear || g.suitBomb)) return;
+    if(groups.some(g => g.floorClear || g.suitBomb || g.siegeClear)) return;
     const n = groups.length;
     bumpStat('hands', n);
     bumpStat('runHands', n);
     if(n > 1){
       bumpStat('multiHandClears', 1);
       bumpStat('runMultiClears', 1);
+    }
+    if(n > (stats.maxCombo || 0)){
+      stats.maxCombo = n;
+      scheduleContractsUI();
     }
     if(chainMult > 1){
       bumpStat('chainClears', 1);
@@ -4835,13 +5247,35 @@
     // Cost tracks effective level (purchased + VIP bonus), so perk levels raise the curve.
     const lvl = upgradeLevel(def.id);
     if(lvl >= def.maxLevel) return Infinity;
-    return Math.floor(def.baseCost * Math.pow(def.costScale, lvl) * upgradeCostMult());
+    const lateAt = def.costLateAt | 0;
+    let raw;
+    if(lateAt > 0 && lvl >= lateAt){
+      const lateLvl = lvl - lateAt;
+      raw = def.costLateBase * Math.pow(def.costLateScale, lateLvl);
+    } else {
+      raw = def.baseCost * Math.pow(def.costScale, lvl);
+    }
+    return Math.floor(raw * upgradeCostMult());
   }
 
   function prestigeUpgradeCost(def){
     const lvl = prestigeLevel(def.id);
     if(lvl >= def.maxLevel) return Infinity;
     return Math.floor(def.baseCost * Math.pow(def.costScale, lvl));
+  }
+
+  const MULTI_DEAL_CHANCE_PER_LEVEL = 0.25;
+
+  function multiDealChance(){
+    return upgradeLevel('multiDeal') * MULTI_DEAL_CHANCE_PER_LEVEL;
+  }
+
+  function rollMultiDealExtras(){
+    const chance = multiDealChance();
+    if(chance <= 0) return 0;
+    const guaranteed = Math.floor(chance);
+    const remainder = chance - guaranteed;
+    return guaranteed + (remainder > 0 && Math.random() < remainder ? 1 : 0);
   }
 
   function autoDropIntervalMs(){
@@ -4916,6 +5350,11 @@
     return blindMultiplier('hands');
   }
 
+  function cardCountKey(card){
+    if(isWild(card)) return card.rank + 'W';
+    return card.rank + card.suit;
+  }
+
   // Extra copies of the same rank+suit on the settled board (multi-deck duplicates).
   function boardDuplicateExtras(){
     const counts = Object.create(null);
@@ -4924,7 +5363,7 @@
       for(let r = 0; r < ROWS; r++){
         const card = grid[c][r];
         if(!card) continue;
-        const key = isWild(card) ? (card.rank + 'W') : (card.rank + card.suit);
+        const key = cardCountKey(card);
         counts[key] = (counts[key] || 0) + 1;
       }
     }
@@ -4935,17 +5374,67 @@
     return extras;
   }
 
-  // Card Counting: +8% hand payout per duplicate extra per VIP level.
-  function cardCountingMultiplier(){
+  function cardCountingGroups(){
+    const counts = Object.create(null);
+    const samples = Object.create(null);
+    if(!grid) return [];
+    for(let c = 0; c < COLS; c++){
+      for(let r = 0; r < ROWS; r++){
+        const card = grid[c][r];
+        if(!card) continue;
+        const key = cardCountKey(card);
+        counts[key] = (counts[key] || 0) + 1;
+        if(!samples[key]) samples[key] = card;
+      }
+    }
+    const groups = [];
+    for(const key in counts){
+      const count = counts[key];
+      if(count >= 2){
+        groups.push({ card: samples[key], count });
+      }
+    }
+    groups.sort((a, b) => b.count - a.count || a.card.rank - b.card.rank);
+    return groups;
+  }
+
+  function cardCountingFactor(){
+    if(prestigeLevel('cardCounting') < 9) return 1;
+    const groups = cardCountingGroups();
+    if(!groups.length) return 1;
+    let product = 1;
+    for(const group of groups) product *= group.count;
+    return product;
+  }
+
+  // Card Counting Lv1–8: +8% hand payout per duplicate extra per VIP level.
+  function cardCountingHandMultiplier(){
     const lvl = prestigeLevel('cardCounting');
     if(!lvl) return 1;
     const extras = boardDuplicateExtras();
     if(!extras) return 1;
-    return 1 + extras * 0.08 * lvl;
+    return 1 + extras * 0.08 * Math.min(lvl, 8);
+  }
+
+  function cardCountingCardLabel(card, count){
+    return count + '×' + cardFace(card);
+  }
+
+  function effectiveMetaMultiplier(){
+    return runMetaMultiplier() * cardCountingFactor();
   }
 
   function handPayoutMultiplier(){
-    return scoreMultiplier() * runMetaMultiplier() * cardCountingMultiplier();
+    return scoreMultiplier() * effectiveMetaMultiplier() * cardCountingHandMultiplier();
+  }
+
+  function scheduleCountingUiRefresh(){
+    if(prestigeLevel('cardCounting') < 9) return;
+    clearTimeout(countingUiTimer);
+    countingUiTimer = setTimeout(()=>{
+      updateShopUI();
+      updatePrestigeUI();
+    }, 80);
   }
 
   function chainBonus(){
@@ -4976,12 +5465,20 @@
     return Math.max(1, Math.floor(linear * mult));
   }
 
+  function formatCompactSuffix(n){
+    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
+    if(n < 1e12) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
+    if(n < 1e15) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + 'T';
+    return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+  }
+
   function formatMultFactor(v, noun){
     const text = (v % 1 === 0) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
     return '×' + text + ' ' + noun;
   }
 
   function formatMultShort(v){
+    if(v >= 1e6) return '×' + formatCompactSuffix(v);
     if(v % 1 === 0) return '×' + v;
     return '×' + v.toFixed(2).replace(/\.?0+$/, '');
   }
@@ -4991,7 +5488,7 @@
     const parts = [];
     const blind = blindMultiplier(category);
     if(blind > 1) parts.push(formatMultShort(blind) + ' Blind');
-    const meta = runMetaMultiplier();
+    const meta = effectiveMetaMultiplier();
     if(meta > 1) parts.push(formatMultShort(meta) + ' mult');
     return parts;
   }
@@ -5015,29 +5512,45 @@
   }
 
   function resolveSpeed(){
+    if(!shortFuseActive()) return 1;
     return 1 + 0.22 * upgradeLevel('shortFuse');
   }
 
   function flashPulseCount(){
-    const lvl = upgradeLevel('shortFuse');
+    const lvl = shortFuseActive() ? upgradeLevel('shortFuse') : 0;
     // 7 pulses at Lv0, tapering to 2 by ~Lv10.
     return Math.max(2, 7 - Math.floor(lvl * 0.5));
   }
 
+  function purgeCardPayout(){
+    const lvl = upgradeLevel('suitBomb');
+    if(lvl <= 0) return 0;
+    return Math.max(1, Math.floor(lvl * 8 * blindMultiplier('hands') * effectiveMetaMultiplier()));
+  }
+
+  function suitPurgePairPenalty(suit){
+    if(prestigeLevel('cardCounting') <= 0) return 0;
+    let penalty = 0;
+    for(const g of cardCountingGroups()){
+      if(g.card && g.card.suit === suit) penalty += g.count - 1;
+    }
+    return penalty;
+  }
+
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? Math.floor(lvl * blindMultiplier('pin') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * blindMultiplier('pin') * effectiveMetaMultiplier()) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * effectiveMetaMultiplier()) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
-    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * effectiveMetaMultiplier()) : 0;
   }
 
   function suitBombCooldownMs(){
@@ -5239,6 +5752,7 @@
 
   const chipFxLayer = document.getElementById('chipFxLayer');
   const scoreBoxEl = document.getElementById('scoreBox');
+  const chipRateValEl = document.getElementById('chipRateVal');
   const MAX_FLYING_CHIPS = 80;
   let flyingChips = [];
   let chipFlyRaf = 0;
@@ -5326,7 +5840,9 @@
       flyToTarget: false,
       popSpread: opts.popSpread || 22,
       duration: opts.duration || 380,
-      maxCount: opts.maxCount || 7
+      maxCount: opts.maxCount || 7,
+      sparkColor: opts.sparkColor,
+      sparkColors: opts.sparkColors
     });
   }
 
@@ -5377,6 +5893,12 @@
     for(let i = 0; i < count; i++){
       const el = document.createElement('div');
       el.className = className;
+      if(className === 'fly-spark'){
+        const sparkColor = opts.sparkColors
+          ? opts.sparkColors[i % opts.sparkColors.length]
+          : opts.sparkColor;
+        if(sparkColor) styleFlySpark(el, sparkColor);
+      }
       const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.35;
       const pop = 14 + Math.random() * (opts.popSpread || 34);
       const delay = i * 16 + Math.random() * 22;
@@ -5610,11 +6132,68 @@
     chipFlyRaf = requestAnimationFrame(step);
   }
 
+  // Rolling chips/s from gameplay awards (hands, pin tip, rail tax, floor clear).
+  const CHIP_RATE_WINDOW_MS = 5000;
+  const CHIP_RATE_UI_MS = 250;
+  let chipEarnSamples = [];
+  let lastChipRatePaint = 0;
+  let lastChipRateText = '';
+
+  function noteChipEarn(amount, now){
+    amount = Math.floor(amount);
+    if(amount <= 0) return;
+    now = now || performance.now();
+    chipEarnSamples.push({ t: now, n: amount });
+    const cutoff = now - CHIP_RATE_WINDOW_MS;
+    let i = 0;
+    while(i < chipEarnSamples.length && chipEarnSamples[i].t < cutoff) i++;
+    if(i) chipEarnSamples.splice(0, i);
+  }
+
+  function currentChipRate(now){
+    now = now || performance.now();
+    const cutoff = now - CHIP_RATE_WINDOW_MS;
+    let i = 0;
+    while(i < chipEarnSamples.length && chipEarnSamples[i].t < cutoff) i++;
+    if(i) chipEarnSamples.splice(0, i);
+    if(!chipEarnSamples.length) return 0;
+    let sum = 0;
+    for(const s of chipEarnSamples) sum += s.n;
+    return sum / (CHIP_RATE_WINDOW_MS / 1000);
+  }
+
+  function formatChipRate(rate){
+    if(!Number.isFinite(rate) || rate < 0.05) return '0/s';
+    if(rate < 100){
+      return (Math.round(rate * 10) / 10).toFixed(1).replace(/\.0$/, '') + '/s';
+    }
+    return formatNum(rate) + '/s';
+  }
+
+  function resetChipRate(){
+    chipEarnSamples = [];
+    lastChipRatePaint = 0;
+    lastChipRateText = '';
+    if(chipRateValEl) chipRateValEl.textContent = '0/s';
+  }
+
+  function updateChipRateUI(now, force){
+    if(!chipRateValEl) return;
+    now = now || performance.now();
+    if(!force && now - lastChipRatePaint < CHIP_RATE_UI_MS) return;
+    lastChipRatePaint = now;
+    const text = formatChipRate(currentChipRate(now));
+    if(text === lastChipRateText) return;
+    lastChipRateText = text;
+    chipRateValEl.textContent = text;
+  }
+
   function awardChips(amount, origin){
     amount = Math.floor(amount);
     if(amount <= 0) return 0;
     score += amount;
     lifetime += amount;
+    noteChipEarn(amount);
     const leveled = syncRunLevel();
     scheduleSave();
     // Peg/bumper hits can fire often — batch score + shop DOM updates.
@@ -5696,8 +6275,7 @@
     if(n < 1000) return String(Math.floor(n));
     if(n < 10000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k';
     if(n < 1e6) return Math.floor(n/1000) + 'k';
-    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
-    return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
+    return formatCompactSuffix(n);
   }
 
   function formatInterval(ms){
@@ -5714,9 +6292,15 @@
         return isAutoEnabled('autoDealer')
           ? ('Every ' + formatInterval(autoDropIntervalMs()))
           : 'Paused';
+      case 'multiDeal': {
+        if(!lvl) return 'One card per tick';
+        const chance = multiDealChance();
+        const pct = (chance * 100).toFixed(chance < 0.1 ? 1 : 0).replace(/\.0$/, '');
+        return pct + '% extra card chance';
+      }
       case 'bigBlind': {
         if(!lvl) return 'No bonus';
-        const meta = runMetaMultiplier();
+        const meta = effectiveMetaMultiplier();
         return withMultLabels(
           blindSpreadEffectText(),
           meta > 1 ? [formatMultShort(meta) + ' mult'] : []
@@ -5766,14 +6350,14 @@
       }
       case 'suitBomb':
         if(!lvl) return 'Locked';
-        if(!isAutoEnabled('suitBomb')) return 'Picker hidden';
-        return 'Cooldown ' + formatInterval(suitBombCooldownMs());
+        if(!suitPurgeActive()) return 'Paused';
+        return 'Cooldown ' + formatInterval(suitBombCooldownMs()) + ' · +' + purgeCardPayout() + '/card';
       case 'feltGrease':
         return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
       case 'shortFuse':
-        return lvl
-          ? ('×' + resolveSpeed().toFixed(2).replace(/\.00$/,'') + ' clear speed')
-          : 'Normal timing';
+        if(!lvl) return 'Normal timing';
+        if(!shortFuseActive()) return 'Paused';
+        return '×' + resolveSpeed().toFixed(2).replace(/\.00$/,'') + ' clear speed';
       default:
         return '';
     }
@@ -5832,10 +6416,27 @@
         return lvl ? 'Hidden Ace in every hand' : 'Play fair';
       case 'cardCounting':{
         if(!lvl) return 'No count bonus';
-        const extras = boardDuplicateExtras();
-        const pct = Math.round(8 * lvl);
-        if(!extras) return '+' + pct + '% per duplicate';
-        return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingMultiplier());
+        if(lvl < 9){
+          const extras = boardDuplicateExtras();
+          const pct = Math.round(8 * Math.min(lvl, 8));
+          if(!extras) return '+' + pct + '% per duplicate';
+          return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingHandMultiplier());
+        }
+        const groups = cardCountingGroups();
+        if(!groups.length) return 'No paired cards on board';
+        const cards = groups.map(g => cardCountingCardLabel(g.card, g.count)).join(' · ');
+        const factor = cardCountingFactor();
+        const baseMeta = runMetaMultiplier();
+        const totalMeta = effectiveMetaMultiplier();
+        const total = baseMeta > 1
+          ? formatMultShort(totalMeta) + ' mult'
+          : formatMultShort(factor);
+        const breakdown = baseMeta > 1
+          ? cards + ' = ' + formatMultShort(factor)
+          : cards;
+        const handMult = cardCountingHandMultiplier();
+        const handNote = handMult > 1 ? ' · hand ' + formatMultShort(handMult) : '';
+        return total + ' (' + breakdown + ')' + handNote;
       }
       case 'pinSplit':
         if(!lvl) return 'Normal drops';
@@ -5844,7 +6445,17 @@
       case 'stormBeaches':
         if(!lvl) return 'Steady landings';
         if(!isAutoEnabled('stormBeaches')) return 'Paused';
-        return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% pin shells';
+        return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% shells · +' + stormBeachLandingPayout() + ' landing';
+      case 'siegeWeapons':
+        if(!lvl) return 'Smooth rims';
+        if(!isAutoEnabled('siegeWeapons')) return 'Paused';
+        if(lvl >= 3){
+          return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · bumper cols · slam combo';
+        }
+        if(lvl >= 2){
+          return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · bumper columns · +' + siegeCardPayout() + '/card';
+        }
+        return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · column clear · +' + siegeCardPayout() + '/card';
       case 'kingMe':
         if(!lvl) return 'Kings stay grounded';
         if(!isAutoEnabled('kingMe')) return 'Paused';
@@ -5864,11 +6475,13 @@
     lastAutoDropAt = 0;
     lastManualDropAt = 0;
     suitBombReadyAt = 0;
+    suitBombPickerMinimized = false;
     pendingSuitBomb = null;
     // Cash Out persists before freshState — clear heater so it can't revive on reload.
     chainStep = 0;
     pendingChain = 0;
     resumeHeaterChain = 0;
+    resetChipRate();
   }
 
   function persistSave(){
@@ -5888,6 +6501,7 @@
         activeQuests,
         questUidSeq,
         autoEnabled,
+        suitBombPickerMinimized,
         suitBombCdLeft: cdLeft,
         heaterChain: heaterChainForSave(),
         seenUnlocks,
@@ -5931,6 +6545,15 @@
           }
         }
       }
+      // Card Counting: restore Lv1–8 duplicate bonus; Lv9 = paired-card product mult.
+      if((data.v || 0) < 22 && data.prestigeUpgrades && typeof data.prestigeUpgrades === 'object'){
+        const raw = data.prestigeUpgrades.cardCounting;
+        if(typeof raw === 'number' && raw > 1){
+          prestigeUpgrades.cardCounting = Math.min(8, Math.floor(raw));
+        } else if(raw === 1){
+          prestigeUpgrades.cardCounting = 9;
+        }
+      }
       // Retired Multi Deal — each level becomes one Auto Dealer level.
       if(data.upgrades && typeof data.upgrades.multiDeal === 'number' && data.upgrades.multiDeal > 0){
         const autoDef = UPGRADE_DEFS.find(u => u.id === 'autoDealer');
@@ -5961,6 +6584,9 @@
         for(const id of AUTO_TOGGLE_IDS){
           if(typeof data.autoEnabled[id] === 'boolean') autoEnabled[id] = data.autoEnabled[id];
         }
+      }
+      if(typeof data.suitBombPickerMinimized === 'boolean'){
+        suitBombPickerMinimized = data.suitBombPickerMinimized;
       }
       runLevel = runLevelFromLifetime(lifetime);
       if(typeof data.runCompCredit === 'number' && data.runCompCredit >= 0){
@@ -6002,6 +6628,13 @@
           if(!def) continue;
           const capped = def.infinite ? tier : Math.min(achievementSeedTiers(def).length, tier);
           questClaimed[id] = Math.max(questClaimed[id] || 0, capped);
+        }
+        // Double Down dropped its tier-1 @ 1 multi-clear — C-Combo owns COMBO ×2.
+        if((data.v || 0) < 23){
+          const comboClaimed = questClaimed.a_combo;
+          if(typeof comboClaimed === 'number' && comboClaimed > 0){
+            questClaimed.a_combo = Math.max(1, comboClaimed - 1);
+          }
         }
       }
       if(typeof data.questUidSeq === 'number' && data.questUidSeq > 0){
@@ -6086,6 +6719,11 @@
           versionDirty = true;
         }
       }
+      // Pre-maxCombo saves: any multi-hand clear means at least COMBO ×2.
+      if((data.v || 0) < 21 && (stats.maxCombo || 0) < 2 && (stats.multiHandClears || 0) > 0){
+        stats.maxCombo = 2;
+        versionDirty = true;
+      }
       appRelease = APP_RELEASE;
       // Stamp immediately so a refresh before the next gameplay save can't double-count.
       if(versionDirty || data.appRelease !== APP_RELEASE) scheduleSave();
@@ -6110,10 +6748,12 @@
     lastAutoDropAt = 0;
     lastManualDropAt = 0;
     suitBombReadyAt = 0;
+    suitBombPickerMinimized = false;
     pendingSuitBomb = null;
     chainStep = 0;
     pendingChain = 0;
     resumeHeaterChain = 0;
+    resetChipRate();
     seenUnlocks = {
       tabs: Object.assign({}, EMPTY_SEEN_UNLOCKS.tabs),
       upgrades: []
@@ -6202,22 +6842,27 @@
 
   function tryAutoBuyUpgrades(){
     if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return { count: 0, ids: [] };
-    let bestId = null;
-    let bestCost = Infinity;
-    for(const def of UPGRADE_DEFS){
-      if(!upgradeUnlocked(def.id)) continue;
-      const lvl = upgradeLevel(def.id);
-      if(lvl >= def.maxLevel) continue;
-      const cost = upgradeCost(def);
-      if(score < cost) continue;
-      if(cost < bestCost){
-        bestCost = cost;
-        bestId = def.id;
+    const ids = [];
+    for(let i = 0; i < PIT_BOSS_BUY_BATCH; i++){
+      let bestId = null;
+      let bestCost = Infinity;
+      for(const def of UPGRADE_DEFS){
+        if(!upgradeUnlocked(def.id)) continue;
+        const lvl = upgradeLevel(def.id);
+        if(lvl >= def.maxLevel) continue;
+        const cost = upgradeCost(def);
+        if(score < cost) continue;
+        if(cost < bestCost){
+          bestCost = cost;
+          bestId = def.id;
+        }
       }
+      if(!bestId || !purchaseUpgrade(bestId)) break;
+      ids.push(bestId);
     }
-    if(!bestId || !purchaseUpgrade(bestId)) return { count: 0, ids: [] };
+    if(!ids.length) return { count: 0, ids: [] };
     scheduleSave();
-    return { count: 1, ids: [bestId] };
+    return { count: ids.length, ids };
   }
 
   function playUpgradeAutoBuyEffect(btn){
@@ -6257,7 +6902,7 @@
   function maybeAutoBuy(now){
     if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return 0;
     now = now || performance.now();
-    if(now - lastAutoBuyAt < 220) return 0;
+    if(now - lastAutoBuyAt < PIT_BOSS_BUY_INTERVAL_MS) return 0;
     const result = tryAutoBuyUpgrades();
     if(result.count){
       lastAutoBuyAt = now;
@@ -6357,6 +7002,20 @@
     return best;
   }
 
+  function autoDropOnce(reserved){
+    if(balls.length >= MAX_AUTO_DROP_BALLS) return false;
+    const col = pickAutoColumn(reserved);
+    if(col < 0){
+      // Board packed — still deal into the peg zone; pucks bounce until
+      // a floor clear or hand resolve opens a slot.
+      dropAt(Math.random() * (W - 28) + 14, {auto: true});
+    } else {
+      dropAt(col*CELL + CELL/2, {auto: true, autoCol: col});
+      reserved[col]++;
+    }
+    return true;
+  }
+
   function tryAutoDrop(){
     const intervalTicks = autoDropIntervalTicks();
     if(!Number.isFinite(intervalTicks)) return;
@@ -6365,13 +7024,10 @@
     if(balls.length >= MAX_AUTO_DROP_BALLS) return;
 
     const reserved = columnReservations();
-    const col = pickAutoColumn(reserved);
-    if(col < 0){
-      // Board packed — still deal into the peg zone; pucks bounce until
-      // a floor clear or hand resolve opens a slot.
-      dropAt(Math.random() * (W - 28) + 14, {auto: true});
-    } else {
-      dropAt(col*CELL + CELL/2, {auto: true, autoCol: col});
+    if(!autoDropOnce(reserved)) return;
+    let extras = rollMultiDealExtras();
+    while(extras-- > 0){
+      if(!autoDropOnce(reserved)) break;
     }
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
@@ -6388,6 +7044,8 @@
     currentGroups = [];
     chainStep = 0;
     pendingChain = 0;
+    pendingSiegeClear = null;
+    pendingSiegeLand = null;
     heaterHoldUntilUse = false;
     flashCells = null;
     particles = [];
@@ -6395,6 +7053,7 @@
     pendingSuitBomb = null;
     pendingKingMe = [];
     kingJumpers = [];
+    for(const p of pegs){ p.hit = 0; p.broken = 0; }
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
     lastManualDropAt = 0;
@@ -6484,7 +7143,8 @@
       const y = BUMPER_BASE_Y - h*0.35;
       bumperPaths.push({
         points: [{x:leftX,y},{x:rightX,y}],
-        hit:0, edgeLeft, edgeRight
+        hit:0, edgeLeft, edgeRight,
+        startCol, endCol
       });
       return;
     }
@@ -6501,7 +7161,8 @@
           {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
         ],
         hit:0, edgeLeft, edgeRight,
-        arc: {cx, cy, r:R, a0, a1}
+        arc: {cx, cy, r:R, a0, a1},
+        startCol, endCol
       });
       return;
     }
@@ -6520,7 +7181,8 @@
           {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
         ],
         hit:0, edgeLeft, edgeRight,
-        arc: {cx, cy, r:R, a0, a1}
+        arc: {cx, cy, r:R, a0, a1},
+        startCol, endCol
       });
       return;
     }
@@ -6538,7 +7200,8 @@
         {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
       ],
       hit:0, edgeLeft, edgeRight,
-      arc: {cx, cy, r:R, a0, a1}
+      arc: {cx, cy, r:R, a0, a1},
+      startCol, endCol
     });
   }
 
@@ -6567,6 +7230,27 @@
       const dist = Math.hypot(dx, dy);
       const minDist = ball.radius + BUMPER_R;
       if(dist >= minDist || dist <= 0.0001) continue;
+
+      // Siege Weapons: spiked cards punch through bumpers and clear column(s).
+      if(ball.card && ball.card.spikes && siegeWeaponsActive() && !ball.siegeUsed){
+        ball.siegeUsed = true;
+        spawnExplosion(closest.x, closest.y, ball.card);
+        spawnExplosion(ball.x, ball.y, ball.card);
+        rail.hit = 18;
+        const payout = bumperHitPayout();
+        if(payout > 0){
+          awardChips(payout, ball);
+          spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
+        }
+        // Drive through toward the grid instead of bouncing back up.
+        ball.y = Math.max(ball.y, closest.y + 4);
+        ball.vy = Math.max(Math.abs(ball.vy), 5);
+        ball.vx *= 0.45;
+        ball.spin += (Math.random() - 0.5) * 0.8;
+        queueSiegeClear(ball, rail);
+        continue;
+      }
+
       const nx = dx/dist, ny = dy/dist;
       ball.x = closest.x + nx*minDist;
       ball.y = closest.y + ny*minDist;
@@ -6615,8 +7299,8 @@
   // Persist active heater across refresh / update (board itself stays session-only).
   function heaterChainForSave(){
     if(resolving && currentGroups && currentGroups.some(g => g.floorClear)) return 0;
-    // Suit Purge keeps the heater in pendingChain; hand resolves use chainStep.
-    if(resolving && currentGroups && currentGroups.some(g => g.suitBomb)){
+    // Suit Purge / Siege keep the heater in pendingChain; hand resolves use chainStep.
+    if(resolving && currentGroups && currentGroups.some(g => g.suitBomb || g.siegeClear)){
       return Math.max(0, pendingChain | 0);
     }
     if(resolving) return Math.max(0, chainStep | 0);
@@ -6781,6 +7465,32 @@
     balls.push(twin);
   }
 
+  function applyStormBlast(origin){
+    const ox = origin.x, oy = origin.y;
+    const R = STORM_BEACHES_BLAST_RADIUS;
+    for(const b of balls){
+      if(b === origin || b.exploded || b.landed) continue;
+      // Only shove in-flight chips — settled board pieces stay put.
+      if(b.phase !== 'peg' && b.phase !== 'grid') continue;
+      const dx = b.x - ox, dy = b.y - oy;
+      const dist = Math.hypot(dx, dy);
+      if(dist < 0.0001 || dist > R) continue;
+      const falloff = 1 - dist / R;
+      const impulse = STORM_BEACHES_BLAST_FORCE * falloff * falloff;
+      const nx = dx / dist, ny = dy / dist;
+      b.vx += nx * impulse;
+      b.vy += ny * impulse;
+      b.stormKnockback = Math.max(b.stormKnockback || 0, STORM_BEACHES_KNOCKBACK_FRAMES);
+      b.vx = Math.max(-40, Math.min(40, b.vx));
+      b.vy = Math.max(-40, Math.min(28, b.vy));
+      b.spin += (nx > 0 ? 1 : -1) * (0.15 + 0.35 * falloff);
+      // A hard upward kick can yank a seating chip back into the pegs.
+      if(b.phase === 'grid' && b.vy < -0.5){
+        releaseBallToPegs(b);
+      }
+    }
+  }
+
   function detonateFallingBall(ball){
     if(!ball || ball.exploded) return;
     ball.exploded = true;
@@ -6788,6 +7498,7 @@
     ball.vy = 0;
     ball.spin = 0;
     spawnExplosion(ball.x, ball.y, ball.card);
+    applyStormBlast(ball);
     if(ball.stackEntry != null && ball.targetCol != null){
       const col = ball.targetCol;
       const idx = stack[col].indexOf(ball.stackEntry);
@@ -6888,9 +7599,15 @@
       const tiltRad = boardTilt * maxDeg * Math.PI / 180;
       ball.vx += gravity * Math.sin(tiltRad);
       ball.vy += gravity * Math.cos(tiltRad);
-      ball.vy = Math.min(ball.vy, 15);
-      ball.vx += (Math.random()-0.5)*0.18;
-      ball.vx = Math.max(-7, Math.min(7, ball.vx));
+      if(ball.stormKnockback > 0){
+        ball.stormKnockback--;
+        ball.vx = Math.max(-28, Math.min(28, ball.vx));
+        ball.vy = Math.min(ball.vy, 24);
+      } else {
+        ball.vy = Math.min(ball.vy, 15);
+        ball.vx += (Math.random()-0.5)*0.18;
+        ball.vx = Math.max(-7, Math.min(7, ball.vx));
+      }
       ball.x += ball.vx;
       ball.y += ball.vy;
 
@@ -6908,6 +7625,7 @@
       }
 
       for(const p of pegs){
+        if(p.broken) continue;
         const dx = ball.x - p.x, dy = ball.y - p.y;
         const dist = Math.hypot(dx,dy);
         const minDist = ball.radius + p.r;
@@ -7016,6 +7734,14 @@
   const GRID_SETTLE_FRAMES = 150;
 
   function enterGridColumn(ball){
+    if(stormBeachesActive() && ball.phase === 'peg' && !ball.cascadeBall && !ball.stormBeachPaid){
+      const beachPts = stormBeachLandingPayout();
+      if(beachPts > 0){
+        ball.stormBeachPaid = true;
+        awardChips(beachPts, ball);
+        spawnHitPopup(ball.x, ball.y, '+' + beachPts, trailRGBA(ball.card, 0.95));
+      }
+    }
     ball.phase = 'grid';
     // Pin Split chips grow back to full size once they commit to a column.
     ball.splitGen = 0;
@@ -7024,23 +7750,11 @@
     ball.y = Math.max(ball.y, PEG_ZONE + 1);
     const rawCol = Math.min(COLS-1, Math.max(0, Math.floor(ball.x / CELL)));
     const targetCol = nearestOpenColumn(rawCol);
-    const h = stack[targetCol].length;
-    if(h >= ROWS){
+    if(tryBeginSiegeColumnSlam(ball, targetCol)){
       ball.phase = 'peg';
-      ball.y = PEG_ZONE - ball.radius;
-      ball.vy = -Math.abs(ball.vy) - 2;
       return;
     }
-    const row = ROWS - 1 - h;
-    const entry = {type:'ball', ball, row};
-    stack[targetCol].push(entry);
-    colHeights[targetCol] = stack[targetCol].length;
-    recomputeBumpers();
-    ball.targetCol = targetCol;
-    ball.row = row;
-    ball.stackEntry = entry;
-    ball.gridAge = 0;
-    ball.vx *= 0.55;
+    commitBallToColumn(ball, targetCol);
   }
 
   function releaseBallToPegs(ball){
@@ -7186,7 +7900,10 @@
 
     const speed = physicsSpeed();
     const gravity = 0.42 * Math.min(speed, 3.2);
-    for(const p of pegs){ if(p.hit) p.hit--; }
+    for(const p of pegs){
+      if(p.hit) p.hit--;
+      if(p.broken) p.broken--;
+    }
     for(const path of bumperPaths){ if(path.hit) path.hit--; }
     if(!lastPhysicsTime) lastPhysicsTime = now;
     const frameDt = Math.min((now - lastPhysicsTime) / 1000, 0.15);
@@ -7255,6 +7972,7 @@
     const card = cloneCard(ball.card, {angle});
     grid[col][row] = card;
     markHintsDirty();
+    scheduleCountingUiRefresh();
     if(ball.stackEntry){
       ball.stackEntry.type = 'piece';
       ball.stackEntry.card = cloneCard(card);
@@ -8144,6 +8862,7 @@
     if(purgeSuit) purgeSuitBalls(purgeSuit);
     recomputeBumpers();
     markHintsDirty();
+    scheduleCountingUiRefresh();
     startLoop();
   }
 
@@ -8153,6 +8872,101 @@
 
   function hasGridBalls(){
     return balls.some(b => b.phase==='grid');
+  }
+
+  function commitBallToColumn(ball, targetCol){
+    const h = stack[targetCol].length;
+    if(h >= ROWS){
+      ball.phase = 'peg';
+      ball.y = PEG_ZONE - ball.radius;
+      ball.vy = -Math.abs(ball.vy) - 2;
+      return false;
+    }
+    const row = ROWS - 1 - h;
+    const entry = {type:'ball', ball, row};
+    stack[targetCol].push(entry);
+    colHeights[targetCol] = stack[targetCol].length;
+    recomputeBumpers();
+    ball.targetCol = targetCol;
+    ball.row = row;
+    ball.stackEntry = entry;
+    ball.gridAge = 0;
+    ball.vx *= 0.55;
+    return true;
+  }
+
+  function finishSiegeLand(){
+    if(!pendingSiegeLand) return;
+    const land = pendingSiegeLand;
+    pendingSiegeLand = null;
+    const ball = land.ball;
+    ball.phase = 'grid';
+    commitBallToColumn(ball, land.col);
+  }
+
+  function beginSiegeResolve(cells, opts){
+    opts = opts || {};
+    if(!cells.length || gameOver) return false;
+    if(resolving){
+      if(opts.cols) pendingSiegeClear = {cols: opts.cols};
+      if(opts.land) pendingSiegeLand = opts.land;
+      return true;
+    }
+    if(opts.land) pendingSiegeLand = opts.land;
+    resolving = true;
+    resolveEpoch++;
+    if(chainStep > 0){
+      pendingChain = Math.max(pendingChain, chainStep);
+    }
+    chainStep = 0;
+    const combo = opts.siegeCombo || 0;
+    const payoutPer = siegeCardPayout();
+    const pointMult = combo > 1 ? combo : 1;
+    const first = grid[cells[0][0]][cells[0][1]];
+    currentGroups = [{
+      name: opts.siegeSlam ? 'SIEGE SLAM' : 'SIEGE',
+      points: cells.length * payoutPer * pointMult,
+      cells,
+      siegeClear: true,
+      siegeSlam: !!opts.siegeSlam,
+      siegeCombo: combo,
+      color: first ? cardGlowColor(first) : '#C4CCD8'
+    }];
+    flashCells = new Set(cells.map(([c,r]) => c+','+r));
+    resolvePhase = 'flash';
+    resolvePhaseStart = performance.now();
+    refreshButtons();
+    startResolveLoop();
+    return true;
+  }
+
+  function queueSiegeClear(ball, rail){
+    if(gameOver || !siegeWeaponsActive()) return;
+    const cols = siegeColumnsForBumperHit(ball, rail);
+    const cells = siegeCellsForColumns(cols);
+    if(!cells.length) return;
+    beginSiegeResolve(cells, {cols});
+  }
+
+  function tryBeginSiegeColumnSlam(ball, col){
+    if(gameOver || siegeWeaponsLevel() < 3 || !siegeWeaponsActive()) return false;
+    if(!ball.card?.spikes || ball.siegeSlamUsed) return false;
+    const cells = siegeCellsForColumns([col]);
+    ball.siegeSlamUsed = true;
+    if(!cells.length) return false;
+    return beginSiegeResolve(cells, {
+      cols: [col],
+      siegeSlam: true,
+      siegeCombo: cells.length,
+      land: {ball, col}
+    });
+  }
+
+  // Siege Weapons: bumper smash clears column(s). Lv3 landing slam is separate.
+  // Preserves Hot Streak carryover like Suit Purge — no fake CHAIN banner.
+  function beginSiegeClear(cols){
+    const cells = siegeCellsForColumns(cols || []);
+    return beginSiegeResolve(cells, {cols: cols || []});
   }
 
   // Board-full escape hatch: nuke the entire bottom row (no points). Pieces
@@ -8228,9 +9042,10 @@
     resolving = true;
     resolveEpoch++;
     const inFlight = findSuitBalls(suit).length;
+    const cardCount = cells.length + inFlight;
     currentGroups = [{
       name: 'SUIT PURGE ' + suit,
-      points: Math.max(1, cells.length + inFlight),
+      points: Math.max(1, cardCount * purgeCardPayout()),
       cells,
       suitBomb: true,
       purgeSuit: suit,
@@ -8246,7 +9061,7 @@
 
   function castSuitBomb(suit){
     const now = performance.now();
-    if(!suitBombReady(now) || gameOver) return false;
+    if(!suitPurgeActive() || !suitBombReady(now) || gameOver) return false;
     if(!SUITS.includes(suit)) return false;
     const cells = findSuitCells(suit);
     if(countSuitInPlay(suit) < 1) return false;
@@ -8283,16 +9098,17 @@
       const board = findSuitCells(s).length;
       const n = countSuitInPlay(s);
       if(!n) continue;
+      const effective = n - suitPurgePairPenalty(s);
       if(!inShoe.has(s) && board > 0){
-        if(board > bestExiledBoard || (board === bestExiledBoard && n > bestExiledCount)){
+        if(board > bestExiledBoard || (board === bestExiledBoard && effective > bestExiledCount)){
           bestExiledBoard = board;
-          bestExiledCount = n;
+          bestExiledCount = effective;
           bestExiled = s;
         }
         continue;
       }
-      if(n > bestCount){
-        bestCount = n;
+      if(effective > bestCount){
+        bestCount = effective;
         best = s;
       }
     }
@@ -8361,19 +9177,35 @@
   function finishResolveOrChain(){
     const nextGroups = findPokerHands();
     const suitBombResolve = currentGroups.some(g => g.suitBomb);
+    const siegeResolve = currentGroups.some(g => g.siegeClear);
     if(nextGroups.length>0){
-      // After Suit Purge, pick up saved chain carryover before the next hand.
+      // After Suit Purge / Siege, pick up saved chain carryover before the next hand.
       if(chainStep === 0 && pendingChain > 0){
         chainStep = pendingChain;
         pendingChain = 0;
       }
       enterFlash(nextGroups);
     } else {
-      if(!suitBombResolve){
+      if(!suitBombResolve && !siegeResolve){
         pendingChain = balls.length > 0 ? chainStep : 0;
       }
       resolving = false;
       chainStep = 0;
+      if(pendingSiegeClear){
+        const req = pendingSiegeClear;
+        pendingSiegeClear = null;
+        if(beginSiegeClear(req.cols)){
+          scheduleSave();
+          return;
+        }
+      }
+      if(pendingSiegeLand){
+        finishSiegeLand();
+        refreshButtons();
+        scheduleSave();
+        startLoop();
+        return;
+      }
       if(boardIsFull() && !hasGridBalls()){
         pendingChain = 0;
         beginFloorClear();
@@ -8397,13 +9229,15 @@
       if(resolvePhase==='flash'){
         if(elapsed >= flashMs){
           const isFloorClear = currentGroups.some(g => g.floorClear);
-          if(!isFloorClear){
+          const isSiegeClear = currentGroups.some(g => g.siegeClear);
+          if(!isFloorClear && !isSiegeClear){
             // Suit Purge bridges a heater without consuming it — keep pendingChain
             // for the next real hand. Scoring at chainStep 0 would otherwise flash
             // a low CHAIN ×N from Hot Streak alone, then jump back up.
             const isSuitBomb = currentGroups.some(g => g.suitBomb);
             const chainMult = isSuitBomb ? 1 : computeChainMult(chainStep);
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * handPayoutMultiplier());
+            noteResolvePayout(currentGroups, chainMult);
             noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
@@ -8411,6 +9245,39 @@
             updateShopUI();
             spawnPopups(currentGroups, pts, chainMult);
             spawnHandChipFlies(currentGroups, chainMult);
+          } else if(isSiegeClear){
+            const slamGroup = currentGroups.find(g => g.siegeSlam);
+            const combo = slamGroup?.siegeCombo || 0;
+            const chainMult = combo > 1 ? computeChainMult(combo) : 1;
+            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * handPayoutMultiplier());
+            if(pts > 0){
+              awardChips(pts);
+              spawnHandChipFlies(currentGroups, chainMult);
+            }
+            if(combo > 1) spawnStaggeredChainPopups(combo, combo, now);
+            const siegeCells = currentGroups.flatMap(g => g.siegeClear ? g.cells : []);
+            const siegeY = siegeCells.length
+              ? PEG_ZONE + siegeCells.reduce((s, cell)=>s+cell[1], 0)/siegeCells.length*CELL + CELL/2
+              : PEG_ZONE + CELL/2;
+            const siegeX = siegeCells.length
+              ? siegeCells.reduce((s, cell)=>s+cell[0], 0)/siegeCells.length*CELL + CELL/2
+              : W/2;
+            clearTimeout(shopUiTimer);
+            flushScoreUI();
+            updateShopUI();
+            const label = combo > 1
+              ? ('SIEGE SLAM ×' + combo + (pts > 0 ? ' +' + pts : ''))
+              : (pts > 0 ? ('SIEGE! +' + pts) : 'SIEGE!');
+            pushPopup({
+              x: siegeX,
+              y: siegeY,
+              text: label,
+              color: '#D8DEE8',
+              t0: performance.now(),
+              duration: 900,
+              big: true,
+              fontSize: 28, floatBoost: 42, tilt: 0.1, slam: 1.85, slamMs: 150, glow: 16
+            });
           } else {
             const floorPts = floorClearPayout();
             const floorCells = currentGroups.flatMap(g => g.floorClear ? g.cells : []);
@@ -8565,12 +9432,36 @@
     }
     target.shadowBlur = 0;
     drawChipGlyphs(target, card, radius);
+    if(card && card.spikes) drawCardSpikes(target, radius);
 
     if(highlight){
       target.beginPath();
       target.arc(0, 0, radius + 2, 0, Math.PI * 2);
       target.strokeStyle = `rgba(255,255,255,${0.25 + 0.55 * highlight})`;
       target.lineWidth = 3;
+      target.stroke();
+    }
+    target.restore();
+  }
+
+  // Siege Weapons: steel spike studs around the rim (drawn in card local space).
+  function drawCardSpikes(target, radius){
+    const n = 6;
+    const baseR = radius * 0.88;
+    const tipR = radius * 1.18;
+    const half = Math.PI / n * 0.28;
+    target.save();
+    for(let i = 0; i < n; i++){
+      const a = -Math.PI / 2 + (i * Math.PI * 2) / n;
+      target.beginPath();
+      target.moveTo(Math.cos(a - half) * baseR, Math.sin(a - half) * baseR);
+      target.lineTo(Math.cos(a) * tipR, Math.sin(a) * tipR);
+      target.lineTo(Math.cos(a + half) * baseR, Math.sin(a + half) * baseR);
+      target.closePath();
+      target.fillStyle = '#B8C0CC';
+      target.fill();
+      target.strokeStyle = 'rgba(40,44,52,0.55)';
+      target.lineWidth = Math.max(0.8, radius * 0.04);
       target.stroke();
     }
     target.restore();
@@ -8623,6 +9514,7 @@
     ctx.stroke();
     ctx.rotate(card.angle || 0);
     drawChipGlyphs(ctx, card, 32 * 0.92);
+    if(card && card.spikes) drawCardSpikes(ctx, 32 * 0.92);
     ctx.restore();
   }
 
@@ -8697,6 +9589,20 @@
     }
 
     for(const p of pegs){
+      if(p.broken){
+        // Siege Weapons Lv2: shattered pin — faint crater until it reforms.
+        const fade = Math.max(0.12, Math.min(0.4, p.broken / SIEGE_PIN_BREAK_FRAMES));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 1.15, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(200,210,220,${fade})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 0.45, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(180,190,200,${fade * 0.55})`;
+        ctx.fill();
+        continue;
+      }
       ctx.beginPath();
       ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
       ctx.fillStyle = p.hit ? '#ffffff' : PEG;
@@ -9450,6 +10356,7 @@
 
   function updateScoreUI(){
     scoreValEl.textContent = formatNum(score);
+    updateChipRateUI(performance.now(), true);
     if(lifetimeValEl) lifetimeValEl.textContent = formatNum(lifetime);
     updateCompsHud();
     updateLevelUI();
@@ -9500,9 +10407,13 @@
     }
     const blocked = balls.length >= MAX_AUTO_DROP_BALLS;
     if(autoStatusValEl){
+      const dealChance = multiDealChance();
+      const extraLabel = dealChance > 0
+        ? (' +' + (dealChance * 100).toFixed(dealChance < 0.1 ? 1 : 0).replace(/\.0$/, '') + '%')
+        : '';
       autoStatusValEl.textContent = blocked
         ? 'waiting…'
-        : formatInterval(autoDropIntervalMs());
+        : formatInterval(autoDropIntervalMs()) + extraLabel;
     }
     if(autoStatusFillEl){
       const t = blocked
@@ -9543,17 +10454,10 @@
     if(toggle){
       toggle.hidden = !canToggle;
       if(canToggle){
-        if(def.id === 'suitBomb'){
-          const visible = suitBombUiVisible();
-          toggle.textContent = visible ? 'Hide' : 'Show';
-          toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
-          toggle.classList.toggle('is-off', !visible);
-        } else {
-          const on = isAutoEnabled(def.id);
-          toggle.textContent = on ? 'On' : 'Off';
-          toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
-          toggle.classList.toggle('is-off', !on);
-        }
+        const on = def.id === 'suitBomb' ? suitPurgeActive() : isAutoEnabled(def.id);
+        toggle.textContent = on ? 'On' : 'Off';
+        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+        toggle.classList.toggle('is-off', !on);
       }
     }
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
@@ -9782,6 +10686,7 @@
     btn.hidden = false;
     btn.dataset.id = q.uid;
     btn.classList.add('rarity-' + q.rarity);
+    btn.style.setProperty('--quest-spark-glow', questSparkGlowShadow(meta.color));
     btn.classList.toggle('claimable', complete);
     btn.disabled = !complete;
     btn.querySelector('.quest-name').textContent = q.name;
@@ -9891,7 +10796,7 @@
       btn.classList.toggle('claimable', canClaim);
       btn.classList.toggle('claimed', fullyClaimed);
       btn.classList.add('achievement');
-      btn.querySelector('.quest-name').textContent = stillSecret ? '???' : def.name;
+      btn.querySelector('.quest-name').textContent = stillSecret ? '???' : achievementName(def, tier);
       btn.querySelector('.quest-kind').textContent = stillSecret ? 'Achievement' : achievementKindLabel(def);
       btn.querySelector('.quest-desc').textContent = stillSecret
         ? 'Hidden achievement — keep playing.'
@@ -9949,7 +10854,7 @@
     const tier = achievementActiveTier(def);
     btn.classList.add('achievement');
     btn.dataset.id = def.id;
-    btn.querySelector('.quest-name').textContent = def.secret ? '???' : def.name;
+    btn.querySelector('.quest-name').textContent = def.secret ? '???' : achievementName(def, tier);
     btn.querySelector('.quest-kind').textContent = def.secret ? 'Achievement' : achievementKindLabel(def);
     btn.querySelector('.quest-desc').textContent = def.secret
       ? 'Hidden achievement — keep playing.'
@@ -10006,7 +10911,9 @@
 
   function toggleSuitBombPicker(){
     if(!suitBombUnlocked()) return;
-    setAutoEnabled('suitBomb', !isAutoEnabled('suitBomb'));
+    suitBombPickerMinimized = !suitBombPickerMinimized;
+    scheduleSave();
+    updateSuitBombUI(performance.now(), true);
   }
 
   function buildSuitBombUI(){
@@ -10102,6 +11009,18 @@
 
     const cd = suitBombCooldownMs();
     const ready = suitBombReady(now);
+    if(!suitPurgeActive()){
+      suitBombBar.removeAttribute('data-target-suit');
+      suitBombBar.classList.remove('suit-bomb-flash');
+      if(suitBombChargeFill){
+        const charge = ready ? 1 : Math.max(0, Math.min(1, 1 - (suitBombReadyAt - now) / cd));
+        suitBombChargeFill.style.width = (charge * 100) + '%';
+      }
+      suitBombStatus.textContent = 'paused';
+      suitBombStatus.className = '';
+      return;
+    }
+
     const autoOwned = prestigeLevel('autoSuitBomb') > 0;
     const auto = autoOwned && isAutoEnabled('autoSuitBomb');
     const autoTarget = auto ? pickAutoSuitBombTarget() : null;
@@ -10625,6 +11544,7 @@
   // Lightweight keeper: only runs work when the physics/resolve loops are idle.
   function idleSpin(){
     const now = performance.now();
+    updateChipRateUI(now);
     if(upgradeLevel('autoDealer') > 0) updateAutoStatus(now);
     if(!looping && !resolveLooping){
       updateSuitBombUI(now);
@@ -10682,6 +11602,9 @@
     el.hidden = true;
     updateBannerShown = false;
   }
+  function releaseCheckDue(minElapsed = RELEASE_POLL_MS){
+    return Date.now() - lastReleaseCheckAt >= minElapsed;
+  }
   async function checkForRelease(force){
     const now = Date.now();
     if(!force && now - lastReleaseCheckAt < 30000) return;
@@ -10697,6 +11620,11 @@
       if(remote > APP_RELEASE) showUpdateBanner(remote);
     } catch(_){}
   }
+  function resumeReleaseCheck(){
+    // Mobile often skips visibilitychange and throttles setInterval while backgrounded.
+    if(releaseCheckDue()) checkForRelease(true);
+    else if(releaseCheckDue(30000)) checkForRelease(false);
+  }
   function startReleasePolling(){
     const refreshBtn = document.getElementById('updateBannerRefresh');
     const dismissBtn = document.getElementById('updateBannerDismiss');
@@ -10711,10 +11639,15 @@
       hideUpdateBanner();
     });
     checkForRelease(true);
-    setInterval(()=> checkForRelease(true), RELEASE_POLL_MS);
+    // Wake often; fetch only when wall-clock elapsed (intervals drift when throttled).
+    setInterval(()=>{
+      if(releaseCheckDue()) checkForRelease(true);
+    }, 60000);
     document.addEventListener('visibilitychange', ()=>{
-      if(document.visibilityState === 'visible') checkForRelease(false);
+      if(document.visibilityState === 'visible') resumeReleaseCheck();
     });
+    window.addEventListener('pageshow', resumeReleaseCheck);
+    window.addEventListener('focus', resumeReleaseCheck);
   }
 
   loadSettings();

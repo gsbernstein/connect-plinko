@@ -69,21 +69,29 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | Symbol | Purpose |
 |--------|---------|
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, …) — order = shop order |
-| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, `pinSplit`, `stormBeaches`, `kingMe`, …) |
-| `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Pin Split: ~10× slower drops; bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
-| `stormBeachesActive` / `detonateFallingBall` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits |
+| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, …) |
+| `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Percussive Mitosis (`pinSplit`): ~10× slower drops; bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
+| `stormBeachesActive` / `detonateFallingBall` / `applyStormBlast` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits; blast knocks nearby in-flight chips |
+| `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `beginSiegeResolve` / `tryBeginSiegeColumnSlam` / `siegeCardPayout` / `SIEGE_*` | Siege Weapons (toggleable): Lv1 bumper smash clears one column; Lv2 all columns on that bumper; Lv3 landing column slam with combo payout |
 | `kingMeActive` / `maybeQueueKingMe` / `kingJumpers` / `KING_ME_*` | King Me: bottom-row kings crown (double-stack draw); leap diagonally over cards for chips; explode after ≤4 jumps |
+| `stormBeachLandingPayout` | Storm the Beaches: chips when a card survives pegs and enters the grid (`enterGridColumn`) |
+| `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
+| `suitPurgeActive` / `purgeCardPayout` / `suitBombPickerMinimized` / `suitPurgePairPenalty` | Suit Purge: shop toggle arms/disarms; bar tap minimizes picker; purge pays per card; auto-target deprioritizes Card Counting pairs |
+| `maybeAutoBuy` / `PIT_BOSS_BUY_BATCH` / `PIT_BOSS_BUY_INTERVAL_MS` | Pit Boss (toggleable): up to 5 cheapest affordable shop buys per tick; `140` ms throttle |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
-| `boardDuplicateExtras` / `cardCountingMultiplier` / `handPayoutMultiplier` | Card Counting duplicate extras → hand payout mult |
-| `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels) |
+| `cardCountingGroups` / `cardCountingFactor` / `cardCountingHandMultiplier` / `boardDuplicateExtras` / `effectiveMetaMultiplier` / `handPayoutMultiplier` | Card Counting: Lv1–8 +8% per duplicate extra on hands; Lv9 product of paired rank+suit counts multiplies `runMetaMultiplier` |
+| `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels); `costLateAt` / `costLateBase` / `costLateScale` on a def switch to a pricier curve after that level (Auto Dealer Lv 7+). VIP comp buys use `prestigeUpgradeCost` (perk level only). |
+| `multiDealChance` / `rollMultiDealExtras` / `MULTI_DEAL_CHANCE_PER_LEVEL` | Multi Deal: +25% extra-card chance per level on each auto tick; above 100% rolls multiple extras |
 | `upgradeEffectText` / `payoutMultLabels` | Shop effect line; Blind / payout / combo mults on Pin Tip, Rail Tax, Sweep Stakes, Hot Streak, Big Blind |
-| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0` |
+| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (`a_max_combo` uses step 1) |
 | `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
+| `achievementName` | `a_max_combo` tier title: C-Combo, C-C-Combo… from active tier target |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
+| `QUEST_RARITY_WEIGHTS_BY_INK` / `pickQuestRarity` | Quest Ink level (0–4) indexes per-rarity roll weights; max Ink favors Rare |
 | `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
-| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades |
+| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` / `maxHandPayout` / `maxComboPayout` / `achievementClaims` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (`a_max_combo`, infinite), best single-hand chip payout (`a_hand_payout`), best COMBO resolve total (`a_combo_payout`), achievement tier claims (`a_claims`) |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
 | `heaterChain` / `heaterChainForSave` / `resumeHeaterChain` / `heaterHoldUntilUse` | Persisted Hot Streak steps; restore into `pendingChain` after boot `freshState`; hold skips empty-board expire until next hand |
@@ -93,10 +101,11 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
+| `noteChipEarn` / `updateChipRateUI` / `#chipRateVal` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset) |
 
 ### Progression model (high level)
 
-1. **Chips** — earn from scored poker hands; spend on table upgrades.
+1. **Chips** — earn from scored poker hands; spend on table upgrades. HUD shows balance plus a live chips/s rate.
 2. **Run level** — rises from chips *earned* this run (`lifetime`); unlocks shop rows and milestone rewards. Resets on Cash Out.
 3. **Quests** — per-run slots (unlock from run Lv 2); Cash Out clears the board. Achievements persist.
 4. **VIP / prestige** — Cash Out (run Lv 8+) collects Cash Out comps into the VIP balance for permanent `PRESTIGE_DEFS` perks. Achievement/quest `reward.comps` are **instant comps** (VIP balance immediately); `reward.runComps` / level `comps` are **Cash Out comps** (bank until Cash Out). Player-facing labels: `contractRewardText` (“instant comps” vs “Cash Out comps”).
@@ -190,7 +199,7 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 
 ### Release poll (refresh banner)
 
-Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes and when the tab becomes visible. The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`**; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
+Poker-only. Polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes (wall-clock via `releaseCheckDue` / `lastReleaseCheckAt`) and when the tab resumes (`visibilitychange`, `pageshow`, `window` `focus` → `resumeReleaseCheck`). The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`**; if the hosted `v` is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
 
 No separate release counter — bumping a changelog `id` and setting `poker/version.json` `"v"` to match is enough. Missed `version.json` bumps only delay the refresh prompt.
 
@@ -198,16 +207,20 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 
 | Task | Where to edit |
 |------|----------------|
-| New table upgrade | `UPGRADE_DEFS`, buy UI, any skill-specific logic |
+| Multi Deal extras | `multiDealChance` / `rollMultiDealExtras` in `tryAutoDrop` via `autoDropOnce` |
+| Auto Dealer two-tier costs | `costLateAt` / `costLateBase` / `costLateScale` on `autoDealer` def; `upgradeCost` |
 | New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier`; Pin Split via `pinSplitActive` / peg hit in `stepBall` |
-| Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult`, `manualDropCooldownMs` in `dropAt`, `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` |
-| Storm the Beaches | `stormBeachesActive` / `STORM_BEACHES_EXPLODE_CHANCE` on fresh peg hits → `detonateFallingBall` + `sweepExplodedBalls`; spawn via `stormBeachesSpawnMult` in `dropSpawnMult` |
+| Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult`, `manualDropCooldownMs` in `dropAt`, `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
+| Storm the Beaches | `stormBeachesActive` / `STORM_BEACHES_EXPLODE_CHANCE` on fresh peg hits → `detonateFallingBall` / `applyStormBlast` + `sweepExplodedBalls`; spawn via `stormBeachesSpawnMult` in `dropSpawnMult` |
+| Siege Weapons | `dealCard` spike roll when `siegeWeaponsActive`; bumper smash → column(s) clear; Lv3 `tryBeginSiegeColumnSlam` on grid entry; toggle via `AUTO_TOGGLE_IDS` |
 | King Me | `kingMeActive` / `maybeQueueKingMe` on `finalizeDrop` (rank 13 @ bottom row) → crown → `kingJumpers` diagonal captures → `detonateKingJumper`; skip crowned in `findPokerHands` |
+| Storm the Beaches landing | `stormBeachLandingPayout` in `enterGridColumn` when peg → grid |
+| Short Fuse toggle | `shortFuseActive` / `resolveSpeed` / `flashPulseCount`; `toggleable` on `shortFuse` def + `AUTO_TOGGLE_IDS` |
+| Suit Purge UI | `#suitBombBar`, `suitPurgeActive` / `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI`; shop toggle arms/disarms; bar tap minimizes picker |
 | New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
 | Hand scoring / stats | hand detection block ~6160+, `HAND_STAT` wiring |
-| Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `autoEnabled.suitBomb`, `updateSuitBombUI`; first Auto Purge buy collapses picker; tap bar chrome toggles Hide/Show |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
 | Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
 | Prompt open Poker tabs to refresh after deploy | Same as changelog: new `CHANGELOG` `id` + set `poker/version.json` `v` to that id |
