@@ -2206,7 +2206,7 @@
         </div>
         <div class="level-bar" aria-hidden="true"><span id="runLevelFill"></span></div>
       </div>
-      <div class="comps-pill hud-tile" id="compsBox" title="VIP comps — permanent currency from Cash Out" hidden>
+      <div class="comps-pill hud-tile" id="compsBox" title="VIP comps — spend on permanent perks" hidden>
         <span class="hud-label">Comps</span>
         <b class="hud-val" id="compsHudVal">0</b>
       </div>
@@ -2294,7 +2294,7 @@
           <div class="prestige-meta">Tables cashed&nbsp;<b id="prestigeCountVal">0</b></div>
         </div>
         <div class="cashout" id="cashoutBox">
-          <p>Cash out banks level comps, then resets the table run (chips, upgrades, run level). VIP perks stay.</p>
+          <p>Cash out collects Cash Out comps into your VIP balance, then resets the table run (chips, upgrades, run level). VIP perks stay.</p>
           <button type="button" class="cashout-btn" id="cashOutBtn">Cash Out</button>
           <div class="cashout-req" id="cashoutReq">Reach run level 8 to cash out</div>
         </div>
@@ -2918,6 +2918,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 21,
+      date: 'Jul 25, 2026',
+      title: 'Instant vs Cash Out comps',
+      items: [
+        'Rewards that pay comps right away now say “instant comps” (same VIP currency, just immediate).',
+        'Banked level and quest credit still says “Cash Out comps” — collected when you Cash Out.'
+      ]
+    },
+    {
       id: 20,
       date: 'Jul 25, 2026',
       title: 'Chain banner stays honest',
@@ -3241,7 +3250,7 @@
   ];
 
   // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
-  // comps = Cash Out credit for this run (spent only when cashing out).
+  // comps = Cash Out comps banked this run; collected into the VIP balance on Cash Out.
   // metaMult / chainExp = multiplicative factors (2.0 = double), stack across late levels.
   // Chip bonuses scale via levelChipReward() at every milestone, quest slot, and ×10 level.
   const LEVEL_BONUSES = {
@@ -3256,22 +3265,22 @@
     30: { comps: 5, label: '+5 Cash Out comps' },
     35: { comps: 6, label: '+6 Cash Out comps' },
     40: { comps: 8, label: '+8 Cash Out comps' },
-    50: { comps: 10, metaMult: 2.0, label: '+10 comps · ×2 payout multipliers' },
+    50: { comps: 10, metaMult: 2.0, label: '+10 Cash Out comps · ×2 payout multipliers' },
     60: { comps: 12, label: '+12 Cash Out comps' },
-    70: { comps: 14, chainExp: 2.0, label: '+14 comps · ×2 chain multiplier' },
+    70: { comps: 14, chainExp: 2.0, label: '+14 Cash Out comps · ×2 chain multiplier' },
     80: { comps: 16, label: '+16 Cash Out comps' },
     90: { comps: 18, label: '+18 Cash Out comps' },
     100: { comps: 20, label: '+20 Cash Out comps' },
-    120: { comps: 24, metaMult: 2.0, label: '+24 comps · ×2 payout multipliers' },
-    140: { comps: 28, chainExp: 2.5, label: '+28 comps · ×2.5 chain multiplier' },
+    120: { comps: 24, metaMult: 2.0, label: '+24 Cash Out comps · ×2 payout multipliers' },
+    140: { comps: 28, chainExp: 2.5, label: '+28 Cash Out comps · ×2.5 chain multiplier' },
     160: { comps: 32, label: '+32 Cash Out comps' },
     180: { comps: 36, label: '+36 Cash Out comps' },
-    200: { comps: 50, metaMult: 2.5, chainExp: 2.0, label: '+50 comps · ×2.5 mults · ×2 chain' }
+    200: { comps: 50, metaMult: 2.5, chainExp: 2.0, label: '+50 Cash Out comps · ×2.5 mults · ×2 chain' }
   };
 
   // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
-  // reward.chips → spendable chips (not XP); reward.comps → permanent VIP comps;
-  // reward.runComps → Cash Out credit; reward.prestige / reward.upgrade as level bonuses.
+  // reward.chips → spendable chips (not XP); reward.comps → instant comps (VIP balance now);
+  // reward.runComps → Cash Out comps (banked until Cash Out); reward.prestige / reward.upgrade as level bonuses.
   const HAND_STAT = {
     'ROYAL FLUSH': 'royalFlushes',
     'FIVE OF A KIND': 'fiveKinds',
@@ -3744,7 +3753,7 @@
   let comps = 0;
   let prestigeCount = 0;
   let runLevel = 1;
-  let runCompCredit = 0; // comps banked by level rewards; paid out on Cash Out
+  let runCompCredit = 0; // Cash Out comps banked by level/quest rewards; paid out on Cash Out
   let autoDropTicks = 0;
   let lastAutoDropAt = 0;
   let lastIdleDrawAt = 0;
@@ -4032,7 +4041,7 @@
 
   function vipTabUnlocked(){
     // Cash Out / VIP Lounge opens at run Lv 8, after any Cash Out, or once you
-    // hold permanent comps (e.g. first achievement reward) so you can spend them.
+    // hold VIP comps (e.g. first achievement’s instant comps) so you can spend them.
     return highestRunLevelReached() >= MIN_CASH_OUT_LEVEL
       || vipProgressStarted();
   }
@@ -4217,7 +4226,7 @@
     const r = reward || {};
     const parts = [];
     if(r.chips) parts.push('+' + formatNum(blindBonusChips(r.chips, 'contracts')) + ' chips');
-    if(r.comps) parts.push('+' + r.comps + ' VIP comps');
+    if(r.comps) parts.push('+' + r.comps + ' instant comps');
     if(r.runComps) parts.push('+' + r.runComps + ' Cash Out comps');
     if(r.prestige){
       const p = PRESTIGE_DEFS.find(u => u.id === r.prestige);
@@ -4279,7 +4288,7 @@
     }
     if(base.prestige) out.prestige = base.prestige;
     if(base.upgrade) out.upgrade = base.upgrade;
-    // Higher rarities always bank a little Cash Out credit.
+    // Higher rarities always bank a little Cash Out comps credit.
     if(!out.runComps && (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary')){
       out.runComps = rarity === 'legendary' ? 2 : 1;
     }
@@ -8908,7 +8917,7 @@
     if(cashoutReqEl){
       if(ready){
         cashoutReqEl.textContent =
-          'Lv ' + runLevel + ' · ' + formatNum(runCompCredit) + ' level comps banked · VIP perks stay';
+          'Lv ' + runLevel + ' · ' + formatNum(runCompCredit) + ' Cash Out comps banked · VIP perks stay';
         cashoutReqEl.className = 'cashout-req ready';
       } else if(runLevel < MIN_CASH_OUT_LEVEL){
         cashoutReqEl.textContent =
