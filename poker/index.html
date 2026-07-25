@@ -2508,7 +2508,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 12;
+  const SAVE_VERSION = 13;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2546,7 +2546,7 @@
       desc: '+1 effective chain multiplier per level.',
       baseCost: 120,
       costScale: 2.0,
-      maxLevel: 10,
+      maxLevel: 50,
       unlockAt: 4
     },
     {
@@ -2942,10 +2942,10 @@
     {
       id: 'houseEdge',
       name: 'House Edge',
-      desc: 'Permanent chip multiplier on every payout.',
+      desc: '+1 Hot Streak level permanently (does not raise Hot Streak’s buy cost). Capped at Hot Streak max.',
       baseCost: 1,
       costScale: 1.65,
-      maxLevel: 25
+      maxLevel: 40
     },
     {
       id: 'seedStack',
@@ -2983,6 +2983,14 @@
       id: 'pinPrivilege',
       name: 'Pin Privilege',
       desc: '+1 Pin Tip level permanently (does not raise Pin Tip’s buy cost). Capped at Pin Tip max.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
+      id: 'feltWax',
+      name: 'Felt Wax',
+      desc: '+1 Felt Grease level permanently (does not raise Felt Grease’s buy cost). Capped at Felt Grease max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3149,6 +3157,8 @@
   function prestigeBonusLevels(id){
     if(id === 'autoDealer') return prestigeLevel('quickDeal');
     if(id === 'pinPayout') return prestigeLevel('pinPrivilege');
+    if(id === 'hotStreak') return prestigeLevel('houseEdge');
+    if(id === 'feltGrease') return prestigeLevel('feltWax');
     return 0;
   }
 
@@ -3178,10 +3188,6 @@
     const next = Math.min(maxPurchasableLevel(id), before + n);
     upgrades[id] = next;
     return next - before;
-  }
-
-  function prestigeChipMult(){
-    return 1 + 0.2 * prestigeLevel('houseEdge');
   }
 
   function upgradeCostMult(){
@@ -3910,7 +3916,7 @@
   }
 
   function scoreMultiplier(){
-    return tableScoreMultiplier() * prestigeChipMult();
+    return tableScoreMultiplier();
   }
 
   function chainBonus(){
@@ -3923,12 +3929,12 @@
 
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? Math.floor(lvl * prestigeChipMult()) : 0;
+    return lvl ? lvl : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? Math.floor(lvl * 2 * prestigeChipMult()) : 0;
+    return lvl ? lvl * 2 : 0;
   }
 
   function floorClearPayout(){
@@ -4673,7 +4679,9 @@
     const lvl = prestigeLevel(def.id);
     switch(def.id){
       case 'houseEdge':
-        return '×' + prestigeChipMult().toFixed(2).replace(/\.00$/,'') + ' chips';
+        return lvl
+          ? ('+' + lvl + ' Hot Streak · now Lv ' + upgradeLevel('hotStreak'))
+          : 'No Hot Streak bonus';
       case 'seedStack':
         return lvl ? (formatNum(startingChips()) + ' start') : 'Empty pockets';
       case 'rackDiscount':
@@ -4690,6 +4698,10 @@
         return lvl
           ? ('+' + lvl + ' Pin Tip · now Lv ' + upgradeLevel('pinPayout'))
           : 'No Pin Tip bonus';
+      case 'feltWax':
+        return lvl
+          ? ('+' + lvl + ' Felt Grease · now Lv ' + upgradeLevel('feltGrease'))
+          : 'No Felt Grease bonus';
       case 'questInk':{
         const rar = QUEST_RARITIES[maxQuestRarityIndex()] || 'common';
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
