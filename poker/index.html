@@ -6388,14 +6388,34 @@
     }
   }
 
+  function groupGridCenter(g){
+    const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
+    const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
+    return {
+      x: avgC*CELL+CELL/2,
+      y: PEG_ZONE + avgR*CELL+CELL/2
+    };
+  }
+
+  function comboPopupPosition(groups){
+    let x = 0, y = 0;
+    for(const g of groups){
+      const c = groupGridCenter(g);
+      x += c.x;
+      y += c.y;
+    }
+    return {
+      x: x / groups.length,
+      // Sit on the grid just below the per-hand labels.
+      y: y / groups.length + CELL * 0.42
+    };
+  }
+
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
     const mult = scoreMultiplier() * runMetaMultiplier();
     for(const g of groups){
-      const avgC = g.cells.reduce((s,c)=>s+c[0],0)/g.cells.length;
-      const avgR = g.cells.reduce((s,c)=>s+c[1],0)/g.cells.length;
-      const x = avgC*CELL+CELL/2;
-      const y = PEG_ZONE + avgR*CELL + CELL/2;
+      const {x, y} = groupGridCenter(g);
       const cardMult = g.cardMult || 1;
       const pts = Math.floor(g.points * cardMult * chainMult * mult);
       const tier = handTextTier(g.name);
@@ -6427,8 +6447,9 @@
       });
     }
     if(groups.length>1){
+      const comboPos = comboPopupPosition(groups);
       pushPopup({
-        x:W/2, y:PEG_ZONE*0.4 + (chainMult>1?34:0),
+        x: comboPos.x, y: comboPos.y,
         text:'COMBO ×'+groups.length+'!',
         color: PEG, t0:now, duration:1200,
         fontSize: 20, floatBoost: 36, tilt: -0.08, slam: 1.55, slamMs: 150, glow: 12
