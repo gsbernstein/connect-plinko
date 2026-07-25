@@ -72,7 +72,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, `pinSplit`, `stormBeaches`, …) |
 | `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Pin Split: ~10× slower drops; bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
 | `stormBeachesActive` / `detonateFallingBall` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits |
-| `dropSpawnMult` | Combined Pin Split × Storm spawn interval multiplier for `autoDropIntervalMs` |
+| `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
 | `boardDuplicateExtras` / `cardCountingMultiplier` / `handPayoutMultiplier` | Card Counting duplicate extras → hand payout mult |
 | `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels) |
