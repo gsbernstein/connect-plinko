@@ -2666,7 +2666,7 @@
 
   // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
   // comps = Cash Out credit for this run (spent only when cashing out).
-  // metaMult = stacks on all payout multipliers; chainExp = exponent on chain clears.
+  // metaMult / chainExp = multiplicative factors (2.0 = double), stack across late levels.
   // Chip bonuses scale via levelChipReward() at every milestone, quest slot, and ×10 level.
   const LEVEL_BONUSES = {
     5:  { comps: 1, label: '+1 Cash Out comp' },
@@ -2680,17 +2680,17 @@
     30: { comps: 5, label: '+5 Cash Out comps' },
     35: { comps: 6, label: '+6 Cash Out comps' },
     40: { comps: 8, label: '+8 Cash Out comps' },
-    50: { comps: 10, metaMult: 0.05, label: '+10 comps · ×1.05 payout multipliers' },
+    50: { comps: 10, metaMult: 2.0, label: '+10 comps · ×2 payout multipliers' },
     60: { comps: 12, label: '+12 Cash Out comps' },
-    70: { comps: 14, chainExp: 0.08, label: '+14 comps · +8% chain exponent' },
-    80: { comps: 16, metaMult: 0.05, label: '+16 comps · ×1.05 payout multipliers' },
+    70: { comps: 14, chainExp: 2.0, label: '+14 comps · ×2 chain multiplier' },
+    80: { comps: 16, label: '+16 Cash Out comps' },
     90: { comps: 18, label: '+18 Cash Out comps' },
-    100: { comps: 20, metaMult: 0.08, chainExp: 0.08, label: '+20 comps · ×1.08 mults · +8% chain exp' },
-    120: { comps: 24, metaMult: 0.08, label: '+24 comps · ×1.08 payout multipliers' },
-    140: { comps: 28, chainExp: 0.1, label: '+28 comps · +10% chain exponent' },
-    160: { comps: 32, metaMult: 0.1, label: '+32 comps · ×1.10 payout multipliers' },
-    180: { comps: 36, chainExp: 0.12, label: '+36 comps · +12% chain exponent' },
-    200: { comps: 50, metaMult: 0.15, chainExp: 0.15, label: '+50 comps · ×1.15 mults · +15% chain exp' }
+    100: { comps: 20, label: '+20 Cash Out comps' },
+    120: { comps: 24, metaMult: 2.0, label: '+24 comps · ×2 payout multipliers' },
+    140: { comps: 28, chainExp: 2.5, label: '+28 comps · ×2.5 chain multiplier' },
+    160: { comps: 32, label: '+32 Cash Out comps' },
+    180: { comps: 36, label: '+36 Cash Out comps' },
+    200: { comps: 50, metaMult: 2.5, chainExp: 2.0, label: '+50 comps · ×2.5 mults · ×2 chain' }
   };
 
   // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
@@ -4043,36 +4043,41 @@
     return upgradeLevel('hotStreak');
   }
 
-  function runLevelBonusTotal(field){
-    let total = 0;
+  function runLevelBonusProduct(field){
+    let mult = 1;
     for(let L = 2; L <= runLevel; L++){
       const bonus = LEVEL_BONUSES[L];
-      if(bonus && bonus[field]) total += bonus[field];
+      if(bonus && bonus[field]) mult *= bonus[field];
     }
-    return total;
+    return mult;
   }
 
   function runMetaMultiplier(){
-    return 1 + runLevelBonusTotal('metaMult');
+    return runLevelBonusProduct('metaMult');
   }
 
-  function chainExponentBonus(){
-    return runLevelBonusTotal('chainExp');
+  function runChainMultiplier(){
+    return runLevelBonusProduct('chainExp');
   }
 
   function computeChainMult(chainStep){
     const linear = Math.max(1, chainStep + chainBonus());
-    const exp = chainExponentBonus();
-    if(exp <= 0) return linear;
-    return Math.max(1, Math.floor(Math.pow(linear, 1 + exp)));
+    const mult = runChainMultiplier();
+    if(mult <= 1) return linear;
+    return Math.max(1, Math.floor(linear * mult));
+  }
+
+  function formatMultFactor(v, noun){
+    const text = (v % 1 === 0) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
+    return '×' + text + ' ' + noun;
   }
 
   function formatMetaMultBonus(v){
-    return '×' + (1 + v).toFixed(2).replace(/\.?0+$/, '') + ' payout multipliers';
+    return formatMultFactor(v, 'payout multipliers');
   }
 
   function formatChainExpBonus(v){
-    return '+' + Math.round(v * 100) + '% chain exponent';
+    return formatMultFactor(v, 'chain multiplier');
   }
 
   function physicsSpeed(){
