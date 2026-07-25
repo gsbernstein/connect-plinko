@@ -746,6 +746,18 @@
     color:var(--ink-dim);
   }
   .quest-progress-row b{color:var(--ink);font-weight:600;}
+  .quest.achievement .quest-prog b{
+    display:inline-block;
+    transform-origin:50% 55%;
+  }
+  .quest.achievement .quest-prog b.prog-pulse{
+    animation:achievementProgPulse 0.32s ease-out;
+  }
+  @keyframes achievementProgPulse{
+    0%{transform:scale(1);color:var(--ink);}
+    45%{transform:scale(1.14);color:#F0D78C;}
+    100%{transform:scale(1);color:var(--ink);}
+  }
   .quest-bar{
     height:3px;
     border-radius:999px;
@@ -3215,6 +3227,7 @@
   let boardTilt = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
+  let achievementProgShown = Object.create(null); // achievement id -> last painted numerator
   let questClaimed = Object.create(null); // achievement id -> claimed tier count
   let activeQuests = []; // rolled run quests in slots
   let questUidSeq = 1;
@@ -3619,7 +3632,7 @@
     const tier = achievementActiveTier(def);
     if(!tier) return 0;
     if(!def.infinite && achievementIsFullyClaimed(def)) return tier.target;
-    return Math.min(tier.target, achievementStatValue(def));
+    return Math.min(tier.target, Math.floor(achievementStatValue(def)));
   }
 
   function achievementComplete(def){
@@ -4675,6 +4688,15 @@
     scoreBoxEl.classList.add('chip-pulse');
     clearTimeout(scorePulseTimer);
     scorePulseTimer = setTimeout(()=>scoreBoxEl.classList.remove('chip-pulse'), 340);
+  }
+
+  function pulseAchievementNumerator(el){
+    if(!el) return;
+    el.classList.remove('prog-pulse');
+    void el.offsetWidth;
+    el.classList.add('prog-pulse');
+    clearTimeout(el._progPulseTimer);
+    el._progPulseTimer = setTimeout(()=>el.classList.remove('prog-pulse'), 340);
   }
 
   function clearFlyingChips(){
@@ -8344,9 +8366,15 @@
       }
       const progEl = btn.querySelector('.quest-prog');
       if(progEl){
-        progEl.innerHTML = stillSecret
-          ? '<b>?</b> / ?'
-          : ('<b>' + formatNum(progress) + '</b> / ' + formatNum(target));
+        if(stillSecret){
+          progEl.innerHTML = '<b>?</b> / ?';
+        } else {
+          const prev = achievementProgShown[def.id];
+          const shouldPulse = prev != null && progress > prev;
+          progEl.innerHTML = '<b>' + formatNum(progress) + '</b> / ' + formatNum(target);
+          if(shouldPulse) pulseAchievementNumerator(progEl.querySelector('b'));
+          achievementProgShown[def.id] = progress;
+        }
       }
       const actionEl = btn.querySelector('.quest-action');
       if(actionEl){
@@ -8394,6 +8422,7 @@
   function buildContracts(){
     if(questsEl) questsEl.innerHTML = '';
     if(achievementsEl) achievementsEl.innerHTML = '';
+    achievementProgShown = Object.create(null);
     questSlotButtons.length = 0;
     questLockedButtons.length = 0;
     for(const key of Object.keys(contractButtons)) delete contractButtons[key];
