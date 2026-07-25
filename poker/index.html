@@ -2508,7 +2508,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 11;
+  const SAVE_VERSION = 12;
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
@@ -2604,15 +2604,6 @@
       unlockAt: 8
     },
     {
-      id: 'cardSense',
-      name: 'Card Sense',
-      desc: 'Auto-drops aim toward near-miss columns.',
-      baseCost: 200,
-      costScale: 1,
-      maxLevel: 1,
-      unlockAt: 9
-    },
-    {
       id: 'highCut',
       name: 'High Cut',
       desc: 'Remove the lowest ranks from the shoe. Aces always stay.',
@@ -2629,16 +2620,6 @@
       costScale: 1.85,
       maxLevel: 12,
       unlockAt: 11,
-      toggleable: true
-    },
-    {
-      id: 'autoSuitBomb',
-      name: 'Auto Purge',
-      desc: 'Automatically cast Suit Purge on the most crowded suit when charged. Toggle On/Off anytime.',
-      baseCost: 1800,
-      costScale: 1,
-      maxLevel: 1,
-      unlockAt: 13,
       toggleable: true
     },
     {
@@ -3013,6 +2994,23 @@
       baseCost: 2,
       costScale: 2.15,
       maxLevel: 4
+    },
+    {
+      id: 'cardSense',
+      name: 'Card Sense',
+      desc: 'Auto-drops aim toward near-miss columns.',
+      baseCost: 4,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'autoSuitBomb',
+      name: 'Auto Purge',
+      desc: 'Automatically cast Suit Purge on the most crowded suit when charged. Toggle On/Off anytime.',
+      baseCost: 8,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
     },
     {
       id: 'questDesk',
@@ -4664,11 +4662,6 @@
         if(!lvl) return 'Locked';
         if(!isAutoEnabled('suitBomb')) return 'Picker hidden';
         return 'Cooldown ' + formatInterval(suitBombCooldownMs());
-      case 'autoSuitBomb':
-        if(!lvl) return upgradeLevel('suitBomb') ? 'Manual only' : 'Needs Suit Purge';
-        return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
-      case 'cardSense':
-        return lvl ? 'Aiming near hands' : 'Random columns';
       case 'feltGrease':
         return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
       default:
@@ -4702,6 +4695,11 @@
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
         return lvl ? ('Up to ' + label) : 'Common quests only';
       }
+      case 'cardSense':
+        return lvl ? 'Aiming near hands' : 'Random columns';
+      case 'autoSuitBomb':
+        if(!lvl) return suitBombUnlocked() ? 'Manual only' : 'Needs Suit Purge';
+        return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
       case 'questDesk':
         if(!lvl) return 'Manual claims';
         return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
@@ -4785,6 +4783,17 @@
         const autoDef = UPGRADE_DEFS.find(u => u.id === 'autoDealer');
         const migrated = Math.min(autoDef.maxLevel, Math.floor(data.upgrades.multiDeal));
         if(migrated > upgradeLevel('autoDealer')) upgrades.autoDealer = migrated;
+      }
+      // Card Sense / Auto Purge moved from table upgrades to VIP perks.
+      if(data.upgrades && typeof data.upgrades === 'object'){
+        if(typeof data.upgrades.cardSense === 'number' && data.upgrades.cardSense > 0){
+          if(prestigeLevel('cardSense') < 1) prestigeUpgrades.cardSense = 1;
+          upgrades.cardSense = 0;
+        }
+        if(typeof data.upgrades.autoSuitBomb === 'number' && data.upgrades.autoSuitBomb > 0){
+          if(prestigeLevel('autoSuitBomb') < 1) prestigeUpgrades.autoSuitBomb = 1;
+          upgrades.autoSuitBomb = 0;
+        }
       }
       // Purchased levels can't push effective skill past max once VIP bonus applies.
       for(const def of UPGRADE_DEFS){
@@ -4940,7 +4949,6 @@
     const def = UPGRADE_DEFS.find(u => u.id === id);
     if(!def) return false;
     if(!upgradeUnlocked(id)) return false;
-    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return false;
     if(upgradeLevel(id) >= def.maxLevel) return false;
     if(purchasedLevel(id) >= maxPurchasableLevel(id)) return false;
     const cost = upgradeCost(def);
@@ -4975,7 +4983,6 @@
     let bestCost = Infinity;
     for(const def of UPGRADE_DEFS){
       if(!upgradeUnlocked(def.id)) continue;
-      if(def.id === 'autoSuitBomb' && !suitBombUnlocked()) continue;
       const lvl = upgradeLevel(def.id);
       if(lvl >= def.maxLevel) continue;
       const cost = upgradeCost(def);
@@ -5045,6 +5052,7 @@
     if(!def) return;
     const lvl = prestigeLevel(id);
     if(lvl >= def.maxLevel) return;
+    if(id === 'autoSuitBomb' && !suitBombUnlocked()) return;
     const cost = prestigeUpgradeCost(def);
     if(comps < cost) return;
     comps -= cost;
@@ -5060,6 +5068,10 @@
     updateAutoStatus();
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
     if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
+    if(id === 'autoSuitBomb') updateSuitBombUI(performance.now(), true);
+    if((id === 'autoSuitBomb' || id === 'cardSense') && !resolving && !looping){
+      startLoop();
+    }
   }
 
   function markHintsDirty(){
@@ -5096,7 +5108,7 @@
       if(colHeights[c] + reserved[c] < ROWS) open.push(c);
     }
     if(!open.length) return -1;
-    if(!upgradeLevel('cardSense')){
+    if(!prestigeLevel('cardSense')){
       return open[(Math.random()*open.length)|0];
     }
     // Prefer columns that sit on a near-miss empty cell, then any open col.
@@ -5851,7 +5863,7 @@
     const nowEnd = performance.now();
     const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
     const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
-    const bombAuto = upgradeLevel('autoSuitBomb') > 0
+    const bombAuto = prestigeLevel('autoSuitBomb') > 0
       && isAutoEnabled('autoSuitBomb')
       && suitBombUnlocked();
     if(balls.length>0 || particles.length>0 || popupsAlive || resolving
@@ -6566,7 +6578,7 @@
   }
 
   function tryAutoSuitBomb(now){
-    if(!upgradeLevel('autoSuitBomb') || !isAutoEnabled('autoSuitBomb') || !suitBombReady(now)) return;
+    if(!prestigeLevel('autoSuitBomb') || !isAutoEnabled('autoSuitBomb') || !suitBombReady(now)) return;
     if(resolving || gameOver) return;
     const suit = pickAutoSuitBombTarget();
     if(!suit) return;
@@ -7601,8 +7613,7 @@
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
-      const revealed = upgradeUnlocked(def.id)
-        && (def.id !== 'autoSuitBomb' || suitBombUnlocked());
+      const revealed = upgradeUnlocked(def.id);
       const bought = purchasedLevel(def.id);
       const bonus = prestigeBonusLevels(def.id);
       const lvl = upgradeLevel(def.id);
@@ -7680,13 +7691,14 @@
         const lvl = prestigeLevel(def.id);
         const maxed = lvl >= def.maxLevel;
         const cost = prestigeUpgradeCost(def);
-        const canAfford = !maxed && comps >= cost;
+        const needsSuitBomb = def.id === 'autoSuitBomb' && lvl < def.maxLevel && !suitBombUnlocked();
+        const canAfford = !maxed && !needsSuitBomb && comps >= cost;
         if(canAfford) vipReady++;
         fillUpgradeButton(btn, def, {
-          bought: lvl, bonus: 0, maxed, locked: false, cost, canAfford,
+          bought: lvl, bonus: 0, maxed, locked: needsSuitBomb, cost, canAfford,
           canToggle: !!(def.toggleable && lvl > 0),
           effect: prestigeEffectText(def),
-          costLabel: '',
+          costLabel: needsSuitBomb ? 'Needs Suit Purge' : '',
           unit: 'comps'
         });
         (maxed ? maxedList : active).push(btn);
@@ -8052,7 +8064,7 @@
 
     const cd = suitBombCooldownMs();
     const ready = suitBombReady(now);
-    const autoOwned = upgradeLevel('autoSuitBomb') > 0;
+    const autoOwned = prestigeLevel('autoSuitBomb') > 0;
     const auto = autoOwned && isAutoEnabled('autoSuitBomb');
     if(ready){
       suitBombStatus.textContent = auto
@@ -8383,7 +8395,7 @@
           && isAutoEnabled('questDesk')
           && activeQuests.some(q => activeQuestComplete(q)))
         || (suitBombUnlocked() && (
-          (upgradeLevel('autoSuitBomb') > 0 && isAutoEnabled('autoSuitBomb'))
+          (prestigeLevel('autoSuitBomb') > 0 && isAutoEnabled('autoSuitBomb'))
           || !suitBombReady(now)
         ));
       if(needLoop) startLoop();
