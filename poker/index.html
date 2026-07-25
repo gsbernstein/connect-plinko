@@ -4134,8 +4134,10 @@
     return 1 + 0.22 * upgradeLevel('shortFuse');
   }
 
-  function cappedResolveSpeed(){
-    return Math.min(resolveSpeed(), 2.8);
+  function flashPulseCount(){
+    const lvl = upgradeLevel('shortFuse');
+    // 7 pulses at Lv0, tapering to 2 by ~Lv10.
+    return Math.max(2, 7 - Math.floor(lvl * 0.5));
   }
 
   function pinHitPayout(){
@@ -6878,7 +6880,7 @@
 
   function resolveTick(){
     const now = performance.now();
-    const speed = cappedResolveSpeed();
+    const speed = resolveSpeed();
     const flashMs = FLASH_MS / speed;
     const explodeMs = EXPLODE_MS / speed;
     if(resolving){
@@ -7065,12 +7067,13 @@
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
-  function drawFlashPiece(cx, cy, card, elapsedFrac){
+  function drawFlashPiece(cx, cy, card, elapsedFrac, pulses){
     const color = cardGlowColor(card);
     // Uniform flash (rank juice lives in score text). Tiny scale + suit pulse.
-    const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * 7);
+    const pulseWaves = pulses || 7;
+    const pulse = 1 + 0.04 * Math.sin(elapsedFrac * Math.PI * pulseWaves);
     const r = 32 * pulse;
-    const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * 7));
+    const heat = 0.55 + 0.45 * Math.abs(Math.sin(elapsedFrac * Math.PI * pulseWaves));
     ctx.save();
     ctx.translate(cx, cy);
     ctx.shadowColor = color;
@@ -7231,8 +7234,9 @@
     ctx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
 
     const flashElapsed = resolvePhase==='flash'
-      ? Math.min(1,(performance.now()-resolvePhaseStart)/(FLASH_MS/cappedResolveSpeed()))
+      ? Math.min(1,(performance.now()-resolvePhaseStart)/(FLASH_MS/resolveSpeed()))
       : 0;
+    const flashPulses = flashPulseCount();
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const val = grid[c][r];
@@ -7240,7 +7244,7 @@
         const cx = c*CELL+CELL/2, cy = PEG_ZONE + r*CELL + CELL/2;
         const key = c+','+r;
         if(flashCells && flashCells.has(key)){
-          drawFlashPiece(cx,cy,val,flashElapsed);
+          drawFlashPiece(cx,cy,val,flashElapsed, flashPulses);
         } else {
           drawPiece(cx,cy,val, false);
         }
