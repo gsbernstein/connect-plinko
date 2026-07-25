@@ -172,6 +172,7 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
 | Hand scoring / stats | hand detection block ~6160+, `HAND_STAT` wiring |
+| Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `autoEnabled.suitBomb`, `updateSuitBombUI`; first Auto Purge buy collapses picker; tap bar chrome toggles Hide/Show |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
 | Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
 | Classic gameplay | `index.html` only |

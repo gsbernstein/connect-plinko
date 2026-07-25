@@ -1128,8 +1128,9 @@
     padding:10px 12px;
     overflow:hidden;
   }
-  .suit-bomb.show{display:flex;}
+  .suit-bomb.show{display:flex;cursor:pointer;}
   .suit-bomb.picker-hidden .suit-bomb-btns{display:none;}
+  .suit-bomb .suit-btn{cursor:pointer;}
   .suit-bomb-charge{
     position:absolute;
     left:0;
@@ -2745,6 +2746,15 @@
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   const CHANGELOG = [
+    {
+      id: 13,
+      date: 'Jul 25, 2026',
+      title: 'Suit Purge collapse',
+      items: [
+        'Suit Purge collapses the first time you unlock Auto Purge.',
+        'Tap the Suit Purge bar outside the suit buttons to show or hide the picker.'
+      ]
+    },
     {
       id: 12,
       date: 'Jul 25, 2026',
@@ -5651,6 +5661,8 @@
     if(comps < cost) return;
     comps -= cost;
     prestigeUpgrades[id] = lvl + 1;
+    // First Auto Purge unlock: collapse the manual picker (minimized charge bar).
+    if(id === 'autoSuitBomb' && lvl === 0) autoEnabled.suitBomb = false;
     // VIP skill bonuses may cap purchasable room — clamp bought levels.
     for(const uDef of UPGRADE_DEFS){
       upgrades[uDef.id] = Math.min(purchasedLevel(uDef.id), maxPurchasableLevel(uDef.id));
@@ -8808,6 +8820,11 @@
   const suitBombBtnsEl = document.getElementById('suitBombBtns');
   const suitBombButtons = {};
 
+  function toggleSuitBombPicker(){
+    if(!suitBombUnlocked()) return;
+    setAutoEnabled('suitBomb', !isAutoEnabled('suitBomb'));
+  }
+
   function buildSuitBombUI(){
     suitBombBtnsEl.innerHTML = '';
     for(const s of SUITS){
@@ -8829,6 +8846,12 @@
       suitBombBtnsEl.appendChild(btn);
       suitBombButtons[s] = btn;
     }
+    // Tap chrome (title, status, padding) — not the suit buttons — toggles Hide/Show.
+    suitBombBar.addEventListener('click', (e)=>{
+      if(e.target.closest('.suit-btn')) return;
+      toggleSuitBombPicker();
+    });
+    suitBombBar.setAttribute('title', 'Tap to show or hide suit buttons');
     if(document.fonts && document.fonts.ready){
       document.fonts.ready.then(repaintHudGlyphs);
     }
@@ -8880,6 +8903,12 @@
     const minimized = unlocked && !showPicker;
     suitBombBar.classList.toggle('show', unlocked);
     suitBombBar.classList.toggle('picker-hidden', minimized);
+    suitBombBar.setAttribute(
+      'aria-label',
+      unlocked
+        ? (showPicker ? 'Suit Purge — tap to hide suit buttons' : 'Suit Purge — tap to show suit buttons')
+        : 'Suit Purge'
+    );
     if(!unlocked){
       suitBombBar.removeAttribute('data-target-suit');
       suitBombBar.classList.remove('suit-bomb-flash');
