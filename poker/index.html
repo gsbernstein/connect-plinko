@@ -908,7 +908,11 @@
     border-color:#3a3558;
   }
   .quest.achievement .quest-kind{color:#F0D78C;}
-  .quest.rarity-common{border-color:#3a3558;}
+  .quest.rarity-common{
+    border-color:rgba(232,236,244,0.42);
+    box-shadow:0 0 0 1px rgba(232,236,244,0.08);
+  }
+  .quest.rarity-common .quest-kind{color:#E8ECF0;}
   .quest.rarity-uncommon{border-color:rgba(126,200,163,0.55);}
   .quest.rarity-rare{border-color:rgba(110,168,255,0.55);}
   .quest.rarity-epic{border-color:rgba(192,132,252,0.55);}
@@ -2979,6 +2983,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 35,
+      date: 'Jul 26, 2026',
+      title: 'Quest Ink odds',
+      items: [
+        'Quest Ink now shifts rolled quest odds toward higher rarities — max level makes Rare the most common roll.',
+        'Common quest cards use a white accent instead of the default green label.'
+      ]
+    },
+    {
       id: 34,
       date: 'Jul 26, 2026',
       title: 'VIP and achievement polish',
@@ -3490,12 +3503,20 @@
   const QUEST_CLAIM_ANIM_MS = 360;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
-    common:    { label: 'Common',    weight: 52, targetMult: 1,   rewardMult: 1,   color: '#9aa3b5' },
-    uncommon:  { label: 'Uncommon',  weight: 28, targetMult: 1.5, rewardMult: 1.7, color: '#7EC8A3' },
-    rare:      { label: 'Rare',      weight: 14, targetMult: 2.2, rewardMult: 2.6, color: '#6EA8FF' },
-    epic:      { label: 'Epic',      weight: 5,  targetMult: 3.2, rewardMult: 4,   color: '#C084FC' },
-    legendary: { label: 'Legendary', weight: 1,  targetMult: 4.5, rewardMult: 6.5, color: '#E6C35C' }
+    common:    { label: 'Common',    targetMult: 1,   rewardMult: 1,   color: '#E8ECF0' },
+    uncommon:  { label: 'Uncommon',  targetMult: 1.5, rewardMult: 1.7, color: '#7EC8A3' },
+    rare:      { label: 'Rare',      targetMult: 2.2, rewardMult: 2.6, color: '#6EA8FF' },
+    epic:      { label: 'Epic',      targetMult: 3.2, rewardMult: 4,   color: '#C084FC' },
+    legendary: { label: 'Legendary', targetMult: 4.5, rewardMult: 6.5, color: '#E6C35C' }
   };
+  // Quest Ink level (0–4) → roll weights [common … legendary]; higher Ink shifts odds up-tier.
+  const QUEST_RARITY_WEIGHTS_BY_INK = [
+    [100, 0, 0, 0, 0],
+    [58, 42, 0, 0, 0],
+    [36, 38, 26, 0, 0],
+    [16, 28, 34, 22, 0],
+    [6, 20, 40, 26, 8]
+  ];
   // Templates for rolled run quests. {n} in desc is replaced with the scaled target.
   const QUEST_TEMPLATES = [
     {
@@ -4596,11 +4617,13 @@
 
   function pickQuestRarity(){
     const maxIdx = maxQuestRarityIndex();
+    const table = QUEST_RARITY_WEIGHTS_BY_INK[maxIdx] || QUEST_RARITY_WEIGHTS_BY_INK[0];
     let total = 0;
     const pool = [];
     for(let i = 0; i <= maxIdx; i++){
       const id = QUEST_RARITIES[i];
-      const w = QUEST_RARITY[id].weight;
+      const w = table[i] || 0;
+      if(w <= 0) continue;
       pool.push({ id, w });
       total += w;
     }
