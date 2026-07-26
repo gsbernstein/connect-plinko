@@ -2970,7 +2970,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 21;
+  const SAVE_VERSION = 22;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2982,6 +2982,15 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 37,
+      date: 'Jul 26, 2026',
+      title: 'Card Counting tiers',
+      items: [
+        'Card Counting is back to eight +8% duplicate levels, with a ninth tier that multiplies level payout by paired-card products.',
+        'Table Tilt moved to the bottom of the VIP lounge.'
+      ]
+    },
     {
       id: 36,
       date: 'Jul 26, 2026',
@@ -3866,15 +3875,6 @@
       maxLevel: 5
     },
     {
-      id: 'tableTilt',
-      name: 'Table Tilt',
-      desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
-      baseCost: 2,
-      costScale: 1,
-      maxLevel: 1,
-      toggleable: true
-    },
-    {
       id: 'quickDeal',
       name: 'Quick Deal',
       desc: '+1 Auto Dealer level permanently. Capped at Auto Dealer max.',
@@ -3952,10 +3952,10 @@
     {
       id: 'cardCounting',
       name: 'Card Counting',
-      desc: 'Multiply your level payout mult by the product of every paired card on the board (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
-      baseCost: 90,
-      costScale: 1,
-      maxLevel: 1
+      desc: 'Lv1–8: +8% hand payout per duplicate on the board per level. Lv9: multiply your level payout mult by paired-card products (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
+      baseCost: 6,
+      costScale: 1.9,
+      maxLevel: 9
     },
     {
       id: 'pinSplit',
@@ -3982,6 +3982,15 @@
       baseCost: 55,
       costScale: 2.2,
       maxLevel: 2,
+      toggleable: true
+    },
+    {
+      id: 'tableTilt',
+      name: 'Table Tilt',
+      desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
+      baseCost: 2,
+      costScale: 1,
+      maxLevel: 1,
       toggleable: true
     }
   ];
@@ -5126,6 +5135,25 @@
     return card.rank + card.suit;
   }
 
+  // Extra copies of the same rank+suit on the settled board (multi-deck duplicates).
+  function boardDuplicateExtras(){
+    const counts = Object.create(null);
+    if(!grid) return 0;
+    for(let c = 0; c < COLS; c++){
+      for(let r = 0; r < ROWS; r++){
+        const card = grid[c][r];
+        if(!card) continue;
+        const key = cardCountKey(card);
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    }
+    let extras = 0;
+    for(const key in counts){
+      if(counts[key] > 1) extras += counts[key] - 1;
+    }
+    return extras;
+  }
+
   function cardCountingGroups(){
     const counts = Object.create(null);
     const samples = Object.create(null);
@@ -5151,12 +5179,21 @@
   }
 
   function cardCountingFactor(){
-    if(!prestigeLevel('cardCounting')) return 1;
+    if(prestigeLevel('cardCounting') < 9) return 1;
     const groups = cardCountingGroups();
     if(!groups.length) return 1;
     let product = 1;
     for(const group of groups) product *= group.count;
     return product;
+  }
+
+  // Card Counting Lv1–8: +8% hand payout per duplicate extra per VIP level.
+  function cardCountingHandMultiplier(){
+    const lvl = prestigeLevel('cardCounting');
+    if(!lvl) return 1;
+    const extras = boardDuplicateExtras();
+    if(!extras) return 1;
+    return 1 + extras * 0.08 * Math.min(lvl, 8);
   }
 
   function cardCountingCardLabel(card, count){
@@ -5168,11 +5205,11 @@
   }
 
   function handPayoutMultiplier(){
-    return scoreMultiplier() * effectiveMetaMultiplier();
+    return scoreMultiplier() * effectiveMetaMultiplier() * cardCountingHandMultiplier();
   }
 
   function scheduleCountingUiRefresh(){
-    if(!prestigeLevel('cardCounting')) return;
+    if(prestigeLevel('cardCounting') < 9) return;
     clearTimeout(countingUiTimer);
     countingUiTimer = setTimeout(()=>{
       updateShopUI();
@@ -6137,6 +6174,12 @@
         return lvl ? 'Hidden Ace in every hand' : 'Play fair';
       case 'cardCounting':{
         if(!lvl) return 'No count bonus';
+        if(lvl < 9){
+          const extras = boardDuplicateExtras();
+          const pct = Math.round(8 * Math.min(lvl, 8));
+          if(!extras) return '+' + pct + '% per duplicate';
+          return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingHandMultiplier());
+        }
         const groups = cardCountingGroups();
         if(!groups.length) return 'No paired cards on board';
         const cards = groups.map(g => cardCountingCardLabel(g.card, g.count)).join(' · ');
@@ -6149,7 +6192,9 @@
         const breakdown = baseMeta > 1
           ? cards + ' = ' + formatMultShort(factor)
           : cards;
-        return total + ' (' + breakdown + ')';
+        const handMult = cardCountingHandMultiplier();
+        const handNote = handMult > 1 ? ' · hand ' + formatMultShort(handMult) : '';
+        return total + ' (' + breakdown + ')' + handNote;
       }
       case 'pinSplit':
         if(!lvl) return 'Normal drops';
@@ -6247,6 +6292,15 @@
           if(typeof v === 'number' && v >= 0){
             prestigeUpgrades[def.id] = Math.min(def.maxLevel, Math.floor(v));
           }
+        }
+      }
+      // Card Counting: restore Lv1–8 duplicate bonus; Lv9 = paired-card product mult.
+      if((data.v || 0) < 22 && data.prestigeUpgrades && typeof data.prestigeUpgrades === 'object'){
+        const raw = data.prestigeUpgrades.cardCounting;
+        if(typeof raw === 'number' && raw > 1){
+          prestigeUpgrades.cardCounting = Math.min(8, Math.floor(raw));
+        } else if(raw === 1){
+          prestigeUpgrades.cardCounting = 9;
         }
       }
       // Retired Multi Deal — each level becomes one Auto Dealer level.
