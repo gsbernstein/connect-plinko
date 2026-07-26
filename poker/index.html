@@ -1013,12 +1013,12 @@
   }
   @keyframes questClaimDissolve{
     0%{filter:brightness(1);opacity:1;box-shadow:none;}
-    18%{filter:brightness(1.18);box-shadow:0 0 14px 2px rgba(46,138,110,0.22);}
+    18%{filter:brightness(1.18);box-shadow:var(--quest-spark-glow, 0 0 14px 2px rgba(46,138,110,0.22));}
     100%{filter:brightness(0.82);opacity:0.38;transform:scale(0.985);}
   }
   @keyframes questClaimDissolveAuto{
     0%{filter:brightness(1);opacity:1;box-shadow:none;}
-    18%{filter:brightness(1.14);box-shadow:0 0 12px 2px rgba(240,215,140,0.2);}
+    18%{filter:brightness(1.14);box-shadow:var(--quest-spark-glow, 0 0 12px 2px rgba(240,215,140,0.2));}
     100%{filter:brightness(0.82);opacity:0.38;transform:scale(0.985);}
   }
   .quest.quest-rolling-in{
@@ -2983,6 +2983,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 36,
+      date: 'Jul 26, 2026',
+      title: 'Quest sparkle colors',
+      items: [
+        'Quest claim sparkles and glows now match the quest rarity color.',
+        'Auto-claim tab bursts tint particles from the claimed quest tier.'
+      ]
+    },
+    {
       id: 35,
       date: 'Jul 26, 2026',
       title: 'Quest Ink odds',
@@ -4708,13 +4717,60 @@
     return activeRailPanel === 'upgrades';
   }
 
+  function questRarityColor(rarity){
+    return (QUEST_RARITY[rarity] || QUEST_RARITY.common).color;
+  }
+
+  function hexToRgba(hex, alpha){
+    if(!hex || hex[0] !== '#' || (hex.length !== 7 && hex.length !== 4)) return 'rgba(126,200,163,' + (alpha || 1) + ')';
+    let r, g, b;
+    if(hex.length === 4){
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else {
+      r = parseInt(hex.slice(1, 3), 16);
+      g = parseInt(hex.slice(3, 5), 16);
+      b = parseInt(hex.slice(5, 7), 16);
+    }
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha == null ? 1 : alpha) + ')';
+  }
+
+  function styleFlySpark(el, color){
+    const c = color || questRarityColor('uncommon');
+    el.style.background = 'radial-gradient(circle, #fff 0%, ' + c + ' 45%, transparent 100%)';
+    el.style.boxShadow = '0 0 6px ' + hexToRgba(c, 0.65);
+  }
+
+  function questSparkGlowShadow(color, alpha){
+    return '0 0 14px 2px ' + hexToRgba(color, alpha == null ? 0.28 : alpha);
+  }
+
+  function questSparkColors(quests){
+    if(!quests || !quests.length) return [questRarityColor('uncommon')];
+    return quests.map(q => questRarityColor(q.rarity));
+  }
+
   function playQuestClaimEffect(btn, opts){
     if(!btn) return;
     opts = opts || {};
+    const rarityColor = opts.rarity ? questRarityColor(opts.rarity) : null;
     btn.classList.remove('quest-claiming', 'quest-claiming-auto', 'quest-rolling-in');
     void btn.offsetWidth;
     btn.classList.add('quest-claiming');
     if(opts.auto) btn.classList.add('quest-claiming-auto');
+    if(rarityColor){
+      btn.style.setProperty('--quest-spark-glow', questSparkGlowShadow(rarityColor));
+      spawnFlyBurst(elementStagePoint(btn), {
+        count: 5,
+        className: 'fly-spark',
+        sparkColor: rarityColor,
+        flyToTarget: false,
+        popSpread: 24,
+        duration: 360,
+        maxCount: 6
+      });
+    }
     if(opts.reward) spawnRewardParticles(btn, opts.reward);
     clearTimeout(btn._questClaimTimer);
     btn._questClaimTimer = setTimeout(()=>{
@@ -4731,8 +4787,14 @@
     btn._questRollInTimer = setTimeout(()=>btn.classList.remove('quest-rolling-in'), 440);
   }
 
-  function pulseQuestTabAutoClaim(){
-    spawnRailTabBurst('quests', { count: 6, popSpread: 20 });
+  function pulseQuestTabAutoClaim(claimed){
+    const sparkColors = questSparkColors(claimed);
+    spawnRailTabBurst('quests', {
+      count: 6,
+      popSpread: 20,
+      sparkColors: sparkColors.length > 1 ? sparkColors : null,
+      sparkColor: sparkColors[0]
+    });
     const tab = getQuestsTabEl();
     if(!tab) return;
     const badge = tab.querySelector('.rail-tab-badge');
@@ -4809,7 +4871,7 @@
     };
 
     if(animateCard){
-      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto, reward: q.reward });
+      playQuestClaimEffect(questSlotButtons[idx], { auto: !!opts.auto, reward: q.reward, rarity: q.rarity });
       setTimeout(finishClaim, QUEST_CLAIM_ANIM_MS);
       return q;
     }
@@ -4827,7 +4889,7 @@
       const ready = activeQuests.find(q => activeQuestComplete(q));
       if(!ready) break;
       const idx = activeQuests.findIndex(x => x.uid === ready.uid);
-      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true, reward: ready.reward });
+      if(panelOpen) playQuestClaimEffect(questSlotButtons[idx], { auto: true, reward: ready.reward, rarity: ready.rarity });
       const q = claimActiveQuest(ready.uid, { deferUi: true, skipRewardFly: true });
       if(!q) break;
       claimed.push(q);
@@ -4840,7 +4902,7 @@
       if(panelOpen){
         for(const idx of claimedSlots) playQuestRollIn(questSlotButtons[idx]);
       } else {
-        pulseQuestTabAutoClaim();
+        pulseQuestTabAutoClaim(claimed);
         const tab = getQuestsTabEl();
         for(const q of claimed){
           if(tab && q.reward) spawnRewardParticles(tab, q.reward);
@@ -5505,7 +5567,9 @@
       flyToTarget: false,
       popSpread: opts.popSpread || 22,
       duration: opts.duration || 380,
-      maxCount: opts.maxCount || 7
+      maxCount: opts.maxCount || 7,
+      sparkColor: opts.sparkColor,
+      sparkColors: opts.sparkColors
     });
   }
 
@@ -5556,6 +5620,12 @@
     for(let i = 0; i < count; i++){
       const el = document.createElement('div');
       el.className = className;
+      if(className === 'fly-spark'){
+        const sparkColor = opts.sparkColors
+          ? opts.sparkColors[i % opts.sparkColors.length]
+          : opts.sparkColor;
+        if(sparkColor) styleFlySpark(el, sparkColor);
+      }
       const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.35;
       const pop = 14 + Math.random() * (opts.popSpread || 34);
       const delay = i * 16 + Math.random() * 22;
@@ -9906,6 +9976,7 @@
     btn.hidden = false;
     btn.dataset.id = q.uid;
     btn.classList.add('rarity-' + q.rarity);
+    btn.style.setProperty('--quest-spark-glow', questSparkGlowShadow(meta.color));
     btn.classList.toggle('claimable', complete);
     btn.disabled = !complete;
     btn.querySelector('.quest-name').textContent = q.name;
