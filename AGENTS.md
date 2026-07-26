@@ -70,20 +70,21 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 |--------|---------|
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, …) — order = shop order |
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, …) |
-| `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Pin Split: ~10× slower drops; bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
+| `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Percussive Mitosis (`pinSplit`): ~10× slower drops; bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
 | `stormBeachesActive` / `detonateFallingBall` / `applyStormBlast` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits; blast knocks nearby in-flight chips |
-| `siegeWeapons` / `queueSiegeClear` / `beginSiegeClear` / `SIEGE_*` | Siege Weapons: ~18% spiked cards; smash bumpers → top-row clear; Lv2 temporarily breaks pins (`p.broken`) |
+| `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `SIEGE_*` | Siege Weapons (toggleable): ~18% spiked cards when On; smash bumpers → top-row clear; Lv2 temporarily breaks pins (`p.broken`) |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
-| `boardDuplicateExtras` / `cardCountingMultiplier` / `handPayoutMultiplier` | Card Counting duplicate extras → hand payout mult |
+| `cardCountingGroups` / `cardCountingFactor` / `effectiveMetaMultiplier` / `handPayoutMultiplier` | Card Counting: product of paired rank+suit counts on board multiplies `runMetaMultiplier` |
 | `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels) |
 | `upgradeEffectText` / `payoutMultLabels` | Shop effect line; Blind / payout / combo mults on Pin Tip, Rail Tax, Sweep Stakes, Hot Streak, Big Blind |
-| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (Multiway uses step 1) |
+| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (`a_max_combo` uses step 1) |
 | `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
+| `achievementName` | `a_max_combo` tier title: C-Combo, C-C-Combo… from active tier target |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
 | `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
-| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (Multiway, infinite) |
+| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (`a_max_combo`, infinite) |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
 | `heaterChain` / `heaterChainForSave` / `resumeHeaterChain` / `heaterHoldUntilUse` | Persisted Hot Streak steps; restore into `pendingChain` after boot `freshState`; hold skips empty-board expire until next hand |
@@ -201,9 +202,9 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 |------|----------------|
 | New table upgrade | `UPGRADE_DEFS`, buy UI, any skill-specific logic |
 | New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier`; Pin Split via `pinSplitActive` / peg hit in `stepBall` |
-| Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult`, `manualDropCooldownMs` in `dropAt`, `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` |
+| Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult`, `manualDropCooldownMs` in `dropAt`, `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
 | Storm the Beaches | `stormBeachesActive` / `STORM_BEACHES_EXPLODE_CHANCE` on fresh peg hits → `detonateFallingBall` / `applyStormBlast` + `sweepExplodedBalls`; spawn via `stormBeachesSpawnMult` in `dropSpawnMult` |
-| Siege Weapons | `dealCard` spike roll; `collideBallWithBumpers` → `queueSiegeClear` / `beginSiegeClear` (top row); Lv2 `p.broken` on peg hits; spikes via `drawCardSpikes` |
+| Siege Weapons | `dealCard` spike roll when `siegeWeaponsActive`; `collideBallWithBumpers` → `queueSiegeClear` / `beginSiegeClear` (top row); Lv2 `p.broken` on peg hits; toggle via `AUTO_TOGGLE_IDS` |
 | New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
