@@ -2840,7 +2840,7 @@
       if(tier) card.tier = tier;
     }
     // Siege Weapons: some dealt cards grow spikes when the perk is owned.
-    if(siegeWeaponsUnlocked() && Math.random() < SIEGE_SPIKE_CHANCE){
+    if(siegeWeaponsActive() && Math.random() < SIEGE_SPIKE_CHANCE){
       card.spikes = true;
     }
     return card;
@@ -2981,9 +2981,10 @@
     {
       id: 34,
       date: 'Jul 26, 2026',
-      title: 'Adjusted names',
+      title: 'VIP and achievement polish',
       items: [
-        'Achievement and VIP perk names updated.'
+        'Achievement and VIP perk names updated.',
+        'Siege Weapons can be toggled On/Off in the VIP lounge.'
       ]
     },
     {
@@ -3946,17 +3947,18 @@
     {
       id: 'siegeWeapons',
       name: 'Siege Weapons',
-      desc: 'Some cards grow spikes. Spiked cards smash bumpers and clear the whole top row. Upgrade again: spikes can temporarily shatter pins on contact.',
+      desc: 'Some cards grow spikes. Spiked cards smash bumpers and clear the whole top row. Upgrade again: spikes can temporarily shatter pins on contact. Toggle On/Off anytime.',
       baseCost: 55,
       costScale: 2.2,
-      maxLevel: 2
+      maxLevel: 2,
+      toggleable: true
     }
   ];
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -4146,12 +4148,16 @@
     return prestigeLevel('siegeWeapons') > 0;
   }
 
+  function siegeWeaponsActive(){
+    return siegeWeaponsUnlocked() && isAutoEnabled('siegeWeapons');
+  }
+
   function siegeWeaponsLevel(){
     return prestigeLevel('siegeWeapons');
   }
 
   function siegeCanBreakPins(){
-    return siegeWeaponsLevel() >= 2;
+    return siegeWeaponsActive() && siegeWeaponsLevel() >= 2;
   }
 
   function tableTiltUnlocked(){
@@ -6016,6 +6022,7 @@
         return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% pin shells';
       case 'siegeWeapons':
         if(!lvl) return 'Smooth rims';
+        if(!isAutoEnabled('siegeWeapons')) return 'Paused';
         if(lvl >= 2){
           return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · smash bumpers & pins';
         }
@@ -6747,7 +6754,7 @@
       if(dist >= minDist || dist <= 0.0001) continue;
 
       // Siege Weapons: spiked cards punch through bumpers and clear the top row.
-      if(ball.card && ball.card.spikes && siegeWeaponsUnlocked() && !ball.siegeUsed){
+      if(ball.card && ball.card.spikes && siegeWeaponsActive() && !ball.siegeUsed){
         ball.siegeUsed = true;
         spawnExplosion(closest.x, closest.y, ball.card);
         spawnExplosion(ball.x, ball.y, ball.card);
