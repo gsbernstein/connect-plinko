@@ -2984,7 +2984,8 @@
       title: 'VIP and achievement polish',
       items: [
         'Achievement and VIP perk names updated.',
-        'Siege Weapons can be toggled On/Off in the VIP lounge.'
+        'Siege Weapons can be toggled On/Off in the VIP lounge.',
+        'Card Counting now multiplies your level payout mult by the product of paired cards on the board.'
       ]
     },
     {
@@ -3921,10 +3922,10 @@
     {
       id: 'cardCounting',
       name: 'Card Counting',
-      desc: 'Hand payouts gain a bonus for every duplicate card on the table (same rank and suit).',
-      baseCost: 6,
-      costScale: 1.9,
-      maxLevel: 8
+      desc: 'Multiply your level payout mult by the product of every paired card on the board (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
+      baseCost: 90,
+      costScale: 1,
+      maxLevel: 1
     },
     {
       id: 'pinSplit',
@@ -3977,6 +3978,7 @@
   let boardTilt = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
+  let countingUiTimer = 0;
   let achievementProgShown = Object.create(null); // achievement id -> last painted numerator
   let questClaimed = Object.create(null); // achievement id -> claimed tier count
   let activeQuests = []; // rolled run quests in slots
@@ -5033,36 +5035,63 @@
     return blindMultiplier('hands');
   }
 
-  // Extra copies of the same rank+suit on the settled board (multi-deck duplicates).
-  function boardDuplicateExtras(){
+  function cardCountKey(card){
+    if(isWild(card)) return card.rank + 'W';
+    return card.rank + card.suit;
+  }
+
+  function cardCountingGroups(){
     const counts = Object.create(null);
-    if(!grid) return 0;
+    const samples = Object.create(null);
+    if(!grid) return [];
     for(let c = 0; c < COLS; c++){
       for(let r = 0; r < ROWS; r++){
         const card = grid[c][r];
         if(!card) continue;
-        const key = isWild(card) ? (card.rank + 'W') : (card.rank + card.suit);
+        const key = cardCountKey(card);
         counts[key] = (counts[key] || 0) + 1;
+        if(!samples[key]) samples[key] = card;
       }
     }
-    let extras = 0;
+    const groups = [];
     for(const key in counts){
-      if(counts[key] > 1) extras += counts[key] - 1;
+      const count = counts[key];
+      if(count >= 2){
+        groups.push({ card: samples[key], count });
+      }
     }
-    return extras;
+    groups.sort((a, b) => b.count - a.count || a.card.rank - b.card.rank);
+    return groups;
   }
 
-  // Card Counting: +8% hand payout per duplicate extra per VIP level.
-  function cardCountingMultiplier(){
-    const lvl = prestigeLevel('cardCounting');
-    if(!lvl) return 1;
-    const extras = boardDuplicateExtras();
-    if(!extras) return 1;
-    return 1 + extras * 0.08 * lvl;
+  function cardCountingFactor(){
+    if(!prestigeLevel('cardCounting')) return 1;
+    const groups = cardCountingGroups();
+    if(!groups.length) return 1;
+    let product = 1;
+    for(const group of groups) product *= group.count;
+    return product;
+  }
+
+  function cardCountingCardLabel(card, count){
+    return count + '×' + cardFace(card);
+  }
+
+  function effectiveMetaMultiplier(){
+    return runMetaMultiplier() * cardCountingFactor();
   }
 
   function handPayoutMultiplier(){
-    return scoreMultiplier() * runMetaMultiplier() * cardCountingMultiplier();
+    return scoreMultiplier() * effectiveMetaMultiplier();
+  }
+
+  function scheduleCountingUiRefresh(){
+    if(!prestigeLevel('cardCounting')) return;
+    clearTimeout(countingUiTimer);
+    countingUiTimer = setTimeout(()=>{
+      updateShopUI();
+      updatePrestigeUI();
+    }, 80);
   }
 
   function chainBonus(){
@@ -5108,7 +5137,7 @@
     const parts = [];
     const blind = blindMultiplier(category);
     if(blind > 1) parts.push(formatMultShort(blind) + ' Blind');
-    const meta = runMetaMultiplier();
+    const meta = effectiveMetaMultiplier();
     if(meta > 1) parts.push(formatMultShort(meta) + ' mult');
     return parts;
   }
@@ -5143,18 +5172,18 @@
 
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? Math.floor(lvl * blindMultiplier('pin') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * blindMultiplier('pin') * effectiveMetaMultiplier()) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * effectiveMetaMultiplier()) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
-    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * effectiveMetaMultiplier()) : 0;
   }
 
   function suitBombCooldownMs(){
@@ -5891,7 +5920,7 @@
           : 'Paused';
       case 'bigBlind': {
         if(!lvl) return 'No bonus';
-        const meta = runMetaMultiplier();
+        const meta = effectiveMetaMultiplier();
         return withMultLabels(
           blindSpreadEffectText(),
           meta > 1 ? [formatMultShort(meta) + ' mult'] : []
@@ -6007,10 +6036,14 @@
         return lvl ? 'Hidden Ace in every hand' : 'Play fair';
       case 'cardCounting':{
         if(!lvl) return 'No count bonus';
-        const extras = boardDuplicateExtras();
-        const pct = Math.round(8 * lvl);
-        if(!extras) return '+' + pct + '% per duplicate';
-        return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingMultiplier());
+        const groups = cardCountingGroups();
+        if(!groups.length) return 'No paired cards on board';
+        const cards = groups.map(g => cardCountingCardLabel(g.card, g.count)).join(' · ');
+        const factor = cardCountingFactor();
+        const totalMeta = effectiveMetaMultiplier();
+        let text = cards + ' = ' + formatMultShort(factor);
+        if(totalMeta > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
+        return text;
       }
       case 'pinSplit':
         if(!lvl) return 'Normal drops';
@@ -7483,6 +7516,7 @@
     const card = cloneCard(ball.card, {angle});
     grid[col][row] = card;
     markHintsDirty();
+    scheduleCountingUiRefresh();
     if(ball.stackEntry){
       ball.stackEntry.type = 'piece';
       ball.stackEntry.card = cloneCard(card);
@@ -8090,10 +8124,9 @@
     if(purgeSuit) purgeSuitBalls(purgeSuit);
     recomputeBumpers();
     markHintsDirty();
+    scheduleCountingUiRefresh();
     startLoop();
   }
-
-  function boardIsFull(){
     return colHeights.every(h=>h>=ROWS);
   }
 
