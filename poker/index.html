@@ -5146,12 +5146,20 @@
     return Math.max(1, Math.floor(linear * mult));
   }
 
+  function formatCompactSuffix(n){
+    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
+    if(n < 1e12) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
+    if(n < 1e15) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + 'T';
+    return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+  }
+
   function formatMultFactor(v, noun){
     const text = (v % 1 === 0) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
     return '×' + text + ' ' + noun;
   }
 
   function formatMultShort(v){
+    if(v >= 1e6) return '×' + formatCompactSuffix(v);
     if(v % 1 === 0) return '×' + v;
     return '×' + v.toFixed(2).replace(/\.?0+$/, '');
   }
@@ -5924,8 +5932,7 @@
     if(n < 1000) return String(Math.floor(n));
     if(n < 10000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k';
     if(n < 1e6) return Math.floor(n/1000) + 'k';
-    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
-    return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
+    return formatCompactSuffix(n);
   }
 
   function formatInterval(ms){
@@ -6066,10 +6073,13 @@
         const factor = cardCountingFactor();
         const baseMeta = runMetaMultiplier();
         const totalMeta = effectiveMetaMultiplier();
-        let text = cards + ' = ' + formatMultShort(factor);
-        if(baseMeta > 1 && factor > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
-        else if(baseMeta > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
-        return text;
+        const total = baseMeta > 1
+          ? formatMultShort(totalMeta) + ' mult'
+          : formatMultShort(factor);
+        const breakdown = baseMeta > 1
+          ? cards + ' = ' + formatMultShort(factor)
+          : cards;
+        return total + ' (' + breakdown + ')';
       }
       case 'pinSplit':
         if(!lvl) return 'Normal drops';
