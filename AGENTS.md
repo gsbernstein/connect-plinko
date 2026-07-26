@@ -75,7 +75,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `SIEGE_*` | Siege Weapons (toggleable): ~18% spiked cards when On; smash bumpers → top-row clear; Lv2 temporarily breaks pins (`p.broken`) |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
-| `cardCountingGroups` / `cardCountingFactor` / `effectiveMetaMultiplier` / `handPayoutMultiplier` | Card Counting: product of paired rank+suit counts on board multiplies `runMetaMultiplier` |
+| `cardCountingGroups` / `cardCountingFactor` / `cardCountingHandMultiplier` / `boardDuplicateExtras` / `effectiveMetaMultiplier` / `handPayoutMultiplier` | Card Counting: Lv1–8 +8% per duplicate extra on hands; Lv9 product of paired rank+suit counts multiplies `runMetaMultiplier` |
 | `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels) |
 | `upgradeEffectText` / `payoutMultLabels` | Shop effect line; Blind / payout / combo mults on Pin Tip, Rail Tax, Sweep Stakes, Hot Streak, Big Blind |
 | `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (`a_max_combo` uses step 1) |
