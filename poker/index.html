@@ -2983,7 +2983,7 @@
       date: 'Jul 26, 2026',
       title: 'Storm the Beaches blast',
       items: [
-        'Pin-shell explosions hit much harder — nearby chips get launched farther in every direction.'
+        'Pin-shell explosions blast nearby chips outward — bigger radius, stronger shove, fades with distance.'
       ]
     },
     {
@@ -4118,8 +4118,9 @@
   // Storm the Beaches: flood the table, but pins can shell falling cards.
   const STORM_BEACHES_SPAWN_MULT = 1 / 3; // ~3× faster Auto Dealer
   const STORM_BEACHES_EXPLODE_CHANCE = 0.22;
-  const STORM_BEACHES_BLAST_RADIUS = 145;
-  const STORM_BEACHES_BLAST_FORCE = 36;
+  const STORM_BEACHES_BLAST_RADIUS = 280;
+  const STORM_BEACHES_BLAST_FORCE = 70;
+  const STORM_BEACHES_KNOCKBACK_FRAMES = 55;
 
   function stormBeachesSpawnMult(){
     return stormBeachesActive() ? STORM_BEACHES_SPAWN_MULT : 1;
@@ -6969,12 +6970,13 @@
       const dist = Math.hypot(dx, dy);
       if(dist < 0.0001 || dist > R) continue;
       const falloff = 1 - dist / R;
-      const impulse = STORM_BEACHES_BLAST_FORCE * (0.4 + 0.6 * falloff * falloff);
+      const impulse = STORM_BEACHES_BLAST_FORCE * falloff * falloff;
       const nx = dx / dist, ny = dy / dist;
       b.vx += nx * impulse;
       b.vy += ny * impulse;
-      b.vx = Math.max(-30, Math.min(30, b.vx));
-      b.vy = Math.max(-34, Math.min(20, b.vy));
+      b.stormKnockback = Math.max(b.stormKnockback || 0, STORM_BEACHES_KNOCKBACK_FRAMES);
+      b.vx = Math.max(-40, Math.min(40, b.vx));
+      b.vy = Math.max(-40, Math.min(28, b.vy));
       b.spin += (nx > 0 ? 1 : -1) * (0.15 + 0.35 * falloff);
       // A hard upward kick can yank a seating chip back into the pegs.
       if(b.phase === 'grid' && b.vy < -0.5){
@@ -7091,9 +7093,15 @@
       const tiltRad = boardTilt * maxDeg * Math.PI / 180;
       ball.vx += gravity * Math.sin(tiltRad);
       ball.vy += gravity * Math.cos(tiltRad);
-      ball.vy = Math.min(ball.vy, 15);
-      ball.vx += (Math.random()-0.5)*0.18;
-      ball.vx = Math.max(-7, Math.min(7, ball.vx));
+      if(ball.stormKnockback > 0){
+        ball.stormKnockback--;
+        ball.vx = Math.max(-28, Math.min(28, ball.vx));
+        ball.vy = Math.min(ball.vy, 24);
+      } else {
+        ball.vy = Math.min(ball.vy, 15);
+        ball.vx += (Math.random()-0.5)*0.18;
+        ball.vx = Math.max(-7, Math.min(7, ball.vx));
+      }
       ball.x += ball.vx;
       ball.y += ball.vy;
 
