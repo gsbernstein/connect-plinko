@@ -77,12 +77,12 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `boardDuplicateExtras` / `cardCountingMultiplier` / `handPayoutMultiplier` | Card Counting duplicate extras → hand payout mult |
 | `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels) |
 | `upgradeEffectText` / `payoutMultLabels` | Shop effect line; Blind / payout / combo mults on Pin Tip, Rail Tax, Sweep Stakes, Hot Streak, Big Blind |
-| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0` |
+| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (Multiway uses step 1) |
 | `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
 | `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
-| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades |
+| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (Multiway, infinite) |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
 | `heaterChain` / `heaterChainForSave` / `resumeHeaterChain` / `heaterHoldUntilUse` | Persisted Hot Streak steps; restore into `pendingChain` after boot `freshState`; hold skips empty-board expire until next hand |
