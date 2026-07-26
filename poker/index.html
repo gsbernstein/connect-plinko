@@ -6040,9 +6040,11 @@
         if(!groups.length) return 'No paired cards on board';
         const cards = groups.map(g => cardCountingCardLabel(g.card, g.count)).join(' · ');
         const factor = cardCountingFactor();
+        const baseMeta = runMetaMultiplier();
         const totalMeta = effectiveMetaMultiplier();
         let text = cards + ' = ' + formatMultShort(factor);
-        if(totalMeta > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
+        if(baseMeta > 1 && factor > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
+        else if(baseMeta > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
         return text;
       }
       case 'pinSplit':
