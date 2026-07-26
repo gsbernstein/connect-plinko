@@ -2840,7 +2840,7 @@
       if(tier) card.tier = tier;
     }
     // Siege Weapons: some dealt cards grow spikes when the perk is owned.
-    if(siegeWeaponsUnlocked() && Math.random() < SIEGE_SPIKE_CHANCE){
+    if(siegeWeaponsActive() && Math.random() < SIEGE_SPIKE_CHANCE){
       card.spikes = true;
     }
     return card;
@@ -2978,6 +2978,16 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 34,
+      date: 'Jul 26, 2026',
+      title: 'VIP and achievement polish',
+      items: [
+        'Achievement and VIP perk names updated.',
+        'Siege Weapons can be toggled On/Off in the VIP lounge.',
+        'Card Counting now multiplies your level payout mult by the product of paired cards on the board.'
+      ]
+    },
     {
       id: 33,
       date: 'Jul 26, 2026',
@@ -3589,7 +3599,7 @@
       ]
     },
     {
-      id: 'a_straight', kind: 'achievement', name: 'In Order',
+      id: 'a_straight', kind: 'achievement', name: 'All In Order',
       desc: 'Score {n} Straights.',
       stat: 'straights', unlockAt: 1, infinite: true,
       scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 25 },
@@ -3659,7 +3669,7 @@
       ]
     },
     {
-      id: 'a_max_combo', kind: 'achievement', name: 'Multiway',
+      id: 'a_max_combo', kind: 'achievement', name: 'C-Combo',
       desc: 'Reach COMBO ×{n}.',
       stat: 'maxCombo', unlockAt: 1, infinite: true,
       scale: { targetStep: 1, compPerLevel: 2, compCap: 40 },
@@ -3672,7 +3682,7 @@
     },
     {
       id: 'a_floor', kind: 'achievement', name: 'Janitor',
-      desc: 'Trigger {n} floor clears lifetime.',
+      desc: 'Trigger {n} floor clears.',
       stat: 'floorClears', unlockAt: 1, infinite: true,
       scale: { targetGrowth: 2.4, compPerLevel: 1, compCap: 30 },
       tiers: [
@@ -3912,14 +3922,14 @@
     {
       id: 'cardCounting',
       name: 'Card Counting',
-      desc: 'Hand payouts gain a bonus for every duplicate card on the table (same rank and suit).',
-      baseCost: 6,
-      costScale: 1.9,
-      maxLevel: 8
+      desc: 'Multiply your level payout mult by the product of every paired card on the board (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
+      baseCost: 90,
+      costScale: 1,
+      maxLevel: 1
     },
     {
       id: 'pinSplit',
-      name: 'Pin Split',
+      name: 'Percussive Mitosis',
       desc: 'Drops come ~10× slower, but cards bifurcate when they hit a pin — shrinking each bounce, then snapping back to full size in the columns. Toggle On/Off anytime.',
       baseCost: 75,
       costScale: 1,
@@ -3938,17 +3948,18 @@
     {
       id: 'siegeWeapons',
       name: 'Siege Weapons',
-      desc: 'Some cards grow spikes. Spiked cards smash bumpers and clear the whole top row. Upgrade again: spikes can temporarily shatter pins on contact.',
+      desc: 'Some cards grow spikes. Spiked cards smash bumpers and clear the whole top row. Upgrade again: spikes can temporarily shatter pins on contact. Toggle On/Off anytime.',
       baseCost: 55,
       costScale: 2.2,
-      maxLevel: 2
+      maxLevel: 2,
+      toggleable: true
     }
   ];
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -3967,6 +3978,7 @@
   let boardTilt = 0;
   let levelCelebrateTimer = 0;
   let questUiTimer = 0;
+  let countingUiTimer = 0;
   let achievementProgShown = Object.create(null); // achievement id -> last painted numerator
   let questClaimed = Object.create(null); // achievement id -> claimed tier count
   let activeQuests = []; // rolled run quests in slots
@@ -4138,12 +4150,16 @@
     return prestigeLevel('siegeWeapons') > 0;
   }
 
+  function siegeWeaponsActive(){
+    return siegeWeaponsUnlocked() && isAutoEnabled('siegeWeapons');
+  }
+
   function siegeWeaponsLevel(){
     return prestigeLevel('siegeWeapons');
   }
 
   function siegeCanBreakPins(){
-    return siegeWeaponsLevel() >= 2;
+    return siegeWeaponsActive() && siegeWeaponsLevel() >= 2;
   }
 
   function tableTiltUnlocked(){
@@ -4434,6 +4450,15 @@
     tier = tier || achievementActiveTier(def);
     if(!tier) return def.desc || '';
     return (def.desc || '').replace(/\{n\}/g, formatNum(tier.target));
+  }
+
+  function achievementName(def, tier){
+    tier = tier || achievementActiveTier(def);
+    if(def.id === 'a_max_combo' && tier){
+      const n = Math.max(2, tier.target | 0);
+      return 'C-'.repeat(n - 1) + 'Combo';
+    }
+    return def.name;
   }
 
   function achievementKindLabel(def){
@@ -4831,7 +4856,7 @@
     pushPopup({
       x: W / 2,
       y: PEG_ZONE * 0.38,
-      text: 'ACHIEVE · ' + def.name + tierSuffix,
+      text: 'ACHIEVE · ' + achievementName(def, tier) + tierSuffix,
       color: '#F0D78C',
       t0: performance.now(),
       duration: 1400,
@@ -5010,36 +5035,63 @@
     return blindMultiplier('hands');
   }
 
-  // Extra copies of the same rank+suit on the settled board (multi-deck duplicates).
-  function boardDuplicateExtras(){
+  function cardCountKey(card){
+    if(isWild(card)) return card.rank + 'W';
+    return card.rank + card.suit;
+  }
+
+  function cardCountingGroups(){
     const counts = Object.create(null);
-    if(!grid) return 0;
+    const samples = Object.create(null);
+    if(!grid) return [];
     for(let c = 0; c < COLS; c++){
       for(let r = 0; r < ROWS; r++){
         const card = grid[c][r];
         if(!card) continue;
-        const key = isWild(card) ? (card.rank + 'W') : (card.rank + card.suit);
+        const key = cardCountKey(card);
         counts[key] = (counts[key] || 0) + 1;
+        if(!samples[key]) samples[key] = card;
       }
     }
-    let extras = 0;
+    const groups = [];
     for(const key in counts){
-      if(counts[key] > 1) extras += counts[key] - 1;
+      const count = counts[key];
+      if(count >= 2){
+        groups.push({ card: samples[key], count });
+      }
     }
-    return extras;
+    groups.sort((a, b) => b.count - a.count || a.card.rank - b.card.rank);
+    return groups;
   }
 
-  // Card Counting: +8% hand payout per duplicate extra per VIP level.
-  function cardCountingMultiplier(){
-    const lvl = prestigeLevel('cardCounting');
-    if(!lvl) return 1;
-    const extras = boardDuplicateExtras();
-    if(!extras) return 1;
-    return 1 + extras * 0.08 * lvl;
+  function cardCountingFactor(){
+    if(!prestigeLevel('cardCounting')) return 1;
+    const groups = cardCountingGroups();
+    if(!groups.length) return 1;
+    let product = 1;
+    for(const group of groups) product *= group.count;
+    return product;
+  }
+
+  function cardCountingCardLabel(card, count){
+    return count + '×' + cardFace(card);
+  }
+
+  function effectiveMetaMultiplier(){
+    return runMetaMultiplier() * cardCountingFactor();
   }
 
   function handPayoutMultiplier(){
-    return scoreMultiplier() * runMetaMultiplier() * cardCountingMultiplier();
+    return scoreMultiplier() * effectiveMetaMultiplier();
+  }
+
+  function scheduleCountingUiRefresh(){
+    if(!prestigeLevel('cardCounting')) return;
+    clearTimeout(countingUiTimer);
+    countingUiTimer = setTimeout(()=>{
+      updateShopUI();
+      updatePrestigeUI();
+    }, 80);
   }
 
   function chainBonus(){
@@ -5085,7 +5137,7 @@
     const parts = [];
     const blind = blindMultiplier(category);
     if(blind > 1) parts.push(formatMultShort(blind) + ' Blind');
-    const meta = runMetaMultiplier();
+    const meta = effectiveMetaMultiplier();
     if(meta > 1) parts.push(formatMultShort(meta) + ' mult');
     return parts;
   }
@@ -5120,18 +5172,18 @@
 
   function pinHitPayout(){
     const lvl = upgradeLevel('pinPayout');
-    return lvl ? Math.floor(lvl * blindMultiplier('pin') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * blindMultiplier('pin') * effectiveMetaMultiplier()) : 0;
   }
 
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
-    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * effectiveMetaMultiplier()) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
-    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * runMetaMultiplier()) : 0;
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * effectiveMetaMultiplier()) : 0;
   }
 
   function suitBombCooldownMs(){
@@ -5868,7 +5920,7 @@
           : 'Paused';
       case 'bigBlind': {
         if(!lvl) return 'No bonus';
-        const meta = runMetaMultiplier();
+        const meta = effectiveMetaMultiplier();
         return withMultLabels(
           blindSpreadEffectText(),
           meta > 1 ? [formatMultShort(meta) + ' mult'] : []
@@ -5984,10 +6036,16 @@
         return lvl ? 'Hidden Ace in every hand' : 'Play fair';
       case 'cardCounting':{
         if(!lvl) return 'No count bonus';
-        const extras = boardDuplicateExtras();
-        const pct = Math.round(8 * lvl);
-        if(!extras) return '+' + pct + '% per duplicate';
-        return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingMultiplier());
+        const groups = cardCountingGroups();
+        if(!groups.length) return 'No paired cards on board';
+        const cards = groups.map(g => cardCountingCardLabel(g.card, g.count)).join(' · ');
+        const factor = cardCountingFactor();
+        const baseMeta = runMetaMultiplier();
+        const totalMeta = effectiveMetaMultiplier();
+        let text = cards + ' = ' + formatMultShort(factor);
+        if(baseMeta > 1 && factor > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
+        else if(baseMeta > 1) text += ' · ' + formatMultShort(totalMeta) + ' mult';
+        return text;
       }
       case 'pinSplit':
         if(!lvl) return 'Normal drops';
@@ -5999,6 +6057,7 @@
         return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% pin shells';
       case 'siegeWeapons':
         if(!lvl) return 'Smooth rims';
+        if(!isAutoEnabled('siegeWeapons')) return 'Paused';
         if(lvl >= 2){
           return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · smash bumpers & pins';
         }
@@ -6730,7 +6789,7 @@
       if(dist >= minDist || dist <= 0.0001) continue;
 
       // Siege Weapons: spiked cards punch through bumpers and clear the top row.
-      if(ball.card && ball.card.spikes && siegeWeaponsUnlocked() && !ball.siegeUsed){
+      if(ball.card && ball.card.spikes && siegeWeaponsActive() && !ball.siegeUsed){
         ball.siegeUsed = true;
         spawnExplosion(closest.x, closest.y, ball.card);
         spawnExplosion(ball.x, ball.y, ball.card);
@@ -7459,6 +7518,7 @@
     const card = cloneCard(ball.card, {angle});
     grid[col][row] = card;
     markHintsDirty();
+    scheduleCountingUiRefresh();
     if(ball.stackEntry){
       ball.stackEntry.type = 'piece';
       ball.stackEntry.card = cloneCard(card);
@@ -8066,10 +8126,9 @@
     if(purgeSuit) purgeSuitBalls(purgeSuit);
     recomputeBumpers();
     markHintsDirty();
+    scheduleCountingUiRefresh();
     startLoop();
   }
-
-  function boardIsFull(){
     return colHeights.every(h=>h>=ROWS);
   }
 
@@ -9913,7 +9972,7 @@
       btn.classList.toggle('claimable', canClaim);
       btn.classList.toggle('claimed', fullyClaimed);
       btn.classList.add('achievement');
-      btn.querySelector('.quest-name').textContent = stillSecret ? '???' : def.name;
+      btn.querySelector('.quest-name').textContent = stillSecret ? '???' : achievementName(def, tier);
       btn.querySelector('.quest-kind').textContent = stillSecret ? 'Achievement' : achievementKindLabel(def);
       btn.querySelector('.quest-desc').textContent = stillSecret
         ? 'Hidden achievement — keep playing.'
@@ -9971,7 +10030,7 @@
     const tier = achievementActiveTier(def);
     btn.classList.add('achievement');
     btn.dataset.id = def.id;
-    btn.querySelector('.quest-name').textContent = def.secret ? '???' : def.name;
+    btn.querySelector('.quest-name').textContent = def.secret ? '???' : achievementName(def, tier);
     btn.querySelector('.quest-kind').textContent = def.secret ? 'Achievement' : achievementKindLabel(def);
     btn.querySelector('.quest-desc').textContent = def.secret
       ? 'Hidden achievement — keep playing.'
