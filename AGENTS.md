@@ -82,6 +82,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
 | `achievementName` | `a_max_combo` tier title: C-Combo, C-C-Combo… from active tier target |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
+| `QUEST_RARITY_WEIGHTS_BY_INK` / `pickQuestRarity` | Quest Ink level (0–4) indexes per-rarity roll weights; max Ink favors Rare |
 | `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
 | `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (`a_max_combo`, infinite) |
