@@ -2983,7 +2983,7 @@
       date: 'Jul 26, 2026',
       title: 'Storm the Beaches blast',
       items: [
-        'Pin-shell explosions hit much harder — nearby chips get launched farther and higher.'
+        'Pin-shell explosions hit much harder — nearby chips get launched farther in every direction.'
       ]
     },
     {
@@ -6972,7 +6972,7 @@
       const impulse = STORM_BEACHES_BLAST_FORCE * (0.4 + 0.6 * falloff * falloff);
       const nx = dx / dist, ny = dy / dist;
       b.vx += nx * impulse;
-      b.vy += ny * impulse - 7.5 * falloff;
+      b.vy += ny * impulse;
       b.vx = Math.max(-30, Math.min(30, b.vx));
       b.vy = Math.max(-34, Math.min(20, b.vy));
       b.spin += (nx > 0 ? 1 : -1) * (0.15 + 0.35 * falloff);
