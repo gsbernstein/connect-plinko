@@ -3099,7 +3099,7 @@
         'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
         'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and the on-screen cap (120, with rasterized sprites) drops duplicates and weaker hands/combos first; higher-value labels paint on top during busy clears.',
         'Score pops are rasterized once when they spawn, so busy clears draw bitmaps instead of re-stroking glowing text every frame.',
-        'Hand score pops show the hand name only — chip totals stay on the HUD and flying chips.',
+        'Chip amounts on score pops use the same k / M / B / T / Q / scientific shorthand as the HUD.',
         'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — secret achievements Reboot, Quads Full, and Clone Wars (six of a kind+).'
       ]
     },
@@ -9509,7 +9509,7 @@
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + bangs,
+        text: g.name + bangs + ' +' + formatNum(pts),
         color: burnCount > 0
           ? BIG_ROOM_BURN_COLOR
           : brightenColor(g.color || '#ffffff', fx.bright),
