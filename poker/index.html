@@ -3091,16 +3091,10 @@
       date: 'Jul 27, 2026',
       title: 'Crowned kings',
       items: [
-        'King Me kings wear a larger golden crown on the letter K — deep gold with a dark outline and a ruby tip so it reads on the cream K — with another crown for each merge, slamming down onto the letter.',
-        'Kings merge wherever they meet — settled on the board or colliding through the pins.',
+        'Kings merge wherever they meet.',
+        'King Me kings wear a larger golden crown on the letter K.',
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
-        'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
-        'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
-        'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
-        'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and the on-screen cap (120, with rasterized sprites) drops duplicates and weaker hands/combos first; higher-value labels paint on top during busy clears.',
-        'Score pops are rasterized once when they spawn, so busy clears draw bitmaps instead of re-stroking glowing text every frame.',
-        'Chip amounts on hand and King Me pops sit on a smaller second row under the title.',
-        'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — secret achievements Reboot, Quads Full, and Clone Wars (six of a kind+).'
+        'Improvements to score pops rendering and priority.',
       ]
     },
     {
@@ -3108,8 +3102,7 @@
       date: 'Jul 27, 2026',
       title: 'Auto Suit Purge unstuck',
       items: [
-        'Auto Purge no longer sits on ready forever when a suit is flooded with identical Pin Split / Card Counting duplicates.',
-        'Pair-aware targeting still prefers suits that break fewer duplicate extras; it just won’t refuse a crowded suit entirely.'
+        'Fix Auto Purge.',
       ]
     },
     {
@@ -3117,15 +3110,15 @@
       date: 'Jul 27, 2026',
       title: 'Bigger chip readouts',
       items: [
-        'Past Q (quadrillion), chip and mult readouts switch to scientific notation so late-game stacks stay short — no second “Q” for quintillion.'
+        'Past Q (quadrillion), chip and mult readouts switch to scientific notation.'
       ]
     },
     {
       id: 63,
       date: 'Jul 27, 2026',
-      title: 'Cashier’s Cage & deeper table levels',
+      title: 'New uses for chips',
       items: [
-        'New upgrade: Cashier’s Cage — spend chips to bank Cash Out comps (up to Lv 100). Steep costs from the first buy; a late-game sink that feeds VIP instead of printing more chips.',
+        'New upgrade: Cashier’s Cage — spend chips to bank Cash Out comps (up to Lv 100).',
         'Felt Grease goes to Lv 30 (late levels still speed the table, with softer gains). Big Blind to Lv 60 · Premium Cut to Lv 25.'
       ]
     },
@@ -3142,7 +3135,6 @@
       date: 'Jul 27, 2026',
       title: 'Mitosis leaves taps alone',
       items: [
-        'Percussive Mitosis no longer rate-limits board taps — only Auto Dealer is ~10× slower while it is On.',
         'Tap-to-deal works at full speed even with Mitosis active.'
       ]
     },
@@ -3151,8 +3143,7 @@
       date: 'Jul 27, 2026',
       title: 'Steadier achievement cards',
       items: [
-        'Achievement cards no longer reshuffle under the cursor while you browse the list — hover and Claim clicks stay reliable on desktop.',
-        'Progress bars and counts still update live; the list re-sorts when you reopen the tab or a reward becomes claimable.'
+        'Fix flickering and unreliable clicks.'
       ]
     },
     {
@@ -3160,17 +3151,16 @@
       date: 'Jul 27, 2026',
       title: 'Siege column wipe fix',
       items: [
-        'Siege Weapons no longer leaves permanent empty seats after a column slam — the spiked card waits above the grid until the clear finishes, then lands cleanly.',
+        'Siege Weapons no longer leaves permanent empty seats after a column slam.',
         'Column wipes re-check the live stack at explode time so chips that seated during the flash get cleared too.'
       ]
     },
     {
       id: 58,
       date: 'Jul 27, 2026',
-      title: 'Mults on the level tile',
+      title: 'Fix jerky upgrade and perk cards',
       items: [
         'Blind, payout, combo, and Card Counting multipliers now show on the Level HUD tile instead of shop and VIP effect lines.',
-        'Upgrade and perk rows stay a stable length so On/Off toggles no longer jump while cards land.'
       ]
     },
     {
@@ -3188,7 +3178,7 @@
       title: 'King Me merges',
       items: [
         'King Me no longer hops from the bottom row — instead, two kings of the same suit that meet stack into a crowned king.',
-        'Matching stacks keep merging (double king, triple, …) with exponentially bigger chip payouts. Toggle On/Off anytime.'
+        'Matching stacks keep merging (double king, triple, …) with exponentially bigger chip payouts.'
       ]
     },
     {
@@ -3211,45 +3201,18 @@
     {
       id: 53,
       date: 'Jul 27, 2026',
-      title: 'Tighter blast fire',
+      title: 'Fireball improvements',
       items: [
-        'Storm pin shells still shove a wide ring, but fire only lights nearby fallers — not the whole peg field.',
-        'Lit Percussive Mitosis chips keep a matching small flame halo as they split.'
-      ]
-    },
-    {
-      id: 52,
-      date: 'Jul 27, 2026',
-      title: 'Storm shells light fallers',
-      items: [
-        'I Didn\'t Ask How Big the Room Was now lights chips caught in an explosion while they\'re still in the pins — not just settled board cards.',
-        'Lit fallers keep burning after they land.'
-      ]
-    },
-    {
-      id: 51,
-      date: 'Jul 27, 2026',
-      title: 'The explosion is the fireball',
-      items: [
-        'I Didn\'t Ask How Big the Room Was drops the flying fireball sparks — the blast itself lights nearby cards instantly.',
-        'Burn DoT and the +50% per burning card hand bonus are unchanged.'
+        'Cards in the pins can also light on fire.',
+        'Remove flying fireball sparks — the blast itself lights nearby cards instantly.',
       ]
     },
     {
       id: 50,
       date: 'Jul 27, 2026',
-      title: 'Bigger pot milestones',
+      title: 'Pot milestones grow faster',
       items: [
         'Big Pot and Combo Payday targets now jump ~10× per tier after the early milestones — fewer levels for the same huge payouts.'
-      ]
-    },
-    {
-      id: 49,
-      date: 'Jul 27, 2026',
-      title: 'King Me board holes',
-      items: [
-        'Fixed a King Me race that could leave permanent empty seats at the bottom of the board with cards stuck above them.',
-        'Crowned leaps now only land on a column’s free surface, so kings no longer float over gaps.'
       ]
     },
     {
@@ -3275,8 +3238,7 @@
       date: 'Jul 27, 2026',
       title: 'I Didn\'t Ask How Big the Room Was',
       items: [
-        'New expensive VIP perk: explosions cast fireballs that light other cards on fire.',
-        'Burning cards drip chips until they ash out. Toggle On/Off anytime — pairs well with Storm the Beaches.'
+        'New VIP perk: explosions cast fireballs that light other cards on fire.',
       ]
     },
     {
@@ -3294,7 +3256,7 @@
       date: 'Jul 27, 2026',
       title: 'King Me VIP perk',
       items: [
-        'New expensive VIP perk: King Me — kings that reach the bottom row get crowned with a second king on top.',
+        'New VIP perk: King Me — kings that reach the bottom row get crowned with a second king on top.',
         'Crowned kings leap diagonally over cards for big chips, then explode after a few jumps. Toggle On/Off anytime.'
       ]
     },
