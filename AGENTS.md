@@ -89,7 +89,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `QUEST_RARITY_WEIGHTS_BY_INK` / `pickQuestRarity` | Quest Ink level (0–4) indexes per-rarity roll weights; max Ink favors Rare |
 | `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
 | `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
-| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (`a_max_combo`, infinite) |
+| `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` / `maxHandPayout` / `maxComboPayout` / `achievementClaims` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (`a_max_combo`, infinite), best single-hand chip payout (`a_hand_payout`), best COMBO resolve total (`a_combo_payout`), achievement tier claims (`a_claims`) |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
 | `heaterChain` / `heaterChainForSave` / `resumeHeaterChain` / `heaterHoldUntilUse` | Persisted Hot Streak steps; restore into `pendingChain` after boot `freshState`; hold skips empty-board expire until next hand |
