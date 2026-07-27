@@ -233,20 +233,18 @@
     opacity:0.9;
     text-align:right;
   }
-  #chipRateBar .chip-rate-lag[hidden]{display:none !important;}
-  .score.has-chip-rate .chip-rate-lag{
+  #chipRateBar .chip-rate-lag{
     position:absolute;
-    left:0;
+    top:0;
     bottom:0;
-    height:17px;
     width:2px;
     margin-left:-1px;
     background:#F0D78C;
-    box-shadow:0 0 5px rgba(240,215,140,0.65);
+    box-shadow:0 0 3px rgba(240,215,140,0.5);
     pointer-events:none;
-    z-index:2;
+    z-index:1;
   }
-  .score.has-chip-rate .chip-rate-lag[hidden]{display:none !important;}
+  #chipRateBar .chip-rate-lag[hidden]{display:none !important;}
   .next-card{
     display:flex;
     align-items:center;
@@ -2509,9 +2507,9 @@
             <span class="chip-rate" id="chipRateVal" title="Chips earned per second" hidden>0/s</span>
           </span>
         </div>
-        <span class="chip-rate-lag" id="chipRateLag" hidden></span>
         <div class="upgrade-progress" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true" hidden>
           <span class="upgrade-progress-bought" id="chipRateFill"></span>
+          <span class="chip-rate-lag" id="chipRateLag" hidden></span>
         </div>
       </div>
       <div class="level-pill hud-tile" id="levelBox" role="button" tabindex="0"
@@ -3363,7 +3361,7 @@
       title: 'Slide Rule early + chips/s lag marker',
       items: [
         'Slide Rule is now a top VIP pick — 1 comp for Lv1 chips/s meter, 2 comps for Lv2 log scale.',
-        'When chips/s climbs, a gold tick marks your lagging prior peak while the fill runs ahead.',
+        'When your chips/s peak rises, a gold tick marks the prior peak on the rescaling meter.',
       ]
     },
     {
@@ -7423,14 +7421,14 @@
   // Rolling chips/s from gameplay awards (hands, pin tip, rail tax, floor clear).
   const CHIP_RATE_WINDOW_MS = 5000;
   const CHIP_RATE_UI_MS = 250;
-  const CHIP_RATE_MARK_LERP = 0.07;
+  const CHIP_RATE_MARK_LERP = 0.08;
   let chipEarnSamples = [];
   let lastChipRatePaint = 0;
   let lastChipRateText = '';
   let lastChipRatePct = -1;
   let lastChipRateMarkPct = -1;
   let lastChipRateShown = null;
-  let chipRateMarkPeak = 0;
+  let chipRateMarkDenom = 0;
 
   function noteChipEarn(amount, now){
     amount = Math.floor(amount);
@@ -7478,7 +7476,7 @@
     lastChipRatePct = -1;
     lastChipRateMarkPct = -1;
     lastChipRateShown = null;
-    chipRateMarkPeak = 0;
+    chipRateMarkDenom = 0;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
     if(chipRateFillEl){
       chipRateFillEl.style.left = '0%';
@@ -7489,11 +7487,6 @@
       chipRateLagEl.hidden = true;
     }
     syncChipRateVisibility();
-  }
-
-  function chipRateBarMax(rate){
-    const peak = stats.maxChipRate || 0;
-    return Math.max(peak, rate, chipRateMarkPeak, 1);
   }
 
   function chipRateFillPct(rate, max){
@@ -7513,6 +7506,7 @@
     if(scoreBoxEl) scoreBoxEl.classList.toggle('has-chip-rate', show);
     if(chipRateValEl) chipRateValEl.hidden = !show;
     if(chipRateBarEl) chipRateBarEl.hidden = !show;
+    if(chipRateLagEl) chipRateLagEl.hidden = !show;
     return show;
   }
 
@@ -7524,23 +7518,25 @@
     if(!force && now - lastChipRatePaint < CHIP_RATE_UI_MS) return;
     lastChipRatePaint = now;
     const rate = currentChipRate(now);
-    const barMax = chipRateBarMax(rate);
+    const max = stats.maxChipRate || 0;
     const logScale = slideRuleLogScale();
-    const pct = chipRateFillPct(rate, barMax);
+    if(force && chipRateMarkDenom <= 0 && max > 0) chipRateMarkDenom = max;
+    const pct = max > 0 ? chipRateFillPct(rate, max) : 0;
     if(chipRateBarEl){
       chipRateBarEl.title = logScale
-        ? 'Chips/s vs your peak (log scale); gold tick = lagging prior peak'
-        : 'Chips/s vs your peak; gold tick = lagging prior peak';
+        ? 'Chips/s vs your peak (log scale); gold tick = prior peak when scale rises'
+        : 'Chips/s vs your peak; gold tick = prior peak when scale rises';
     }
     if(chipRateFillEl){
       chipRateFillEl.style.left = '0%';
       chipRateFillEl.style.width = pct + '%';
       lastChipRatePct = Math.round(pct);
     }
-    if(chipRateLagEl){
-      const growing = rate > chipRateMarkPeak + 0.05;
-      const markPct = chipRateFillPct(chipRateMarkPeak, barMax);
-      const showMark = growing && rate > 0.05 && (pct - markPct) > 0.4;
+    if(chipRateLagEl && max > 0){
+      if(chipRateMarkDenom <= 0) chipRateMarkDenom = max;
+      const denomGap = max - chipRateMarkDenom;
+      const markPct = chipRateFillPct(chipRateMarkDenom, max);
+      const showMark = denomGap > 0.5;
       if(showMark){
         const roundedMark = Math.round(markPct * 10) / 10;
         if(roundedMark !== lastChipRateMarkPct){
@@ -7548,14 +7544,10 @@
           chipRateLagEl.style.left = markPct + '%';
         }
         chipRateLagEl.hidden = false;
+        chipRateMarkDenom += denomGap * CHIP_RATE_MARK_LERP;
       } else {
         chipRateLagEl.hidden = true;
-      }
-      if(rate > chipRateMarkPeak){
-        if(chipRateMarkPeak <= 0) chipRateMarkPeak = rate;
-        else chipRateMarkPeak += (rate - chipRateMarkPeak) * CHIP_RATE_MARK_LERP;
-      } else {
-        chipRateMarkPeak = rate;
+        chipRateMarkDenom = max;
       }
     }
     if(!chipRateValEl) return;
