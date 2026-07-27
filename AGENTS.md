@@ -69,7 +69,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | Symbol | Purpose |
 |--------|---------|
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
-| `compCage` / `runCompCredit` | Cashier’s Cage: each chip buy banks +1 Cash Out comp (`runCompCredit`); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
+| `compCage` / `runCompCredit` | Cashier’s Cage: each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `connect4`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, `bigRoom`, …). Skill-bonus perks (`houseEdge` → Hot Streak, `quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`; `houseEdge.maxLevel` must match Hot Streak’s cap (10). |
 | `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5); near-miss flush draws shift to 3-card stubs automatically |
 | `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Percussive Mitosis (`pinSplit`): Auto Dealer ~10× slower via `dropSpawnMult` (manual taps unaffected); bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
