@@ -232,6 +232,15 @@
     color:var(--ink-dim);
     opacity:0.9;
     text-align:right;
+    transform-origin:100% 55%;
+  }
+  .chip-rate.rate-pulse{
+    animation:chipRatePulse 0.32s ease-out;
+  }
+  @keyframes chipRatePulse{
+    0%{transform:scale(1);color:var(--ink-dim);}
+    45%{transform:scale(1.14);color:var(--felt-bright);}
+    100%{transform:scale(1);color:var(--ink-dim);}
   }
   .next-card{
     display:flex;
@@ -3342,6 +3351,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
+    {
+      id: 101,
+      date: 'Jul 27, 2026',
+      title: 'Chips/s growth pulse',
+      items: [
+        'Slide Rule chips/s ticks up with a brief scale pulse when the rate rises.',
+      ]
+    },
     {
       id: 100,
       date: 'Jul 27, 2026',
@@ -7400,8 +7417,10 @@
   let chipEarnSamples = [];
   let lastChipRatePaint = 0;
   let lastChipRateText = '';
+  let lastChipRateValue = 0;
   let lastChipRatePct = -1;
   let lastChipRateShown = null;
+  let chipRateHasPainted = false;
 
   function noteChipEarn(amount, now){
     amount = Math.floor(amount);
@@ -7442,12 +7461,23 @@
     return formatNum(rate) + '/s';
   }
 
+  function pulseChipRate(){
+    if(!chipRateValEl) return;
+    chipRateValEl.classList.remove('rate-pulse');
+    void chipRateValEl.offsetWidth;
+    chipRateValEl.classList.add('rate-pulse');
+    clearTimeout(chipRateValEl._ratePulseTimer);
+    chipRateValEl._ratePulseTimer = setTimeout(()=>chipRateValEl.classList.remove('rate-pulse'), 340);
+  }
+
   function resetChipRate(){
     chipEarnSamples = [];
     lastChipRatePaint = 0;
     lastChipRateText = '';
+    lastChipRateValue = 0;
     lastChipRatePct = -1;
     lastChipRateShown = null;
+    chipRateHasPainted = false;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
     if(chipRateFillEl){
       chipRateFillEl.style.left = '0%';
@@ -7503,8 +7533,12 @@
     if(!chipRateValEl) return;
     const text = formatChipRate(rate);
     if(text === lastChipRateText) return;
+    const grew = chipRateHasPainted && rate > lastChipRateValue;
     lastChipRateText = text;
+    lastChipRateValue = rate;
+    chipRateHasPainted = true;
     chipRateValEl.textContent = text;
+    if(grew) pulseChipRate();
   }
 
   function awardChips(amount, origin){
