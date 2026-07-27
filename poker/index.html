@@ -2983,6 +2983,16 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 38,
+      date: 'Jul 27, 2026',
+      title: 'Hot Streak & deal upgrades',
+      items: [
+        'Hot Streak caps at Lv 10 — late levels added little when combo climbs fast.',
+        'Auto Dealer stays cheap through Lv 6, then shifts to a pricier curve for top speed.',
+        'Multi Deal is back: each level adds a 25% chance per auto deal for an extra card; above 100% can deal multiple.'
+      ]
+    },
+    {
       id: 37,
       date: 'Jul 26, 2026',
       title: 'Card Counting tiers',
@@ -3339,7 +3349,20 @@
       costScale: 1.58,
       maxLevel: 12,
       unlockAt: 1,
-      toggleable: true
+      toggleable: true,
+      // Cheap through Lv 6 (~400ms); pricier curve for Lv 7–12 top speed.
+      costLateAt: 6,
+      costLateBase: 380,
+      costLateScale: 2.12
+    },
+    {
+      id: 'multiDeal',
+      name: 'Multi Deal',
+      desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple.',
+      baseCost: 280,
+      costScale: 2.35,
+      maxLevel: 12,
+      unlockAt: 4
     },
     {
       id: 'bigBlind',
@@ -3356,7 +3379,7 @@
       desc: '+1 effective chain multiplier per level.',
       baseCost: 120,
       costScale: 2.0,
-      maxLevel: 50,
+      maxLevel: 10,
       unlockAt: 4
     },
     {
@@ -5049,13 +5072,35 @@
     // Cost tracks effective level (purchased + VIP bonus), so perk levels raise the curve.
     const lvl = upgradeLevel(def.id);
     if(lvl >= def.maxLevel) return Infinity;
-    return Math.floor(def.baseCost * Math.pow(def.costScale, lvl) * upgradeCostMult());
+    const lateAt = def.costLateAt | 0;
+    let raw;
+    if(lateAt > 0 && lvl >= lateAt){
+      const lateLvl = lvl - lateAt;
+      raw = def.costLateBase * Math.pow(def.costLateScale, lateLvl);
+    } else {
+      raw = def.baseCost * Math.pow(def.costScale, lvl);
+    }
+    return Math.floor(raw * upgradeCostMult());
   }
 
   function prestigeUpgradeCost(def){
     const lvl = prestigeLevel(def.id);
     if(lvl >= def.maxLevel) return Infinity;
     return Math.floor(def.baseCost * Math.pow(def.costScale, lvl));
+  }
+
+  const MULTI_DEAL_CHANCE_PER_LEVEL = 0.25;
+
+  function multiDealChance(){
+    return upgradeLevel('multiDeal') * MULTI_DEAL_CHANCE_PER_LEVEL;
+  }
+
+  function rollMultiDealExtras(){
+    const chance = multiDealChance();
+    if(chance <= 0) return 0;
+    const guaranteed = Math.floor(chance);
+    const remainder = chance - guaranteed;
+    return guaranteed + (remainder > 0 && Math.random() < remainder ? 1 : 0);
   }
 
   function autoDropIntervalMs(){
@@ -6056,6 +6101,12 @@
         return isAutoEnabled('autoDealer')
           ? ('Every ' + formatInterval(autoDropIntervalMs()))
           : 'Paused';
+      case 'multiDeal': {
+        if(!lvl) return 'One card per tick';
+        const chance = multiDealChance();
+        const pct = (chance * 100).toFixed(chance < 0.1 ? 1 : 0).replace(/\.0$/, '');
+        return pct + '% extra card chance';
+      }
       case 'bigBlind': {
         if(!lvl) return 'No bonus';
         const meta = effectiveMetaMultiplier();
@@ -6735,6 +6786,20 @@
     return best;
   }
 
+  function autoDropOnce(reserved){
+    if(balls.length >= MAX_AUTO_DROP_BALLS) return false;
+    const col = pickAutoColumn(reserved);
+    if(col < 0){
+      // Board packed — still deal into the peg zone; pucks bounce until
+      // a floor clear or hand resolve opens a slot.
+      dropAt(Math.random() * (W - 28) + 14, {auto: true});
+    } else {
+      dropAt(col*CELL + CELL/2, {auto: true, autoCol: col});
+      reserved[col]++;
+    }
+    return true;
+  }
+
   function tryAutoDrop(){
     const intervalTicks = autoDropIntervalTicks();
     if(!Number.isFinite(intervalTicks)) return;
@@ -6743,13 +6808,10 @@
     if(balls.length >= MAX_AUTO_DROP_BALLS) return;
 
     const reserved = columnReservations();
-    const col = pickAutoColumn(reserved);
-    if(col < 0){
-      // Board packed — still deal into the peg zone; pucks bounce until
-      // a floor clear or hand resolve opens a slot.
-      dropAt(Math.random() * (W - 28) + 14, {auto: true});
-    } else {
-      dropAt(col*CELL + CELL/2, {auto: true, autoCol: col});
+    if(!autoDropOnce(reserved)) return;
+    let extras = rollMultiDealExtras();
+    while(extras-- > 0){
+      if(!autoDropOnce(reserved)) break;
     }
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
@@ -9748,9 +9810,13 @@
     }
     const blocked = balls.length >= MAX_AUTO_DROP_BALLS;
     if(autoStatusValEl){
+      const dealChance = multiDealChance();
+      const extraLabel = dealChance > 0
+        ? (' +' + (dealChance * 100).toFixed(dealChance < 0.1 ? 1 : 0).replace(/\.0$/, '') + '%')
+        : '';
       autoStatusValEl.textContent = blocked
         ? 'waiting…'
-        : formatInterval(autoDropIntervalMs());
+        : formatInterval(autoDropIntervalMs()) + extraLabel;
     }
     if(autoStatusFillEl){
       const t = blocked
