@@ -2970,7 +2970,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 23;
+  const SAVE_VERSION = 24;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2982,6 +2982,15 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 44,
+      date: 'Jul 27, 2026',
+      title: 'Suit Purge fix',
+      items: [
+        'Buying Auto Purge no longer pauses Suit Purge — it only collapses the suit picker like before.',
+        'Older saves that hid the picker via the old toggle are migrated so purges stay armed.'
+      ]
+    },
     {
       id: 43,
       date: 'Jul 27, 2026',
@@ -6548,6 +6557,14 @@
       if(typeof data.suitBombPickerMinimized === 'boolean'){
         suitBombPickerMinimized = data.suitBombPickerMinimized;
       }
+      // v24: picker hide vs arm/disarm split — old false toggles and Auto Purge buy paused purges.
+      if((data.v || 0) < 24 && autoEnabled.suitBomb === false){
+        const autoPurgeBuyBug = prestigeLevel('autoSuitBomb') > 0 && !suitBombPickerMinimized;
+        if((data.v || 0) < 23 || autoPurgeBuyBug){
+          suitBombPickerMinimized = true;
+          autoEnabled.suitBomb = true;
+        }
+      }
       runLevel = runLevelFromLifetime(lifetime);
       if(typeof data.runCompCredit === 'number' && data.runCompCredit >= 0){
         runCompCredit = Math.floor(data.runCompCredit);
@@ -6887,7 +6904,7 @@
     prestigeUpgrades[id] = lvl + 1;
     bumpStat('prestigeBought', 1);
     // First Auto Purge unlock: collapse the manual picker (minimized charge bar).
-    if(id === 'autoSuitBomb' && lvl === 0) autoEnabled.suitBomb = false;
+    if(id === 'autoSuitBomb' && lvl === 0) suitBombPickerMinimized = true;
     // VIP skill bonuses may cap purchasable room — clamp bought levels.
     for(const uDef of UPGRADE_DEFS){
       upgrades[uDef.id] = Math.min(purchasedLevel(uDef.id), maxPurchasableLevel(uDef.id));
