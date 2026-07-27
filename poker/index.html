@@ -2990,6 +2990,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 55,
+      date: 'Jul 27, 2026',
+      title: 'Count every card in play',
+      items: [
+        'Card Counting now tallies duplicates across the whole table — settled board cards, chips still falling through the pins, and mid-leap crowned kings.',
+        'Multi Deal caps at 150% extra-card chance (Lv 6).'
+      ]
+    },
+    {
       id: 54,
       date: 'Jul 27, 2026',
       title: 'Connect 4',
@@ -3494,10 +3503,10 @@
     {
       id: 'multiDeal',
       name: 'Multi Deal',
-      desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple.',
+      desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.',
       baseCost: 280,
       costScale: 2.35,
-      maxLevel: 12,
+      maxLevel: 6,
       unlockAt: 4
     },
     {
@@ -4158,7 +4167,7 @@
     {
       id: 'cardCounting',
       name: 'Card Counting',
-      desc: 'Lv1–8: +8% hand payout per duplicate on the board per level. Lv9: multiply your level payout mult by paired-card products (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
+      desc: 'Lv1–8: +8% hand payout per duplicate in play per level (board + falling chips). Lv9: multiply your level payout mult by paired-card products (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
       baseCost: 6,
       costScale: 1.9,
       maxLevel: 9
@@ -5525,18 +5534,31 @@
     return card.rank + card.suit;
   }
 
-  // Extra copies of the same rank+suit on the settled board (multi-deck duplicates).
-  function boardDuplicateExtras(){
-    const counts = Object.create(null);
-    if(!grid) return 0;
-    for(let c = 0; c < COLS; c++){
-      for(let r = 0; r < ROWS; r++){
-        const card = grid[c][r];
-        if(!card) continue;
-        const key = cardCountKey(card);
-        counts[key] = (counts[key] || 0) + 1;
+  // Every card still in play: settled board, falling chips, and mid-leap King Me.
+  function forEachInPlayCard(fn){
+    if(grid){
+      for(let c = 0; c < COLS; c++){
+        for(let r = 0; r < ROWS; r++){
+          const card = grid[c][r];
+          if(card) fn(card);
+        }
       }
     }
+    for(const b of balls){
+      if(b && b.card && !b.exploded) fn(b.card);
+    }
+    for(const j of kingJumpers){
+      if(j && j.card) fn(j.card);
+    }
+  }
+
+  // Extra copies of the same rank+suit among cards in play (multi-deck duplicates).
+  function boardDuplicateExtras(){
+    const counts = Object.create(null);
+    forEachInPlayCard(card => {
+      const key = cardCountKey(card);
+      counts[key] = (counts[key] || 0) + 1;
+    });
     let extras = 0;
     for(const key in counts){
       if(counts[key] > 1) extras += counts[key] - 1;
@@ -5547,16 +5569,11 @@
   function cardCountingGroups(){
     const counts = Object.create(null);
     const samples = Object.create(null);
-    if(!grid) return [];
-    for(let c = 0; c < COLS; c++){
-      for(let r = 0; r < ROWS; r++){
-        const card = grid[c][r];
-        if(!card) continue;
-        const key = cardCountKey(card);
-        counts[key] = (counts[key] || 0) + 1;
-        if(!samples[key]) samples[key] = card;
-      }
-    }
+    forEachInPlayCard(card => {
+      const key = cardCountKey(card);
+      counts[key] = (counts[key] || 0) + 1;
+      if(!samples[key]) samples[key] = card;
+    });
     const groups = [];
     for(const key in counts){
       const count = counts[key];
@@ -5599,7 +5616,7 @@
   }
 
   function scheduleCountingUiRefresh(){
-    if(prestigeLevel('cardCounting') < 9) return;
+    if(prestigeLevel('cardCounting') <= 0) return;
     clearTimeout(countingUiTimer);
     countingUiTimer = setTimeout(()=>{
       updateShopUI();
@@ -6591,11 +6608,11 @@
         if(lvl < 9){
           const extras = boardDuplicateExtras();
           const pct = Math.round(8 * Math.min(lvl, 8));
-          if(!extras) return '+' + pct + '% per duplicate';
+          if(!extras) return '+' + pct + '% per duplicate in play';
           return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingHandMultiplier());
         }
         const groups = cardCountingGroups();
-        if(!groups.length) return 'No paired cards on board';
+        if(!groups.length) return 'No paired cards in play';
         const cards = groups.map(g => cardCountingCardLabel(g.card, g.count)).join(' · ');
         const factor = cardCountingFactor();
         const baseMeta = runMetaMultiplier();
@@ -7660,6 +7677,7 @@
     parent.spin -= 0.12;
     twin.spin += 0.12;
     balls.push(twin);
+    scheduleCountingUiRefresh();
   }
 
   function applyStormBlast(origin){
@@ -7714,6 +7732,7 @@
   function sweepExplodedBalls(){
     if(!balls.some(b => b.exploded)) return;
     balls = balls.filter(b => !b.exploded);
+    scheduleCountingUiRefresh();
   }
 
   function dropInColumn(col){
@@ -7756,6 +7775,7 @@
     };
     balls.push(ball);
     noteCardDropped();
+    scheduleCountingUiRefresh();
     startLoop();
     refreshButtons();
   }
@@ -8446,6 +8466,7 @@
       });
     }
     j.phase = 'done';
+    scheduleCountingUiRefresh();
   }
 
   function stepKingJumpers(now){
