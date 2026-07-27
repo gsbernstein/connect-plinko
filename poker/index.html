@@ -2868,6 +2868,11 @@
     return false;
   }
 
+  // Connect 4 VIP: flushes score with 4 suited cards (straights stay at 5).
+  function flushMinLength(){
+    return prestigeLevel('connect4') > 0 ? 4 : 5;
+  }
+
   function evaluateCards(cards){
     const n = cards.length;
     if(n < 3) return null;
@@ -2875,7 +2880,8 @@
     const rankCounts = {};
     for(const r of ranks) rankCounts[r] = (rankCounts[r]||0)+1;
     const counts = Object.values(rankCounts).sort((a,b)=>b-a);
-    const flush = n>=5 && sliceSharesFlushSuit(cards);
+    const flushLen = flushMinLength();
+    const flush = n >= flushLen && sliceSharesFlushSuit(cards);
     const straight = n===5 && isStraightRanks(ranks);
 
     if(n===5 && flush && straight){
@@ -2889,7 +2895,7 @@
     if(n>=5 && counts[0]>=5) return {name:'FIVE OF A KIND', points:14};
     if(n>=4 && counts[0]>=4) return {name:'FOUR OF A KIND', points:6};
     if(n===5 && counts[0]===3 && counts[1]===2) return {name:'FULL HOUSE', points:5};
-    if(n===5 && flush) return {name:'FLUSH', points:4};
+    if(n >= flushLen && flush) return {name:'FLUSH', points:4};
     if(n===5 && straight) return {name:'STRAIGHT', points:3};
     if(n>=3 && counts[0]>=3) return {name:'THREE OF A KIND', points:2};
     if(n===4 && counts[0]===2 && counts[1]===2) return {name:'TWO PAIR', points:1};
@@ -2988,12 +2994,21 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 54,
+      id: 55,
       date: 'Jul 27, 2026',
       title: 'King Me merges',
       items: [
         'King Me no longer hops from the bottom row — instead, two kings of the same suit that meet stack into a crowned king.',
         'Matching stacks keep merging (double king, triple, …) with exponentially bigger chip payouts. Toggle On/Off anytime.'
+      ]
+    },
+    {
+      id: 54,
+      date: 'Jul 27, 2026',
+      title: 'Connect 4',
+      items: [
+        'New VIP perk: Connect 4 — flushes only need 4 suited cards instead of 5.',
+        'Near-miss flush guides update automatically: three suited cards are one away once you own it.'
       ]
     },
     {
@@ -4142,6 +4157,14 @@
       name: 'Ace Up Your Sleeve',
       desc: 'Each line scores the best 5-card poker hand from its cards plus one invisible Ace. The house looks the other way.',
       baseCost: 100,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'connect4',
+      name: 'Connect 4',
+      desc: 'Flushes only need 4 suited cards instead of 5. Just like the classic game.',
+      baseCost: 90,
       costScale: 1,
       maxLevel: 1
     },
@@ -6567,6 +6590,8 @@
         return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
       case 'aceSleeve':
         return lvl ? 'Hidden Ace in every hand' : 'Play fair';
+      case 'connect4':
+        return lvl ? 'Flushes of 4' : 'Need 5 for a flush';
       case 'cardCounting':{
         if(!lvl) return 'No count bonus';
         if(lvl < 9){
