@@ -3084,7 +3084,8 @@
       items: [
         'King Me kings wear a tiny golden crown on the letter K — another crown stacked on it for each merge (double, triple, …), slamming down onto the K.',
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
-        'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.'
+        'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
+        'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.'
       ]
     },
     {
@@ -7806,6 +7807,14 @@
     }
   }
 
+  // Of-a-kind pop punctuation: five → !?!, six → ‽, seven+ → more interrobangs.
+  function handPopupPunctuation(name, fx){
+    const kindN = parseOfAKindCount(name);
+    if(kindN === 5) return '!?!';
+    if(kindN >= 6) return '‽'.repeat(kindN - 5);
+    return '!'.repeat((fx && fx.bangs) || 0);
+  }
+
   function brightenColor(hex, amount){
     if(!hex || hex[0] !== '#' || (hex.length !== 7 && hex.length !== 4)) return hex || '#ffffff';
     let r, g, b;
@@ -9095,7 +9104,7 @@
       const pts = Math.floor(g.points * cardMult * chainMult * mult);
       const tier = handTextTier(g.name);
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
-      const bangs = '!'.repeat(fx.bangs);
+      const bangs = handPopupPunctuation(g.name, fx);
       const burnCount = g.burnCount || 0;
       const multTag = cardMult > 1.001 ? (' ×' + cardMult.toFixed(2).replace(/\.00$/, '')) : '';
       const sign = Math.random() < 0.5 ? -1 : 1;
