@@ -3087,7 +3087,8 @@
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
-        'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.'
+        'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
+        'CHAIN banners from multi-hand clears stack downward now, then drift up together.'
       ]
     },
     {
@@ -9186,9 +9187,10 @@
 
   function pushChainBanner(mult, t0, stackIndex){
     // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
+    // Stack later banners downward; floatBoost still drifts every label upward.
     pushPopup({
       x: W/2,
-      y: PEG_ZONE * 0.4 - stackIndex * 12,
+      y: PEG_ZONE * 0.4 + stackIndex * 12,
       text: 'CHAIN ×' + mult + '!',
       color: '#ffffff',
       t0,
