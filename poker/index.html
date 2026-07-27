@@ -290,10 +290,21 @@
     display:block !important;
     visibility:hidden;
   }
-  .board-frame{
+  .board-row{
     position:relative;
     width:100%;
     flex:1 1 auto;
+    min-width:0;
+    min-height:0;
+    display:flex;
+    flex-direction:row;
+    align-items:stretch;
+    gap:8px;
+  }
+  .board-frame{
+    position:relative;
+    flex:1 1 auto;
+    min-width:0;
     min-height:0;
     display:flex;
     align-items:center;
@@ -305,6 +316,78 @@
     box-shadow:0 20px 50px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02);
     /* Visible so score popups can hang a little past the felt edge. */
     overflow:visible;
+  }
+  .toggle-dock{
+    flex:0 0 84px;
+    width:84px;
+    min-width:72px;
+    max-width:96px;
+    display:none;
+    flex-direction:column;
+    gap:5px;
+    min-height:0;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:6px 5px;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:14px;
+    box-shadow:0 12px 28px -18px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.02);
+    -webkit-overflow-scrolling:touch;
+  }
+  .toggle-dock.show{display:flex;}
+  .toggle-dock[hidden]{display:none !important;}
+  .toggle-dock-btn{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:2px;
+    margin:0;
+    padding:6px 5px;
+    border-radius:9px;
+    border:1px solid rgba(46,138,110,0.45);
+    background:rgba(46,138,110,0.14);
+    color:var(--felt-bright);
+    cursor:pointer;
+    text-align:left;
+    line-height:1.15;
+    flex:0 0 auto;
+  }
+  .toggle-dock-btn:hover,
+  .toggle-dock-btn:focus-visible{
+    filter:brightness(1.08);
+    outline:none;
+  }
+  .toggle-dock-btn.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.035);
+    color:var(--ink-dim);
+  }
+  .toggle-dock-btn.is-prestige{
+    border-color:rgba(230,195,92,0.5);
+    background:rgba(230,195,92,0.12);
+    color:#F0D78C;
+  }
+  .toggle-dock-btn.is-prestige.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.035);
+    color:var(--ink-dim);
+  }
+  .toggle-dock-name{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .toggle-dock-state{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
   }
   canvas#board{
     display:block;
@@ -851,6 +934,9 @@
       flex-direction:row;
       max-width:1100px;
       margin:0 auto;
+    }
+    .app.has-toggle-dock{
+      max-width:1200px;
     }
     .stage,
     .app.mode-table .stage,
@@ -1457,8 +1543,20 @@
     font-size:12px;
     color:#C9A84A;
     white-space:nowrap;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .comps-pill.is-cashout-ready{
+    border-color:rgba(240,215,140,0.65);
+    box-shadow:0 0 0 1px rgba(240,215,140,0.18);
   }
   .comps-pill[hidden]{display:none !important;}
+  .comps-stack{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:1px;
+    min-width:2ch;
+  }
   .comps-pill b{
     color:#F0D78C;
     font-family:'Space Grotesk',sans-serif;
@@ -1467,6 +1565,25 @@
     display:inline-block;
     min-width:2ch;
     text-align:right;
+  }
+  .comps-stack b{
+    min-width:0;
+    width:100%;
+  }
+  .cashout-rate{
+    display:block;
+    width:100%;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:10px;
+    line-height:1.15;
+    font-variant-numeric:tabular-nums;
+    color:#8A7340;
+    opacity:0.85;
+    text-align:right;
+  }
+  .cashout-rate.is-ready{
+    color:#F0D78C;
+    opacity:1;
   }
   .level-pill{
     display:flex;
@@ -1602,7 +1719,7 @@
       padding-bottom:0;
       overflow:visible;
     }
-    .app.mode-shop .stage .board-frame,
+    .app.mode-shop .stage .board-row,
     .app.mode-shop .stage .suit-bomb{
       display:none !important;
     }
@@ -1650,12 +1767,14 @@
       text-overflow:ellipsis;
       justify-content:center;
     }
-    .score-stack{
+    .score-stack,
+    .comps-stack{
       align-items:center;
       width:100%;
       min-width:0;
     }
-    .chip-rate{
+    .chip-rate,
+    .cashout-rate{
       text-align:center;
       font-size:9px;
     }
@@ -2276,7 +2395,10 @@
       </div>
       <div class="comps-pill hud-tile" id="compsBox" title="VIP comps — spend on permanent perks" hidden>
         <span class="hud-label">Comps</span>
-        <b class="hud-val" id="compsHudVal">0</b>
+        <span class="comps-stack">
+          <b class="hud-val" id="compsHudVal">0</b>
+          <span class="cashout-rate" id="compsCashOutVal" title="Cash Out comps ready to collect">+0</span>
+        </span>
       </div>
       <div class="idle-pill hud-tile" id="autoStatus" role="button" tabindex="0"
            title="Auto Dealer — click to pause or resume" hidden
@@ -2306,13 +2428,16 @@
       <div class="suit-bomb-charge" aria-hidden="true"><span id="suitBombChargeFill"></span></div>
     </div>
 
-    <div class="board-frame">
-      <canvas id="board" width="630" height="960"></canvas>
-      <canvas class="board-popup-layer" id="popupLayer" width="702" height="1032" aria-hidden="true"></canvas>
-      <div class="banner" id="banner">
-        <h2 id="bannerText">Nice hand!</h2>
-        <button id="playAgain">Play again</button>
+    <div class="board-row">
+      <div class="board-frame">
+        <canvas id="board" width="630" height="960"></canvas>
+        <canvas class="board-popup-layer" id="popupLayer" width="702" height="1032" aria-hidden="true"></canvas>
+        <div class="banner" id="banner">
+          <h2 id="bannerText">Nice hand!</h2>
+          <button id="playAgain">Play again</button>
+        </div>
       </div>
+      <aside class="toggle-dock" id="toggleDock" hidden aria-label="Toggle controls"></aside>
     </div>
   </section>
 
@@ -2377,11 +2502,6 @@
           <label class="settings-toggle">
             <span>Show FPS counter</span>
             <input type="checkbox" id="settingShowFps">
-            <span class="settings-toggle-ui" aria-hidden="true">Off</span>
-          </label>
-          <label class="settings-toggle">
-            <span>Near-hand hints</span>
-            <input type="checkbox" id="settingNearHandHints">
             <span class="settings-toggle-ui" aria-hidden="true">Off</span>
           </label>
           <label class="settings-toggle">
@@ -3034,30 +3154,6 @@
     return best;
   }
 
-  // One card shy of a scoring hand — used for faint guide lines on the board.
-  function canCompleteStraight(ranks){
-    const uniq = [...new Set(ranks)];
-    if(uniq.length !== ranks.length || uniq.length !== 4) return false;
-    for(let add=1; add<=13; add++){
-      if(uniq.includes(add)) continue;
-      if(isStraightRanks([...uniq, add])) return true;
-    }
-    return false;
-  }
-
-  function isConnectedStraight3(ranks){
-    const variants = [ranks.slice()];
-    if(ranks.includes(1)) variants.push(ranks.map(r => r===1 ? 14 : r));
-    for(const rs of variants){
-      const u = [...new Set(rs)].sort((a,b)=>a-b);
-      if(u.length !== 3) continue;
-      if(u[2]-u[0]===2 && u[1]-u[0]===1) return true;
-    }
-    // Wheel stub A-2-3
-    const u = [...new Set(ranks)].sort((a,b)=>a-b);
-    return u.length===3 && u[0]===1 && u[1]===2 && u[2]===3;
-  }
-
   // ---- board state ----
   // grid[col][row] = 0 | {suit, rank, angle}
   let grid, colHeights, gameOver;
@@ -3074,7 +3170,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 25;
+  const SAVE_VERSION = 26;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -3085,9 +3181,11 @@
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
+  // Merge/rebase conflict here? Keep master's entries+ids, renumber YOUR new
+  // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
-      id: 68,
+      id: 76,
       date: 'Jul 27, 2026',
       title: 'Bumper bounce fix',
       items: [
@@ -3095,6 +3193,72 @@
         'Cards trapped under a bumper pop back onto the playable side instead of oscillating underneath.',
         'Bumper hits shove nearby cards so a bounce can punch through a pile instead of getting smothered.',
         'Open channels between two bumpers stay passable — cards are no longer yanked back up out of the gap.',
+      ]
+    },
+    {
+      id: 75,
+      date: 'Jul 27, 2026',
+      title: 'Comps Cash Out hint',
+      items: [
+        'The Comps HUD tile now shows how many comps Cash Out will collect, and lights up when you’re ready.',
+      ]
+    },
+    {
+      id: 74,
+      date: 'Jul 27, 2026',
+      title: 'Drop aim stays on the felt',
+      items: [
+        'The drop indicator and next-card preview only show while your cursor is over the board.',
+      ]
+    },
+    {
+      id: 73,
+      date: 'Jul 27, 2026',
+      title: 'Chips/s achievement',
+      items: [
+        'New achievement: Chip Flood — hit peak chips/s on the Chips HUD (infinite tiers).',
+      ]
+    },
+    {
+      id: 72,
+      date: 'Jul 27, 2026',
+      title: 'I Cast Fireball',
+      items: [
+        'VIP fire perk renamed to I Cast Fireball — same blast ignite, clearer name.',
+        'New achievement: I Didn\'t Ask How Big The Room Was — light cards on fire.'
+      ]
+    },
+    {
+      id: 71,
+      date: 'Jul 27, 2026',
+      title: 'Control Booth',
+      items: [
+        'New VIP perk: Control Booth — puts every owned On/Off toggle in a column beside the board.',
+        'Turn the Booth Off anytime to tuck the column away; VIP Lounge still has the full switch list.'
+      ]
+    },
+    {
+      id: 70,
+      date: 'Jul 27, 2026',
+      title: 'Cashier’s Cage later',
+      items: [
+        'Cashier’s Cage now unlocks at run Lv 200 — a deep late-game chip sink, not a mid-run VIP shortcut.',
+      ]
+    },
+    {
+      id: 69,
+      date: 'Jul 27, 2026',
+      title: 'Near-miss guides retired',
+      items: [
+        'Removed near-hand hint guides, the Settings toggle, and the Card Sense VIP perk (owners get 4 comps back).',
+      ]
+    },
+    {
+      id: 68,
+      date: 'Jul 27, 2026',
+      title: 'Multi Deal mid-game',
+      items: [
+        'Multi Deal now unlocks at run Lv 8 (was Lv 4) and costs more up front — a mid-table spike for extra auto deals, not an early rush.',
       ]
     },
     {
@@ -3687,10 +3851,10 @@
       id: 'multiDeal',
       name: 'Multi Deal',
       desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.',
-      baseCost: 280,
+      baseCost: 1500,
       costScale: 2.35,
       maxLevel: 6,
-      unlockAt: 4
+      unlockAt: 8
     },
     {
       id: 'bigBlind',
@@ -3813,7 +3977,7 @@
       baseCost: 500000,
       costScale: 2.2,
       maxLevel: 100,
-      unlockAt: 10,
+      unlockAt: 200,
       costLateAt: 20,
       costLateBase: 3528000000000,
       costLateScale: 2.5
@@ -4160,6 +4324,19 @@
       ]
     },
     {
+      id: 'a_chip_rate', kind: 'achievement', name: 'Chip Flood',
+      desc: 'Reach {n} chips/s.',
+      stat: 'maxChipRate', unlockAt: 1, infinite: true,
+      // Same ~10× infinite curve as Big Pot / Combo Payday — income scales with mults.
+      scale: { targetGrowth: 10, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 30 },
+      tiers: [
+        { target: 10, reward: { chips: 100 } },
+        { target: 50, reward: { comps: 1 } },
+        { target: 250, reward: { comps: 2 } },
+        { target: 1000, reward: { comps: 4 } }
+      ]
+    },
+    {
       id: 'a_floor', kind: 'achievement', name: 'Janitor',
       desc: 'Trigger {n} floor clears.',
       stat: 'floorClears', unlockAt: 1, infinite: true,
@@ -4228,6 +4405,18 @@
         { target: 10, reward: { comps: 2 } },
         { target: 50, reward: { comps: 4 } },
         { target: 200, reward: { comps: 6 } }
+      ]
+    },
+    {
+      id: 'a_big_room', kind: 'achievement', name: 'I Didn\'t Ask How Big The Room Was',
+      desc: 'Light {n} cards on fire.',
+      stat: 'cardsIgnited', secret: true, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 100, chipGrowth: 1.3, compCap: 30 },
+      tiers: [
+        { target: 10, reward: { chips: 200, comps: 1 } },
+        { target: 50, reward: { comps: 2 } },
+        { target: 200, reward: { comps: 4 } },
+        { target: 1000, reward: { comps: 6 } }
       ]
     },
     {
@@ -4361,14 +4550,6 @@
       maxLevel: 4
     },
     {
-      id: 'cardSense',
-      name: 'Card Sense',
-      desc: 'Auto-drops aim toward near-miss columns.',
-      baseCost: 4,
-      costScale: 1,
-      maxLevel: 1
-    },
-    {
       id: 'autoSuitBomb',
       name: 'Auto Purge',
       desc: 'Automatically cast Suit Purge on the most crowded suit. Toggle On/Off anytime.',
@@ -4391,6 +4572,15 @@
       name: 'Pit Boss',
       desc: 'Automatically buy the cheapest affordable table upgrades each tick. Toggle On/Off anytime.',
       baseCost: 12,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'controlBooth',
+      name: 'Control Booth',
+      desc: 'Show every owned toggle in a column to the right of the board. Toggle On/Off anytime to hide the column.',
+      baseCost: 6,
       costScale: 1,
       maxLevel: 1,
       toggleable: true
@@ -4457,7 +4647,7 @@
     },
     {
       id: 'bigRoom',
-      name: 'I Didn\'t Ask How Big the Room Was',
+      name: 'I Cast Fireball',
       desc: 'Explosions light nearby cards on fire — including chips still falling through the pins. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. King Me merges spark a blast too. Toggle On/Off anytime.',
       baseCost: 80,
       costScale: 1,
@@ -4478,8 +4668,27 @@
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom', 'shortFuse'];
+  const AUTO_TOGGLE_IDS = [
+    'autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'controlBooth',
+    'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom', 'shortFuse'
+  ];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
+  // Board-side Control Booth column — short labels; order is display order.
+  const TOGGLE_DOCK_DEFS = [
+    { id: 'autoDealer', short: 'Deal', source: 'upgrade', autoManual: true },
+    { id: 'shortFuse', short: 'Fuse', source: 'upgrade' },
+    { id: 'suitBomb', short: 'Suits', source: 'upgrade', picker: true },
+    { id: 'autoSuitBomb', short: 'Purge', source: 'prestige', autoManual: true },
+    { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
+    { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
+    { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
+    { id: 'pinSplit', short: 'Mitosis', source: 'prestige' },
+    { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
+    { id: 'siegeWeapons', short: 'Siege', source: 'prestige' },
+    { id: 'kingMe', short: 'King Me', source: 'prestige' },
+    { id: 'bigRoom', short: 'Fire', source: 'prestige' },
+    { id: 'controlBooth', short: 'Booth', source: 'prestige' }
+  ];
   let comps = 0;
   let prestigeCount = 0;
   let runLevel = 1;
@@ -4487,8 +4696,6 @@
   let autoDropTicks = 0;
   let lastAutoDropAt = 0;
   let lastIdleDrawAt = 0;
-  let nearMissCache = null;
-  let hintsDirty = true;
   let suitBombReadyAt = 0;
   let suitBombPickerMinimized = false;
   let pendingSuitBomb = null;
@@ -4526,8 +4733,8 @@
     quadsFull: 0, fullerHouses: 0, fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
-    maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, achievementClaims: 0,
-    sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
+    maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, maxChipRate: 0, achievementClaims: 0,
+    sleeveHands: 0, cardsIgnited: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
     runFlushes: 0, runStraights: 0, runFullHouses: 0, runFullerHouses: 0, runQuadsFull: 0,
@@ -4537,7 +4744,6 @@
   let stats = Object.assign({}, EMPTY_STATS);
   const DEFAULT_SETTINGS = {
     showFps: false,
-    nearHandHints: false,
     chipAnimation: true
   };
   let gameSettings = Object.assign({}, DEFAULT_SETTINGS);
@@ -4549,7 +4755,6 @@
       const data = JSON.parse(raw);
       if(!data || typeof data !== 'object') return;
       if(typeof data.showFps === 'boolean') gameSettings.showFps = data.showFps;
-      if(typeof data.nearHandHints === 'boolean') gameSettings.nearHandHints = data.nearHandHints;
       if(typeof data.chipAnimation === 'boolean') gameSettings.chipAnimation = data.chipAnimation;
     }catch(_){ /* ignore */ }
   }
@@ -4565,7 +4770,6 @@
     gameSettings[key] = !!on;
     persistSettings();
     syncSettingsUI();
-    if(key === 'nearHandHints') markHintsDirty();
     startLoop();
   }
 
@@ -4574,11 +4778,6 @@
       settingShowFpsEl.checked = !!gameSettings.showFps;
       const ui = settingShowFpsEl.nextElementSibling;
       if(ui) ui.textContent = gameSettings.showFps ? 'On' : 'Off';
-    }
-    if(settingNearHandHintsEl){
-      settingNearHandHintsEl.checked = !!gameSettings.nearHandHints;
-      const ui = settingNearHandHintsEl.nextElementSibling;
-      if(ui) ui.textContent = gameSettings.nearHandHints ? 'On' : 'Off';
     }
     if(settingChipAnimationEl){
       settingChipAnimationEl.checked = gameSettings.chipAnimation !== false;
@@ -4610,6 +4809,7 @@
     updatePrestigeUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateToggleDockUI();
     if(on && id === 'pitBoss') maybeAutoBuy(performance.now());
     if(on && id === 'questDesk') maybeAutoClaimQuests(performance.now());
     if(on && id === 'autoDealer') lastAutoDropAt = performance.now();
@@ -4620,6 +4820,24 @@
       if(on) activateTableTilt(true);
       else deactivateTableTilt();
     }
+  }
+
+  function controlBoothActive(){
+    return prestigeLevel('controlBooth') > 0 && isAutoEnabled('controlBooth');
+  }
+
+  function toggleDockItemOwned(def){
+    if(def.source === 'upgrade') return upgradeLevel(def.id) > 0;
+    return prestigeLevel(def.id) > 0;
+  }
+
+  function toggleDockFullName(def){
+    if(def.source === 'upgrade'){
+      const u = UPGRADE_DEFS.find(d => d.id === def.id);
+      return u ? u.name : def.short;
+    }
+    const p = PRESTIGE_DEFS.find(d => d.id === def.id);
+    return p ? p.name : def.short;
   }
 
   function pinSplitUnlocked(){
@@ -4752,7 +4970,7 @@
     return cells;
   }
 
-  // I Didn't Ask How Big the Room Was: the explosion IS the fireball — instant radius ignite.
+  // I Cast Fireball: the explosion IS the fireball — instant radius ignite.
   const BIG_ROOM_BLAST_IGNITE_R = 145; // settled neighbors + diagonals (CELL=90)
   // Fallers use a tighter ring than Storm's shove (280) so pin shells don't torch the whole field.
   const BIG_ROOM_FLIGHT_IGNITE_R = 110;
@@ -6673,6 +6891,14 @@
     let i = 0;
     while(i < chipEarnSamples.length && chipEarnSamples[i].t < cutoff) i++;
     if(i) chipEarnSamples.splice(0, i);
+    // Peak chips/s for Chip Flood (same 5s window as the HUD rate).
+    let sum = 0;
+    for(const s of chipEarnSamples) sum += s.n;
+    const rate = Math.floor(sum / (CHIP_RATE_WINDOW_MS / 1000));
+    if(rate > (stats.maxChipRate || 0)){
+      stats.maxChipRate = rate;
+      scheduleContractsUI();
+    }
   }
 
   function currentChipRate(now){
@@ -7118,8 +7344,6 @@
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
         return lvl ? ('Up to ' + label) : 'Common quests only';
       }
-      case 'cardSense':
-        return lvl ? 'Aiming near hands' : 'Random columns';
       case 'autoSuitBomb':
         if(!lvl) return suitBombUnlocked() ? 'Manual only' : 'Needs Suit Purge';
         return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
@@ -7129,6 +7353,9 @@
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
         return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
+      case 'controlBooth':
+        if(!lvl) return 'Toggles stay in the lounge';
+        return isAutoEnabled('controlBooth') ? 'Toggles beside the board' : 'Paused';
       case 'aceSleeve':
         return lvl ? 'Hidden Ace in every hand' : 'Play fair';
       case 'connect4':
@@ -7266,16 +7493,20 @@
         const migrated = Math.min(autoDef.maxLevel, Math.floor(data.upgrades.multiDeal));
         if(migrated > upgradeLevel('autoDealer')) upgrades.autoDealer = migrated;
       }
-      // Card Sense / Auto Purge moved from table upgrades to VIP perks.
+      // Auto Purge moved from table upgrades to VIP perks.
       if(data.upgrades && typeof data.upgrades === 'object'){
-        if(typeof data.upgrades.cardSense === 'number' && data.upgrades.cardSense > 0){
-          if(prestigeLevel('cardSense') < 1) prestigeUpgrades.cardSense = 1;
-          upgrades.cardSense = 0;
-        }
         if(typeof data.upgrades.autoSuitBomb === 'number' && data.upgrades.autoSuitBomb > 0){
           if(prestigeLevel('autoSuitBomb') < 1) prestigeUpgrades.autoSuitBomb = 1;
           upgrades.autoSuitBomb = 0;
         }
+      }
+      // Retired Card Sense (VIP + legacy shop) — refund historical 4-comp cost once.
+      if((data.v || 0) < 26){
+        const vipSense = data.prestigeUpgrades && typeof data.prestigeUpgrades.cardSense === 'number'
+          ? Math.floor(data.prestigeUpgrades.cardSense) : 0;
+        const shopSense = data.upgrades && typeof data.upgrades.cardSense === 'number'
+          ? Math.floor(data.upgrades.cardSense) : 0;
+        if(vipSense > 0 || shopSense > 0) comps += 4;
       }
       // Felt Grease used to speed clears too — grant matching Short Fuse levels once.
       if((data.v || 0) < 17 && purchasedLevel('shortFuse') <= 0 && purchasedLevel('feltGrease') > 0){
@@ -7493,6 +7724,7 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateToggleDockUI();
     updateSettingsChangelogBadge();
     // Reset is launched from Settings (always unlocked), so tab gating alone
     // won't leave FTUE — jump back to the first-run default panel.
@@ -7527,6 +7759,7 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateToggleDockUI();
     // Spend Seed Stack / free levels into the rack immediately if Pit Boss is owned.
     maybeAutoBuy(performance.now());
     return true;
@@ -7569,6 +7802,7 @@
     updatePrestigeUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateToggleDockUI();
   }
 
   function tryAutoBuyUpgrades(){
@@ -7643,6 +7877,7 @@
       updatePrestigeUI();
       updateAutoStatus();
       updateSuitBombUI(now, true);
+      updateToggleDockUI();
       if(result.ids.includes('compCage')){
         const btn = upgradeButtons.compCage;
         const n = result.ids.filter(id => id === 'compCage').length;
@@ -7674,26 +7909,14 @@
     updateShopUI();
     updatePrestigeUI();
     updateAutoStatus();
+    updateToggleDockUI();
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
     if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
     if(id === 'autoSuitBomb') updateSuitBombUI(performance.now(), true);
-    if((id === 'autoSuitBomb' || id === 'cardSense') && !resolving && !looping){
+    if(id === 'autoSuitBomb' && !resolving && !looping){
       startLoop();
     }
     if(id === 'tableTilt') activateTableTilt(true);
-  }
-
-  function markHintsDirty(){
-    hintsDirty = true;
-  }
-
-  function getNearMisses(){
-    if(!gameSettings.nearHandHints) return [];
-    if(hintsDirty || !nearMissCache){
-      nearMissCache = findNearMisses();
-      hintsDirty = false;
-    }
-    return nearMissCache;
   }
 
   function columnReservations(){
@@ -7717,26 +7940,7 @@
       if(colHeights[c] + reserved[c] < ROWS) open.push(c);
     }
     if(!open.length) return -1;
-    if(!prestigeLevel('cardSense')){
-      return open[(Math.random()*open.length)|0];
-    }
-    // Prefer columns that sit on a near-miss empty cell, then any open col.
-    const hints = getNearMisses();
-    const scores = Object.fromEntries(open.map(c => [c, Math.random()*0.3]));
-    for(const h of hints){
-      for(const [c, r] of h.cells){
-        if(grid[c][r]) continue;
-        const nextRow = colHeights[c] + reserved[c];
-        if(nextRow !== r) continue;
-        if(scores[c] === undefined) continue;
-        scores[c] += 2 + (h.priority || 0) * 0.15;
-      }
-    }
-    let best = open[0], bestScore = -1;
-    for(const c of open){
-      if(scores[c] > bestScore){ bestScore = scores[c]; best = c; }
-    }
-    return best;
+    return open[(Math.random()*open.length)|0];
   }
 
   function autoDropOnce(reserved){
@@ -7797,7 +8001,6 @@
     fpsFrameCount = 0;
     lastFpsSampleTime = 0;
     lastPhysicsSteps = 0;
-    markHintsDirty();
     shoe = makeDeck().concat(makeDeck());
     nextCard = dealCard();
     updateNextUI();
@@ -8152,9 +8355,9 @@
     }
   }
 
-  // Suit color only when the hand is suit-defined. Straights match near-miss
-  // PEG guides; rank/pattern hands use ivory→gold by strength so a mixed
-  // trips line never reads as a flush connector.
+  // Suit color only when the hand is suit-defined. Straights use peg purple;
+  // rank/pattern hands use ivory→gold by strength so a mixed trips line
+  // never reads as a flush connector.
   function handGroupColor(name, cards){
     if(name === 'FLUSH' || name === 'STRAIGHT FLUSH' || name === 'ROYAL FLUSH'){
       return flushHintColor(cards);
@@ -8228,6 +8431,8 @@
   let looping = false;
   let resolveLooping = false;
   let aimX = W/2;
+  let aimVisible = false; // drop indicator only while pointer is over the board
+  let pointerDown = false;
   const PHYSICS_HZ = 60;
   const PHYSICS_DT = 1 / PHYSICS_HZ;
   const MAX_PHYSICS_STEPS = 20; // catch-up cap per frame after a hitch
@@ -8593,7 +8798,6 @@
     }
     for(let r=0;r<ROWS;r++) grid[c][r] = col[r];
     colHeights[c] = stack[c].length;
-    markHintsDirty();
   }
 
   const GRID_SETTLE_FRAMES = 150;
@@ -8885,13 +9089,12 @@
     const angle = ball.angle || 0;
     const card = cloneCard(ball.card, {angle});
     grid[col][row] = card;
-    markHintsDirty();
     scheduleCountingUiRefresh();
     ball.stackEntry.type = 'piece';
     ball.stackEntry.card = cloneCard(card);
     ball.stackEntry.angle = angle;
     delete ball.stackEntry.ball;
-    // Big Room: chips lit by peg/board blasts keep burning once they seat.
+    // I Cast Fireball: chips lit by peg/board blasts keep burning once they seat.
     if(ball.pendingBurn){
       igniteStackEntry(ball.stackEntry, col, row, {
         silent: true,
@@ -9004,7 +9207,6 @@
     if(bigRoomActive()){
       spawnExplosion(x, y, merged);
     }
-    markHintsDirty();
     scheduleCountingUiRefresh();
     startLoop();
   }
@@ -9097,21 +9299,18 @@
     if(stackIdx < 0 || stackIdx >= stack[col].length){
       rebuildColumnFromStack(col);
       recomputeBumpers();
-      markHintsDirty();
       return null;
     }
     const entry = stack[col][stackIdx];
     if(!entry || entry.type !== 'piece'){
       rebuildColumnFromStack(col);
       recomputeBumpers();
-      markHintsDirty();
       return null;
     }
     const card = entry.card;
     stack[col].splice(stackIdx, 1);
     rebuildColumnFromStack(col);
     recomputeBumpers();
-    markHintsDirty();
     return card;
   }
 
@@ -9250,207 +9449,6 @@
       }
     }
     return groups;
-  }
-
-  // Scan contiguous runs for patterns that are one card away from scoring.
-  // Returns guide lines sorted strongest-first (flush draw > straight > pair).
-  function findNearMisses(){
-    const dirs = [[1,0],[0,1],[1,1],[1,-1]];
-    const hints = [];
-    const seen = new Set();
-
-    function pushHint(cells, kind, label, color, priority){
-      const key = kind + '|' + cells.map(([c,r])=>c+','+r).join(';');
-      if(seen.has(key)) return;
-      // Skip if every cell is already flashing in a real hand clear
-      if(flashCells && cells.every(([c,r]) => flashCells.has(c+','+r))) return;
-      seen.add(key);
-      hints.push({cells, kind, label, color, priority});
-    }
-
-    for(const [dx,dy] of dirs){
-      for(let c=0;c<COLS;c++){
-        for(let r=0;r<ROWS;r++){
-          if(!grid[c][r]) continue;
-          const pc = c-dx, pr = r-dy;
-          if(pc>=0 && pc<COLS && pr>=0 && pr<ROWS && grid[pc][pr]) continue;
-
-          const cells = [];
-          const cards = [];
-          let cc=c, cr=r;
-          while(cc>=0 && cc<COLS && cr>=0 && cr<ROWS && grid[cc][cr]){
-            cells.push([cc,cr]);
-            cards.push(grid[cc][cr]);
-            cc+=dx; cr+=dy;
-          }
-          if(cards.length < 2) continue;
-
-          const scoringMask = new Array(cards.length).fill(false);
-          for(let len=5; len>=3; len--){
-            if(cards.length < len) continue;
-            for(let i=0;i<=cards.length-len;i++){
-              if(!evaluateHandSlice(cards.slice(i, i+len))) continue;
-              for(let k=i;k<i+len;k++) scoringMask[k]=true;
-            }
-          }
-
-          // Same-cell flush+straight draws collapse to one "SF" hint so
-          // labels never stack on top of each other.
-          const sfWindows = new Set();
-
-          if(cards.length >= 4){
-            for(let i=0;i<=cards.length-4;i++){
-              const slice = cards.slice(i, i+4);
-              const sliceCells = cells.slice(i, i+4);
-              if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              const sameSuit = sliceSharesFlushSuit(slice);
-              const straightish = canCompleteStraight(slice.map(card => card.rank));
-              if(sameSuit && straightish){
-                sfWindows.add('4:'+i);
-                pushHint(sliceCells, 'sf4', 'SF', flushHintColor(slice), 50);
-              } else if(sameSuit){
-                pushHint(sliceCells, 'flush4', 'flush', flushHintColor(slice), 40);
-              } else if(straightish){
-                pushHint(sliceCells, 'straight4', 'straight', PEG, 35);
-              }
-            }
-          }
-
-          if(cards.length >= 3){
-            for(let i=0;i<=cards.length-3;i++){
-              const slice = cards.slice(i, i+3);
-              const sliceCells = cells.slice(i, i+3);
-              if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              // Covered by a 4-card SF window that includes this stub
-              if(sfWindows.has('4:'+i) || sfWindows.has('4:'+(i-1))) continue;
-              const sameSuit = sliceSharesFlushSuit(slice);
-              const straightish = isConnectedStraight3(slice.map(card => card.rank));
-              if(sameSuit && straightish){
-                pushHint(sliceCells, 'sf3', 'SF', flushHintColor(slice), 28);
-              } else if(sameSuit){
-                pushHint(sliceCells, 'flush3', 'flush', flushHintColor(slice), 18);
-              } else if(straightish){
-                pushHint(sliceCells, 'straight3', 'straight', '#B8B0E0', 16);
-              }
-            }
-          }
-
-          // Adjacent pair → one away from trips
-          for(let i=0;i<=cards.length-2;i++){
-            if(scoringMask[i] || scoringMask[i+1]) continue;
-            if(cards[i].rank === cards[i+1].rank){
-              pushHint(
-                cells.slice(i, i+2),
-                'pair',
-                'trips',
-                cardGlowColor(cards[i]),
-                22
-              );
-            }
-          }
-        }
-      }
-    }
-
-    // Prefer stronger draws; drop stubs covered by a longer same-family hint.
-    // SF also suppresses flush/straight on the same cells.
-    function family(kind){
-      if(kind.startsWith('sf')) return 'sf';
-      if(kind.startsWith('flush')) return 'flush';
-      if(kind.startsWith('straight')) return 'straight';
-      return kind;
-    }
-    function coversFamily(keeper, other){
-      const kf = family(keeper.kind), of = family(other.kind);
-      if(kf === of) return true;
-      if(kf === 'sf' && (of === 'flush' || of === 'straight')) return true;
-      return false;
-    }
-
-    hints.sort((a,b)=> b.priority - a.priority);
-    const kept = [];
-    for(const h of hints){
-      const keys = h.cells.map(([c,r])=>c+','+r);
-      const covered = kept.some(k => {
-        if(!coversFamily(k, h)) return false;
-        const set = new Set(k.cells.map(([c,r])=>c+','+r));
-        return keys.every(key => set.has(key));
-      });
-      if(covered) continue;
-      kept.push(h);
-      if(kept.length >= 12) break;
-    }
-    return kept;
-  }
-
-  function drawNearMissHints(){
-    if(!gameSettings.nearHandHints) return;
-    if(gameOver || resolving) return;
-    const hints = getNearMisses();
-    if(!hints.length) return;
-    const lite = perfLite();
-
-    for(const h of hints){
-      const pts = h.cells.map(([c,r]) => cellCenter(c,r));
-      const strong = h.priority >= 30;
-      const alpha = strong ? 0.34 : 0.2;
-      const width = strong ? 2.4 : 1.6;
-
-      ctx.save();
-      ctx.setLineDash(strong ? [6, 6] : [4, 7]);
-      ctx.lineWidth = width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = h.color;
-      ctx.globalAlpha = alpha;
-      if(!lite){
-        ctx.shadowColor = h.color;
-        ctx.shadowBlur = strong ? 10 : 5;
-      }
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
-      ctx.stroke();
-
-      // Soft rings so the linked cards read even when the dash sits on plastic
-      ctx.setLineDash([]);
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = alpha * 0.85;
-      for(const p of pts){
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, HOLE_R - 3, 0, Math.PI*2);
-        ctx.stroke();
-      }
-
-      // Odd-length spans (3, 5, …) have their geometric midpoint on a puck —
-      // park the label in a gap between two neighboring cells instead.
-      const a = pts[0], b = pts[pts.length-1];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const len = Math.hypot(dx, dy) || 1;
-      let mx, my;
-      if(pts.length >= 3 && pts.length % 2 === 1){
-        const m = (pts.length/2)|0;
-        mx = (pts[m-1].x + pts[m].x) / 2;
-        my = (pts[m-1].y + pts[m].y) / 2;
-      } else {
-        mx = (a.x + b.x) / 2;
-        my = (a.y + b.y) / 2;
-      }
-      // Slight sideways nudge off the dash itself
-      const ox = (-dy / len) * 8;
-      const oy = (dx / len) * 8;
-      ctx.globalAlpha = Math.min(0.75, alpha * 1.35);
-      ctx.shadowBlur = 0;
-      ctx.font = "600 11px 'IBM Plex Mono', monospace";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = h.color;
-      ctx.fillText(h.label, mx + ox, my + oy);
-      ctx.restore();
-    }
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-    ctx.setLineDash([]);
   }
 
   // True when cells walk a constant grid step (poker lines, floor row, single-col siege).
@@ -9740,7 +9738,7 @@
         });
       }
     }
-    // Big Room: the blast itself lights nearby settled + in-flight cards instantly.
+    // I Cast Fireball: the blast itself lights nearby settled + in-flight cards instantly.
     if(bigRoomActive() && !opts.noIgnite){
       igniteNearbyFromBlast(x, y, opts.excludeKeys);
     }
@@ -9774,6 +9772,7 @@
     const now = performance.now();
     ball.pendingBurn = true;
     ball.burnStartedAt = now;
+    bumpStat('cardsIgnited', 1);
     pushPopup({
       x: ball.x, y: ball.y - 10,
       text: 'FIRE!',
@@ -9844,6 +9843,8 @@
       nextTickAt: now + BIG_ROOM_BURN_TICK_MS * 0.35,
       startedAt: opts.startedAt || now
     };
+    // Silent = seating a chip already counted via markBallLit.
+    if(!opts.silent) bumpStat('cardsIgnited', 1);
     const pos = cellCenter(col, row);
     if(!opts.silent){
       pushPopup({
@@ -9885,7 +9886,6 @@
     stack[col].splice(stackIndex, 1);
     rebuildColumnFromStack(col);
     recomputeBumpers();
-    markHintsDirty();
     if(!resolving) maybeStartResolve();
   }
 
@@ -10076,7 +10076,6 @@
     const purgeSuit = groups.find(g => g.suitBomb)?.purgeSuit;
     if(purgeSuit) purgeSuitBalls(purgeSuit);
     recomputeBumpers();
-    markHintsDirty();
     scheduleCountingUiRefresh();
     if(!resolving) resolveKingMerges();
     startLoop();
@@ -11132,7 +11131,7 @@
 
     ctx.drawImage(plateCanvas, 0, 0);
 
-    // Big Room burn FX sits above the plastic so flame tongues aren't clipped
+    // I Cast Fireball burn FX sits above the plastic so flame tongues aren't clipped
     // by the plate between holes.
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
@@ -11165,10 +11164,6 @@
       }
       drawBall(b);
     }
-
-    // Near-miss guides sit on top of the plate so the dotted bridges stay
-    // readable between holes (pairs, flush/straight draws).
-    drawNearMissHints();
 
 
     for(const p of particles){
@@ -11285,7 +11280,7 @@
       pctx.restore();
     }
 
-    if(!gameOver && nextCard){
+    if(!gameOver && nextCard && (aimVisible || pointerDown)){
       const c = cardGlowColor(nextCard);
       ctx.save();
       ctx.globalAlpha = 1;
@@ -11317,6 +11312,7 @@
   const runLevelMultEl = document.getElementById('runLevelMult');
   const compsBoxEl = document.getElementById('compsBox');
   const compsHudValEl = document.getElementById('compsHudVal');
+  const compsCashOutValEl = document.getElementById('compsCashOutVal');
   const prestigeCountValEl = document.getElementById('prestigeCountVal');
   const cashOutBtn = document.getElementById('cashOutBtn');
   const cashoutReqEl = document.getElementById('cashoutReq');
@@ -11324,7 +11320,6 @@
   const autoStatusValEl = document.getElementById('autoStatusVal');
   const autoStatusFillEl = document.getElementById('autoStatusFill');
   const settingShowFpsEl = document.getElementById('settingShowFps');
-  const settingNearHandHintsEl = document.getElementById('settingNearHandHints');
   const settingChipAnimationEl = document.getElementById('settingChipAnimation');
   const upgradesEl = document.getElementById('upgrades');
   const prestigeUpgradesEl = document.getElementById('prestigeUpgrades');
@@ -11795,9 +11790,24 @@
 
   function updateCompsHud(){
     if(compsHudValEl) compsHudValEl.textContent = formatNum(comps);
+    const gain = pendingComps();
+    const ready = gain > 0;
+    if(compsCashOutValEl){
+      compsCashOutValEl.textContent = '+' + formatNum(gain);
+      compsCashOutValEl.classList.toggle('is-ready', ready);
+      compsCashOutValEl.title = ready
+        ? ('Cash Out collects +' + formatNum(gain) + ' comps into VIP')
+        : (runLevel < MIN_CASH_OUT_LEVEL
+          ? ('Reach run level ' + MIN_CASH_OUT_LEVEL + ' to Cash Out')
+          : 'Earn Cash Out comps from level and quest rewards');
+    }
     if(compsBoxEl){
       // Stay hidden until the first comp is earned (or spent on VIP perks).
       compsBoxEl.hidden = !vipProgressStarted();
+      compsBoxEl.classList.toggle('is-cashout-ready', ready);
+      compsBoxEl.title = ready
+        ? ('VIP comps — Cash Out ready (+' + formatNum(gain) + ')')
+        : 'VIP comps — spend on permanent perks';
     }
   }
 
@@ -11985,6 +11995,7 @@
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateRailTabAvailability();
+    updateToggleDockUI();
   }
 
   function updateCashOutUI(){
@@ -12046,6 +12057,7 @@
     if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
     setTabBadge('vip', vipReady, ready ? { empty: true, ariaLabel: 'Cash Out ready' } : null);
     updateRailTabAvailability();
+    updateToggleDockUI();
   }
 
   function makeUpgradeButton(def, onBuy, prestige){
@@ -12083,6 +12095,7 @@
           suitBombPickerMinimized = !suitBombPickerMinimized;
           scheduleSave();
           updateSuitBombUI(performance.now(), true);
+          updateShopUI();
         } else {
           setAutoEnabled(def.id, !isAutoEnabled(def.id));
         }
@@ -12387,6 +12400,72 @@
     suitBombPickerMinimized = !suitBombPickerMinimized;
     scheduleSave();
     updateSuitBombUI(performance.now(), true);
+    updateShopUI();
+  }
+
+  let toggleDockOwnedSig = '';
+
+  function updateToggleDockUI(){
+    const dock = document.getElementById('toggleDock');
+    if(!dock) return;
+    const active = controlBoothActive();
+    const owned = active ? TOGGLE_DOCK_DEFS.filter(toggleDockItemOwned) : [];
+    const sig = owned.map(d => d.id).join(',');
+    if(sig !== toggleDockOwnedSig){
+      toggleDockOwnedSig = sig;
+      dock.innerHTML = '';
+      for(const def of owned){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'toggle-dock-btn' + (def.source === 'prestige' ? ' is-prestige' : '');
+        btn.dataset.id = def.id;
+        btn.innerHTML =
+          '<span class="toggle-dock-name"></span>' +
+          '<span class="toggle-dock-state"></span>';
+        btn.querySelector('.toggle-dock-name').textContent = def.short;
+        btn.addEventListener('click', (e)=>{
+          e.preventDefault();
+          if(def.picker){
+            suitBombPickerMinimized = !suitBombPickerMinimized;
+            scheduleSave();
+            updateSuitBombUI(performance.now(), true);
+            updateShopUI();
+          } else {
+            setAutoEnabled(def.id, !isAutoEnabled(def.id));
+          }
+        });
+        dock.appendChild(btn);
+      }
+    }
+    for(const btn of dock.querySelectorAll('.toggle-dock-btn')){
+      const id = btn.dataset.id;
+      const def = TOGGLE_DOCK_DEFS.find(d => d.id === id);
+      if(!def) continue;
+      const stateEl = btn.querySelector('.toggle-dock-state');
+      let on;
+      let label;
+      if(def.picker){
+        on = suitBombUiVisible();
+        label = on ? 'Hide' : 'Show';
+      } else if(def.autoManual){
+        on = isAutoEnabled(id);
+        label = on ? 'Auto' : 'Manual';
+      } else {
+        on = isAutoEnabled(id);
+        label = on ? 'On' : 'Off';
+      }
+      if(stateEl) stateEl.textContent = label;
+      btn.classList.toggle('is-off', !on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const full = toggleDockFullName(def);
+      btn.title = full + ' — ' + label;
+      btn.setAttribute('aria-label', full + ' — ' + label);
+    }
+    const show = active && owned.length > 0;
+    dock.hidden = !show;
+    dock.classList.toggle('show', show);
+    const app = document.getElementById('app');
+    if(app) app.classList.toggle('has-toggle-dock', show);
   }
 
   function buildSuitBombUI(){
@@ -12768,12 +12847,6 @@
       draw();
     });
   }
-  if(settingNearHandHintsEl){
-    settingNearHandHintsEl.addEventListener('change', ()=>{
-      setGameSetting('nearHandHints', settingNearHandHintsEl.checked);
-      draw();
-    });
-  }
   if(settingChipAnimationEl){
     settingChipAnimationEl.addEventListener('change', ()=>{
       setGameSetting('chipAnimation', settingChipAnimationEl.checked);
@@ -12977,15 +13050,22 @@
 
   canvas.addEventListener('mousemove', (e)=>{
     if(inputBlocked() || pointerDown) return;
+    aimVisible = true;
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
     canvas.style.cursor = 'pointer';
     draw();
   });
+  canvas.addEventListener('mouseleave', ()=>{
+    if(!aimVisible) return;
+    aimVisible = false;
+    // Keep drawing while dragging (pointerDown still shows the marker).
+    if(!pointerDown) draw();
+  });
 
-  let pointerDown = false;
   canvas.addEventListener('pointerdown', (e)=>{
     if(inputBlocked()) return;
     pointerDown = true;
+    aimVisible = true;
     canvas.setPointerCapture(e.pointerId);
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
     draw();
@@ -13000,10 +13080,13 @@
     if(!pointerDown) return;
     pointerDown = false;
     if(!inputBlocked()) dropAt(aimX);
+    // Pointer capture can end off-board; hide if the cursor already left.
+    if(!aimVisible) draw();
   }
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', ()=>{
     pointerDown = false;
+    if(!aimVisible) draw();
   });
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';
@@ -13145,6 +13228,7 @@
   updatePrestigeUI();
   updateContractsUI();
   updateSuitBombUI();
+  updateToggleDockUI();
   refreshButtons();
   updateRailTabAvailability();
   setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');

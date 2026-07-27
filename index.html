@@ -656,6 +656,8 @@
   let balls = [];
   let looping = false;
   let aimX = W/2;
+  let aimVisible = false; // drop indicator only while pointer is over the board
+  let pointerDown = false;
   // Gyro tilt (opt-in via "Tilt to steer"): -1..1 lean → peg-zone gravity only.
   const MAX_TILT_DEG = 60;
   let boardTilt = 0;
@@ -1656,7 +1658,7 @@
     }
 
     // aim marker — shows exactly where the next drop will start
-    if(!gameOver){
+    if(!gameOver && (aimVisible || pointerDown)){
       const c = current===1 ? P1 : P2;
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
@@ -1946,15 +1948,22 @@
 
   canvas.addEventListener('mousemove', (e)=>{
     if(inputBlocked() || pointerDown) return;
+    aimVisible = true;
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
     canvas.style.cursor = 'pointer';
     draw();
   });
+  canvas.addEventListener('mouseleave', ()=>{
+    if(!aimVisible) return;
+    aimVisible = false;
+    // Keep drawing while dragging (pointerDown still shows the marker).
+    if(!pointerDown) draw();
+  });
 
-  let pointerDown = false;
   canvas.addEventListener('pointerdown', (e)=>{
     if(inputBlocked()) return;
     pointerDown = true;
+    aimVisible = true;
     canvas.setPointerCapture(e.pointerId);
     aimX = Math.max(BALL_RADIUS, Math.min(W-BALL_RADIUS, canvasX(e)));
     draw();
@@ -1969,10 +1978,13 @@
     if(!pointerDown) return;
     pointerDown = false;
     if(!inputBlocked()) dropAt(aimX);
+    // Pointer capture can end off-board; hide if the cursor already left.
+    if(!aimVisible) draw();
   }
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', ()=>{
     pointerDown = false;
+    if(!aimVisible) draw();
   });
   canvas.style.cursor = 'pointer';
   canvas.style.touchAction = 'none';

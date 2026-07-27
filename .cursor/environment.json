@@ -1,0 +1,17 @@
+{
+  "name": "Connect Plinko",
+  "install": "python3 --version",
+  "terminals": [
+    {
+      "name": "static-server",
+      "command": "python3 -m http.server 8080",
+      "description": "Serves Classic at http://localhost:8080/ and Poker at http://localhost:8080/poker/"
+    }
+  ],
+  "ports": [
+    {
+      "name": "static-server",
+      "port": 8080
+    }
+  ]
+}
