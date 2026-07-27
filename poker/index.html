@@ -3099,7 +3099,7 @@
         'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
         'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and the on-screen cap (120, with rasterized sprites) drops duplicates and weaker hands/combos first; higher-value labels paint on top during busy clears.',
         'Score pops are rasterized once when they spawn, so busy clears draw bitmaps instead of re-stroking glowing text every frame.',
-        'Chip amounts on score pops use the same k / M / B / T / Q / scientific shorthand as the HUD.',
+        'Chip amounts on hand and King Me pops sit on a smaller second row under the title.',
         'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — secret achievements Reboot, Quads Full, and Clone Wars (six of a kind+).'
       ]
     },
@@ -6760,53 +6760,80 @@
   // disappearing into .board-frame clipping.
 
   // Bake stroke + glow + fill once; each frame only drawImage + transform.
+  // Optional `subtext` paints a smaller second row (hand / King Me chip totals).
   function bakePopupSprite(p){
     if(!p || p.text == null) return p;
     const fontSize = p.fontSize || (p.big ? 26 : 16);
+    const sub = (p.subtext != null && String(p.subtext) !== '') ? String(p.subtext) : '';
+    const subSize = sub
+      ? Math.max(10, Math.round(p.subFontSize || fontSize * 0.52))
+      : 0;
     const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
     const lineW = Math.max(4, fontSize * 0.18);
+    const subLineW = sub ? Math.max(2.5, subSize * 0.18) : 0;
     const text = String(p.text);
     const font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+    const subFont = sub ? ('bold ' + subSize + "px 'Space Grotesk', sans-serif") : '';
     ctx.save();
     ctx.font = font;
-    const tw = ctx.measureText(text).width;
+    let tw = ctx.measureText(text).width;
+    if(sub){
+      ctx.font = subFont;
+      tw = Math.max(tw, ctx.measureText(sub).width);
+    }
     ctx.restore();
+    const gap = sub ? Math.max(2, Math.round(fontSize * 0.1)) : 0;
+    const contentH = sub
+      ? (fontSize * 0.78 + gap + subSize * 0.78)
+      : fontSize * 1.35;
     p.textW = tw;
     p._fontSize = fontSize;
+    p._subSize = subSize;
+    p._contentH = contentH;
     p._glow = glow;
     p._lineW = lineW;
     const pad = Math.ceil(glow + lineW + 6);
     const cssW = Math.max(1, Math.ceil(tw + pad * 2));
-    const cssH = Math.max(1, Math.ceil(fontSize * 1.35 + pad * 2));
+    const cssH = Math.max(1, Math.ceil(contentH + pad * 2));
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const c = document.createElement('canvas');
     c.width = Math.max(1, Math.ceil(cssW * dpr));
     c.height = Math.max(1, Math.ceil(cssH * dpr));
     const g = c.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.font = font;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    const cx = cssW / 2;
-    const cy = cssH / 2;
-    g.lineWidth = lineW;
-    g.strokeStyle = 'rgba(8,6,16,0.92)';
     g.lineJoin = 'round';
     g.miterLimit = 2;
-    g.strokeText(text, cx, cy);
-    g.fillStyle = p.color || '#ffffff';
-    g.shadowColor = p.color || '#ffffff';
-    g.shadowBlur = glow;
-    g.fillText(text, cx, cy);
-    // Hot white core on premium pops — baked at rest alpha; outer fade scales it.
-    if(glow >= 24){
-      g.shadowBlur = glow * 0.35;
-      g.globalAlpha = 0.55;
-      g.fillStyle = '#ffffff';
-      g.fillText(text, cx, cy);
-      g.globalAlpha = 1;
+    const cx = cssW / 2;
+    const blockTop = (cssH - contentH) / 2;
+    const titleY = sub
+      ? (blockTop + fontSize * 0.38)
+      : (cssH / 2);
+    const subY = blockTop + fontSize * 0.78 + gap + subSize * 0.38;
+    const stamp = (str, y, fnt, lw, blur, hotCore) => {
+      g.font = fnt;
+      g.lineWidth = lw;
+      g.strokeStyle = 'rgba(8,6,16,0.92)';
+      g.strokeText(str, cx, y);
+      g.fillStyle = p.color || '#ffffff';
+      g.shadowColor = p.color || '#ffffff';
+      g.shadowBlur = blur;
+      g.fillText(str, cx, y);
+      if(hotCore){
+        g.shadowBlur = blur * 0.35;
+        g.globalAlpha = 0.55;
+        g.fillStyle = '#ffffff';
+        g.fillText(str, cx, y);
+        g.globalAlpha = 1;
+      }
+      g.shadowBlur = 0;
+    };
+    stamp(text, titleY, font, lineW, glow, glow >= 24);
+    if(sub){
+      // Softer glow on the chip row so the hand / king title stays the hero.
+      stamp(sub, subY, subFont, subLineW, Math.max(4, glow * 0.55), false);
     }
-    g.shadowBlur = 0;
     p.sprite = c;
     p.spriteW = cssW;
     p.spriteH = cssH;
@@ -6828,12 +6855,18 @@
       ctx.save();
       ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
       tw = ctx.measureText(String(p.text)).width;
+      if(p.subtext){
+        const subSize = p._subSize || Math.max(10, Math.round(fontSize * 0.52));
+        ctx.font = 'bold ' + subSize + "px 'Space Grotesk', sans-serif";
+        tw = Math.max(tw, ctx.measureText(String(p.subtext)).width);
+      }
       ctx.restore();
       p.textW = tw;
     }
     const stroke = p._lineW || Math.max(4, fontSize * 0.18);
+    const contentH = p._contentH || fontSize * 1.1;
     const hw0 = tw * 0.5 + stroke;
-    const hh0 = fontSize * 0.55 + stroke;
+    const hh0 = contentH * 0.5 + stroke;
     const cos = Math.cos(tilt);
     const sin = Math.sin(tilt);
     const pad = glow * 0.25 + 4;
@@ -8881,7 +8914,8 @@
     pushPopup({
       x,
       y: y - 12,
-      text: label + (payout > 0 ? (' +' + formatNum(payout)) : ''),
+      text: label,
+      subtext: payout > 0 ? ('+' + formatNum(payout)) : '',
       color: '#F0D78C',
       t0: performance.now(),
       duration: popupDurationForValue(1100 + Math.min(600, nextStack * 100), payout),
@@ -8890,6 +8924,7 @@
       kingStack: nextStack,
       popPts: payout,
       fontSize: 26 + Math.min(10, nextStack * 2),
+      subFontSize: Math.max(12, Math.round((26 + Math.min(10, nextStack * 2)) * 0.5)),
       floatBoost: 44 + nextStack * 4,
       slam: 1.7 + Math.min(0.5, nextStack * 0.08),
       slamMs: 200,
@@ -9509,13 +9544,15 @@
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + bangs + ' +' + formatNum(pts),
+        text: g.name + bangs,
+        subtext: pts > 0 ? ('+' + formatNum(pts)) : '',
         color: burnCount > 0
           ? BIG_ROOM_BURN_COLOR
           : brightenColor(g.color || '#ffffff', fx.bright),
         t0: now,
         duration: handPopupDuration(g.name, fx, pts),
         fontSize: fx.fontSize,
+        subFontSize: Math.max(11, Math.round(fx.fontSize * 0.52)),
         floatBoost: fx.float,
         tilt: fx.tilt * sign,
         slam: fx.slam,
@@ -11056,13 +11093,19 @@
         pctx.save();
         pctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
         tw = pctx.measureText(p.text).width;
+        if(p.subtext){
+          const subSize = p._subSize || Math.max(10, Math.round(fontSize * 0.52));
+          pctx.font = 'bold ' + subSize + "px 'Space Grotesk', sans-serif";
+          tw = Math.max(tw, pctx.measureText(String(p.subtext)).width);
+        }
         pctx.restore();
         p.textW = tw;
       }
       // Re-clamp with this frame's scale. Labels may hang POPUP_OVERHANG past
       // the felt; shrink only when they'd exceed that hang budget.
+      const contentH = p._contentH || fontSize * 1.1;
       const hw0 = tw * 0.5 + lineW;
-      const hh0 = fontSize * 0.55 + lineW;
+      const hh0 = contentH * 0.5 + lineW;
       const cos = Math.cos(tilt);
       const sin = Math.sin(tilt);
       const pad = glow * 0.25 + 4;
