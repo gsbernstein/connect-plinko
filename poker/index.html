@@ -688,8 +688,17 @@
   .app.mode-table .rails{
     flex:0 0 auto;
   }
-  .app.mode-table .rail-body{
+  .app.mode-table .rail-body-wrap{
     display:none;
+  }
+  .rail-body-wrap{
+    position:relative;
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    min-height:0;
+    flex:1 1 auto;
   }
   .rail-body{
     width:100%;
@@ -699,17 +708,61 @@
     min-width:0;
     min-height:0;
     flex:1 1 auto;
-    overflow-x:hidden;
-    overflow-y:auto;
-    padding:14px 12px 12px;
-    scrollbar-gutter:stable;
-    touch-action:pan-y;
+    overflow:hidden;
   }
-  .rail-body::-webkit-scrollbar{width:8px;}
-  .rail-body::-webkit-scrollbar-track{background:transparent;}
-  .rail-body::-webkit-scrollbar-thumb{
-    background:#3a3558;
+  .shop-scroll-cue{
+    position:absolute;
+    left:50%;
+    z-index:6;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    min-width:44px;
+    min-height:36px;
+    padding:8px 14px;
+    border:1px solid rgba(230,195,92,0.55);
     border-radius:999px;
+    background:rgba(26,22,40,0.94);
+    color:#F0D78C;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    box-shadow:0 6px 18px rgba(0,0,0,0.35);
+    transform:translateX(-50%);
+    cursor:pointer;
+    animation:shopScrollCuePulse 1.4s ease-in-out infinite;
+  }
+  .shop-scroll-cue.is-down{ bottom:10px; }
+  .shop-scroll-cue.is-up{ top:10px; }
+  .shop-scroll-cue:hover{
+    border-color:rgba(240,215,140,0.85);
+    color:#fff3c4;
+  }
+  .shop-scroll-cue[hidden]{display:none !important;}
+  .shop-scroll-cue-arrow{
+    display:inline-block;
+    font-size:15px;
+    line-height:1;
+  }
+  .shop-scroll-cue.is-down .shop-scroll-cue-arrow{
+    animation:shopScrollCueBounceDown 1.1s ease-in-out infinite;
+  }
+  .shop-scroll-cue.is-up .shop-scroll-cue-arrow{
+    animation:shopScrollCueBounceUp 1.1s ease-in-out infinite;
+  }
+  @keyframes shopScrollCuePulse{
+    0%,100%{ box-shadow:0 6px 18px rgba(0,0,0,0.35); }
+    50%{ box-shadow:0 6px 20px rgba(230,195,92,0.28); }
+  }
+  @keyframes shopScrollCueBounceDown{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(3px); }
+  }
+  @keyframes shopScrollCueBounceUp{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-3px); }
   }
   .rail-panel{
     width:100%;
@@ -717,6 +770,19 @@
     flex-direction:column;
     gap:10px;
     min-width:0;
+    min-height:0;
+    flex:1 1 auto;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:14px 12px 12px;
+    scrollbar-gutter:stable;
+    touch-action:pan-y;
+  }
+  .rail-panel::-webkit-scrollbar{width:8px;}
+  .rail-panel::-webkit-scrollbar-track{background:transparent;}
+  .rail-panel::-webkit-scrollbar-thumb{
+    background:#3a3558;
+    border-radius:999px;
   }
   .rail-panel.is-active{display:flex;}
   .shop-head, .prestige-head, .contracts-head{
@@ -963,7 +1029,7 @@
       border-left:1px solid #2a2545;
       background:rgba(23,20,38,0.85);
     }
-    .app.mode-table .rail-body{
+    .app.mode-table .rail-body-wrap{
       display:flex;
     }
     .rail-tab.desktop-hide{display:none !important;}
@@ -1220,6 +1286,20 @@
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    min-width:0;
+  }
+  .upgrade-rec{
+    flex-shrink:0;
+    color:#E6C35C;
+    font-size:12px;
+    line-height:1;
+    text-shadow:0 0 8px rgba(230,195,92,0.35);
+  }
+  .upgrade-name-text{
+    min-width:0;
   }
   .upgrade-top-right{
     display:flex;
@@ -2469,6 +2549,7 @@
   </section>
 
   <aside class="rails" aria-label="Shop">
+    <div class="rail-body-wrap">
     <div class="rail-body" id="railBody">
       <section class="rail-panel welcome-panel" id="panelWelcome" data-panel="welcome" aria-label="Welcome">
         <div class="welcome">
@@ -2546,6 +2627,11 @@
           <button type="button" class="reset" id="resetScores">Reset all progress</button>
         </div>
       </section>
+    </div>
+    <button type="button" class="shop-scroll-cue is-down" id="shopScrollCue" hidden aria-label="New upgrade below">
+      <span class="shop-scroll-cue-arrow" aria-hidden="true">↓</span>
+      <span>New</span>
+    </button>
     </div>
 
     <nav class="rail-tabs" aria-label="Sections">
@@ -3245,12 +3331,78 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
-      id: 80,
+      id: 88,
       date: 'Jul 27, 2026',
       title: 'Snappier score pops',
       items: [
         'Hand, combo, chain, and King Me score labels clear sooner so the board doesn’t stay buried in text.',
         'Big pots still linger a little longer than small ones — just not for several seconds.',
+      ]
+    },
+    {
+      id: 87,
+      date: 'Jul 27, 2026',
+      title: 'Score pops stack on top',
+      items: [
+        'New score labels now slam in above older ones instead of hiding under lingering pops.',
+      ]
+    },
+    {
+      id: 86,
+      date: 'Jul 27, 2026',
+      title: 'Scroll keeps its momentum',
+      items: [
+        'Shop lists no longer reshuffle under your finger mid-fling — upgrades, quests, and achievements wait until scrolling settles.',
+      ]
+    },
+    {
+      id: 85,
+      date: 'Jul 27, 2026',
+      title: 'Smoother tab scrolling',
+      items: [
+        'Rail tabs no longer hitch or snap mid-scroll — each panel scrolls on its own instead of sharing one scroller.',
+      ]
+    },
+    {
+      id: 84,
+      date: 'Jul 27, 2026',
+      title: 'Suits toggle labels',
+      items: [
+        'Suit Purge’s Suits toggle now reads Shown or Hidden to match the picker state.',
+      ]
+    },
+    {
+      id: 83,
+      date: 'Jul 27, 2026',
+      title: 'Shop tab load fix',
+      items: [
+        'Fixed a script error from overlapping shop-tab updates that stopped Poker from loading.',
+      ]
+    },
+    {
+      id: 82,
+      date: 'Jul 27, 2026',
+      title: 'Recommended buy star',
+      items: [
+        'A gold star marks the next recommended shop upgrade or VIP perk you can still buy.',
+        'Shop path: early Auto Dealer → Wild Card → Pin Tip → High Cut → Suit Alliance.',
+        'VIP path: Quest Desk, then Quest Ink.',
+      ]
+    },
+    {
+      id: 81,
+      date: 'Jul 27, 2026',
+      title: 'New upgrade scroll cue',
+      items: [
+        'When a newly unlocked upgrade is offscreen in the shop, a ↓/↑ New button jumps you to it.',
+      ]
+    },
+    {
+      id: 80,
+      date: 'Jul 27, 2026',
+      title: 'Tabs remember scroll',
+      items: [
+        'Each rail tab (Upgrades, Quests, Achieves, VIP, Settings) keeps its own scroll position when you switch away and back.',
       ]
     },
     {
@@ -4078,6 +4230,19 @@
       costLateBase: 3528000000000,
       costLateScale: 2.5
     }
+  ];
+
+  // Guided "next buy" star — first incomplete unlocked step wins (until = effective level target).
+  const SHOP_RECOMMEND_PRIORITY = [
+    { id: 'autoDealer', until: 6 },
+    { id: 'wildCard', until: 1 },
+    { id: 'pinPayout', until: 1 },
+    { id: 'highCut', until: 1 },
+    { id: 'suitCut', until: 2 }
+  ];
+  const VIP_RECOMMEND_PRIORITY = [
+    { id: 'questDesk', until: 1 },
+    { id: 'questInk', until: 4 }
   ];
 
   // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
@@ -5213,6 +5378,28 @@
     if(!def) return false;
     // Sticky after first reveal — Cash Out resets run level, not shop discovery.
     return highestRunLevelReached() >= (def.unlockAt || 1);
+  }
+
+  // Highest-priority incomplete step that is currently available (unlocked / buyable).
+  function recommendedFromPriority(steps, levelFn, availableFn){
+    for(const step of steps){
+      if(availableFn && !availableFn(step.id)) continue;
+      const until = step.until != null ? step.until : 1;
+      if(levelFn(step.id) < until) return step.id;
+    }
+    return null;
+  }
+
+  function recommendedShopUpgradeId(){
+    return recommendedFromPriority(
+      SHOP_RECOMMEND_PRIORITY,
+      upgradeLevel,
+      upgradeUnlocked
+    );
+  }
+
+  function recommendedVipPerkId(){
+    return recommendedFromPriority(VIP_RECOMMEND_PRIORITY, prestigeLevel, null);
   }
 
   function pendingComps(){
@@ -11308,10 +11495,11 @@
     if(popupCtx){
       popupCtx.clearRect(0, 0, popupCanvas.width, popupCanvas.height);
     }
-    // Paint low-worth first so rarer / fatter labels (and big COMBOs) sit on top.
+    // Paint older first so fresh slams sit on top of lingering labels.
+    // Peg-hit ephemerals stay under celebrations; same-t0 ties break by worth.
     const drawPopups = popups
-      .map((p, i) => ({p, i, w: popupWorth(p)}))
-      .sort((a, b) => a.w - b.w || a.i - b.i);
+      .map((p, i) => ({p, i, w: popupWorth(p), t0: p.t0 || 0, eph: p.ephemeral ? 0 : 1}))
+      .sort((a, b) => a.eph - b.eph || a.t0 - b.t0 || a.w - b.w || a.i - b.i);
     for(const {p} of drawPopups){
       const age = nowP - p.t0;
       // Future t0 = staggered chain pops waiting to slam in.
@@ -11459,6 +11647,7 @@
   const questsPanelEl = document.getElementById('panelQuests');
   const achievementsPanelEl = document.getElementById('panelAchievements');
   const vipPanelEl = document.getElementById('panelVip');
+  const shopScrollCueBtn = document.getElementById('shopScrollCue');
   const welcomeToTableBtn = document.getElementById('welcomeToTable');
   const desktopMq = window.matchMedia('(min-width:1000px)');
   const tabBadges = {
@@ -11578,6 +11767,89 @@
     return false;
   }
 
+  function countAffordableUpgrades(){
+    let n = 0;
+    for(const def of UPGRADE_DEFS){
+      if(!upgradeUnlocked(def.id)) continue;
+      const lvl = upgradeLevel(def.id);
+      if(lvl >= def.maxLevel) continue;
+      if(score >= upgradeCost(def)) n++;
+    }
+    return n;
+  }
+
+  function unviewedUpgradeButtons(){
+    const list = [];
+    for(const def of UPGRADE_DEFS){
+      if((def.unlockAt || 1) <= 1) continue;
+      if(!upgradeUnlocked(def.id)) continue;
+      if(seenUnlocks.upgrades.includes(def.id)) continue;
+      const btn = upgradeButtons[def.id];
+      if(btn && !btn.hidden) list.push(btn);
+    }
+    return list;
+  }
+
+  function upgradeInScrollerView(btn, mode){
+    if(!upgradesPanelEl || !btn) return false;
+    const sRect = upgradesPanelEl.getBoundingClientRect();
+    const bRect = btn.getBoundingClientRect();
+    const pad = 8;
+    if(mode === 'below') return bRect.top > sRect.bottom - pad;
+    if(mode === 'above') return bRect.bottom < sRect.top + pad;
+    // Visible if any meaningful slice overlaps the scroller viewport.
+    return bRect.bottom > sRect.top + pad && bRect.top < sRect.bottom - pad;
+  }
+
+  function firstUnviewedUpgradeOffscreen(){
+    if(activeRailPanel !== 'upgrades') return null;
+    let below = null;
+    let above = null;
+    for(const btn of unviewedUpgradeButtons()){
+      if(!below && upgradeInScrollerView(btn, 'below')) below = btn;
+      if(upgradeInScrollerView(btn, 'above')) above = above || btn;
+    }
+    // Prefer the more common "new row lower in the list" case.
+    if(below) return { btn: below, dir: 'down' };
+    if(above) return { btn: above, dir: 'up' };
+    return null;
+  }
+
+  function updateShopScrollCue(){
+    if(!shopScrollCueBtn) return;
+    const target = firstUnviewedUpgradeOffscreen();
+    if(!target){
+      if(!shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = true;
+      return;
+    }
+    const down = target.dir === 'down';
+    const label = down ? 'New upgrade below' : 'New upgrade above';
+    const arrowGlyph = down ? '↓' : '↑';
+    if(shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = false;
+    if(shopScrollCueBtn.classList.contains('is-down') !== down){
+      shopScrollCueBtn.classList.toggle('is-down', down);
+      shopScrollCueBtn.classList.toggle('is-up', !down);
+    }
+    if(shopScrollCueBtn.getAttribute('aria-label') !== label){
+      shopScrollCueBtn.setAttribute('aria-label', label);
+    }
+    const arrow = shopScrollCueBtn.querySelector('.shop-scroll-cue-arrow');
+    if(arrow && arrow.textContent !== arrowGlyph) arrow.textContent = arrowGlyph;
+  }
+
+  function markVisibleUpgradeUnlocksSeen(){
+    if(!upgradesTabUnlocked() || activeRailPanel !== 'upgrades') return false;
+    let changed = false;
+    for(const btn of unviewedUpgradeButtons()){
+      if(!upgradeInScrollerView(btn)) continue;
+      const id = btn.dataset.id;
+      if(!id || seenUnlocks.upgrades.includes(id)) continue;
+      seenUnlocks.upgrades.push(id);
+      changed = true;
+    }
+    return changed;
+  }
+
   function hasNewUnlockBadge(panel){
     if(panel === 'quests') return questsTabUnlocked() && !seenUnlocks.tabs.quests;
     if(panel === 'achievements') return achievementsTabUnlocked() && !seenUnlocks.tabs.achievements;
@@ -11600,14 +11872,8 @@
       seenUnlocks.tabs.vip = true;
       changed = true;
     }
-    if(panel === 'upgrades' && upgradesTabUnlocked()){
-      for(const def of UPGRADE_DEFS){
-        if((def.unlockAt || 1) <= 1) continue;
-        if(!upgradeUnlocked(def.id)) continue;
-        if(seenUnlocks.upgrades.includes(def.id)) continue;
-        seenUnlocks.upgrades.push(def.id);
-        changed = true;
-      }
+    if(panel === 'upgrades'){
+      if(markVisibleUpgradeUnlocksSeen()) changed = true;
     }
     if(changed) scheduleSave();
   }
@@ -11707,6 +11973,12 @@
       achievementOrderBucketSig = '';
       updateAchievementsUI();
     }
+    // Layout may not be ready until after paint when switching panels.
+    requestAnimationFrame(()=>{
+      markPanelUnlocksSeen('upgrades');
+      updateShopScrollCue();
+      if(activeRailPanel === 'upgrades') setTabBadge('upgrades', countAffordableUpgrades());
+    });
   }
 
   for(const tab of railTabs){
@@ -11718,6 +11990,79 @@
   desktopMq.addEventListener('change', ()=>{
     if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
     else setRailPanel(activeRailPanel);
+  });
+  // Re-appending list nodes mid-fling kills scroll momentum — defer while busy.
+  let railScrollBusyUntil = 0;
+  let railScrollFlushTimer = 0;
+  const deferredRailOrders = new Map();
+  let shopScrollCueRaf = 0;
+
+  function noteRailScroll(){
+    railScrollBusyUntil = performance.now() + 220;
+    if(railScrollFlushTimer) clearTimeout(railScrollFlushTimer);
+    railScrollFlushTimer = setTimeout(flushDeferredRailOrders, 240);
+  }
+
+  function railScrollBusy(){
+    return performance.now() < railScrollBusyUntil;
+  }
+
+  function flushDeferredRailOrders(){
+    railScrollFlushTimer = 0;
+    if(railScrollBusy()){
+      railScrollFlushTimer = setTimeout(flushDeferredRailOrders, 40);
+      return;
+    }
+    if(!deferredRailOrders.size) return;
+    const pending = Array.from(deferredRailOrders.entries());
+    deferredRailOrders.clear();
+    for(const [container, ordered] of pending){
+      orderUpgradeButtons(container, ordered);
+    }
+  }
+
+  for(const panel of railPanels){
+    panel.addEventListener('scroll', noteRailScroll, { passive: true });
+  }
+  if(upgradesPanelEl){
+    upgradesPanelEl.addEventListener('scroll', ()=>{
+      if(activeRailPanel !== 'upgrades') return;
+      if(shopScrollCueRaf) return;
+      shopScrollCueRaf = requestAnimationFrame(()=>{
+        shopScrollCueRaf = 0;
+        const changed = markVisibleUpgradeUnlocksSeen();
+        if(changed){
+          scheduleSave();
+          setTabBadge('upgrades', countAffordableUpgrades());
+        }
+        updateShopScrollCue();
+      });
+    }, { passive: true });
+  }
+  if(shopScrollCueBtn){
+    shopScrollCueBtn.addEventListener('click', ()=>{
+      const target = firstUnviewedUpgradeOffscreen();
+      if(!target){
+        updateShopScrollCue();
+        return;
+      }
+      noteRailScroll();
+      target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Mark after the smooth scroll settles so the cue clears once visible.
+      const finish = ()=>{
+        markPanelUnlocksSeen('upgrades');
+        setTabBadge('upgrades', countAffordableUpgrades());
+        updateShopScrollCue();
+      };
+      requestAnimationFrame(()=>requestAnimationFrame(finish));
+      setTimeout(finish, 420);
+    });
+  }
+  window.addEventListener('resize', ()=>{
+    if(activeRailPanel !== 'upgrades') return;
+    markPanelUnlocksSeen('upgrades');
+    setTabBadge('upgrades', countAffordableUpgrades());
+    updateShopScrollCue();
   });
 
   const levelBoxEl = document.getElementById('levelBox');
@@ -11948,7 +12293,16 @@
         if(kids[i] !== ordered[i]){ same = false; break; }
       }
     }
-    if(same) return;
+    if(same){
+      deferredRailOrders.delete(container);
+      return;
+    }
+    // appendChild reorders steal fling/wheel momentum on the rail panels.
+    if(railScrollBusy()){
+      deferredRailOrders.set(container, ordered.slice());
+      return;
+    }
+    deferredRailOrders.delete(container);
     for(const btn of ordered) container.appendChild(btn);
   }
 
@@ -12030,7 +12384,7 @@
       if(canToggle){
         if(def.id === 'suitBomb'){
           const visible = suitBombUiVisible();
-          toggle.textContent = visible ? 'Hide' : 'Show';
+          toggle.textContent = visible ? 'Shown' : 'Hidden';
           toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
           toggle.classList.toggle('is-off', !visible);
         } else {
@@ -12067,12 +12421,22 @@
       costEl.textContent = formatNum(opts.cost) + ' ' + (opts.unit || 'chips');
       costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
     }
+    const recommended = !!opts.recommended && !locked && !maxed;
+    btn.classList.toggle('is-recommended', recommended);
+    const recEl = btn.querySelector('.upgrade-rec');
+    if(recEl){
+      recEl.hidden = !recommended;
+      recEl.setAttribute('aria-hidden', recommended ? 'false' : 'true');
+    }
+    if(recommended) btn.setAttribute('aria-description', 'Recommended next');
+    else btn.removeAttribute('aria-description');
   }
 
   function updateShopUI(){
     const active = [];
     const maxedList = [];
     let affordableCount = 0;
+    const recommendedId = recommendedShopUpgradeId();
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
@@ -12091,11 +12455,12 @@
         canToggle: !!(def.toggleable && lvl > 0),
         effect: upgradeEffectText(def),
         costLabel: 'Unlocks at Lv ' + (def.unlockAt || 1),
-        unit: 'chips'
+        unit: 'chips',
+        recommended: def.id === recommendedId
       });
       btn.hidden = !revealed;
       if(!revealed){
-        btn.classList.remove('affordable', 'maxed', 'just-unlocked');
+        btn.classList.remove('affordable', 'maxed', 'just-unlocked', 'is-recommended');
         continue;
       }
       if(!seenUnlockFlash.has(def.id) && (def.unlockAt || 1) > 1){
@@ -12111,6 +12476,7 @@
     orderUpgradeButtons(upgradesEl, active.concat(maxedList));
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
+    updateShopScrollCue();
     updateRailTabAvailability();
     updateToggleDockUI();
   }
@@ -12151,6 +12517,7 @@
     if(prestigeUpgradesEl){
       const active = [];
       const maxedList = [];
+      const recommendedId = recommendedVipPerkId();
       for(const def of PRESTIGE_DEFS){
         const btn = prestigeButtons[def.id];
         if(!btn) continue;
@@ -12165,7 +12532,8 @@
           canToggle: !!(def.toggleable && lvl > 0),
           effect: prestigeEffectText(def),
           costLabel: needsSuitBomb ? 'Needs Suit Purge' : '',
-          unit: 'comps'
+          unit: 'comps',
+          recommended: def.id === recommendedId
         });
         (maxed ? maxedList : active).push(btn);
       }
@@ -12186,7 +12554,10 @@
     btn.tabIndex = 0;
     btn.innerHTML =
       '<div class="upgrade-top">' +
-        '<span class="upgrade-name"></span>' +
+        '<span class="upgrade-name">' +
+          '<span class="upgrade-rec" hidden aria-hidden="true" title="Recommended next">★</span>' +
+          '<span class="upgrade-name-text"></span>' +
+        '</span>' +
         '<span class="upgrade-top-right">' +
           (def.toggleable
             ? '<button type="button" class="upgrade-toggle" hidden>On</button>'
@@ -12201,7 +12572,7 @@
         '<span class="upgrade-progress-bonus"></span>' +
         '<span class="upgrade-progress-bought"></span>' +
       '</div>';
-    btn.querySelector('.upgrade-name').textContent = def.name;
+    btn.querySelector('.upgrade-name-text').textContent = def.name;
     btn.querySelector('.upgrade-desc').textContent = def.desc;
     const toggle = btn.querySelector('.upgrade-toggle');
     if(toggle){
@@ -12563,7 +12934,7 @@
       let label;
       if(def.picker){
         on = suitBombUiVisible();
-        label = on ? 'Hide' : 'Show';
+        label = on ? 'Shown' : 'Hidden';
       } else if(def.autoManual){
         on = isAutoEnabled(id);
         label = on ? 'Auto' : 'Manual';
@@ -12606,7 +12977,7 @@
       suitBombButtons[s] = btn;
     }
     repaintSuitBombGlyphs();
-    // Tap chrome (title, status, padding) — not the suit buttons — toggles Hide/Show.
+    // Tap chrome (title, status, padding) — not the suit buttons — toggles Shown/Hidden.
     suitBombBar.addEventListener('click', (e)=>{
       if(e.target.closest('.suit-btn')) return;
       toggleSuitBombPicker();
