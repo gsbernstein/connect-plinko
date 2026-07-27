@@ -2983,6 +2983,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 39,
+      date: 'Jul 27, 2026',
+      title: 'Deep Stack to Lv 200',
+      items: [
+        'Deep Stack achievement tiers now span the full run climb through level 200.'
+      ]
+    },
+    {
       id: 38,
       date: 'Jul 27, 2026',
       title: 'Big pots & trophy case',
@@ -3783,8 +3791,10 @@
       stat: 'maxRunLevel', unlockAt: 1,
       tiers: [
         { target: 20, reward: { comps: 3 } },
-        { target: 30, reward: { comps: 4 } },
-        { target: 40, reward: { comps: 6 } }
+        { target: 50, reward: { comps: 4 } },
+        { target: 100, reward: { comps: 6 } },
+        { target: 150, reward: { comps: 8 } },
+        { target: 200, reward: { comps: 12 } }
       ]
     },
     {
