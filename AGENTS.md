@@ -207,6 +207,8 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 **Per-tab scroll:** `#railBody` is `overflow:hidden`; each `.rail-panel` is its own `overflow-y:auto` scroller so tabs keep native `scrollTop` without JS restore (avoids interrupting touch/wheel gestures).
 
+**Scroll momentum:** `noteRailScroll` / `railScrollBusy` defer `orderUpgradeButtons` (`deferredRailOrders` → `flushDeferredRailOrders`) while any rail panel is flinging — chip-tick shop reshuffles were killing momentum. Upgrades scroll cue work is rAF-throttled and skips no-op DOM writes.
+
 **Offscreen new upgrades:** Shop unlocks are marked seen only when their row is in the Upgrades panel viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView` vs `#panelUpgrades`). If an unviewed unlock is offscreen while the Upgrades panel is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below); `updateShopScrollCue` refreshes on shop UI, panel scroll, resize, and panel switches.
 
 ### Physics & board

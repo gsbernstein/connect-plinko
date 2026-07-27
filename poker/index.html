@@ -3331,11 +3331,19 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
-      id: 86,
+      id: 87,
       date: 'Jul 27, 2026',
       title: 'Score pops stack on top',
       items: [
         'New score labels now slam in above older ones instead of hiding under lingering pops.',
+      ]
+    },
+    {
+      id: 86,
+      date: 'Jul 27, 2026',
+      title: 'Scroll keeps its momentum',
+      items: [
+        'Shop lists no longer reshuffle under your finger mid-fling — upgrades, quests, and achievements wait until scrolling settles.',
       ]
     },
     {
@@ -11799,16 +11807,22 @@
     if(!shopScrollCueBtn) return;
     const target = firstUnviewedUpgradeOffscreen();
     if(!target){
-      shopScrollCueBtn.hidden = true;
+      if(!shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = true;
       return;
     }
     const down = target.dir === 'down';
-    shopScrollCueBtn.hidden = false;
-    shopScrollCueBtn.classList.toggle('is-down', down);
-    shopScrollCueBtn.classList.toggle('is-up', !down);
-    shopScrollCueBtn.setAttribute('aria-label', down ? 'New upgrade below' : 'New upgrade above');
+    const label = down ? 'New upgrade below' : 'New upgrade above';
+    const arrowGlyph = down ? '↓' : '↑';
+    if(shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = false;
+    if(shopScrollCueBtn.classList.contains('is-down') !== down){
+      shopScrollCueBtn.classList.toggle('is-down', down);
+      shopScrollCueBtn.classList.toggle('is-up', !down);
+    }
+    if(shopScrollCueBtn.getAttribute('aria-label') !== label){
+      shopScrollCueBtn.setAttribute('aria-label', label);
+    }
     const arrow = shopScrollCueBtn.querySelector('.shop-scroll-cue-arrow');
-    if(arrow) arrow.textContent = down ? '↓' : '↑';
+    if(arrow && arrow.textContent !== arrowGlyph) arrow.textContent = arrowGlyph;
   }
 
   function markVisibleUpgradeUnlocksSeen(){
@@ -11965,12 +11979,52 @@
     if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
     else setRailPanel(activeRailPanel);
   });
+  // Re-appending list nodes mid-fling kills scroll momentum — defer while busy.
+  let railScrollBusyUntil = 0;
+  let railScrollFlushTimer = 0;
+  const deferredRailOrders = new Map();
+  let shopScrollCueRaf = 0;
+
+  function noteRailScroll(){
+    railScrollBusyUntil = performance.now() + 220;
+    if(railScrollFlushTimer) clearTimeout(railScrollFlushTimer);
+    railScrollFlushTimer = setTimeout(flushDeferredRailOrders, 240);
+  }
+
+  function railScrollBusy(){
+    return performance.now() < railScrollBusyUntil;
+  }
+
+  function flushDeferredRailOrders(){
+    railScrollFlushTimer = 0;
+    if(railScrollBusy()){
+      railScrollFlushTimer = setTimeout(flushDeferredRailOrders, 40);
+      return;
+    }
+    if(!deferredRailOrders.size) return;
+    const pending = Array.from(deferredRailOrders.entries());
+    deferredRailOrders.clear();
+    for(const [container, ordered] of pending){
+      orderUpgradeButtons(container, ordered);
+    }
+  }
+
+  for(const panel of railPanels){
+    panel.addEventListener('scroll', noteRailScroll, { passive: true });
+  }
   if(upgradesPanelEl){
     upgradesPanelEl.addEventListener('scroll', ()=>{
       if(activeRailPanel !== 'upgrades') return;
-      markPanelUnlocksSeen('upgrades');
-      setTabBadge('upgrades', countAffordableUpgrades());
-      updateShopScrollCue();
+      if(shopScrollCueRaf) return;
+      shopScrollCueRaf = requestAnimationFrame(()=>{
+        shopScrollCueRaf = 0;
+        const changed = markVisibleUpgradeUnlocksSeen();
+        if(changed){
+          scheduleSave();
+          setTabBadge('upgrades', countAffordableUpgrades());
+        }
+        updateShopScrollCue();
+      });
     }, { passive: true });
   }
   if(shopScrollCueBtn){
@@ -11980,6 +12034,7 @@
         updateShopScrollCue();
         return;
       }
+      noteRailScroll();
       target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       // Mark after the smooth scroll settles so the cue clears once visible.
       const finish = ()=>{
@@ -12226,7 +12281,16 @@
         if(kids[i] !== ordered[i]){ same = false; break; }
       }
     }
-    if(same) return;
+    if(same){
+      deferredRailOrders.delete(container);
+      return;
+    }
+    // appendChild reorders steal fling/wheel momentum on the rail panels.
+    if(railScrollBusy()){
+      deferredRailOrders.set(container, ordered.slice());
+      return;
+    }
+    deferredRailOrders.delete(container);
     for(const btn of ordered) container.appendChild(btn);
   }
 
