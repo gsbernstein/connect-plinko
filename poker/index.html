@@ -1468,6 +1468,11 @@
     margin:0 auto;
     pointer-events:none;
   }
+  /* Suit Alliance: one purge button paints both glyphs side by side. */
+  .suit-btn.pair-suit .suit-glyph{
+    width:30px;
+    height:18px;
+  }
   .suit-btn:hover:not(:disabled){
     transform:translateY(-1px);
     box-shadow:
@@ -2735,12 +2740,14 @@
   function sliceSharesFlushSuit(cards){
     const fixed = cards.filter(c => !isWild(c));
     if(!fixed.length) return true;
-    const s = fixed[0].suit;
-    return fixed.every(c => c.suit === s);
+    const s = suitFamily(fixed[0].suit);
+    return fixed.every(c => suitFamily(c.suit) === s);
   }
   function flushHintColor(cards){
     const fixed = cards.find(c => !isWild(c));
-    return fixed ? SUIT_COLOR[fixed.suit] : WILD_GLOW;
+    if(!fixed) return WILD_GLOW;
+    // Canonical family color so mixed ♥♦ / ♠♣ flushes teach the Suit Alliance merge.
+    return SUIT_COLOR[suitFamily(fixed.suit)] || SUIT_COLOR[fixed.suit] || WILD_GLOW;
   }
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
   // Premium: metallic rim only (face stays suit felt). Rim stops at faceR in bakeChipTexture.
@@ -2995,13 +3002,44 @@
     return arr;
   }
 
-  // Suit Exile removes these in order, always leaving at least two suits.
-  const SUIT_CUT_ORDER = ['♣','♦'];
+  // Suit Alliance allies printed suits for flushes + Suit Purge (deck still deals all four).
+  // Lv1: ♦ → ♥; Lv2: also ♣ → ♠. Cards keep their own felt/glyph.
+  const SUIT_ALIAS_STEPS = [
+    { from: '♦', to: '♥' },
+    { from: '♣', to: '♠' }
+  ];
+
+  function suitFamily(suit){
+    if(!suit || suit === WILD_SUIT) return suit;
+    const cut = upgradeLevel('suitCut');
+    let s = suit;
+    for(let i = 0; i < cut && i < SUIT_ALIAS_STEPS.length; i++){
+      if(s === SUIT_ALIAS_STEPS[i].from) s = SUIT_ALIAS_STEPS[i].to;
+    }
+    return s;
+  }
+
+  function suitsInFamily(family){
+    const f = suitFamily(family);
+    return SUITS.filter(s => suitFamily(s) === f);
+  }
+
+  // One Suit Purge button per family (canonical suit), SUITS order.
+  function purgeFamilies(){
+    const seen = new Set();
+    const out = [];
+    for(const s of SUITS){
+      const f = suitFamily(s);
+      if(seen.has(f)) continue;
+      seen.add(f);
+      out.push(f);
+    }
+    return out;
+  }
 
   function makeDeck(){
     const d = [];
-    const suits = activeSuits();
-    for(const s of suits){
+    for(const s of SUITS){
       for(const r of RANKS){
         if(!rankAllowed(r)) continue;
         d.push({suit:s, rank:r});
@@ -3207,7 +3245,7 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
-      id: 78,
+      id: 79,
       date: 'Jul 27, 2026',
       title: 'Chips bar hugs edge',
       items: [
@@ -3215,11 +3253,22 @@
       ]
     },
     {
-      id: 77,
+      id: 78,
       date: 'Jul 27, 2026',
       title: 'Chips/s peak bar',
       items: [
         'The Chips tile now has a bar showing your live chips/s as a fraction of your peak.',
+      ]
+    },
+    {
+      id: 77,
+      date: 'Jul 27, 2026',
+      title: 'Suit Alliance keeps the colors',
+      items: [
+        'Suit Alliance keeps all four suits on the table — diamonds ally with hearts at Lv1, clubs with spades at Lv2.',
+        'Flushes and Suit Purge treat each allied pair as one family; purge buttons show both glyphs.',
+        'Flush connector lines use the family color (heart red / spade purple) so mixed allies still read clearly.',
+        'Suit Purge pops immediately — no flash wait before cards explode.',
       ]
     },
     {
@@ -4001,8 +4050,8 @@
     },
     {
       id: 'suitCut',
-      name: 'Suit Exile',
-      desc: 'Remove up to two suits from the deck.',
+      name: 'Suit Alliance',
+      desc: 'Ally suits for flushes and Suit Purge without removing them from the deck. Lv1: diamonds count as hearts. Lv2: clubs count as spades.',
       baseCost: 6000,
       costScale: 3.5,
       maxLevel: 2,
@@ -6294,11 +6343,12 @@
     return Math.max(1, Math.floor(lvl * 8 * blindMultiplier('hands') * shopMetaMultiplier()));
   }
 
-  function suitPurgePairPenalty(suit){
+  function suitPurgePairPenalty(family){
     if(prestigeLevel('cardCounting') <= 0) return 0;
+    const members = new Set(suitsInFamily(family));
     let penalty = 0;
     for(const g of cardCountingGroups()){
-      if(g.card && g.card.suit === suit) penalty += g.count - 1;
+      if(g.card && members.has(g.card.suit)) penalty += g.count - 1;
     }
     return penalty;
   }
@@ -6361,16 +6411,15 @@
     return r >= minKeptRank();
   }
 
+  // All four suits always deal; Suit Alliance only allies them (see suitFamily).
   function activeSuits(){
-    const cut = upgradeLevel('suitCut');
-    const removed = new Set(SUIT_CUT_ORDER.slice(0, cut));
-    return SUITS.filter(s => !removed.has(s));
+    return SUITS.slice();
   }
 
   function cardAllowed(card){
     if(!card) return false;
     if(isWild(card)) return rankAllowed(card.rank);
-    return rankAllowed(card.rank) && activeSuits().includes(card.suit);
+    return rankAllowed(card.rank) && SUITS.includes(card.suit);
   }
 
   function reshapeShoe(){
@@ -7341,9 +7390,8 @@
       }
       case 'suitCut': {
         if(!lvl) return 'All four suits';
-        const left = activeSuits().join('');
-        const gone = SUIT_CUT_ORDER.slice(0, lvl).join('');
-        return 'Out ' + gone + ' · In ' + left;
+        if(lvl === 1) return '♦ = ♥ for flushes & purge';
+        return '♦ = ♥ · ♣ = ♠ for flushes & purge';
       }
       case 'suitBomb':
         if(!lvl) return 'Locked';
@@ -10299,27 +10347,30 @@
     startResolveLoop();
   }
 
-  function findSuitCells(suit){
+  function findSuitCells(family){
+    const f = suitFamily(family);
     const cells = [];
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const card = grid[c][r];
-        if(card && card.suit === suit) cells.push([c, r]);
+        if(card && !isWild(card) && suitFamily(card.suit) === f) cells.push([c, r]);
       }
     }
     return cells;
   }
 
-  function findSuitBalls(suit){
-    return balls.filter(b => b.card && b.card.suit === suit);
+  function findSuitBalls(family){
+    const f = suitFamily(family);
+    return balls.filter(b => b.card && !isWild(b.card) && suitFamily(b.card.suit) === f);
   }
 
-  function countSuitInPlay(suit){
-    return findSuitCells(suit).length + findSuitBalls(suit).length;
+  function countSuitInPlay(family){
+    return findSuitCells(family).length + findSuitBalls(family).length;
   }
 
-  function purgeSuitBalls(suit){
-    const victims = findSuitBalls(suit);
+  function purgeSuitBalls(family){
+    const f = suitFamily(family);
+    const victims = findSuitBalls(f);
     if(!victims.length) return;
     const colsTouched = new Set();
     for(const b of victims){
@@ -10333,22 +10384,24 @@
         }
       }
     }
-    balls = balls.filter(b => !(b.card && b.card.suit === suit));
+    balls = balls.filter(b => !(b.card && !isWild(b.card) && suitFamily(b.card.suit) === f));
     for(const c of colsTouched) rebuildColumnFromStack(c);
   }
 
-  function beginSuitBomb(suit, cells){
+  function beginSuitBomb(family, cells){
+    const f = suitFamily(family);
+    const label = suitsInFamily(f).join('');
     resolving = true;
     resolveEpoch++;
-    const inFlight = findSuitBalls(suit).length;
+    const inFlight = findSuitBalls(f).length;
     const cardCount = cells.length + inFlight;
     currentGroups = [{
-      name: 'SUIT PURGE ' + suit,
+      name: 'SUIT PURGE ' + label,
       points: Math.max(1, cardCount * purgeCardPayout()),
       cells,
       suitBomb: true,
-      purgeSuit: suit,
-      color: SUIT_COLOR[suit] || '#ffffff'
+      purgeSuit: f,
+      color: SUIT_COLOR[f] || '#ffffff'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
     resolvePhase = 'flash';
@@ -10362,60 +10415,50 @@
     const now = performance.now();
     if(!suitBombUnlocked() || !suitBombReady(now) || gameOver) return false;
     if(!SUITS.includes(suit)) return false;
-    const cells = findSuitCells(suit);
-    if(countSuitInPlay(suit) < 1) return false;
+    const family = suitFamily(suit);
+    const cells = findSuitCells(family);
+    if(countSuitInPlay(family) < 1) return false;
     // Spend the charge immediately so a mid-clear click still counts.
     suitBombReadyAt = now + suitBombCooldownMs();
     noteSuitPurge();
     scheduleSave();
     if(resolving){
-      pendingSuitBomb = suit;
+      pendingSuitBomb = family;
       updateSuitBombUI(performance.now(), true);
       return true;
     }
-    beginSuitBomb(suit, cells);
+    beginSuitBomb(family, cells);
     return true;
   }
 
   function flushPendingSuitBomb(){
     if(!pendingSuitBomb || resolving || gameOver) return;
-    const suit = pendingSuitBomb;
+    const family = suitFamily(pendingSuitBomb);
     pendingSuitBomb = null;
-    const cells = findSuitCells(suit);
-    if(countSuitInPlay(suit) < 1){
+    const cells = findSuitCells(family);
+    if(countSuitInPlay(family) < 1){
       updateSuitBombUI(performance.now(), true);
       return;
     }
-    beginSuitBomb(suit, cells);
+    beginSuitBomb(family, cells);
   }
 
   function pickAutoSuitBombTarget(){
-    const inShoe = new Set(activeSuits());
     // Rank by pair-safe "effective" count (Card Counting), but keep raw n so a
     // Pin Split duplicate flood (effective 1, raw many) is never treated as a
     // singleton — that left Auto Purge ready forever without casting.
+    // Suit Alliance families (♥♦ / ♠♣) are scored as one target.
     let best = null, bestEffective = -1, bestRaw = 0;
-    let bestExiled = null, bestExiledBoard = 0, bestExiledEffective = -1;
-    for(const s of SUITS){
-      const board = findSuitCells(s).length;
-      const n = countSuitInPlay(s);
+    for(const family of purgeFamilies()){
+      const n = countSuitInPlay(family);
       if(!n) continue;
-      const effective = n - suitPurgePairPenalty(s);
-      if(!inShoe.has(s) && board > 0){
-        if(board > bestExiledBoard || (board === bestExiledBoard && effective > bestExiledEffective)){
-          bestExiledBoard = board;
-          bestExiledEffective = effective;
-          bestExiled = s;
-        }
-        continue;
-      }
+      const effective = n - suitPurgePairPenalty(family);
       if(effective > bestEffective || (effective === bestEffective && n > bestRaw)){
         bestEffective = effective;
         bestRaw = n;
-        best = s;
+        best = family;
       }
     }
-    if(bestExiled) return bestExiled;
     // Don't waste a charge on a lonely singleton (raw cards in play).
     if(!best || bestRaw < 2) return null;
     return best;
@@ -10528,8 +10571,9 @@
   function resolveTick(){
     const now = performance.now();
     const speed = resolveSpeed();
-    const flashMs = FLASH_MS / speed;
-    const explodeMs = EXPLODE_MS / speed;
+    const suitBombResolve = resolving && currentGroups.some(g => g.suitBomb);
+    const flashMs = suitBombResolve ? 0 : FLASH_MS / speed;
+    const explodeMs = suitBombResolve ? 0 : EXPLODE_MS / speed;
     if(resolving){
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
@@ -10618,8 +10662,12 @@
           }
           applyExplosionClear(currentGroups);
           flashCells = null;
-          resolvePhase = 'explode';
-          resolvePhaseStart = now;
+          if(suitBombResolve){
+            finishResolveOrChain();
+          } else {
+            resolvePhase = 'explode';
+            resolvePhaseStart = now;
+          }
         }
       } else if(resolvePhase==='explode'){
         if(elapsed >= explodeMs){
@@ -12540,12 +12588,12 @@
       glyph.width = 44;
       glyph.height = 44;
       glyph.setAttribute('aria-hidden', 'true');
-      paintSuitGlyph(glyph.getContext('2d'), s, 22, 22, 22, SUIT_COLOR[s]);
       btn.append(fill, glyph);
       btn.addEventListener('click', ()=>castSuitBomb(s));
       suitBombBtnsEl.appendChild(btn);
       suitBombButtons[s] = btn;
     }
+    repaintSuitBombGlyphs();
     // Tap chrome (title, status, padding) — not the suit buttons — toggles Hide/Show.
     suitBombBar.addEventListener('click', (e)=>{
       if(e.target.closest('.suit-btn')) return;
@@ -12559,11 +12607,25 @@
 
   function repaintSuitBombGlyphs(){
     for(const s of SUITS){
-      const glyph = suitBombButtons[s]?.querySelector('.suit-glyph');
-      if(!glyph || glyph.tagName !== 'CANVAS') continue;
+      const btn = suitBombButtons[s];
+      const glyph = btn?.querySelector('.suit-glyph');
+      if(!btn || !glyph || glyph.tagName !== 'CANVAS') continue;
+      const members = suitsInFamily(s);
+      const pair = members.length > 1 && suitFamily(s) === s;
+      btn.classList.toggle('pair-suit', pair);
+      const w = pair ? 60 : 44;
+      const h = pair ? 36 : 44;
+      if(glyph.width !== w) glyph.width = w;
+      if(glyph.height !== h) glyph.height = h;
       const ctx = glyph.getContext('2d');
       ctx.clearRect(0, 0, glyph.width, glyph.height);
-      paintSuitGlyph(ctx, s, 22, 22, 22, SUIT_COLOR[s]);
+      if(pair){
+        // Keep each ally in its own ink so the merge is readable on one button.
+        paintSuitGlyph(ctx, members[0], 16, 18, 18, SUIT_COLOR[members[0]]);
+        paintSuitGlyph(ctx, members[1], 44, 18, 18, SUIT_COLOR[members[1]]);
+      } else {
+        paintSuitGlyph(ctx, s, 22, 22, 22, SUIT_COLOR[s]);
+      }
     }
   }
 
@@ -12592,6 +12654,7 @@
   }
 
   let lastSuitBombUiAt = 0;
+  let lastSuitBombCutLevel = -1;
   function updateSuitBombUI(now, force){
     if(!suitBombBar) return;
     now = now || performance.now();
@@ -12614,6 +12677,12 @@
       suitBombBar.classList.remove('suit-bomb-flash');
       if(suitBombChargeFill) suitBombChargeFill.style.width = '0%';
       return;
+    }
+
+    const cutLvl = upgradeLevel('suitCut');
+    if(force || cutLvl !== lastSuitBombCutLevel){
+      lastSuitBombCutLevel = cutLvl;
+      repaintSuitBombGlyphs();
     }
 
     const cd = suitBombCooldownMs();
@@ -12656,40 +12725,49 @@
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const card = grid[c][r];
-        if(card) counts[card.suit] = (counts[card.suit]||0) + 1;
+        if(card && !isWild(card) && counts[card.suit] != null){
+          counts[card.suit] += 1;
+        }
       }
     }
-    const inShoe = new Set(activeSuits());
     const inFlight = {'♠':0,'♥':0,'♦':0,'♣':0};
     for(const b of balls){
-      if(b.card && inFlight[b.card.suit] != null) inFlight[b.card.suit]++;
+      if(b.card && !isWild(b.card) && inFlight[b.card.suit] != null) inFlight[b.card.suit]++;
     }
+    const familySet = new Set(purgeFamilies());
+    const pendingFamily = pendingSuitBomb ? suitFamily(pendingSuitBomb) : null;
     let visible = 0;
     for(const s of SUITS){
       const btn = suitBombButtons[s];
       if(!btn) continue;
-      const count = counts[s] || 0;
-      const queued = pendingSuitBomb === s;
-      const present = count > 0 || inFlight[s] > 0 || queued;
-      // Always show suits still in the shoe (even with none on the board).
-      // Only hide an exiled suit after it is fully gone from play.
-      const gone = !inShoe.has(s) && !present;
+      // Hide ally sources (♦ / ♣) once Suit Alliance folds them into the family button.
+      const gone = !familySet.has(s);
       btn.classList.toggle('gone', gone);
       btn.hidden = gone;
       if(gone) continue;
       visible++;
+      const members = suitsInFamily(s);
+      const label = members.join('');
+      let count = 0;
+      let flight = 0;
+      for(const m of members){
+        count += counts[m] || 0;
+        flight += inFlight[m] || 0;
+      }
+      const queued = pendingFamily === s;
       // Stay clickable during hand clears — cast queues until the board is free.
-      const total = count + inFlight[s];
+      const total = count + flight;
       const canCast = ready && !gameOver && total > 0;
       btn.disabled = !canCast && !queued;
       btn.classList.toggle('charging', !ready && !queued);
       btn.classList.toggle('queued', queued);
       btn.style.setProperty('--cd', Math.round((queued ? 1 : charge) * 100) + '%');
+      btn.setAttribute('aria-label', 'Purge ' + label);
       btn.title = queued
-        ? ('Queued purge ' + s)
+        ? ('Queued purge ' + label)
         : total
-          ? ('Purge ' + total + ' × ' + s + (inFlight[s] ? ' (' + inFlight[s] + ' in flight)' : ''))
-          : ('No ' + s + ' in play');
+          ? ('Purge ' + total + ' × ' + label + (flight ? ' (' + flight + ' in flight)' : ''))
+          : ('No ' + label + ' in play');
     }
     suitBombBtnsEl.style.gridTemplateColumns =
       'repeat(' + Math.max(1, visible) + ', 1fr)';
