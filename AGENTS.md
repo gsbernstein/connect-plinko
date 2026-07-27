@@ -197,8 +197,8 @@ Reuse the existing land-pulse pattern instead of inventing new motion:
 
 | Target | Class | Helper | Keyframes |
 |--------|-------|--------|-----------|
-| Chip score box | `pulseScoreBox` → `hudLandPulse` | `hudLandPulse` (WAAPI scale + brightness) |
-| VIP comps pill | `pulseCompsBox` → `hudLandPulse` | same — transform/filter only; no layout reflow |
+| Chip score box | `pulseScoreBox` | currently no-op (land bounce disabled) |
+| VIP comps pill | `pulseCompsBox` | currently no-op (land bounce disabled) |
 | Achievement prog numerator | `.quest-prog b.prog-pulse` | `pulseAchievementNumerator` | `achievementProgPulse` |
 
 All helpers restart CSS animation with `el.classList.remove(...); void el.offsetWidth; el.classList.add(...)` and clear via `setTimeout` (~340 ms). Inline numerators that scale need `display: inline-block` on the `<b>` (see `.quest.achievement .quest-prog b`).
