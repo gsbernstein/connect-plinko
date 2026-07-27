@@ -545,20 +545,6 @@
     padding-bottom:0;
     border-bottom:none;
   }
-  .changelog-entry.is-new{
-    margin:0 -6px;
-    padding:10px 10px 12px;
-    border:1px solid rgba(232,93,106,0.35);
-    border-radius:10px;
-    border-bottom-color:rgba(232,93,106,0.35);
-    background:rgba(232,93,106,0.08);
-  }
-  .changelog-entry.is-new + .changelog-entry{
-    margin-top:2px;
-  }
-  .changelog-entry.is-new:last-child{
-    padding-bottom:10px;
-  }
   .changelog-meta{
     display:flex;
     align-items:baseline;
@@ -1053,6 +1039,10 @@
     border-color:rgba(46,138,110,0.65);
     box-shadow:0 0 0 1px rgba(46,138,110,0.18);
   }
+  .quest.achievement.claimable.is-hold-claim{
+    border-color:rgba(240,215,140,0.75);
+    box-shadow:0 0 0 1px rgba(240,215,140,0.28), 0 0 18px rgba(240,215,140,0.14);
+  }
   .quest.claimed{
     opacity:0.62;
     border-color:#3a3558;
@@ -1083,7 +1073,8 @@
   .quest.quest-locked:hover{transform:none; background:var(--panel);}
   .quest.quest-locked .quest-reward,
   .quest.quest-locked .quest-progress-row,
-  .quest.quest-locked .quest-bar{display:none;}
+  .quest.quest-locked .quest-bar,
+  .quest.quest-locked .quest-desc{display:none;}
   .quest-top{
     display:flex;
     justify-content:space-between;
@@ -1094,6 +1085,20 @@
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    min-width:0;
+  }
+  .quest-name-text{min-width:0;}
+  .card-lock-icon{
+    flex:0 0 auto;
+    width:11px;
+    height:11px;
+    opacity:0.72;
+    background:currentColor;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2.5' y='7.5' width='11' height='7' rx='1.2' fill='%23fff'/%3E%3Cpath d='M5 7.5V5a3 3 0 0 1 6 0v2.5' fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
+    mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2.5' y='7.5' width='11' height='7' rx='1.2' fill='%23fff'/%3E%3Cpath d='M5 7.5V5a3 3 0 0 1 6 0v2.5' fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
   }
   .quest-kind{
     color:#7EC8A3;
@@ -1254,27 +1259,29 @@
     opacity:0.75;
     border-color:#3a3558;
   }
-  .upgrade.is-new{
-    border-color:rgba(232,93,106,0.35);
-    background:rgba(232,93,106,0.08);
-    box-shadow:0 0 0 1px rgba(232,93,106,0.12);
-  }
-  .upgrade.is-new.affordable{
-    border-color:rgba(232,93,106,0.45);
-    box-shadow:0 0 0 1px rgba(232,93,106,0.18);
-  }
-  @media (hover:hover) and (pointer:fine){
-    .upgrade.is-new:hover:not(.is-disabled):not(.buy-blocked){
-      border-color:rgba(232,93,106,0.5);
-      background:rgba(232,93,106,0.12);
-    }
-  }
   .upgrade.buy-blocked{
     cursor:default;
   }
   .upgrade.buy-blocked:hover{
     transform:none;
   }
+  .upgrade.upgrade-locked{
+    opacity:0.55;
+    border-style:dashed;
+    cursor:default;
+    padding-bottom:12px;
+  }
+  .upgrade.upgrade-locked:hover{
+    transform:none;
+    background:var(--panel);
+    border-color:#2a2545;
+  }
+  .upgrade.upgrade-locked .upgrade-desc,
+  .upgrade.upgrade-locked .upgrade-effect,
+  .upgrade.upgrade-locked .upgrade-cost-row,
+  .upgrade.upgrade-locked .upgrade-progress,
+  .upgrade.upgrade-locked .upgrade-toggle,
+  .upgrade.upgrade-locked .upgrade-new-tag{display:none;}
   .upgrade-top{
     display:flex;
     justify-content:space-between;
@@ -2631,7 +2638,7 @@
     </div>
     <button type="button" class="shop-scroll-cue is-down" id="shopScrollCue" hidden aria-label="New upgrade below">
       <span class="shop-scroll-cue-arrow" aria-hidden="true">↓</span>
-      <span>New</span>
+      <span class="shop-scroll-cue-label">New</span>
     </button>
     </div>
 
@@ -3333,12 +3340,23 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 99,
+      date: 'Jul 27, 2026',
+      title: 'Achievements & shop unlocks',
+      items: [
+        'Achievements shows a Claim button when ready rewards are offscreen — tap to jump back to the top.',
+        'Hold a claimable achievement to rip through ready rewards in series.',
+        'Locked shop upgrades and quest slots show a lock icon with unlock level.',
+        'Shop unlock levels retuned and listed in unlock order (Sweep Stakes Lv2 … Multi Deal Lv9).',
+      ]
+    },
+    {
       id: 98,
       date: 'Jul 27, 2026',
       title: 'Hot Streak retired',
       items: [
         'Hot Streak and House Edge are gone — chain multipliers still ramp from consecutive clears alone.',
-        'Saves that owned either get chips and comps refunded for what they spent.'
+        'Saves that owned either get chips and comps refunded for what they spent.',
       ]
     },
     {
@@ -4164,7 +4182,7 @@
   const MIN_CASH_OUT_LEVEL = 8;
   // Shop order = array order. unlockAt = run level required to first reveal.
   // Once revealed (via maxRunLevel), upgrades stay visible across Cash Out.
-  // Flow: deal → score → passives → feel/aim → shoe → suit tools.
+  // Sorted by unlockAt ascending; same-tier rows by Lv1 cost ascending.
   const UPGRADE_DEFS = [
     {
       id: 'autoDealer',
@@ -4181,15 +4199,6 @@
       costLateScale: 2.12
     },
     {
-      id: 'multiDeal',
-      name: 'Multi Deal',
-      desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.',
-      baseCost: 1500,
-      costScale: 2.35,
-      maxLevel: 6,
-      unlockAt: 8
-    },
-    {
       id: 'bigBlind',
       name: 'Big Blind',
       desc: '+25% chips from every scored hand.',
@@ -4197,6 +4206,24 @@
       costScale: 1.65,
       maxLevel: 60,
       unlockAt: 1
+    },
+    {
+      id: 'floorPayout',
+      name: 'Sweep Stakes',
+      desc: 'Earn chips when a full board triggers a floor clear.',
+      baseCost: 90,
+      costScale: 1.8,
+      maxLevel: 20,
+      unlockAt: 2
+    },
+    {
+      id: 'bumperPayout',
+      name: 'Rail Tax',
+      desc: 'Earn chips whenever a card hits the bumper arch for a full column.',
+      baseCost: 50,
+      costScale: 1.7,
+      maxLevel: 25,
+      unlockAt: 3
     },
     {
       id: 'premiumCut',
@@ -4217,15 +4244,6 @@
       unlockAt: 5
     },
     {
-      id: 'bumperPayout',
-      name: 'Rail Tax',
-      desc: 'Earn chips whenever a card hits the bumper arch for a full column.',
-      baseCost: 50,
-      costScale: 1.7,
-      maxLevel: 25,
-      unlockAt: 5
-    },
-    {
       id: 'pinPayout',
       name: 'Pin Tip',
       desc: 'Earn chips whenever a card bounces off a peg.',
@@ -4235,22 +4253,13 @@
       unlockAt: 6
     },
     {
-      id: 'floorPayout',
-      name: 'Sweep Stakes',
-      desc: 'Earn chips when a full board triggers a floor clear.',
-      baseCost: 90,
-      costScale: 1.8,
-      maxLevel: 20,
-      unlockAt: 7
-    },
-    {
       id: 'feltGrease',
       name: 'Felt Grease',
       desc: 'Balls fall and settle faster. Late levels keep speeding up, with diminishing returns.',
       baseCost: 50,
       costScale: 1.8,
       maxLevel: 30,
-      unlockAt: 8,
+      unlockAt: 7,
       // Match the old Lv12 curve, then a steeper chip sink for deep levels.
       costLateAt: 12,
       costLateBase: 58000,
@@ -4263,8 +4272,17 @@
       baseCost: 80,
       costScale: 1.85,
       maxLevel: 12,
-      unlockAt: 9,
+      unlockAt: 8,
       toggleable: true
+    },
+    {
+      id: 'multiDeal',
+      name: 'Multi Deal',
+      desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.',
+      baseCost: 1500,
+      costScale: 2.35,
+      maxLevel: 6,
+      unlockAt: 9
     },
     {
       id: 'highCut',
@@ -4400,6 +4418,9 @@
   // Quest slots unlock at these run levels (spread across the full climb).
   const QUEST_SLOT_UNLOCK_LEVELS = [2, 20, 45, 75, 110];
   const QUEST_CLAIM_ANIM_MS = 360;
+  const ACHIEVEMENT_HOLD_START_MS = 280;
+  const ACHIEVEMENT_HOLD_REPEAT_MS = 130;
+  const ACHIEVEMENT_HOLD_MOVE_PX = 12;
   const QUEST_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
   const QUEST_RARITY = {
     common:    { label: 'Common',    targetMult: 1,   rewardMult: 1,   color: '#E8ECF0' },
@@ -6174,7 +6195,8 @@
     return n;
   }
 
-  function claimAchievement(id){
+  function claimAchievement(id, opts){
+    opts = opts || {};
     const def = ACHIEVEMENT_DEFS.find(c => c.id === id);
     if(!def || !achievementCanClaim(def)) return false;
     const level = achievementClaimedTier(def) + 1;
@@ -6182,22 +6204,124 @@
     if(!tier) return false;
     questClaimed[def.id] = level;
     bumpStat('achievementClaims', 1);
-    applyContractReward(tier.reward);
-    refreshQuestUiAndSave();
-    const tierSuffix = (def.infinite || achievementSeedTiers(def).length > 1)
-      ? ' Lv ' + level
-      : '';
-    pushPopup({
-      x: W / 2,
-      y: PEG_ZONE * 0.38,
-      text: 'ACHIEVE · ' + achievementName(def, tier) + tierSuffix,
-      color: '#F0D78C',
-      t0: performance.now(),
-      duration: 1400,
-      big: true
-    });
-    if(!resolving && !looping) startLoop();
+    applyContractReward(tier.reward, opts.skipFly ? { skipFly: true } : undefined);
+    if(opts.deferUi){
+      updateScoreUI();
+      updateAchievementsUI();
+      scheduleSave();
+    } else {
+      refreshQuestUiAndSave();
+    }
+    if(!opts.quiet){
+      const tierSuffix = (def.infinite || achievementSeedTiers(def).length > 1)
+        ? ' Lv ' + level
+        : '';
+      pushPopup({
+        x: W / 2,
+        y: PEG_ZONE * 0.38,
+        text: 'ACHIEVE · ' + achievementName(def, tier) + tierSuffix,
+        color: '#F0D78C',
+        t0: performance.now(),
+        duration: 1400,
+        big: true
+      });
+      if(!resolving && !looping) startLoop();
+    }
     return true;
+  }
+
+  function firstClaimableAchievementId(){
+    if(!achievementsEl) return null;
+    const btns = achievementsEl.querySelectorAll('.quest.achievement.claimable:not([hidden])');
+    for(const btn of btns){
+      if(btn.disabled) continue;
+      const id = btn.dataset.id;
+      if(id && achievementCanClaim(ACHIEVEMENT_DEFS.find(d => d.id === id))) return id;
+    }
+    return null;
+  }
+
+  function claimNextAchievementInSeries(opts){
+    const id = firstClaimableAchievementId();
+    if(!id) return false;
+    return claimAchievement(id, opts);
+  }
+
+  function attachAchievementHoldHandlers(btn, def){
+    let hold = null;
+
+    function clearHold(opts){
+      opts = opts || {};
+      if(!hold) return false;
+      clearTimeout(hold.startTimer);
+      clearInterval(hold.repeatTimer);
+      btn.classList.remove('is-hold-claim');
+      const wasTap = !!opts.tap && !hold.holding && !hold.moved;
+      const hadDeferred = hold.deferredUi;
+      hold = null;
+      if(hadDeferred) refreshQuestUiAndSave();
+      return wasTap;
+    }
+
+    function runHoldClaimStep(){
+      if(!hold) return false;
+      const claimed = claimNextAchievementInSeries({
+        quiet: true,
+        deferUi: true,
+        skipFly: true
+      });
+      if(claimed) hold.deferredUi = true;
+      return claimed;
+    }
+
+    btn.addEventListener('pointerdown', (e)=>{
+      if(!btn.classList.contains('claimable') || btn.disabled) return;
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      clearHold();
+      hold = {
+        moved: false,
+        holding: false,
+        deferredUi: false,
+        x: e.clientX,
+        y: e.clientY,
+        startTimer: setTimeout(()=>{
+          if(!hold || hold.moved) return;
+          hold.holding = true;
+          btn.classList.add('is-hold-claim');
+          if(!runHoldClaimStep()) clearHold();
+          else {
+            hold.repeatTimer = setInterval(()=>{
+              if(!runHoldClaimStep()) clearHold();
+            }, ACHIEVEMENT_HOLD_REPEAT_MS);
+          }
+        }, ACHIEVEMENT_HOLD_START_MS)
+      };
+      try{ btn.setPointerCapture(e.pointerId); }catch(_){}
+    });
+
+    btn.addEventListener('pointermove', (e)=>{
+      if(!hold || hold.moved) return;
+      const dx = e.clientX - hold.x;
+      const dy = e.clientY - hold.y;
+      if(dx * dx + dy * dy > ACHIEVEMENT_HOLD_MOVE_PX * ACHIEVEMENT_HOLD_MOVE_PX){
+        hold.moved = true;
+        clearHold();
+      }
+    });
+
+    const endHold = (e)=>{
+      if(!hold) return;
+      const wasTap = clearHold({ tap: true });
+      if(wasTap) claimAchievement(def.id);
+      try{ btn.releasePointerCapture(e.pointerId); }catch(_){}
+    };
+    btn.addEventListener('pointerup', endHold);
+    btn.addEventListener('pointercancel', ()=>clearHold());
+
+    // Pointer path owns claimable taps — suppress the native click echo.
+    btn.addEventListener('click', (e)=>{
+      if(btn.classList.contains('claimable')) e.preventDefault();
+    });
   }
 
   function claimContract(id){
@@ -12016,21 +12140,60 @@
       if(upgradeInScrollerView(btn, 'above')) above = above || btn;
     }
     // Prefer the more common "new row lower in the list" case.
-    if(below) return { btn: below, dir: 'down' };
-    if(above) return { btn: above, dir: 'up' };
+    if(below) return { btn: below, dir: 'down', kind: 'new' };
+    if(above) return { btn: above, dir: 'up', kind: 'new' };
+    return null;
+  }
+
+  function claimableAchievementButtons(){
+    const list = [];
+    for(const def of ACHIEVEMENT_DEFS){
+      if(!achievementCanClaim(def)) continue;
+      const btn = contractButtons[def.id];
+      if(btn && !btn.hidden) list.push(btn);
+    }
+    return list;
+  }
+
+  // Claimables sort to the top — cue only when none are in view (usually scrolled down).
+  function firstClaimableAchievementOffscreen(){
+    if(activeRailPanel !== 'achievements') return null;
+    const claimables = claimableAchievementButtons();
+    if(!claimables.length) return null;
+    let anyVisible = false;
+    let above = null;
+    let below = null;
+    for(const btn of claimables){
+      if(upgradeInScrollerView(btn)) anyVisible = true;
+      if(upgradeInScrollerView(btn, 'above')) above = above || btn;
+      if(!below && upgradeInScrollerView(btn, 'below')) below = btn;
+    }
+    if(anyVisible) return null;
+    if(above) return { btn: above, dir: 'up', kind: 'claim', scrollTop: true };
+    if(below) return { btn: below, dir: 'down', kind: 'claim', scrollTop: true };
+    return null;
+  }
+
+  function railScrollCueTarget(){
+    if(activeRailPanel === 'upgrades') return firstUnviewedUpgradeOffscreen();
+    if(activeRailPanel === 'achievements') return firstClaimableAchievementOffscreen();
     return null;
   }
 
   function updateShopScrollCue(){
     if(!shopScrollCueBtn) return;
-    const target = firstUnviewedUpgradeOffscreen();
+    const target = railScrollCueTarget();
     if(!target){
       if(!shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = true;
       return;
     }
     const down = target.dir === 'down';
-    const label = down ? 'New upgrade below' : 'New upgrade above';
+    const claim = target.kind === 'claim';
+    const label = claim
+      ? (down ? 'Claimable achievement below' : 'Claimable achievement above')
+      : (down ? 'New upgrade below' : 'New upgrade above');
     const arrowGlyph = down ? '↓' : '↑';
+    const text = claim ? 'Claim' : 'New';
     if(shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = false;
     if(shopScrollCueBtn.classList.contains('is-down') !== down){
       shopScrollCueBtn.classList.toggle('is-down', down);
@@ -12041,6 +12204,8 @@
     }
     const arrow = shopScrollCueBtn.querySelector('.shop-scroll-cue-arrow');
     if(arrow && arrow.textContent !== arrowGlyph) arrow.textContent = arrowGlyph;
+    const labelEl = shopScrollCueBtn.querySelector('.shop-scroll-cue-label');
+    if(labelEl && labelEl.textContent !== text) labelEl.textContent = text;
   }
 
   function markVisibleUpgradeUnlocksSeen(){
@@ -12199,24 +12364,33 @@
   });
   if(railBodyEl){
     railBodyEl.addEventListener('scroll', ()=>{
-      if(activeRailPanel !== 'upgrades') return;
-      markPanelUnlocksSeen('upgrades');
-      setTabBadge('upgrades', countAffordableUpgrades());
-      updateShopScrollCue();
+      if(activeRailPanel === 'upgrades'){
+        markPanelUnlocksSeen('upgrades');
+        setTabBadge('upgrades', countAffordableUpgrades());
+      }
+      if(activeRailPanel === 'upgrades' || activeRailPanel === 'achievements'){
+        updateShopScrollCue();
+      }
     }, { passive: true });
   }
   if(shopScrollCueBtn){
     shopScrollCueBtn.addEventListener('click', ()=>{
-      const target = firstUnviewedUpgradeOffscreen();
+      const target = railScrollCueTarget();
       if(!target){
         updateShopScrollCue();
         return;
       }
-      target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if(target.scrollTop && railBodyEl){
+        railBodyEl.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
       // Mark after the smooth scroll settles so the cue clears once visible.
       const finish = ()=>{
-        markPanelUnlocksSeen('upgrades');
-        setTabBadge('upgrades', countAffordableUpgrades());
+        if(activeRailPanel === 'upgrades'){
+          markPanelUnlocksSeen('upgrades');
+          setTabBadge('upgrades', countAffordableUpgrades());
+        }
         updateShopScrollCue();
       };
       requestAnimationFrame(()=>requestAnimationFrame(finish));
@@ -12224,10 +12398,13 @@
     });
   }
   window.addEventListener('resize', ()=>{
-    if(activeRailPanel !== 'upgrades') return;
-    markPanelUnlocksSeen('upgrades');
-    setTabBadge('upgrades', countAffordableUpgrades());
-    updateShopScrollCue();
+    if(activeRailPanel === 'upgrades'){
+      markPanelUnlocksSeen('upgrades');
+      setTabBadge('upgrades', countAffordableUpgrades());
+      updateShopScrollCue();
+    } else if(activeRailPanel === 'achievements'){
+      updateShopScrollCue();
+    }
   });
 
   const levelBoxEl = document.getElementById('levelBox');
@@ -12515,6 +12692,7 @@
     const bonus = opts.bonus || 0;
     const effective = Math.min(def.maxLevel, bought + bonus);
     const maxed = !!opts.maxed || effective >= def.maxLevel;
+    const levelLocked = !!opts.levelLocked;
     const locked = !!opts.locked;
     const canAfford = !!opts.canAfford;
     const canToggle = !!opts.canToggle;
@@ -12526,11 +12704,16 @@
     if('disabled' in btn) btn.disabled = disabled;
     btn.classList.toggle('buy-blocked', canToggle && !locked && (maxed || !canAfford));
     btn.classList.toggle('affordable', canAfford && !maxed && !locked);
-    btn.classList.toggle('maxed', maxed);
-    btn.classList.toggle('has-bonus', bonus > 0);
+    btn.classList.toggle('maxed', maxed && !levelLocked);
+    btn.classList.toggle('has-bonus', bonus > 0 && !levelLocked);
+    btn.classList.toggle('upgrade-locked', levelLocked);
+    btn.tabIndex = levelLocked ? -1 : 0;
+    const lockIcon = btn.querySelector('.card-lock-icon');
+    if(lockIcon) lockIcon.hidden = !levelLocked;
     const lvlEl = btn.querySelector('.upgrade-lvl');
     if(lvlEl){
-      if(maxed) lvlEl.textContent = 'MAX';
+      if(levelLocked) lvlEl.textContent = 'Lv ' + (def.unlockAt || 1);
+      else if(maxed) lvlEl.textContent = 'MAX';
       else if(bonus > 0) lvlEl.textContent = 'Lv ' + bought + '+' + bonus + '/' + def.maxLevel;
       else lvlEl.textContent = 'Lv ' + effective + '/' + def.maxLevel;
     }
@@ -12577,7 +12760,7 @@
       costEl.textContent = formatNum(opts.cost) + ' ' + (opts.unit || 'chips');
       costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
     }
-    const recommended = !!opts.recommended && !locked && !maxed;
+    const recommended = !!opts.recommended && !locked && !maxed && !levelLocked;
     btn.classList.toggle('is-recommended', recommended);
     const recEl = btn.querySelector('.upgrade-rec');
     if(recEl){
@@ -12593,6 +12776,7 @@
   function updateShopUI(){
     const active = [];
     const maxedList = [];
+    const lockedList = [];
     let affordableCount = 0;
     const recommendedId = recommendedShopUpgradeId();
     for(const def of UPGRADE_DEFS){
@@ -12609,19 +12793,20 @@
       // Always refresh state — including locked cards — so Cash Out can't leave
       // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
       fillUpgradeButton(btn, def, {
-        bought, bonus, maxed, locked: !revealed, cost, canAfford,
+        bought, bonus, maxed, locked: !revealed, levelLocked: !revealed, cost, canAfford,
         canToggle: !!(def.toggleable && lvl > 0),
         effect: upgradeEffectText(def),
         costLabel: 'Unlocks at Lv ' + (def.unlockAt || 1),
         unit: 'chips',
         recommended: def.id === recommendedId
       });
-      btn.hidden = !revealed;
+      btn.hidden = false;
       if(!revealed){
         btn.classList.remove('affordable', 'maxed', 'is-new', 'is-recommended');
         const newTag = btn.querySelector('.upgrade-new-tag');
         if(newTag) newTag.hidden = true;
         btn.removeAttribute('aria-label');
+        lockedList.push(btn);
         continue;
       }
       const isNew = upgradeIsUnviewed(def);
@@ -12632,8 +12817,8 @@
       else btn.removeAttribute('aria-label');
       (maxed ? maxedList : active).push(btn);
     }
-    // Keep buyable upgrades up top; sink completed ones.
-    orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    // Buyable first, then maxed, then future unlocks (like locked quest slots).
+    orderUpgradeButtons(upgradesEl, active.concat(maxedList, lockedList));
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateShopScrollCue();
@@ -12715,6 +12900,7 @@
     btn.innerHTML =
       '<div class="upgrade-top">' +
         '<span class="upgrade-name">' +
+          '<span class="card-lock-icon" hidden aria-hidden="true"></span>' +
           '<span class="upgrade-name-text"></span>' +
           '<span class="upgrade-new-tag" hidden>New</span>' +
         '</span>' +
@@ -12753,7 +12939,7 @@
       });
     }
     const tryBuy = ()=>{
-      if(btn.classList.contains('is-disabled')) return;
+      if(btn.classList.contains('is-disabled') || btn.classList.contains('upgrade-locked')) return;
       onBuy(def.id);
     };
     btn.addEventListener('click', (e)=>{
@@ -12775,7 +12961,10 @@
     btn.className = 'quest';
     btn.innerHTML =
       '<div class="quest-top">' +
-        '<span class="quest-name"></span>' +
+        '<span class="quest-name">' +
+          '<span class="card-lock-icon" hidden aria-hidden="true"></span>' +
+          '<span class="quest-name-text"></span>' +
+        '</span>' +
         '<span class="quest-kind"></span>' +
       '</div>' +
       '<p class="quest-desc"></p>' +
@@ -12813,7 +13002,9 @@
     btn.style.setProperty('--quest-spark-glow', questSparkGlowShadow(meta.color));
     btn.classList.toggle('claimable', complete);
     btn.disabled = !complete;
-    btn.querySelector('.quest-name').textContent = q.name;
+    const lockIcon = btn.querySelector('.card-lock-icon');
+    if(lockIcon) lockIcon.hidden = true;
+    btn.querySelector('.quest-name-text').textContent = q.name;
     btn.querySelector('.quest-kind').textContent = meta.label;
     btn.querySelector('.quest-desc').textContent = q.desc;
     btn.querySelector('.quest-reward').textContent = contractRewardText(q.reward);
@@ -12837,10 +13028,11 @@
     btn.hidden = false;
     btn.disabled = true;
     delete btn.dataset.id;
-    btn.querySelector('.quest-name').textContent = 'Locked slot';
+    const lockIcon = btn.querySelector('.card-lock-icon');
+    if(lockIcon) lockIcon.hidden = false;
+    btn.querySelector('.quest-name-text').textContent = 'Slot ' + (slotIndex + 1);
     btn.querySelector('.quest-kind').textContent = 'Lv ' + unlockLvl;
-    btn.querySelector('.quest-desc').textContent =
-      'Reach run level ' + unlockLvl + ' to open this quest slot.';
+    btn.querySelector('.quest-desc').textContent = '';
   }
 
   function updateQuestsUI(){
@@ -12912,7 +13104,9 @@
       btn.classList.toggle('claimable', canClaim);
       btn.classList.toggle('claimed', fullyClaimed);
       btn.classList.add('achievement');
-      btn.querySelector('.quest-name').textContent = stillSecret ? '???' : achievementName(def, tier);
+      const lockIcon = btn.querySelector('.card-lock-icon');
+      if(lockIcon) lockIcon.hidden = true;
+      btn.querySelector('.quest-name-text').textContent = stillSecret ? '???' : achievementName(def, tier);
       btn.querySelector('.quest-kind').textContent = stillSecret ? 'Achievement' : achievementKindLabel(def);
       btn.querySelector('.quest-desc').textContent = stillSecret
         ? 'Hidden achievement — keep playing.'
@@ -12976,6 +13170,10 @@
       orderUpgradeButtons(achievementsEl, ordered);
       achievementOrderBucketSig = bucketSig;
     }
+    if(activeRailPanel === 'achievements'){
+      // Order/claim changes can move ready cards offscreen of the shared rail scroller.
+      requestAnimationFrame(()=>updateShopScrollCue());
+    }
   }
 
   function updateContractsUI(){
@@ -12988,7 +13186,9 @@
     const tier = achievementActiveTier(def);
     btn.classList.add('achievement');
     btn.dataset.id = def.id;
-    btn.querySelector('.quest-name').textContent = def.secret ? '???' : achievementName(def, tier);
+    const lockIcon = btn.querySelector('.card-lock-icon');
+    if(lockIcon) lockIcon.hidden = true;
+    btn.querySelector('.quest-name-text').textContent = def.secret ? '???' : achievementName(def, tier);
     btn.querySelector('.quest-kind').textContent = def.secret ? 'Achievement' : achievementKindLabel(def);
     btn.querySelector('.quest-desc').textContent = def.secret
       ? 'Hidden achievement — keep playing.'
@@ -12996,7 +13196,7 @@
     btn.querySelector('.quest-reward').textContent = def.secret
       ? '???'
       : contractRewardText(tier ? tier.reward : {});
-    btn.addEventListener('click', ()=>claimAchievement(def.id));
+    attachAchievementHoldHandlers(btn, def);
     return btn;
   }
 
