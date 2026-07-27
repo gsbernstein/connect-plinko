@@ -27,7 +27,7 @@ Progression layers:
 
 Full-height layout: the table scales to fit, and the sidebar tabs scroll with the tab bar pinned at the bottom. On narrow screens the table is its own tab. First visit opens a **Welcome** tab (poker-chip logo + tap/click anywhere on the board to drop); it gives way to Upgrades after your first hand, and Reset brings it back. Achievements stay hidden until you earn one. Quests unlock from run Lv 2, VIP at run Lv 8 (or earlier once you earn comps). Badges show affordable upgrades / ready claims.
 
-Saves in the browser — including your Hot Streak chain, so a refresh or update doesn’t reset the heater. Near-miss guides show when you’re close; scoring hands flash a connector across their seats before they clear. A full board still triggers the automatic floor clear. **Settings** lists What’s new; a red badge appears when there are updates since your last save viewed that panel, and those entries are highlighted as New. If a new Poker build ships while a tab is still open, a **Refresh** banner can appear after checking `poker/version.json`.
+Saves in the browser — including your Hot Streak chain, so a refresh or update doesn’t reset the heater. Near-miss guides show when you’re close; scoring hands flash connector dashes between seats before they clear. A full board still triggers the automatic floor clear. **Settings** lists What’s new; a red badge appears when there are updates since your last save viewed that panel, and those entries are highlighted as New. If a new Poker build ships while a tab is still open, a **Refresh** banner can appear after checking `poker/version.json`.
 
 ## Local
 
