@@ -2631,7 +2631,7 @@
     </div>
     <button type="button" class="shop-scroll-cue is-down" id="shopScrollCue" hidden aria-label="New upgrade below">
       <span class="shop-scroll-cue-arrow" aria-hidden="true">↓</span>
-      <span>New</span>
+      <span class="shop-scroll-cue-label">New</span>
     </button>
     </div>
 
@@ -3332,6 +3332,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
+    {
+      id: 98,
+      date: 'Jul 27, 2026',
+      title: 'Claim cue',
+      items: [
+        'Achievements shows a Claim button when ready rewards are offscreen — tap to jump back to the top.',
+      ]
+    },
     {
       id: 97,
       date: 'Jul 27, 2026',
@@ -12018,21 +12026,60 @@
       if(upgradeInScrollerView(btn, 'above')) above = above || btn;
     }
     // Prefer the more common "new row lower in the list" case.
-    if(below) return { btn: below, dir: 'down' };
-    if(above) return { btn: above, dir: 'up' };
+    if(below) return { btn: below, dir: 'down', kind: 'new' };
+    if(above) return { btn: above, dir: 'up', kind: 'new' };
+    return null;
+  }
+
+  function claimableAchievementButtons(){
+    const list = [];
+    for(const def of ACHIEVEMENT_DEFS){
+      if(!achievementCanClaim(def)) continue;
+      const btn = contractButtons[def.id];
+      if(btn && !btn.hidden) list.push(btn);
+    }
+    return list;
+  }
+
+  // Claimables sort to the top — cue only when none are in view (usually scrolled down).
+  function firstClaimableAchievementOffscreen(){
+    if(activeRailPanel !== 'achievements') return null;
+    const claimables = claimableAchievementButtons();
+    if(!claimables.length) return null;
+    let anyVisible = false;
+    let above = null;
+    let below = null;
+    for(const btn of claimables){
+      if(upgradeInScrollerView(btn)) anyVisible = true;
+      if(upgradeInScrollerView(btn, 'above')) above = above || btn;
+      if(!below && upgradeInScrollerView(btn, 'below')) below = btn;
+    }
+    if(anyVisible) return null;
+    if(above) return { btn: above, dir: 'up', kind: 'claim', scrollTop: true };
+    if(below) return { btn: below, dir: 'down', kind: 'claim', scrollTop: true };
+    return null;
+  }
+
+  function railScrollCueTarget(){
+    if(activeRailPanel === 'upgrades') return firstUnviewedUpgradeOffscreen();
+    if(activeRailPanel === 'achievements') return firstClaimableAchievementOffscreen();
     return null;
   }
 
   function updateShopScrollCue(){
     if(!shopScrollCueBtn) return;
-    const target = firstUnviewedUpgradeOffscreen();
+    const target = railScrollCueTarget();
     if(!target){
       if(!shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = true;
       return;
     }
     const down = target.dir === 'down';
-    const label = down ? 'New upgrade below' : 'New upgrade above';
+    const claim = target.kind === 'claim';
+    const label = claim
+      ? (down ? 'Claimable achievement below' : 'Claimable achievement above')
+      : (down ? 'New upgrade below' : 'New upgrade above');
     const arrowGlyph = down ? '↓' : '↑';
+    const text = claim ? 'Claim' : 'New';
     if(shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = false;
     if(shopScrollCueBtn.classList.contains('is-down') !== down){
       shopScrollCueBtn.classList.toggle('is-down', down);
@@ -12043,6 +12090,8 @@
     }
     const arrow = shopScrollCueBtn.querySelector('.shop-scroll-cue-arrow');
     if(arrow && arrow.textContent !== arrowGlyph) arrow.textContent = arrowGlyph;
+    const labelEl = shopScrollCueBtn.querySelector('.shop-scroll-cue-label');
+    if(labelEl && labelEl.textContent !== text) labelEl.textContent = text;
   }
 
   function markVisibleUpgradeUnlocksSeen(){
@@ -12201,24 +12250,33 @@
   });
   if(railBodyEl){
     railBodyEl.addEventListener('scroll', ()=>{
-      if(activeRailPanel !== 'upgrades') return;
-      markPanelUnlocksSeen('upgrades');
-      setTabBadge('upgrades', countAffordableUpgrades());
-      updateShopScrollCue();
+      if(activeRailPanel === 'upgrades'){
+        markPanelUnlocksSeen('upgrades');
+        setTabBadge('upgrades', countAffordableUpgrades());
+      }
+      if(activeRailPanel === 'upgrades' || activeRailPanel === 'achievements'){
+        updateShopScrollCue();
+      }
     }, { passive: true });
   }
   if(shopScrollCueBtn){
     shopScrollCueBtn.addEventListener('click', ()=>{
-      const target = firstUnviewedUpgradeOffscreen();
+      const target = railScrollCueTarget();
       if(!target){
         updateShopScrollCue();
         return;
       }
-      target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if(target.scrollTop && railBodyEl){
+        railBodyEl.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
       // Mark after the smooth scroll settles so the cue clears once visible.
       const finish = ()=>{
-        markPanelUnlocksSeen('upgrades');
-        setTabBadge('upgrades', countAffordableUpgrades());
+        if(activeRailPanel === 'upgrades'){
+          markPanelUnlocksSeen('upgrades');
+          setTabBadge('upgrades', countAffordableUpgrades());
+        }
         updateShopScrollCue();
       };
       requestAnimationFrame(()=>requestAnimationFrame(finish));
@@ -12226,10 +12284,13 @@
     });
   }
   window.addEventListener('resize', ()=>{
-    if(activeRailPanel !== 'upgrades') return;
-    markPanelUnlocksSeen('upgrades');
-    setTabBadge('upgrades', countAffordableUpgrades());
-    updateShopScrollCue();
+    if(activeRailPanel === 'upgrades'){
+      markPanelUnlocksSeen('upgrades');
+      setTabBadge('upgrades', countAffordableUpgrades());
+      updateShopScrollCue();
+    } else if(activeRailPanel === 'achievements'){
+      updateShopScrollCue();
+    }
   });
 
   const levelBoxEl = document.getElementById('levelBox');
@@ -12977,6 +13038,10 @@
     if(activeRailPanel !== 'achievements' || bucketSig !== achievementOrderBucketSig){
       orderUpgradeButtons(achievementsEl, ordered);
       achievementOrderBucketSig = bucketSig;
+    }
+    if(activeRailPanel === 'achievements'){
+      // Order/claim changes can move ready cards offscreen of the shared rail scroller.
+      requestAnimationFrame(()=>updateShopScrollCue());
     }
   }
 
