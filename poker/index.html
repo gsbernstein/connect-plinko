@@ -200,14 +200,17 @@
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
-    /* Extra bottom padding so the rate clears the absolute progress bar. */
-    padding:8px 14px 4px;
+    padding:8px 14px;
     font-size:13px;
     flex:none;
     white-space:nowrap;
     color:var(--felt-bright);
     overflow:hidden;
   }
+  /* Extra bottom padding so the rate clears the absolute progress bar. */
+  .score.has-chip-rate{padding-bottom:4px;}
+  .chip-rate[hidden],
+  #chipRateBar[hidden]{display:none !important;}
   .score-head{
     display:flex;
     align-items:center;
@@ -2496,10 +2499,10 @@
           <span class="hud-label">Chips</span>
           <span class="score-stack">
             <b class="hud-val" id="scoreVal">0</b>
-            <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
+            <span class="chip-rate" id="chipRateVal" title="Chips earned per second" hidden>0/s</span>
           </span>
         </div>
-        <div class="upgrade-progress" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true">
+        <div class="upgrade-progress" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true" hidden>
           <span class="upgrade-progress-bought" id="chipRateFill"></span>
         </div>
       </div>
@@ -3346,6 +3349,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
+    {
+      id: 96,
+      date: 'Jul 27, 2026',
+      title: 'Slide Rule',
+      items: [
+        'New VIP perk: Slide Rule — Lv1 unlocks the chips/s meter under Chips; Lv2 switches it to a log scale. Toggleable.',
+      ]
+    },
     {
       id: 95,
       date: 'Jul 27, 2026',
@@ -5006,6 +5017,15 @@
       costScale: 1,
       maxLevel: 1,
       toggleable: true
+    },
+    {
+      id: 'slideRule',
+      name: 'Slide Rule',
+      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch that meter to a log scale so early trickle and late flood both read. Toggle On/Off anytime.',
+      baseCost: 4,
+      costScale: 2,
+      maxLevel: 2,
+      toggleable: true
     }
   ];
 
@@ -5014,7 +5034,7 @@
   // Pause switches for auto systems — ownership stays; automation can be muted.
   const AUTO_TOGGLE_IDS = [
     'autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'controlBooth',
-    'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom',
+    'tableTilt', 'slideRule', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom',
     'dealMeIn', 'shortFuse'
   ];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
@@ -5027,6 +5047,7 @@
     { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
     { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
     { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
+    { id: 'slideRule', short: 'Rate', source: 'prestige' },
     { id: 'pinSplit', short: 'Mitosis', source: 'prestige' },
     { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
     { id: 'siegeWeapons', short: 'Siege', source: 'prestige' },
@@ -5166,10 +5187,23 @@
       if(on) activateTableTilt(true);
       else deactivateTableTilt();
     }
+    if(id === 'slideRule'){
+      lastChipRatePct = -1;
+      lastChipRateShown = null;
+      updateChipRateUI(performance.now(), true);
+    }
   }
 
   function controlBoothActive(){
     return prestigeLevel('controlBooth') > 0 && isAutoEnabled('controlBooth');
+  }
+
+  function slideRuleMeterVisible(){
+    return prestigeLevel('slideRule') > 0 && isAutoEnabled('slideRule');
+  }
+
+  function slideRuleLogScale(){
+    return prestigeLevel('slideRule') >= 2 && isAutoEnabled('slideRule');
   }
 
   function toggleDockItemOwned(def){
@@ -6876,6 +6910,7 @@
   const scoreBoxEl = document.getElementById('scoreBox');
   const chipRateValEl = document.getElementById('chipRateVal');
   const chipRateFillEl = document.getElementById('chipRateFill');
+  const chipRateBarEl = document.getElementById('chipRateBar');
   const MAX_FLYING_CHIPS = 80;
   let flyingChips = [];
   let chipFlyRaf = 0;
@@ -7022,7 +7057,9 @@
           : opts.sparkColor;
         if(sparkColor) styleFlySpark(el, sparkColor);
       }
-      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * Math.PI * 1.35;
+      // Targeted chips can fan wide; local sparkles stay in an upward cone.
+      const angSpread = flyToTarget ? Math.PI * 1.35 : Math.PI * 0.7;
+      const ang = (-Math.PI / 2) + (Math.random() - 0.5) * angSpread;
       const pop = 14 + Math.random() * (opts.popSpread || 34);
       const delay = i * 16 + Math.random() * 22;
       const duration = opts.duration || (flyToTarget ? 620 + Math.random() * 220 : 420 + Math.random() * 160);
@@ -7054,8 +7091,9 @@
         particle.tx = target.x + (Math.random() * 12 - 6);
         particle.ty = target.y + (Math.random() * 8 - 4);
       } else {
+        // Keep rising through fade-out — no settle-back to the pop point.
         particle.tx = popX;
-        particle.ty = popY;
+        particle.ty = popY - (18 + Math.random() * 24);
       }
       flyingChips.push(particle);
     }
@@ -7221,9 +7259,11 @@
         const sy = c.popY;
         x = sx + (c.tx - sx) * p;
         y = sy + (c.ty - sy) * p;
-        // Soft arc so the path reads as a toss, not a laser.
-        const arc = Math.sin(p * Math.PI) * (36 + Math.hypot(c.tx - sx, c.ty - sy) * 0.06);
-        y -= arc;
+        // Soft arc for HUD tosses only — local sparkles must not fall back down.
+        if(c.flyToTarget !== false){
+          const arc = Math.sin(p * Math.PI) * (36 + Math.hypot(c.tx - sx, c.ty - sy) * 0.06);
+          y -= arc;
+        }
         scale = c.size * (1.15 - 0.45 * p);
         alpha = t > 0.9 ? Math.max(0, 1 - (t - 0.9) / 0.1) : 1;
         rot = c.rot * (0.3 + 0.7 * p);
@@ -7262,6 +7302,7 @@
   let lastChipRatePaint = 0;
   let lastChipRateText = '';
   let lastChipRatePct = -1;
+  let lastChipRateShown = null;
 
   function noteChipEarn(amount, now){
     amount = Math.floor(amount);
@@ -7307,21 +7348,51 @@
     lastChipRatePaint = 0;
     lastChipRateText = '';
     lastChipRatePct = -1;
+    lastChipRateShown = null;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
     if(chipRateFillEl){
       chipRateFillEl.style.left = '0%';
       chipRateFillEl.style.width = '0%';
     }
+    syncChipRateVisibility();
+  }
+
+  function chipRateFillPct(rate, max){
+    if(!(max > 0)) return 0;
+    if(slideRuleLogScale()){
+      const denom = Math.log1p(max);
+      if(!(denom > 0)) return 0;
+      return Math.min(100, (Math.log1p(Math.max(0, rate)) / denom) * 100);
+    }
+    return Math.min(100, (rate / max) * 100);
+  }
+
+  function syncChipRateVisibility(){
+    const show = slideRuleMeterVisible();
+    if(show === lastChipRateShown) return show;
+    lastChipRateShown = show;
+    if(scoreBoxEl) scoreBoxEl.classList.toggle('has-chip-rate', show);
+    if(chipRateValEl) chipRateValEl.hidden = !show;
+    if(chipRateBarEl) chipRateBarEl.hidden = !show;
+    return show;
   }
 
   function updateChipRateUI(now, force){
+    const show = syncChipRateVisibility();
+    if(!show) return;
     if(!chipRateValEl && !chipRateFillEl) return;
     now = now || performance.now();
     if(!force && now - lastChipRatePaint < CHIP_RATE_UI_MS) return;
     lastChipRatePaint = now;
     const rate = currentChipRate(now);
     const max = stats.maxChipRate || 0;
-    const pct = max > 0 ? Math.min(100, (rate / max) * 100) : 0;
+    const logScale = slideRuleLogScale();
+    const pct = chipRateFillPct(rate, max);
+    if(chipRateBarEl){
+      chipRateBarEl.title = logScale
+        ? 'Chips/s vs your peak (log scale)'
+        : 'Chips/s vs your peak';
+    }
     if(chipRateFillEl){
       const rounded = Math.round(pct);
       if(rounded !== lastChipRatePct){
@@ -7727,6 +7798,10 @@
         if(!lvl) return 'Upright gravity';
         if(!isAutoEnabled('tableTilt')) return 'Paused';
         return 'Steer up to ±' + tableTiltMaxDeg() + '°';
+      case 'slideRule':
+        if(!lvl) return 'No chips/s meter';
+        if(!isAutoEnabled('slideRule')) return 'Paused · meter hidden';
+        return lvl >= 2 ? 'Log chips/s meter' : 'Linear chips/s meter';
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
@@ -8316,6 +8391,11 @@
       startLoop();
     }
     if(id === 'tableTilt') activateTableTilt(true);
+    if(id === 'slideRule'){
+      lastChipRatePct = -1;
+      lastChipRateShown = null;
+      updateChipRateUI(performance.now(), true);
+    }
   }
 
   function columnReservations(){
