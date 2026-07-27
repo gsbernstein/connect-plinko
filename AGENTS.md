@@ -57,12 +57,12 @@ Cloud Agents resolve env config from `.cursor/environment.json` first (then pers
 | Terminal | `static-server` → `python3 -m http.server 8080` (shared tmux) |
 | Ports | `8080` |
 
-**Validate UI/gameplay changes**
+**Validate UI/gameplay changes (no computer use by default)**
 
 1. Confirm the static server is up (or start it yourself with the same command).
 2. Classic: http://localhost:8080/ — Poker: http://localhost:8080/poker/
-3. Hard-refresh after edits. Use browser/computer use to click through affected flows (drops, shop, VIP, Settings What’s New, etc.).
-4. There is no automated test suite; screenshots or a short playthrough are the verification.
+3. Prefer fast checks: read the edited code paths, reason about expected behavior, and (when useful) curl/`python3 -m http.server` smoke checks. Do **not** spawn `computerUse` / browser / desktop-control subagents, and do **not** drive the remote desktop to click through the UI, unless the user **explicitly** asks for a playthrough, screenshot, or computer-use pass in that turn.
+4. There is no automated test suite; a short code-path review is enough for most PRs. Manual play / screenshots are optional and only when requested.
 
 **Secrets / network** — none required for local play. Do not add API keys for this static site. If team egress is allowlisted, keep `cloud-agent-artifacts.s3.us-east-1.amazonaws.com` for demo artifacts.
 
@@ -205,9 +205,9 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 `setTabBadge(panel, count, opts)` paints `#badgeUpgrades` / `#badgeQuests` / `#badgeAchievements` / `#badgeVip` (Settings uses its own path). Count badges show a number; `hasNewUnlockBadge` wins with a red `.is-new` empty dot. Optional `opts.empty` shows a numberless `.is-dot` badge when count is 0 (VIP: Cash Out ready with no affordable perks — Cash Out never increments the VIP count).
 
-**Per-tab scroll:** `#railBody` is one shared scroller; `setRailPanel` saves/restores `railPanelScroll[panel]` (`saveRailPanelScroll` / `restoreRailPanelScroll`) so each shop tab keeps its offset for the session.
+**Per-tab scroll:** `#railBody` is `overflow:hidden`; each `.rail-panel` is its own `overflow-y:auto` scroller so tabs keep native `scrollTop` without JS restore (avoids interrupting touch/wheel gestures).
 
-**Offscreen new upgrades:** Shop unlocks are marked seen only when their row is in the `#railBody` viewport (`markVisibleUpgradeUnlocksSeen`). If an unviewed unlock is offscreen while the Upgrades panel is open, `#shopScrollCue` (`.shop-scroll-cue`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below); `updateShopScrollCue` refreshes on shop UI, scroll, scroll, resize, and panel switches.
+**Offscreen new upgrades:** Shop unlocks are marked seen only when their row is in the Upgrades panel viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView` vs `#panelUpgrades`). If an unviewed unlock is offscreen while the Upgrades panel is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below); `updateShopScrollCue` refreshes on shop UI, panel scroll, resize, and panel switches.
 
 ### Physics & board
 
