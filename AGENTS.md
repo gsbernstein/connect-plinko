@@ -108,7 +108,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `cardsIgnited` / `a_big_room` | Achievement “I Didn’t Ask How Big The Room Was”: counts cards first lit via `markBallLit` / non-silent `igniteStackEntry` (silent seat transfer does not double-count) |
 | `stormBeachLandingPayout` | Storm the Beaches: chips when a card survives pegs and enters the grid (`enterGridColumn`) |
 | `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
-| `purgeCardPayout` / `suitBombPickerMinimized` / `suitBombUiVisible` / `suitPurgePairPenalty` / `pickAutoSuitBombTarget` | Suit Purge: shop Hide/Show and bar tap minimize picker only (purges keep running); purge pays per card; auto-target ranks by pair-safe effective count but gates on raw cards in play (≥2) so Pin Split duplicate floods still cast |
+| `purgeCardPayout` / `suitBombPickerMinimized` / `suitBombUiVisible` / `suitPurgePairPenalty` / `pickAutoSuitBombTarget` | Suit Purge: shop Hide/Show and bar tap minimize picker only (purges keep running); purge pays per card; auto-target ranks by pair-safe effective count but gates on raw cards in play (≥2) so Pin Split duplicate floods still cast; with Suit Alliance, targets/buttons are suit families (`purgeFamilies`) and dual-glyph buttons show both allies |
+| `suitCut` / `suitFamily` / `suitsInFamily` / `purgeFamilies` / `SUIT_ALIAS_STEPS` | Suit Alliance: does **not** remove suits from the shoe; Lv1 ♦→♥, Lv2 also ♣→♠ for flush matching (`sliceSharesFlushSuit` / `flushHintColor` family color) and Suit Purge (one button/family, clears both printed suits). Cards keep their own felt/glyph. |
 | `maybeAutoBuy` / `PIT_BOSS_BUY_BATCH` / `PIT_BOSS_BUY_INTERVAL_MS` | Pit Boss (toggleable): up to 5 cheapest affordable shop buys per tick; `140` ms throttle |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
@@ -289,7 +290,8 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Storm the Beaches landing | `stormBeachLandingPayout` in `enterGridColumn` when peg → grid |
 | Short Fuse toggle | `shortFuseActive` / `resolveSpeed` / `flashPulseCount`; `toggleable` on `shortFuse` def + `AUTO_TOGGLE_IDS` |
 | Control Booth toggle dock | `controlBooth` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS`; `TOGGLE_DOCK_DEFS` / `controlBoothActive` / `updateToggleDockUI`; HTML `#toggleDock` beside `.board-frame` in `.board-row` |
-| Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI`; shop Hide/Show and bar tap minimize picker only |
+| Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI` / `repaintSuitBombGlyphs`; shop Hide/Show and bar tap minimize picker only; Suit Alliance folds ally suits onto one `.pair-suit` button |
+| Suit Alliance (flush/purge allies) | `suitFamily` / `SUIT_ALIAS_STEPS` on `suitCut`; flush via `sliceSharesFlushSuit`; purge via `findSuitCells` / `castSuitBomb` family keys |
 | New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
