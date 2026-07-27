@@ -2983,6 +2983,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 40,
+      date: 'Jul 27, 2026',
+      title: 'Siege columns & Storm landings',
+      items: [
+        'Siege bumper smashes clear a column (Lv 1), every column on that bumper (Lv 2), or slam the landing column for a combo payout (Lv 3).',
+        'Storm the Beaches pays chips for every card that survives the peg gauntlet and enters the columns.'
+      ]
+    },
+    {
       id: 39,
       date: 'Jul 27, 2026',
       title: 'Clear-speed toggle & purge/siege rework',
@@ -4003,7 +4012,7 @@
     {
       id: 'stormBeaches',
       name: 'Storm the Beaches',
-      desc: 'Auto Dealer runs ~3× faster, but cards can randomly explode when they hit a pin. High volume, high casualties. Toggle On/Off anytime.',
+      desc: 'Auto Dealer runs ~3× faster, but cards can randomly explode when they hit a pin. Survivors that reach the columns earn chips. High volume, high casualties. Toggle On/Off anytime.',
       baseCost: 75,
       costScale: 1,
       maxLevel: 1,
@@ -4012,10 +4021,10 @@
     {
       id: 'siegeWeapons',
       name: 'Siege Weapons',
-      desc: 'Some cards grow spikes. Spiked cards smash bumpers for Rail Tax and clear the top row for chips. Lv 2: spikes earn double Pin Tip on pegs. Toggle On/Off anytime.',
+      desc: 'Spiked cards smash bumpers for Rail Tax and clear columns. Lv 2: every column on that bumper. Lv 3: landing slam clears the column with combo payout. Toggle On/Off anytime.',
       baseCost: 55,
       costScale: 2.2,
-      maxLevel: 2,
+      maxLevel: 3,
       toggleable: true
     },
     {
@@ -4227,7 +4236,8 @@
   // Siege Weapons: spiked cards smash bumpers (top-row clear); Lv2 shatters pins awhile.
   const SIEGE_SPIKE_CHANCE = 0.18;
   const SIEGE_PIN_BREAK_FRAMES = 200; // ~3.3s at 60fps physics ticks
-  let pendingSiegeClear = false;
+  let pendingSiegeClear = null; // {cols: number[]} queued bumper smash
+  let pendingSiegeLand = null; // {ball, col} finish column entry after Lv3 slam
 
   function siegeWeaponsUnlocked(){
     return prestigeLevel('siegeWeapons') > 0;
@@ -4241,8 +4251,43 @@
     return prestigeLevel('siegeWeapons');
   }
 
-  function siegeSpikePinMult(ball){
-    return ball && ball.card && ball.card.spikes && siegeWeaponsActive() && siegeWeaponsLevel() >= 2 ? 2 : 1;
+  function stormBeachLandingPayout(){
+    if(!stormBeachesActive()) return 0;
+    const pin = pinHitPayout();
+    return Math.max(1, Math.floor((pin > 0 ? pin * 2 : 10) * effectiveMetaMultiplier()));
+  }
+
+  function siegeCardPayout(){
+    const lvl = siegeWeaponsLevel();
+    if(lvl <= 0) return 0;
+    return Math.max(1, Math.floor(lvl * 12 * effectiveMetaMultiplier()));
+  }
+
+  function siegeColumnsForBumperHit(ball, rail){
+    const lvl = siegeWeaponsLevel();
+    if(lvl < 1) return [];
+    if(lvl >= 2 && rail && rail.startCol != null){
+      const cols = [];
+      for(let c = rail.startCol; c <= rail.endCol; c++) cols.push(c);
+      return cols;
+    }
+    const c = Math.min(COLS - 1, Math.max(0, Math.floor(ball.x / CELL)));
+    return [c];
+  }
+
+  function siegeCellsForColumns(cols){
+    const cells = [];
+    const seen = new Set();
+    for(const c of cols){
+      for(let r = 0; r < ROWS; r++){
+        if(!grid[c][r]) continue;
+        const key = c + ',' + r;
+        if(seen.has(key)) continue;
+        seen.add(key);
+        cells.push([c, r]);
+      }
+    }
+    return cells;
   }
 
   function tableTiltUnlocked(){
@@ -5373,12 +5418,6 @@
     return Math.max(1, Math.floor(lvl * 8 * blindMultiplier('hands') * effectiveMetaMultiplier()));
   }
 
-  function siegeCardPayout(){
-    const lvl = siegeWeaponsLevel();
-    if(lvl <= 0) return 0;
-    return Math.max(1, Math.floor(lvl * 12 * effectiveMetaMultiplier()));
-  }
-
   function suitPurgePairPenalty(suit){
     if(prestigeLevel('cardCounting') <= 0) return 0;
     let penalty = 0;
@@ -6296,14 +6335,17 @@
       case 'stormBeaches':
         if(!lvl) return 'Steady landings';
         if(!isAutoEnabled('stormBeaches')) return 'Paused';
-        return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% pin shells';
+        return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% shells · +' + stormBeachLandingPayout() + ' landing';
       case 'siegeWeapons':
         if(!lvl) return 'Smooth rims';
         if(!isAutoEnabled('siegeWeapons')) return 'Paused';
-        if(lvl >= 2){
-          return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · +' + siegeCardPayout() + '/card · 2× pin';
+        if(lvl >= 3){
+          return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · bumper cols · slam combo';
         }
-        return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · +' + siegeCardPayout() + '/card';
+        if(lvl >= 2){
+          return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · bumper columns · +' + siegeCardPayout() + '/card';
+        }
+        return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · column clear · +' + siegeCardPayout() + '/card';
       default:
         return '';
     }
@@ -6876,7 +6918,8 @@
     currentGroups = [];
     chainStep = 0;
     pendingChain = 0;
-    pendingSiegeClear = false;
+    pendingSiegeClear = null;
+    pendingSiegeLand = null;
     heaterHoldUntilUse = false;
     flashCells = null;
     particles = [];
@@ -6972,7 +7015,8 @@
       const y = BUMPER_BASE_Y - h*0.35;
       bumperPaths.push({
         points: [{x:leftX,y},{x:rightX,y}],
-        hit:0, edgeLeft, edgeRight
+        hit:0, edgeLeft, edgeRight,
+        startCol, endCol
       });
       return;
     }
@@ -6989,7 +7033,8 @@
           {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
         ],
         hit:0, edgeLeft, edgeRight,
-        arc: {cx, cy, r:R, a0, a1}
+        arc: {cx, cy, r:R, a0, a1},
+        startCol, endCol
       });
       return;
     }
@@ -7008,7 +7053,8 @@
           {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
         ],
         hit:0, edgeLeft, edgeRight,
-        arc: {cx, cy, r:R, a0, a1}
+        arc: {cx, cy, r:R, a0, a1},
+        startCol, endCol
       });
       return;
     }
@@ -7026,7 +7072,8 @@
         {x: cx + Math.cos(a1)*R, y: cy + Math.sin(a1)*R}
       ],
       hit:0, edgeLeft, edgeRight,
-      arc: {cx, cy, r:R, a0, a1}
+      arc: {cx, cy, r:R, a0, a1},
+      startCol, endCol
     });
   }
 
@@ -7056,7 +7103,7 @@
       const minDist = ball.radius + BUMPER_R;
       if(dist >= minDist || dist <= 0.0001) continue;
 
-      // Siege Weapons: spiked cards punch through bumpers and clear the top row.
+      // Siege Weapons: spiked cards punch through bumpers and clear column(s).
       if(ball.card && ball.card.spikes && siegeWeaponsActive() && !ball.siegeUsed){
         ball.siegeUsed = true;
         spawnExplosion(closest.x, closest.y, ball.card);
@@ -7072,7 +7119,7 @@
         ball.vy = Math.max(Math.abs(ball.vy), 5);
         ball.vx *= 0.45;
         ball.spin += (Math.random() - 0.5) * 0.8;
-        queueSiegeClear();
+        queueSiegeClear(ball, rail);
         continue;
       }
 
@@ -7468,7 +7515,7 @@
           impartSpin(ball, nx, ny);
           const freshHit = !p.hit;
           if(freshHit){
-            const payout = pinHitPayout() * siegeSpikePinMult(ball);
+            const payout = pinHitPayout();
             if(payout > 0){
               awardChips(payout, ball);
               spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
@@ -7559,6 +7606,14 @@
   const GRID_SETTLE_FRAMES = 150;
 
   function enterGridColumn(ball){
+    if(stormBeachesActive() && ball.phase === 'peg' && !ball.cascadeBall && !ball.stormBeachPaid){
+      const beachPts = stormBeachLandingPayout();
+      if(beachPts > 0){
+        ball.stormBeachPaid = true;
+        awardChips(beachPts, ball);
+        spawnHitPopup(ball.x, ball.y, '+' + beachPts, trailRGBA(ball.card, 0.95));
+      }
+    }
     ball.phase = 'grid';
     // Pin Split chips grow back to full size once they commit to a column.
     ball.splitGen = 0;
@@ -7567,23 +7622,11 @@
     ball.y = Math.max(ball.y, PEG_ZONE + 1);
     const rawCol = Math.min(COLS-1, Math.max(0, Math.floor(ball.x / CELL)));
     const targetCol = nearestOpenColumn(rawCol);
-    const h = stack[targetCol].length;
-    if(h >= ROWS){
+    if(tryBeginSiegeColumnSlam(ball, targetCol)){
       ball.phase = 'peg';
-      ball.y = PEG_ZONE - ball.radius;
-      ball.vy = -Math.abs(ball.vy) - 2;
       return;
     }
-    const row = ROWS - 1 - h;
-    const entry = {type:'ball', ball, row};
-    stack[targetCol].push(entry);
-    colHeights[targetCol] = stack[targetCol].length;
-    recomputeBumpers();
-    ball.targetCol = targetCol;
-    ball.row = row;
-    ball.stackEntry = entry;
-    ball.gridAge = 0;
-    ball.vx *= 0.55;
+    commitBallToColumn(ball, targetCol);
   }
 
   function releaseBallToPegs(ball){
@@ -8413,44 +8456,62 @@
     return balls.some(b => b.phase==='grid');
   }
 
-  function queueSiegeClear(){
-    if(gameOver) return;
-    if(resolving){
-      pendingSiegeClear = true;
-      return;
-    }
-    beginSiegeClear();
-  }
-
-  // Siege Weapons: spiked bumper smash clears the whole top row (opens bumpers).
-  // Preserves Hot Streak carryover like Suit Purge — no fake CHAIN banner.
-  function beginSiegeClear(){
-    if(gameOver) return false;
-    const row = 0;
-    const cells = [];
-    for(let c=0;c<COLS;c++){
-      if(grid[c][row]) cells.push([c, row]);
-    }
-    if(!cells.length){
-      pendingSiegeClear = false;
+  function commitBallToColumn(ball, targetCol){
+    const h = stack[targetCol].length;
+    if(h >= ROWS){
+      ball.phase = 'peg';
+      ball.y = PEG_ZONE - ball.radius;
+      ball.vy = -Math.abs(ball.vy) - 2;
       return false;
     }
+    const row = ROWS - 1 - h;
+    const entry = {type:'ball', ball, row};
+    stack[targetCol].push(entry);
+    colHeights[targetCol] = stack[targetCol].length;
+    recomputeBumpers();
+    ball.targetCol = targetCol;
+    ball.row = row;
+    ball.stackEntry = entry;
+    ball.gridAge = 0;
+    ball.vx *= 0.55;
+    return true;
+  }
+
+  function finishSiegeLand(){
+    if(!pendingSiegeLand) return;
+    const land = pendingSiegeLand;
+    pendingSiegeLand = null;
+    const ball = land.ball;
+    ball.phase = 'grid';
+    commitBallToColumn(ball, land.col);
+  }
+
+  function beginSiegeResolve(cells, opts){
+    opts = opts || {};
+    if(!cells.length || gameOver) return false;
     if(resolving){
-      pendingSiegeClear = true;
+      if(opts.cols) pendingSiegeClear = {cols: opts.cols};
+      if(opts.land) pendingSiegeLand = opts.land;
       return true;
     }
+    if(opts.land) pendingSiegeLand = opts.land;
     resolving = true;
     resolveEpoch++;
     if(chainStep > 0){
       pendingChain = Math.max(pendingChain, chainStep);
     }
     chainStep = 0;
-    const first = grid[cells[0][0]][row];
+    const combo = opts.siegeCombo || 0;
+    const payoutPer = siegeCardPayout();
+    const pointMult = combo > 1 ? combo : 1;
+    const first = grid[cells[0][0]][cells[0][1]];
     currentGroups = [{
-      name: 'SIEGE',
-      points: cells.length * siegeCardPayout(),
+      name: opts.siegeSlam ? 'SIEGE SLAM' : 'SIEGE',
+      points: cells.length * payoutPer * pointMult,
       cells,
       siegeClear: true,
+      siegeSlam: !!opts.siegeSlam,
+      siegeCombo: combo,
       color: first ? cardGlowColor(first) : '#C4CCD8'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
@@ -8459,6 +8520,35 @@
     refreshButtons();
     startResolveLoop();
     return true;
+  }
+
+  function queueSiegeClear(ball, rail){
+    if(gameOver || !siegeWeaponsActive()) return;
+    const cols = siegeColumnsForBumperHit(ball, rail);
+    const cells = siegeCellsForColumns(cols);
+    if(!cells.length) return;
+    beginSiegeResolve(cells, {cols});
+  }
+
+  function tryBeginSiegeColumnSlam(ball, col){
+    if(gameOver || siegeWeaponsLevel() < 3 || !siegeWeaponsActive()) return false;
+    if(!ball.card?.spikes || ball.siegeSlamUsed) return false;
+    const cells = siegeCellsForColumns([col]);
+    ball.siegeSlamUsed = true;
+    if(!cells.length) return false;
+    return beginSiegeResolve(cells, {
+      cols: [col],
+      siegeSlam: true,
+      siegeCombo: cells.length,
+      land: {ball, col}
+    });
+  }
+
+  // Siege Weapons: bumper smash clears column(s). Lv3 landing slam is separate.
+  // Preserves Hot Streak carryover like Suit Purge — no fake CHAIN banner.
+  function beginSiegeClear(cols){
+    const cells = siegeCellsForColumns(cols || []);
+    return beginSiegeResolve(cells, {cols: cols || []});
   }
 
   // Board-full escape hatch: nuke the entire bottom row (no points). Pieces
@@ -8684,11 +8774,19 @@
       resolving = false;
       chainStep = 0;
       if(pendingSiegeClear){
-        pendingSiegeClear = false;
-        if(beginSiegeClear()){
+        const req = pendingSiegeClear;
+        pendingSiegeClear = null;
+        if(beginSiegeClear(req.cols)){
           scheduleSave();
           return;
         }
+      }
+      if(pendingSiegeLand){
+        finishSiegeLand();
+        refreshButtons();
+        scheduleSave();
+        startLoop();
+        return;
       }
       if(boardIsFull() && !hasGridBalls()){
         pendingChain = 0;
@@ -8729,11 +8827,15 @@
             spawnPopups(currentGroups, pts, chainMult);
             spawnHandChipFlies(currentGroups, chainMult);
           } else if(isSiegeClear){
-            const pts = Math.floor(scoreGroups(currentGroups, 1) * handPayoutMultiplier());
+            const slamGroup = currentGroups.find(g => g.siegeSlam);
+            const combo = slamGroup?.siegeCombo || 0;
+            const chainMult = combo > 1 ? computeChainMult(combo) : 1;
+            const pts = Math.floor(scoreGroups(currentGroups, chainMult) * handPayoutMultiplier());
             if(pts > 0){
               awardChips(pts);
-              spawnHandChipFlies(currentGroups, 1);
+              spawnHandChipFlies(currentGroups, chainMult);
             }
+            if(combo > 1) spawnStaggeredChainPopups(combo, combo, now);
             const siegeCells = currentGroups.flatMap(g => g.siegeClear ? g.cells : []);
             const siegeY = siegeCells.length
               ? PEG_ZONE + siegeCells.reduce((s, cell)=>s+cell[1], 0)/siegeCells.length*CELL + CELL/2
@@ -8744,10 +8846,13 @@
             clearTimeout(shopUiTimer);
             flushScoreUI();
             updateShopUI();
+            const label = combo > 1
+              ? ('SIEGE SLAM ×' + combo + (pts > 0 ? ' +' + pts : ''))
+              : (pts > 0 ? ('SIEGE! +' + pts) : 'SIEGE!');
             pushPopup({
               x: siegeX,
               y: siegeY,
-              text: pts > 0 ? ('SIEGE! +' + pts) : 'SIEGE!',
+              text: label,
               color: '#D8DEE8',
               t0: performance.now(),
               duration: 900,
