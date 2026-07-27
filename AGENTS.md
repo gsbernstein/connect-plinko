@@ -109,6 +109,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
 | `noteChipEarn` / `updateChipRateUI` / `#chipRateVal` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset) |
+| `formatNum` / `formatCompactSuffix` | HUD chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
 
 ### Progression model (high level)
 
@@ -181,7 +182,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 
 **Persisted heater:** `heaterChainForSave()` writes `heaterChain` into the save (active `chainStep` during a hand resolve, else `pendingChain`; Suit Purge keeps `pendingChain`; floor clear → 0). `loadSave` stashes it in `resumeHeaterChain`; after boot `freshState()` that value is copied into `pendingChain` so refresh/update does not reset the streak. `heaterHoldUntilUse` skips the empty-board idle expire until `beginResolveChain` advances the heater once (board is empty on load). Cash Out / hard reset clear it before `persistSave`.
 
-**Combo popups:** `comboPopupJuice(n)` / `spawnPopups` — COMBO ×N banner size/slam/glow scale with simultaneous hands. Multi-hand clears call `spawnStaggeredChainPopups` (`CHAIN_POP_STAGGER_MS`) so each heater step gets its own delayed CHAIN slam (`t0` in the future; draw skips `age < 0`). Staggered CHAIN banners stack downward (`+ stackIndex * 12`) while still floating up.
+**Combo popups:** `comboPopupJuice(n)` / `spawnPopups` — COMBO ×N banner size/slam/glow scale with simultaneous hands. Multi-hand clears call `spawnStaggeredChainPopups` (`CHAIN_POP_STAGGER_MS`) so each heater step gets its own delayed CHAIN slam (`t0` in the future; draw skips `age < 0`).
 
 ### Saves
 

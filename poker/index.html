@@ -3078,7 +3078,7 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 64,
+      id: 65,
       date: 'Jul 27, 2026',
       title: 'Crowned kings',
       items: [
@@ -3087,8 +3087,15 @@
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
-        'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
-        'CHAIN banners from multi-hand clears stack downward now, then drift up together.'
+        'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.'
+      ]
+    },
+    {
+      id: 64,
+      date: 'Jul 27, 2026',
+      title: 'Bigger chip readouts',
+      items: [
+        'Past Q (quadrillion), chip and mult readouts switch to scientific notation so late-game stacks stay short — no second “Q” for quintillion.'
       ]
     },
     {
@@ -5866,11 +5873,15 @@
     return Math.max(1, Math.floor(linear * mult));
   }
 
+  // Short-scale HUD suffixes through Q (quadrillion = 1e15). Quintillion+
+  // also wants "Q", so past 1e18 we drop to scientific instead of inventing Qi/Sx…
   function formatCompactSuffix(n){
     if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
     if(n < 1e12) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
     if(n < 1e15) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + 'T';
-    return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+    if(n < 1e18) return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+    if(!Number.isFinite(n)) return String(n);
+    return n.toExponential(2).replace(/\.?0+e/, 'e').replace('e+', 'e');
   }
 
   function formatMultFactor(v, noun){
@@ -9187,10 +9198,9 @@
 
   function pushChainBanner(mult, t0, stackIndex){
     // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
-    // Stack later banners downward; floatBoost still drifts every label upward.
     pushPopup({
       x: W/2,
-      y: PEG_ZONE * 0.4 + stackIndex * 12,
+      y: PEG_ZONE * 0.4 - stackIndex * 12,
       text: 'CHAIN ×' + mult + '!',
       color: '#ffffff',
       t0,
