@@ -709,7 +709,17 @@
     min-width:0;
     min-height:0;
     flex:1 1 auto;
-    overflow:hidden;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:14px 12px 12px;
+    scrollbar-gutter:stable;
+    touch-action:pan-y;
+  }
+  .rail-body::-webkit-scrollbar{width:8px;}
+  .rail-body::-webkit-scrollbar-track{background:transparent;}
+  .rail-body::-webkit-scrollbar-thumb{
+    background:#3a3558;
+    border-radius:999px;
   }
   .shop-scroll-cue{
     position:absolute;
@@ -771,19 +781,6 @@
     flex-direction:column;
     gap:10px;
     min-width:0;
-    min-height:0;
-    flex:1 1 auto;
-    overflow-x:hidden;
-    overflow-y:auto;
-    padding:14px 12px 12px;
-    scrollbar-gutter:stable;
-    touch-action:pan-y;
-  }
-  .rail-panel::-webkit-scrollbar{width:8px;}
-  .rail-panel::-webkit-scrollbar-track{background:transparent;}
-  .rail-panel::-webkit-scrollbar-thumb{
-    background:#3a3558;
-    border-radius:999px;
   }
   .rail-panel.is-active{display:flex;}
   .shop-head, .prestige-head, .contracts-head{
@@ -3350,11 +3347,20 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
-      id: 92,
+      id: 93,
       date: 'Jul 27, 2026',
       title: 'Star sits by the price',
       items: [
         'The recommended-buy ★ now appears after the upgrade or perk cost instead of before the name.',
+      ]
+    },
+    {
+      id: 92,
+      date: 'Jul 27, 2026',
+      title: 'Shop list order stays live',
+      items: [
+        'Removed per-tab scroll memory and the freeze-while-browsing list order that was hitching flings.',
+        'The New-upgrade ↓/↑ cue and red New highlight on unviewed unlocks stay.',
       ]
     },
     {
@@ -11697,6 +11703,7 @@
   const questsPanelEl = document.getElementById('panelQuests');
   const achievementsPanelEl = document.getElementById('panelAchievements');
   const vipPanelEl = document.getElementById('panelVip');
+  const railBodyEl = document.getElementById('railBody');
   const shopScrollCueBtn = document.getElementById('shopScrollCue');
   const welcomeToTableBtn = document.getElementById('welcomeToTable');
   const desktopMq = window.matchMedia('(min-width:1000px)');
@@ -11842,8 +11849,8 @@
   }
 
   function upgradeInScrollerView(btn, mode){
-    if(!upgradesPanelEl || !btn) return false;
-    const sRect = upgradesPanelEl.getBoundingClientRect();
+    if(!railBodyEl || !btn) return false;
+    const sRect = railBodyEl.getBoundingClientRect();
     const bRect = btn.getBoundingClientRect();
     const pad = 8;
     if(mode === 'below') return bRect.top > sRect.bottom - pad;
@@ -12024,10 +12031,6 @@
       achievementOrderBucketSig = '';
       updateAchievementsUI();
     }
-    // Apply frozen-while-open list order once when landing on a shop tab.
-    if(panel === 'upgrades') updateShopUI({ forceOrder: true });
-    else if(panel === 'quests') updateQuestsUI({ forceOrder: true });
-    else if(panel === 'vip') updatePrestigeUI({ forceOrder: true });
     // Layout may not be ready until after paint when switching panels.
     requestAnimationFrame(()=>{
       markPanelUnlocksSeen('upgrades');
@@ -12046,22 +12049,13 @@
     if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
     else setRailPanel(activeRailPanel);
   });
-  // Cue / unlock-seen: only after scroll settles (not every frame mid-fling).
-  let shopScrollEndTimer = 0;
-  function onUpgradesScrollSettled(){
-    shopScrollEndTimer = 0;
-    if(activeRailPanel !== 'upgrades') return;
-    markPanelUnlocksSeen('upgrades');
-    setTabBadge('upgrades', countAffordableUpgrades());
-    updateShopScrollCue();
-  }
-  if(upgradesPanelEl){
-    upgradesPanelEl.addEventListener('scroll', ()=>{
+  if(railBodyEl){
+    railBodyEl.addEventListener('scroll', ()=>{
       if(activeRailPanel !== 'upgrades') return;
-      if(shopScrollEndTimer) clearTimeout(shopScrollEndTimer);
-      shopScrollEndTimer = setTimeout(onUpgradesScrollSettled, 140);
+      markPanelUnlocksSeen('upgrades');
+      setTabBadge('upgrades', countAffordableUpgrades());
+      updateShopScrollCue();
     }, { passive: true });
-    upgradesPanelEl.addEventListener('scrollend', onUpgradesScrollSettled, { passive: true });
   }
   if(shopScrollCueBtn){
     shopScrollCueBtn.addEventListener('click', ()=>{
@@ -12448,8 +12442,7 @@
     else btn.removeAttribute('aria-description');
   }
 
-  function updateShopUI(opts){
-    opts = opts || {};
+  function updateShopUI(){
     const active = [];
     const maxedList = [];
     let affordableCount = 0;
@@ -12491,10 +12484,8 @@
       else btn.removeAttribute('aria-label');
       (maxed ? maxedList : active).push(btn);
     }
-    // Freeze list order while browsing — reshuffles steal fling momentum.
-    if(opts.forceOrder || activeRailPanel !== 'upgrades'){
-      orderUpgradeButtons(upgradesEl, active.concat(maxedList));
-    }
+    // Keep buyable upgrades up top; sink completed ones.
+    orderUpgradeButtons(upgradesEl, active.concat(maxedList));
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateShopScrollCue();
@@ -12531,8 +12522,7 @@
     return { gain, ready };
   }
 
-  function updatePrestigeUI(opts){
-    opts = opts || {};
+  function updatePrestigeUI(){
     const { ready } = updateCashOutUI();
     // Badge number = affordable VIP perks only; Cash Out never increments the count.
     let vipReady = 0;
@@ -12559,9 +12549,7 @@
         });
         (maxed ? maxedList : active).push(btn);
       }
-      if(opts.forceOrder || activeRailPanel !== 'vip'){
-        orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
-      }
+      orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
     }
     if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
     setTabBadge('vip', vipReady, ready ? { empty: true, ariaLabel: 'Cash Out ready' } : null);
@@ -12707,8 +12695,7 @@
       'Reach run level ' + unlockLvl + ' to open this quest slot.';
   }
 
-  function updateQuestsUI(opts){
-    opts = opts || {};
+  function updateQuestsUI(){
     updateQuestTabAvailability();
     if(!questsEl) return;
     const cap = questSlotCap();
@@ -12742,13 +12729,10 @@
       fillLockedQuestButton(questLockedButtons[i], cap + i);
     }
 
-    // Freeze order while browsing (same as shop / VIP).
-    if(opts.forceOrder || activeRailPanel !== 'quests'){
-      orderUpgradeButtons(
-        questsEl,
-        claimable.concat(inProgress, questLockedButtons)
-      );
-    }
+    orderUpgradeButtons(
+      questsEl,
+      claimable.concat(inProgress, questLockedButtons)
+    );
     if(questReadyValEl) questReadyValEl.textContent = String(questReady);
     if(questSlotsMetaEl){
       questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
