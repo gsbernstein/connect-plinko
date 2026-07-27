@@ -2984,6 +2984,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 48,
+      date: 'Jul 27, 2026',
+      title: 'Blast fires & burning hands',
+      items: [
+        'I Didn\'t Ask How Big the Room Was now lights nearby cards in the blast — fireballs are the spark traveling to those neighbors.',
+        'Poker hands that include burning cards pay +50% per lit card. Score pops go orange when fire pays.'
+      ]
+    },
+    {
       id: 47,
       date: 'Jul 27, 2026',
       title: 'Flaming crowned kings',
@@ -4125,7 +4134,7 @@
     {
       id: 'bigRoom',
       name: 'I Didn\'t Ask How Big the Room Was',
-      desc: 'Explosions cast fireballs that light other cards on fire. Burning cards drip chips until they ash out. Crowned kings leap aflame and light neighbors. Toggle On/Off anytime.',
+      desc: 'Explosions light nearby cards on fire. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. Crowned kings leap aflame and light neighbors. Toggle On/Off anytime.',
       baseCost: 80,
       costScale: 1,
       maxLevel: 1,
@@ -4411,13 +4420,16 @@
     return cells;
   }
 
-  // I Didn't Ask How Big the Room Was: blasts hurl fireballs; ignited cards drip chips.
-  const BIG_ROOM_FIREBALLS_PER_BLAST = 2;
+  // I Didn't Ask How Big the Room Was: blasts light nearby cards; burn DoT + hand bonus.
+  // Fireballs are the visual of that spread — they only seek seats inside the blast.
+  const BIG_ROOM_BLAST_IGNITE_R = 145; // ~neighbors + diagonals (CELL=90)
+  const BIG_ROOM_FIREBALLS_PER_BLAST = 8;
   const BIG_ROOM_MAX_FIREBALLS = 28;
   const BIG_ROOM_FIREBALL_SPEED = 9.5;
   const BIG_ROOM_BURN_TICKS = 4;
   const BIG_ROOM_BURN_TICK_MS = 420;
   const BIG_ROOM_BURN_COLOR = '#FF7A3D';
+  const BIG_ROOM_BURN_HAND_BONUS = 0.5; // +50% hand payout per burning card in the line
   const BIG_ROOM_KING_EMBER_MS = 70;
   const BIG_ROOM_KING_IGNITE_R = 58;
 
@@ -4433,6 +4445,21 @@
     // Modest DoT — scales with Pin Tip / Blind / run meta so mid-game fire matters.
     const pin = Math.max(1, upgradeLevel('pinPayout'));
     return Math.max(1, Math.floor((2 + pin * 1.5) * blindMultiplier('pin') * effectiveMetaMultiplier()));
+  }
+
+  function countBurningInCells(cells){
+    if(!cells || !cells.length) return 0;
+    let n = 0;
+    for(const [c, r] of cells){
+      if(burningAt(c, r)) n++;
+    }
+    return n;
+  }
+
+  function handBurnMultiplier(burnCount){
+    burnCount = burnCount || 0;
+    if(burnCount <= 0) return 1;
+    return 1 + burnCount * BIG_ROOM_BURN_HAND_BONUS;
   }
 
   function tableTiltUnlocked(){
@@ -6518,9 +6545,9 @@
         if(!isAutoEnabled('kingMe')) return 'Paused';
         return 'Crown on bottom · up to ' + KING_ME_MAX_JUMPS + ' jumps';
       case 'bigRoom':
-        if(!lvl) return 'No fireballs';
+        if(!lvl) return 'No blast fires';
         if(!isAutoEnabled('bigRoom')) return 'Paused';
-        return 'Fireballs on blasts · flaming kings · ' + formatNum(burnTickPayout()) + ' / burn tick';
+        return 'Nearby ignite · hand +' + Math.round(BIG_ROOM_BURN_HAND_BONUS * 100) + '%/burn · ' + formatNum(burnTickPayout()) + '/tick';
       default:
         return '';
     }
@@ -8414,14 +8441,17 @@
               const slice = cards.slice(i, i+len);
               const hand = evaluateHandSlice(slice);
               if(!hand) continue;
-              const cardMult = handCardMultiplier(slice);
+              const handCells = cells.slice(i, i+len);
+              const burnCount = countBurningInCells(handCells);
+              const cardMult = handCardMultiplier(slice) * handBurnMultiplier(burnCount);
               candidates.push({
                 i, len,
                 name: hand.name,
                 points: hand.points,
                 cardMult,
+                burnCount,
                 sleeveUsed: !!hand.sleeveUsed,
-                cells: cells.slice(i, i+len)
+                cells: handCells
               });
             }
           }
@@ -8436,6 +8466,7 @@
               name: cand.name,
               points: cand.points,
               cardMult: cand.cardMult,
+              burnCount: cand.burnCount || 0,
               sleeveUsed: !!cand.sleeveUsed,
               cells: cand.cells,
               color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
@@ -8801,12 +8832,15 @@
       const tier = handTextTier(g.name);
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
       const bangs = '!'.repeat(fx.bangs);
+      const burnCount = g.burnCount || 0;
       const multTag = cardMult > 1.001 ? (' ×' + cardMult.toFixed(2).replace(/\.00$/, '')) : '';
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
         text: g.name + multTag + bangs + ' +' + pts,
-        color: brightenColor(g.color || '#ffffff', fx.bright),
+        color: burnCount > 0
+          ? BIG_ROOM_BURN_COLOR
+          : brightenColor(g.color || '#ffffff', fx.bright),
         t0: now,
         duration: fx.duration,
         fontSize: fx.fontSize,
@@ -8814,7 +8848,7 @@
         tilt: fx.tilt * sign,
         slam: fx.slam,
         slamMs: fx.slamMs,
-        glow: fx.glow,
+        glow: burnCount > 0 ? Math.max(fx.glow, 18) : fx.glow,
         big: fx.big
       });
     }
@@ -8869,7 +8903,7 @@
         });
       }
     }
-    // Big Room: every blast can hurl fireballs at other settled cards.
+    // Big Room: blasts light nearby settled cards (fireballs are the delivery FX).
     if(bigRoomActive() && !opts.noFireball){
       castFireballsFrom(x, y, opts.excludeKeys);
     }
@@ -8897,8 +8931,10 @@
     return false;
   }
 
-  function collectFireballTargets(excludeKeys){
+  // Settled cards inside the blast ring — fireballs only spread to these neighbors.
+  function collectFireballTargets(x, y, excludeKeys){
     const exclude = excludeKeys || null;
+    const r2 = BIG_ROOM_BLAST_IGNITE_R * BIG_ROOM_BLAST_IGNITE_R;
     const targets = [];
     for(let c = 0; c < COLS; c++){
       for(let i = 0; i < stack[c].length; i++){
@@ -8909,9 +8945,14 @@
         if(exclude && exclude.has(key)) continue;
         if(flashCells && flashCells.has(key)) continue;
         if(entry.burning) continue;
-        targets.push({col: c, row, entry});
+        const pos = cellCenter(c, row);
+        const dx = pos.x - x, dy = pos.y - y;
+        const d2 = dx * dx + dy * dy;
+        if(d2 > r2 || d2 < 0.0001) continue;
+        targets.push({col: c, row, entry, d2});
       }
     }
+    targets.sort((a, b) => a.d2 - b.d2);
     return targets;
   }
 
@@ -8919,22 +8960,11 @@
     if(!bigRoomActive()) return;
     const room = BIG_ROOM_MAX_FIREBALLS - fireballs.length;
     if(room <= 0) return;
-    const targets = collectFireballTargets(excludeKeys);
+    const targets = collectFireballTargets(x, y, excludeKeys);
     if(!targets.length) return;
-    // Prefer nearer cards so the room feels tight, then shuffle the shortlist.
-    targets.sort((a, b) => {
-      const ac = cellCenter(a.col, a.row);
-      const bc = cellCenter(b.col, b.row);
-      return (Math.hypot(ac.x - x, ac.y - y) - Math.hypot(bc.x - x, bc.y - y));
-    });
-    const pool = targets.slice(0, Math.min(targets.length, 6));
-    for(let i = pool.length - 1; i > 0; i--){
-      const j = (Math.random() * (i + 1)) | 0;
-      const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
-    }
-    const count = Math.min(BIG_ROOM_FIREBALLS_PER_BLAST, pool.length, room);
+    const count = Math.min(BIG_ROOM_FIREBALLS_PER_BLAST, targets.length, room);
     for(let i = 0; i < count; i++){
-      const t = pool[i];
+      const t = targets[i];
       const dest = cellCenter(t.col, t.row);
       const dx = dest.x - x, dy = dest.y - y;
       const dist = Math.hypot(dx, dy) || 1;
