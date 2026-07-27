@@ -211,6 +211,8 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 **Offscreen new upgrades:** Shop unlocks are marked seen when their row is in the Upgrades panel viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView` vs `#panelUpgrades`). If an unviewed unlock is offscreen while Upgrades is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below).
 
+**New upgrade cards:** Unviewed unlocks (same `seenUnlocks.upgrades` gate as the tab dot) get `.upgrade.is-new` styling and an `.upgrade-new-tag` pill matching Settings changelog highlights until scrolled into view.
+
 ### Physics & board
 
 Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds per-column occupants (settled cards + in-flight balls); gravity/clear passes update ball target rows in place.
