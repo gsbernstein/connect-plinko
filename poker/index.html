@@ -3022,10 +3022,10 @@
     {
       id: 60,
       date: 'Jul 27, 2026',
-      title: 'Mitosis taps stick',
+      title: 'Mitosis leaves taps alone',
       items: [
-        'Percussive Mitosis no longer eats board taps during its deal cooldown — your latest tap stays armed and drops as soon as the timer clears.',
-        'Turning Mitosis Off still fires a queued tap immediately.'
+        'Percussive Mitosis no longer rate-limits board taps — only Auto Dealer is ~10× slower while it is On.',
+        'Tap-to-deal works at full speed even with Mitosis active.'
       ]
     },
     {
@@ -4249,7 +4249,7 @@
     {
       id: 'pinSplit',
       name: 'Percussive Mitosis',
-      desc: 'Drops come ~10× slower, but cards bifurcate when they hit a pin — shrinking each bounce, then snapping back to full size in the columns. Toggle On/Off anytime.',
+      desc: 'Auto Dealer runs ~10× slower, but cards bifurcate when they hit a pin — shrinking each bounce, then snapping back to full size in the columns. Manual taps stay normal. Toggle On/Off anytime.',
       baseCost: 75,
       costScale: 1,
       maxLevel: 1,
@@ -4313,10 +4313,6 @@
   let runCompCredit = 0; // Cash Out comps banked by level/quest rewards; paid out on Cash Out
   let autoDropTicks = 0;
   let lastAutoDropAt = 0;
-  let lastManualDropAt = 0;
-  // When Percussive Mitosis rate-limits taps, remember the latest aim so the
-  // drop still fires as soon as the cooldown ends (taps are never discarded).
-  let pendingManualDropX = null;
   let lastIdleDrawAt = 0;
   let nearMissCache = null;
   let hintsDirty = true;
@@ -4439,8 +4435,6 @@
     if(on && id === 'pitBoss') maybeAutoBuy(performance.now());
     if(on && id === 'questDesk') maybeAutoClaimQuests(performance.now());
     if(on && id === 'autoDealer') lastAutoDropAt = performance.now();
-    if(on && id === 'pinSplit') lastManualDropAt = performance.now();
-    if(!on && id === 'pinSplit') flushPendingManualDrop(performance.now());
     if(on && (id === 'autoDealer' || id === 'autoSuitBomb') && !resolving && !looping){
       startLoop();
     }
@@ -4458,36 +4452,15 @@
     return pinSplitUnlocked() && isAutoEnabled('pinSplit');
   }
 
-  // Pin Split: rare drops, but each pin strike can bifurcate a falling card.
+  // Pin Split: rare Auto Dealer cadence, but each pin strike can bifurcate a falling card.
   const PIN_SPLIT_SPAWN_MULT = 10;
   const PIN_SPLIT_MAX_GEN = 3; // gen 0 → 3 ⇒ up to 8 chips from one drop
   const PIN_SPLIT_SCALE = 0.72;
   const PIN_SPLIT_MIN_R = 5;
   const PIN_SPLIT_LOCK_FRAMES = 12;
-  const PIN_SPLIT_MANUAL_COOLDOWN_MS = 2400;
 
   function pinSplitSpawnMult(){
     return pinSplitActive() ? PIN_SPLIT_SPAWN_MULT : 1;
-  }
-
-  function manualDropCooldownMs(){
-    return pinSplitActive() ? PIN_SPLIT_MANUAL_COOLDOWN_MS : 0;
-  }
-
-  function manualDropReady(now){
-    const cd = manualDropCooldownMs();
-    if(cd <= 0 || lastManualDropAt <= 0) return true;
-    return (now - lastManualDropAt) >= cd;
-  }
-
-  function flushPendingManualDrop(now){
-    if(pendingManualDropX == null) return false;
-    if(gameOver || inputBlocked()) return false;
-    if(!manualDropReady(now == null ? performance.now() : now)) return false;
-    const x = pendingManualDropX;
-    pendingManualDropX = null;
-    dropAt(x);
-    return true;
   }
 
   function stormBeachesUnlocked(){
@@ -6751,7 +6724,7 @@
       case 'pinSplit':
         if(!lvl) return 'Normal drops';
         if(!isAutoEnabled('pinSplit')) return 'Paused';
-        return '×' + PIN_SPLIT_SPAWN_MULT + ' slower · split on pins';
+        return 'Auto ×' + PIN_SPLIT_SPAWN_MULT + ' slower · split on pins';
       case 'stormBeaches':
         if(!lvl) return 'Steady landings';
         if(!isAutoEnabled('stormBeaches')) return 'Paused';
@@ -6787,8 +6760,6 @@
     runCompCredit = 0;
     autoDropTicks = 0;
     lastAutoDropAt = 0;
-    lastManualDropAt = 0;
-    pendingManualDropX = null;
     suitBombReadyAt = 0;
     suitBombPickerMinimized = false;
     pendingSuitBomb = null;
@@ -7080,8 +7051,6 @@
     questUidSeq = 1;
     autoDropTicks = 0;
     lastAutoDropAt = 0;
-    lastManualDropAt = 0;
-    pendingManualDropX = null;
     suitBombReadyAt = 0;
     suitBombPickerMinimized = false;
     pendingSuitBomb = null;
@@ -7389,8 +7358,6 @@
     for(const p of pegs){ p.hit = 0; p.broken = 0; }
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
-    lastManualDropAt = 0;
-    pendingManualDropX = null;
     lastPhysicsTime = 0;
     physicsAccumulator = 0;
     fpsDisplay = 0;
@@ -7865,16 +7832,6 @@
   function dropAt(x, opts){
     opts = opts || {};
     if(gameOver) return;
-    if(!opts.auto){
-      const now = performance.now();
-      if(!manualDropReady(now)){
-        // Queue the latest tap instead of silently eating it.
-        pendingManualDropX = x;
-        return;
-      }
-      pendingManualDropX = null;
-      lastManualDropAt = now;
-    }
     if(!nextCard) nextCard = dealCard();
     const card = nextCard;
     nextCard = dealCard();
@@ -8264,7 +8221,6 @@
 
   function tick(){
     const now = performance.now();
-    flushPendingManualDrop(now);
     tryAutoSuitBomb(now);
     maybeAutoBuy(now);
     maybeAutoClaimQuests(now);
@@ -10451,17 +10407,9 @@
     }
 
     if(!gameOver && nextCard){
-      const cd = manualDropCooldownMs();
-      const coolFrac = cd > 0 && lastManualDropAt > 0
-        ? Math.max(0, Math.min(1, (performance.now() - lastManualDropAt) / cd))
-        : 1;
-      const pending = pendingManualDropX != null;
       const c = cardGlowColor(nextCard);
       ctx.save();
-      // Queued taps stay brighter so the cooldown reads as "armed", not "broken".
-      ctx.globalAlpha = pending
-        ? 0.55 + 0.45 * coolFrac
-        : 0.35 + 0.65 * coolFrac;
+      ctx.globalAlpha = 1;
       ctx.beginPath();
       ctx.moveTo(aimX-9, 6);
       ctx.lineTo(aimX+9, 6);
@@ -10469,7 +10417,7 @@
       ctx.closePath();
       ctx.fillStyle = c;
       ctx.shadowColor = c;
-      ctx.shadowBlur = (pending ? 14 : 10) * coolFrac;
+      ctx.shadowBlur = 10;
       ctx.fill();
       ctx.shadowBlur = 0;
       // tiny spinning preview of the next card at the drop point
@@ -12156,7 +12104,6 @@
     updateChipRateUI(now);
     if(upgradeLevel('autoDealer') > 0) updateAutoStatus(now);
     if(!looping && !resolveLooping){
-      flushPendingManualDrop(now);
       updateSuitBombUI(now);
       tryAutoSuitBomb(now);
       maybeAutoBuy(now);
@@ -12175,9 +12122,7 @@
       if(needLoop) startLoop();
       else {
         const idleDrawMs = desktopMq.matches ? 0 : 72;
-        // Keep redrawing while a queued Mitosis drop cools down so the aim cursor animates.
-        const pendingCool = pendingManualDropX != null && !manualDropReady(now);
-        if(pendingCool || idleDrawMs === 0 || now - lastIdleDrawAt >= idleDrawMs){
+        if(idleDrawMs === 0 || now - lastIdleDrawAt >= idleDrawMs){
           draw();
           lastIdleDrawAt = now;
         }
