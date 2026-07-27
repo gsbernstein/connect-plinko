@@ -1372,7 +1372,7 @@
     margin:0 auto;
     pointer-events:none;
   }
-  /* Suit Exile allies: one purge button paints both glyphs side by side. */
+  /* Suit Alliance: one purge button paints both glyphs side by side. */
   .suit-btn.pair-suit .suit-glyph{
     width:30px;
     height:18px;
@@ -2599,7 +2599,7 @@
   function flushHintColor(cards){
     const fixed = cards.find(c => !isWild(c));
     if(!fixed) return WILD_GLOW;
-    // Canonical family color so mixed ♥♦ / ♠♣ flushes teach the Suit Exile merge.
+    // Canonical family color so mixed ♥♦ / ♠♣ flushes teach the Suit Alliance merge.
     return SUIT_COLOR[suitFamily(fixed.suit)] || SUIT_COLOR[fixed.suit] || WILD_GLOW;
   }
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
@@ -2855,7 +2855,7 @@
     return arr;
   }
 
-  // Suit Exile allies printed suits for flushes + Suit Purge (deck still deals all four).
+  // Suit Alliance allies printed suits for flushes + Suit Purge (deck still deals all four).
   // Lv1: ♦ → ♥; Lv2: also ♣ → ♠. Cards keep their own felt/glyph.
   const SUIT_ALIAS_STEPS = [
     { from: '♦', to: '♥' },
@@ -3100,9 +3100,9 @@
     {
       id: 71,
       date: 'Jul 27, 2026',
-      title: 'Suit Exile keeps the colors',
+      title: 'Suit Alliance keeps the colors',
       items: [
-        'Suit Exile no longer strips suits from the shoe — diamonds ally with hearts at Lv1, clubs with spades at Lv2.',
+        'Suit Alliance keeps all four suits on the table — diamonds ally with hearts at Lv1, clubs with spades at Lv2.',
         'Flushes and Suit Purge treat each allied pair as one family; purge buttons show both glyphs.',
         'Flush connector lines use the family color (heart red / spade purple) so mixed allies still read clearly.',
         'Suit Purge pops immediately — no flash wait before cards explode.',
@@ -3834,7 +3834,7 @@
     },
     {
       id: 'suitCut',
-      name: 'Suit Exile',
+      name: 'Suit Alliance',
       desc: 'Ally suits for flushes and Suit Purge without removing them from the deck. Lv1: diamonds count as hearts. Lv2: clubs count as spades.',
       baseCost: 6000,
       costScale: 3.5,
@@ -6123,7 +6123,7 @@
     return r >= minKeptRank();
   }
 
-  // All four suits always deal; Suit Exile only allies them (see suitFamily).
+  // All four suits always deal; Suit Alliance only allies them (see suitFamily).
   function activeSuits(){
     return SUITS.slice();
   }
@@ -10046,7 +10046,7 @@
     // Rank by pair-safe "effective" count (Card Counting), but keep raw n so a
     // Pin Split duplicate flood (effective 1, raw many) is never treated as a
     // singleton — that left Auto Purge ready forever without casting.
-    // Suit Exile families (♥♦ / ♠♣) are scored as one target.
+    // Suit Alliance families (♥♦ / ♠♣) are scored as one target.
     let best = null, bestEffective = -1, bestRaw = 0;
     for(const family of purgeFamilies()){
       const n = countSuitInPlay(family);
@@ -12254,7 +12254,7 @@
     for(const s of SUITS){
       const btn = suitBombButtons[s];
       if(!btn) continue;
-      // Hide ally sources (♦ / ♣) once Suit Exile folds them into the family button.
+      // Hide ally sources (♦ / ♣) once Suit Alliance folds them into the family button.
       const gone = !familySet.has(s);
       btn.classList.toggle('gone', gone);
       btn.hidden = gone;
