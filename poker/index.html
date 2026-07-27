@@ -3328,6 +3328,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 83,
+      date: 'Jul 27, 2026',
+      title: 'Shop tab load fix',
+      items: [
+        'Fixed a script error from overlapping shop-tab updates that stopped Poker from loading.',
+      ]
+    },
+    {
       id: 82,
       date: 'Jul 27, 2026',
       title: 'Recommended buy star',
@@ -11604,7 +11612,6 @@
   };
   const changelogListEl = document.getElementById('changelogList');
   let activeRailPanel = 'table';
-  const railBodyEl = document.getElementById('railBody');
   // Per-tab scroll inside the shared #railBody scroller (session-only).
   const railPanelScroll = Object.create(null);
   // Entries with id > this floor show as New for the current Settings visit.
