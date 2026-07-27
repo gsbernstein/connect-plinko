@@ -10932,6 +10932,9 @@
     el.hidden = true;
     updateBannerShown = false;
   }
+  function releaseCheckDue(minElapsed = RELEASE_POLL_MS){
+    return Date.now() - lastReleaseCheckAt >= minElapsed;
+  }
   async function checkForRelease(force){
     const now = Date.now();
     if(!force && now - lastReleaseCheckAt < 30000) return;
@@ -10947,6 +10950,11 @@
       if(remote > APP_RELEASE) showUpdateBanner(remote);
     } catch(_){}
   }
+  function resumeReleaseCheck(){
+    // Mobile often skips visibilitychange and throttles setInterval while backgrounded.
+    if(releaseCheckDue()) checkForRelease(true);
+    else if(releaseCheckDue(30000)) checkForRelease(false);
+  }
   function startReleasePolling(){
     const refreshBtn = document.getElementById('updateBannerRefresh');
     const dismissBtn = document.getElementById('updateBannerDismiss');
@@ -10961,10 +10969,15 @@
       hideUpdateBanner();
     });
     checkForRelease(true);
-    setInterval(()=> checkForRelease(true), RELEASE_POLL_MS);
+    // Wake often; fetch only when wall-clock elapsed (intervals drift when throttled).
+    setInterval(()=>{
+      if(releaseCheckDue()) checkForRelease(true);
+    }, 60000);
     document.addEventListener('visibilitychange', ()=>{
-      if(document.visibilityState === 'visible') checkForRelease(false);
+      if(document.visibilityState === 'visible') resumeReleaseCheck();
     });
+    window.addEventListener('pageshow', resumeReleaseCheck);
+    window.addEventListener('focus', resumeReleaseCheck);
   }
 
   loadSettings();
