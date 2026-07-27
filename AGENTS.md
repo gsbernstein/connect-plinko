@@ -145,7 +145,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 ### Progression model (high level)
 
 1. **Chips** — earn from scored poker hands; spend on table upgrades. HUD shows balance plus a live chips/s rate.
-2. **Run level** — rises from chips *earned* this run (`lifetime`); unlocks shop rows and milestone rewards. Resets on Cash Out.
+2. **Run level** — rises from chips *earned* this run (`lifetime` via `awardChips` and quest/achievement `applyContractReward`); unlocks shop rows and milestone rewards. Resets on Cash Out. Level-bonus chips from `grantLevelReward` stay spendable-only (not XP) to avoid chain level-ups.
 3. **Quests** — per-run slots (unlock from run Lv 2); Cash Out clears the board. Achievements persist.
 4. **VIP / prestige** — Cash Out (run Lv 8+) collects Cash Out comps into the VIP balance for permanent `PRESTIGE_DEFS` perks. Achievement/quest `reward.comps` are **instant comps** (VIP balance immediately); `reward.runComps` / level `comps` are **Cash Out comps** (bank until Cash Out). Player-facing labels: `contractRewardText` (“instant comps” vs “Cash Out comps”).
 
@@ -211,6 +211,8 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 **Offscreen new upgrades:** Shop unlocks are marked seen when their row is in the Upgrades panel viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView` vs `#panelUpgrades`). If an unviewed unlock is offscreen while Upgrades is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below).
 
+**New upgrade cards:** Unviewed unlocks (same `seenUnlocks.upgrades` gate as the tab dot) get `.upgrade.is-new` styling and an `.upgrade-new-tag` pill matching Settings changelog highlights until scrolled into view.
+
 ### Physics & board
 
 Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds per-column occupants (settled cards + in-flight balls); gravity/clear passes update ball target rows in place.
@@ -248,16 +250,16 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 
 ### Changelog merge conflicts (fast path)
 
-Most rebase/merge conflicts against `master` are only the top of `CHANGELOG` plus `poker/version.json`. Treat them as an id-assignment problem, not a content merge:
+Most merge conflicts against `master` are only the top of `CHANGELOG` plus `poker/version.json`. Treat them as an id-assignment problem, not a content merge:
 
 1. **Prefer master’s list.** Take `origin/master`’s `CHANGELOG` array as the base (keep every existing entry and its `id` untouched).
 2. **Keep your new entry’s copy.** From the conflict, salvage only *your* new object(s) — title/items/date — not the `id` you assigned while the branch was open.
 3. **Renumber yours to `max + 1`.** Read the highest `id` now on master (or `poker/version.json` `"v"` on master — same number). Set your entry’s `id` to that + 1. If you added multiple entries, assign consecutive ids above master’s max. Never renumber or rewrite master’s entries; never reuse an id that already shipped.
 4. **Prepend, newest-first.** Place your renumbered object(s) at the top of the array, then the untouched master list.
 5. **Sync `poker/version.json`.** Set `"v"` to the new max id (same as your newest entry). `CHANGELOG_LATEST_ID` / `APP_RELEASE` derive from the array — no separate constant to edit.
-6. **Finish the rebase/merge** and continue. If non-changelog hunks also conflict, resolve those normally; do not let a version.json “ours/theirs” pick overwrite the max-id rule above.
+6. **Finish the merge** and continue. If non-changelog hunks also conflict, resolve those normally; do not let a version.json “ours/theirs” pick overwrite the max-id rule above.
 
-**Prevention (cheap):** rebase onto latest `master` *before* writing the changelog entry and bumping `version.json`, or add the changelog last (right before opening/updating the PR). Parallel agent PRs almost always collide on the same next id.
+**Prevention (cheap):** merge latest `master` into the branch *before* writing the changelog entry and bumping `version.json`, or add the changelog last (right before opening/updating the PR). Parallel agent PRs almost always collide on the same next id. Do **not** rebase onto `master`.
 
 **Sanity check after resolve:**
 
@@ -313,8 +315,9 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 - **Base branch:** `master` (also the Pages deploy branch).
 - **Feature branches:** `cursor/<short-description>-<suffix>` (cloud agents use suffix `65f3`).
 - **Before you commit:** see `.cursor/rules/agent-workflow.mdc` — especially the merged-branch check.
+- **Sync with master:** always `git fetch origin master && git merge origin/master` — do **not** rebase onto `master`.
 - **When the user asks to merge the current branch:** only merge if the PR is **ready for review**, and always squash-merge into `master` (see **Merge when asked** in `.cursor/rules/agent-workflow.mdc`).
-- **Changelog conflicts on rebase:** see **Changelog merge conflicts (fast path)** above — almost always “keep master list, renumber your entry to max+1, sync `version.json`”.
+- **Changelog conflicts on merge:** see **Changelog merge conflicts (fast path)** above — almost always “keep master list, renumber your entry to max+1, sync `version.json`”.
 - Open PRs against `master`. Merged PRs deploy automatically via Pages.
 
 ### Check if a branch is already merged

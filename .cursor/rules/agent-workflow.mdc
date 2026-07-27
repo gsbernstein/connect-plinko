@@ -22,7 +22,7 @@ Before committing on an existing feature branch — especially `cursor/*` branch
    - `git checkout master && git pull origin master`
    - Create a new branch: `cursor/<descriptive-name>-65f3`
    - Cherry-pick only if you still need unmerged commits; otherwise start fresh from `master`.
-4. If **not merged**: rebasing on latest `master` is fine when it reduces conflict risk; avoid piling unrelated changes onto stale branches.
+4. If **not merged**: sync by **merging** latest `master` into the branch (`git fetch origin master && git merge origin/master`) — do **not** rebase onto `master`. Avoid piling unrelated changes onto stale branches.
 
 List merged remote cursor branches for a quick scan:
 
@@ -39,7 +39,7 @@ Player-visible Poker PRs all prepend to `CHANGELOG` and bump `poker/version.json
 3. Prepend yours (newest-first); set `poker/version.json` `"v"` to that new max.
 4. Never renumber or drop master’s entries; never reuse a shipped id.
 
-Full recipe + sanity-check script: **AGENTS.md → “Changelog merge conflicts (fast path)”**. Rebase onto latest `master` before writing the changelog (or add the entry last) to avoid the collision.
+Full recipe + sanity-check script: **AGENTS.md → “Changelog merge conflicts (fast path)”**. Merge latest `master` into the branch before writing the changelog (or add the entry last) to avoid the collision.
 
 ## Merge when asked
 
