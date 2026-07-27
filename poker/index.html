@@ -928,8 +928,12 @@
     cursor:default;
     opacity:0.55;
     border-style:dashed;
+    padding-bottom:12px;
   }
   .quest.quest-locked:hover{transform:none; background:var(--panel);}
+  .quest.quest-locked .quest-reward,
+  .quest.quest-locked .quest-progress-row,
+  .quest.quest-locked .quest-bar{display:none;}
   .quest-top{
     display:flex;
     justify-content:space-between;
@@ -11300,13 +11304,6 @@
     btn.querySelector('.quest-kind').textContent = 'Lv ' + unlockLvl;
     btn.querySelector('.quest-desc').textContent =
       'Reach run level ' + unlockLvl + ' to open this quest slot.';
-    btn.querySelector('.quest-reward').textContent = '—';
-    const fill = btn.querySelector('.quest-bar > span');
-    if(fill) fill.style.width = '0%';
-    const progEl = btn.querySelector('.quest-prog');
-    if(progEl) progEl.textContent = '0 / 1';
-    const actionEl = btn.querySelector('.quest-action');
-    if(actionEl) actionEl.textContent = 'Locked';
   }
 
   function updateQuestsUI(){
