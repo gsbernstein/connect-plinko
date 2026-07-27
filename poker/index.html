@@ -3092,6 +3092,7 @@
       title: 'Hand resolve lines',
       items: [
         'Scoring hands flash bright connector dashes in the gaps between seats before clearing — easier to read combos without covering the cards.',
+        'Flush lines keep suit color; straights and rank hands use their own connector colors so mixed lines don’t look suited.',
       ]
     },
     {
@@ -8074,6 +8075,21 @@
     }
   }
 
+  // Suit color only when the hand is suit-defined. Straights match near-miss
+  // PEG guides; rank/pattern hands use ivory→gold by strength so a mixed
+  // trips line never reads as a flush connector.
+  function handGroupColor(name, cards){
+    if(name === 'FLUSH' || name === 'STRAIGHT FLUSH' || name === 'ROYAL FLUSH'){
+      return flushHintColor(cards);
+    }
+    if(name === 'STRAIGHT') return PEG;
+    const kindN = parseOfAKindCount(name);
+    if(kindN >= 5 || name === 'QUADS FULL') return '#FFE08A';
+    if(kindN === 4 || name === 'FULLER HOUSE') return '#F0D78C';
+    if(name === 'FULL HOUSE') return '#E2D49A';
+    return getCSS('--ink') || '#F1EEFB';
+  }
+
   // Of-a-kind pop punctuation: five → !?!, six → ‽, seven+ → more interrobangs.
   function handPopupPunctuation(name, fx){
     const kindN = parseOfAKindCount(name);
@@ -9143,7 +9159,7 @@
               burnCount: cand.burnCount || 0,
               sleeveUsed: !!cand.sleeveUsed,
               cells: cand.cells,
-              color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
+              color: handGroupColor(cand.name, cards.slice(cand.i, cand.i + cand.len))
             });
           }
         }
