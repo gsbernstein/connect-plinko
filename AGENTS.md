@@ -207,7 +207,7 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 **Per-tab scroll:** `#railBody` is the one stable `overflow-y:auto` scroller (panels are not scrollports — swapping `display` on a scrolling flex panel was killing fling momentum). `setRailPanel` saves/restores `railPanelScroll[panel]` only when the tab changes.
 
-**Scroll momentum:** `noteRailScroll` / `railScrollBusy` defer `orderUpgradeButtons` (`deferredRailOrders` → flush on idle / `scrollend`) so chip-tick reshuffles don’t kill flings; lists still reorder when the rail isn’t scrolling. Achievements keep their open-tab bucket freeze. Recommended ★ uses `visibility` (`.upgrade-rec.is-on`) so chip ticks don’t resize cards. Shop cue / unlock-seen updates run on `#railBody` `scrollend` (quiet-timeout fallback).
+**Scroll momentum:** Chip ticks only badge-update shop/quest/achievement/VIP lists when that tab isn’t open (`updateShopUI({ force })` etc. sync on open / post-fling). While open, `noteRailScroll` / `railScrollBusy` defer `orderUpgradeButtons` and skip card fills mid-fling (`deferredRailOrders` → flush on idle / `scrollend`). Achievements keep their open-tab bucket freeze. Recommended ★ uses `visibility` (`.upgrade-rec.is-on`). Shop cue / unlock-seen updates run on `#railBody` `scrollend`.
 
 **Offscreen new upgrades:** Shop unlocks are marked seen when their row is in the `#railBody` viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView`). If an unviewed unlock is offscreen while Upgrades is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below).
 

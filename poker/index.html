@@ -3339,7 +3339,7 @@
       items: [
         'Shop rail scrolling uses one stable scroller again so fling/wheel momentum isn’t cut off mid-gesture (including Settings).',
         'Each tab still remembers its own scroll place when you switch away and back.',
-        'Shop lists still reshuffle when idle — only mid-fling reshuffles are held.',
+        'Upgrade/quest/achievement cards no longer repaint on every chip tick while you’re on another tab — that was hitching scroll once you had unlocks.',
       ]
     },
     {
@@ -11995,10 +11995,14 @@
     }
     markPanelUnlocksSeen(panel);
     if(panel === 'settings') openSettingsChangelog();
-    if(panel === 'achievements'){
+    // Hidden tabs skip card paints on chip ticks — sync once when opened.
+    if(panel === 'upgrades') updateShopUI({ force: true });
+    else if(panel === 'vip') updatePrestigeUI({ force: true });
+    else if(panel === 'quests') updateQuestsUI({ force: true });
+    else if(panel === 'achievements'){
       // Re-apply progress-ratio order when opening the tab (browsing freezes it).
       achievementOrderBucketSig = '';
-      updateAchievementsUI();
+      updateAchievementsUI({ force: true });
     }
     if(panelChanged) restoreRailPanelScroll(panel);
     // Layout may not be ready until after paint when switching panels.
@@ -12052,9 +12056,8 @@
   function onUpgradesScrollSettled(){
     shopScrollEndTimer = 0;
     if(activeRailPanel !== 'upgrades') return;
-    markPanelUnlocksSeen('upgrades');
-    setTabBadge('upgrades', countAffordableUpgrades());
-    updateShopScrollCue();
+    // Catch up card paints skipped while flinging.
+    updateShopUI({ force: true });
   }
 
   if(railBodyEl){
@@ -12464,11 +12467,17 @@
     else btn.removeAttribute('aria-description');
   }
 
-  function updateShopUI(){
+  function updateShopUI(opts){
+    opts = opts || {};
+    // Chip ticks used to repaint every upgrade card even on Settings — that main-thread
+    // work scales with unlocks and was killing rail scroll momentum. Paint only when
+    // the Upgrades tab is open (or force on open / post-fling sync).
+    const paint = !!opts.force || activeRailPanel === 'upgrades';
+    const paintCards = paint && (!!opts.force || !railScrollBusy());
     const active = [];
     const maxedList = [];
     let affordableCount = 0;
-    const recommendedId = recommendedShopUpgradeId();
+    const recommendedId = paintCards ? recommendedShopUpgradeId() : null;
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
@@ -12480,6 +12489,7 @@
       const cost = upgradeCost(def);
       const canAfford = revealed && !maxed && score >= cost;
       if(canAfford) affordableCount++;
+      if(!paintCards) continue;
       // Always refresh state — including locked cards — so Cash Out can't leave
       // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
       fillUpgradeButton(btn, def, {
@@ -12504,8 +12514,10 @@
       }
       (maxed ? maxedList : active).push(btn);
     }
-    // Keep buyable upgrades up top; sink completed ones (deferred while scrolling).
-    orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    if(paintCards){
+      // Keep buyable upgrades up top; sink completed ones (deferred while scrolling).
+      orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    }
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateShopScrollCue();
@@ -12542,14 +12554,17 @@
     return { gain, ready };
   }
 
-  function updatePrestigeUI(){
+  function updatePrestigeUI(opts){
+    opts = opts || {};
     const { ready } = updateCashOutUI();
     // Badge number = affordable VIP perks only; Cash Out never increments the count.
+    const paint = !!opts.force || activeRailPanel === 'vip';
+    const paintCards = paint && (!!opts.force || !railScrollBusy());
     let vipReady = 0;
     if(prestigeUpgradesEl){
       const active = [];
       const maxedList = [];
-      const recommendedId = recommendedVipPerkId();
+      const recommendedId = paintCards ? recommendedVipPerkId() : null;
       for(const def of PRESTIGE_DEFS){
         const btn = prestigeButtons[def.id];
         if(!btn) continue;
@@ -12559,6 +12574,7 @@
         const needsSuitBomb = def.id === 'autoSuitBomb' && lvl < def.maxLevel && !suitBombUnlocked();
         const canAfford = !maxed && !needsSuitBomb && comps >= cost;
         if(canAfford) vipReady++;
+        if(!paintCards) continue;
         fillUpgradeButton(btn, def, {
           bought: lvl, bonus: 0, maxed, locked: needsSuitBomb, cost, canAfford,
           canToggle: !!(def.toggleable && lvl > 0),
@@ -12569,7 +12585,7 @@
         });
         (maxed ? maxedList : active).push(btn);
       }
-      orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
+      if(paintCards) orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
     }
     if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
     setTabBadge('vip', vipReady, ready ? { empty: true, ariaLabel: 'Cash Out ready' } : null);
@@ -12712,9 +12728,24 @@
       'Reach run level ' + unlockLvl + ' to open this quest slot.';
   }
 
-  function updateQuestsUI(){
+  function updateQuestsUI(opts){
+    opts = opts || {};
     updateQuestTabAvailability();
     if(!questsEl) return;
+    const paint = !!opts.force || activeRailPanel === 'quests';
+    if(!paint){
+      let questReady = 0;
+      for(const q of activeQuests){
+        if(activeQuestComplete(q)) questReady++;
+      }
+      const cap = questSlotCap();
+      if(questReadyValEl) questReadyValEl.textContent = String(questReady);
+      if(questSlotsMetaEl){
+        questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
+      }
+      setTabBadge('quests', questReady);
+      return;
+    }
     const cap = questSlotCap();
     let questReady = 0;
     const claimable = [];
@@ -12759,8 +12790,19 @@
     setTabBadge('quests', questReady);
   }
 
-  function updateAchievementsUI(){
+  function updateAchievementsUI(opts){
+    opts = opts || {};
     if(!achievementsEl) return;
+    const paint = !!opts.force || activeRailPanel === 'achievements';
+    if(!paint){
+      let achieveReady = 0;
+      for(const def of ACHIEVEMENT_DEFS){
+        if(achievementCanClaim(def)) achieveReady++;
+      }
+      if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
+      setTabBadge('achievements', achieveReady);
+      return;
+    }
     let achieveReady = 0;
     const visible = [];
     for(let order = 0; order < ACHIEVEMENT_DEFS.length; order++){
