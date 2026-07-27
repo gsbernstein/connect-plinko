@@ -3344,7 +3344,7 @@
       date: 'Jul 27, 2026',
       title: 'Shop order tidy-up',
       items: [
-        'Shop list reordered so Lv1 costs mostly rise down the page — Multi Deal moves to its Lv8 unlock band, Sweep Stakes and Pin Tip swap places.',
+        'Shop upgrades are listed in unlock-level order (cheapest first within each tier).',
       ]
     },
     {
@@ -4181,8 +4181,7 @@
   const MIN_CASH_OUT_LEVEL = 8;
   // Shop order = array order. unlockAt = run level required to first reveal.
   // Once revealed (via maxRunLevel), upgrades stay visible across Cash Out.
-  // Flow: deal → score → passives → feel/aim → shoe → suit tools.
-  // Roughly ascending Lv1 cost down the list (same-unlock pairs cheapest first).
+  // Sorted by unlockAt ascending; same-tier rows by Lv1 cost ascending.
   const UPGRADE_DEFS = [
     {
       id: 'autoDealer',
@@ -4244,15 +4243,6 @@
       unlockAt: 5
     },
     {
-      id: 'floorPayout',
-      name: 'Sweep Stakes',
-      desc: 'Earn chips when a full board triggers a floor clear.',
-      baseCost: 90,
-      costScale: 1.8,
-      maxLevel: 20,
-      unlockAt: 7
-    },
-    {
       id: 'pinPayout',
       name: 'Pin Tip',
       desc: 'Earn chips whenever a card bounces off a peg.',
@@ -4260,6 +4250,15 @@
       costScale: 1.8,
       maxLevel: 25,
       unlockAt: 6
+    },
+    {
+      id: 'floorPayout',
+      name: 'Sweep Stakes',
+      desc: 'Earn chips when a full board triggers a floor clear.',
+      baseCost: 90,
+      costScale: 1.8,
+      maxLevel: 20,
+      unlockAt: 7
     },
     {
       id: 'feltGrease',
