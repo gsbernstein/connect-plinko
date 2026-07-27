@@ -3078,7 +3078,7 @@
       date: 'Jul 27, 2026',
       title: 'Crowned kings',
       items: [
-        'King Me kings wear a golden crown on the K — add another crown each merge (double, triple, …).',
+        'King Me kings wear a tiny golden crown on the letter K — another crown stacked on it for each merge (double, triple, …).',
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.'
       ]
@@ -10021,7 +10021,7 @@
     target.restore();
   }
 
-  function drawChipGlyphs(target, card, radius, opts){
+  function drawChipGlyphs(target, card, radius){
     const color = cardGlowColor(card);
     target.textAlign = 'center';
     target.textBaseline = 'middle';
@@ -10056,25 +10056,27 @@
       `700 ${rankSize}px Fraunces, Georgia, serif`,
       strokeW
     );
-    // King Me: golden crown(s) on the K. Settled seats pass skipCrowns and
-    // redraw above the plate so the plastic hole grid doesn't hide them.
+    // King Me: tiny golden crown(s) perched on the letter K (not the chip rim).
     const ks = kingStackLevel(card);
-    if(ks > 0 && !(opts && opts.skipCrowns)) drawKingCrowns(target, rankX, rankY, radius, ks);
+    if(ks > 0) drawKingCrowns(target, rankX, rankY, rankSize, ks);
   }
 
-  // Tiny 3-point crowns above the K. Count = merge tier (King Me=1, Double=2, …).
-  function drawKingCrowns(target, rankX, rankY, radius, count){
-    const n = Math.min(Math.max(1, count | 0), 6);
-    const cw = radius * (n >= 4 ? 0.22 : 0.28);
-    const ch = radius * (n >= 4 ? 0.18 : 0.22);
-    const gap = cw * (n >= 4 ? 0.72 : 0.85);
+  // Tiny 3-point crowns sitting on top of the K glyph. Count = merge tier.
+  function drawKingCrowns(target, rankX, rankY, rankSize, count){
+    const n = Math.min(Math.max(1, count | 0), 5);
+    // Sized to the letter, not the chip radius — stays inside the hole with the K.
+    const cw = rankSize * (n >= 3 ? 0.28 : 0.36);
+    const ch = rankSize * (n >= 3 ? 0.22 : 0.28);
+    const gap = cw * (n >= 3 ? 0.62 : 0.7);
     const totalW = gap * (n - 1);
-    const baseY = rankY - radius * 0.48;
+    // Sit just above the K's top edge (baseline middle ± ~0.4× glyph height).
+    const baseY = rankY - rankSize * 0.42;
     const midX = rankX;
     target.save();
     for(let i = 0; i < n; i++){
       const cx = midX - totalW / 2 + i * gap;
-      const cy = baseY - (n > 3 && i % 2 === 1 ? ch * 0.35 : 0);
+      // Fan extras slightly so a stack of crowns still reads on the letter.
+      const cy = baseY - i * ch * 0.22;
       drawOneKingCrown(target, cx, cy, cw, ch);
     }
     target.restore();
@@ -10106,7 +10108,7 @@
     target.lineJoin = 'round';
     target.stroke();
     // Jewel dots on the three peaks.
-    const jewelR = Math.max(0.6, w * 0.09);
+    const jewelR = Math.max(0.55, w * 0.09);
     target.fillStyle = '#FFE9A8';
     for(const [jx, jy] of [[left, tip + h * 0.15], [cx, tip], [right, tip + h * 0.15]]){
       target.beginPath();
@@ -10118,7 +10120,7 @@
     target.fillRect(left + w * 0.06, band, w * 0.88, Math.max(1, h * 0.18));
   }
 
-  function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight, opts){
+  function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
     const color = cardGlowColor(card);
     const tex = chipTextureForCard(card);
     const d = radius * 2;
@@ -10142,7 +10144,7 @@
       target.fill();
     }
     target.shadowBlur = 0;
-    drawChipGlyphs(target, card, radius, opts);
+    drawChipGlyphs(target, card, radius);
     if(card && card.spikes) drawCardSpikes(target, radius);
 
     if(highlight){
@@ -10179,8 +10181,7 @@
   }
 
   function drawPiece(cx, cy, card, isBall, highlight){
-    // Crowns redraw above the plate (see draw); skip them under the plastic.
-    drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight, {skipCrowns: true});
+    drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
   // scale: 1 = full seat size; Pin Split fallers pass drawRadius/32 so fire shrinks with them.
@@ -10249,7 +10250,7 @@
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.stroke();
     ctx.rotate(card.angle || 0);
-    drawChipGlyphs(ctx, card, 32 * 0.92, {skipCrowns: true});
+    drawChipGlyphs(ctx, card, 32 * 0.92);
     if(card && card.spikes) drawCardSpikes(ctx, 32 * 0.92);
     ctx.restore();
   }
@@ -10495,29 +10496,6 @@
           burn,
           nowDraw
         );
-      }
-    }
-
-    // King Me crowns sit above the plate (on top of the K) so stacked kings
-    // stay readable through the hole grid.
-    for(let c=0;c<COLS;c++){
-      for(let r=0;r<ROWS;r++){
-        const card = grid[c][r];
-        if(!card) continue;
-        const ks = kingStackLevel(card);
-        if(ks <= 0) continue;
-        const cx = c*CELL+CELL/2;
-        const cy = PEG_ZONE + r*CELL + CELL/2;
-        ctx.save();
-        ctx.translate(cx, cy);
-        if(flashCells && flashCells.has(c+','+r)){
-          const pulseWaves = flashPulses;
-          const pulse = 1 + 0.04 * Math.sin(flashElapsed * Math.PI * pulseWaves);
-          ctx.scale(pulse, pulse);
-        }
-        ctx.rotate(card.angle || 0);
-        drawKingCrowns(ctx, -32 * 0.14, -32 * 0.20, 32, ks);
-        ctx.restore();
       }
     }
 
