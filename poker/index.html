@@ -2469,11 +2469,6 @@
             <span class="settings-toggle-ui" aria-hidden="true">Off</span>
           </label>
           <label class="settings-toggle">
-            <span>Near-hand hints</span>
-            <input type="checkbox" id="settingNearHandHints">
-            <span class="settings-toggle-ui" aria-hidden="true">Off</span>
-          </label>
-          <label class="settings-toggle">
             <span>Chip animation</span>
             <input type="checkbox" id="settingChipAnimation" checked>
             <span class="settings-toggle-ui" aria-hidden="true">On</span>
@@ -3123,30 +3118,6 @@
     return best;
   }
 
-  // One card shy of a scoring hand — used for faint guide lines on the board.
-  function canCompleteStraight(ranks){
-    const uniq = [...new Set(ranks)];
-    if(uniq.length !== ranks.length || uniq.length !== 4) return false;
-    for(let add=1; add<=13; add++){
-      if(uniq.includes(add)) continue;
-      if(isStraightRanks([...uniq, add])) return true;
-    }
-    return false;
-  }
-
-  function isConnectedStraight3(ranks){
-    const variants = [ranks.slice()];
-    if(ranks.includes(1)) variants.push(ranks.map(r => r===1 ? 14 : r));
-    for(const rs of variants){
-      const u = [...new Set(rs)].sort((a,b)=>a-b);
-      if(u.length !== 3) continue;
-      if(u[2]-u[0]===2 && u[1]-u[0]===1) return true;
-    }
-    // Wheel stub A-2-3
-    const u = [...new Set(ranks)].sort((a,b)=>a-b);
-    return u.length===3 && u[0]===1 && u[1]===2 && u[2]===3;
-  }
-
   // ---- board state ----
   // grid[col][row] = 0 | {suit, rank, angle}
   let grid, colHeights, gameOver;
@@ -3163,7 +3134,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 25;
+  const SAVE_VERSION = 26;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -3174,9 +3145,11 @@
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
+  // Merge/rebase conflict here? Keep master's entries+ids, renumber YOUR new
+  // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
-      id: 68,
+      id: 72,
       date: 'Jul 27, 2026',
       title: 'I Cast Fireball',
       items: [
@@ -3185,12 +3158,45 @@
       ]
     },
     {
-      id: 67,
+      id: 71,
       date: 'Jul 27, 2026',
       title: 'Control Booth',
       items: [
         'New VIP perk: Control Booth — puts every owned On/Off toggle in a column beside the board.',
         'Turn the Booth Off anytime to tuck the column away; VIP Lounge still has the full switch list.'
+      ]
+    },
+    {
+      id: 70,
+      date: 'Jul 27, 2026',
+      title: 'Cashier’s Cage later',
+      items: [
+        'Cashier’s Cage now unlocks at run Lv 200 — a deep late-game chip sink, not a mid-run VIP shortcut.',
+      ]
+    },
+    {
+      id: 69,
+      date: 'Jul 27, 2026',
+      title: 'Near-miss guides retired',
+      items: [
+        'Removed near-hand hint guides, the Settings toggle, and the Card Sense VIP perk (owners get 4 comps back).',
+      ]
+    },
+    {
+      id: 68,
+      date: 'Jul 27, 2026',
+      title: 'Multi Deal mid-game',
+      items: [
+        'Multi Deal now unlocks at run Lv 8 (was Lv 4) and costs more up front — a mid-table spike for extra auto deals, not an early rush.',
+      ]
+    },
+    {
+      id: 67,
+      date: 'Jul 27, 2026',
+      title: 'Hand resolve lines',
+      items: [
+        'Scoring hands flash bright connector dashes in the gaps between seats before clearing — easier to read combos without covering the cards.',
+        'Flush lines keep suit color; straights and rank hands use their own connector colors so mixed lines don’t look suited.',
       ]
     },
     {
@@ -3774,10 +3780,10 @@
       id: 'multiDeal',
       name: 'Multi Deal',
       desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.',
-      baseCost: 280,
+      baseCost: 1500,
       costScale: 2.35,
       maxLevel: 6,
-      unlockAt: 4
+      unlockAt: 8
     },
     {
       id: 'bigBlind',
@@ -3900,7 +3906,7 @@
       baseCost: 500000,
       costScale: 2.2,
       maxLevel: 100,
-      unlockAt: 10,
+      unlockAt: 200,
       costLateAt: 20,
       costLateBase: 3528000000000,
       costLateScale: 2.5
@@ -4211,7 +4217,7 @@
     },
     {
       id: 'a_max_combo', kind: 'achievement', name: 'C-Combo',
-      desc: 'Reach COMBO ×{n}.',
+      desc: 'Get a COMBO ×{n}.',
       stat: 'maxCombo', unlockAt: 1, infinite: true,
       scale: { targetStep: 1, compPerLevel: 2, compCap: 40 },
       tiers: [
@@ -4460,14 +4466,6 @@
       maxLevel: 4
     },
     {
-      id: 'cardSense',
-      name: 'Card Sense',
-      desc: 'Auto-drops aim toward near-miss columns.',
-      baseCost: 4,
-      costScale: 1,
-      maxLevel: 1
-    },
-    {
       id: 'autoSuitBomb',
       name: 'Auto Purge',
       desc: 'Automatically cast Suit Purge on the most crowded suit. Toggle On/Off anytime.',
@@ -4614,8 +4612,6 @@
   let autoDropTicks = 0;
   let lastAutoDropAt = 0;
   let lastIdleDrawAt = 0;
-  let nearMissCache = null;
-  let hintsDirty = true;
   let suitBombReadyAt = 0;
   let suitBombPickerMinimized = false;
   let pendingSuitBomb = null;
@@ -4664,7 +4660,6 @@
   let stats = Object.assign({}, EMPTY_STATS);
   const DEFAULT_SETTINGS = {
     showFps: false,
-    nearHandHints: false,
     chipAnimation: true
   };
   let gameSettings = Object.assign({}, DEFAULT_SETTINGS);
@@ -4676,7 +4671,6 @@
       const data = JSON.parse(raw);
       if(!data || typeof data !== 'object') return;
       if(typeof data.showFps === 'boolean') gameSettings.showFps = data.showFps;
-      if(typeof data.nearHandHints === 'boolean') gameSettings.nearHandHints = data.nearHandHints;
       if(typeof data.chipAnimation === 'boolean') gameSettings.chipAnimation = data.chipAnimation;
     }catch(_){ /* ignore */ }
   }
@@ -4692,7 +4686,6 @@
     gameSettings[key] = !!on;
     persistSettings();
     syncSettingsUI();
-    if(key === 'nearHandHints') markHintsDirty();
     startLoop();
   }
 
@@ -4701,11 +4694,6 @@
       settingShowFpsEl.checked = !!gameSettings.showFps;
       const ui = settingShowFpsEl.nextElementSibling;
       if(ui) ui.textContent = gameSettings.showFps ? 'On' : 'Off';
-    }
-    if(settingNearHandHintsEl){
-      settingNearHandHintsEl.checked = !!gameSettings.nearHandHints;
-      const ui = settingNearHandHintsEl.nextElementSibling;
-      if(ui) ui.textContent = gameSettings.nearHandHints ? 'On' : 'Off';
     }
     if(settingChipAnimationEl){
       settingChipAnimationEl.checked = gameSettings.chipAnimation !== false;
@@ -7264,8 +7252,6 @@
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
         return lvl ? ('Up to ' + label) : 'Common quests only';
       }
-      case 'cardSense':
-        return lvl ? 'Aiming near hands' : 'Random columns';
       case 'autoSuitBomb':
         if(!lvl) return suitBombUnlocked() ? 'Manual only' : 'Needs Suit Purge';
         return isAutoEnabled('autoSuitBomb') ? 'Auto-casting' : 'Paused';
@@ -7415,16 +7401,20 @@
         const migrated = Math.min(autoDef.maxLevel, Math.floor(data.upgrades.multiDeal));
         if(migrated > upgradeLevel('autoDealer')) upgrades.autoDealer = migrated;
       }
-      // Card Sense / Auto Purge moved from table upgrades to VIP perks.
+      // Auto Purge moved from table upgrades to VIP perks.
       if(data.upgrades && typeof data.upgrades === 'object'){
-        if(typeof data.upgrades.cardSense === 'number' && data.upgrades.cardSense > 0){
-          if(prestigeLevel('cardSense') < 1) prestigeUpgrades.cardSense = 1;
-          upgrades.cardSense = 0;
-        }
         if(typeof data.upgrades.autoSuitBomb === 'number' && data.upgrades.autoSuitBomb > 0){
           if(prestigeLevel('autoSuitBomb') < 1) prestigeUpgrades.autoSuitBomb = 1;
           upgrades.autoSuitBomb = 0;
         }
+      }
+      // Retired Card Sense (VIP + legacy shop) — refund historical 4-comp cost once.
+      if((data.v || 0) < 26){
+        const vipSense = data.prestigeUpgrades && typeof data.prestigeUpgrades.cardSense === 'number'
+          ? Math.floor(data.prestigeUpgrades.cardSense) : 0;
+        const shopSense = data.upgrades && typeof data.upgrades.cardSense === 'number'
+          ? Math.floor(data.upgrades.cardSense) : 0;
+        if(vipSense > 0 || shopSense > 0) comps += 4;
       }
       // Felt Grease used to speed clears too — grant matching Short Fuse levels once.
       if((data.v || 0) < 17 && purchasedLevel('shortFuse') <= 0 && purchasedLevel('feltGrease') > 0){
@@ -7831,23 +7821,10 @@
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
     if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
     if(id === 'autoSuitBomb') updateSuitBombUI(performance.now(), true);
-    if((id === 'autoSuitBomb' || id === 'cardSense') && !resolving && !looping){
+    if(id === 'autoSuitBomb' && !resolving && !looping){
       startLoop();
     }
     if(id === 'tableTilt') activateTableTilt(true);
-  }
-
-  function markHintsDirty(){
-    hintsDirty = true;
-  }
-
-  function getNearMisses(){
-    if(!gameSettings.nearHandHints) return [];
-    if(hintsDirty || !nearMissCache){
-      nearMissCache = findNearMisses();
-      hintsDirty = false;
-    }
-    return nearMissCache;
   }
 
   function columnReservations(){
@@ -7871,26 +7848,7 @@
       if(colHeights[c] + reserved[c] < ROWS) open.push(c);
     }
     if(!open.length) return -1;
-    if(!prestigeLevel('cardSense')){
-      return open[(Math.random()*open.length)|0];
-    }
-    // Prefer columns that sit on a near-miss empty cell, then any open col.
-    const hints = getNearMisses();
-    const scores = Object.fromEntries(open.map(c => [c, Math.random()*0.3]));
-    for(const h of hints){
-      for(const [c, r] of h.cells){
-        if(grid[c][r]) continue;
-        const nextRow = colHeights[c] + reserved[c];
-        if(nextRow !== r) continue;
-        if(scores[c] === undefined) continue;
-        scores[c] += 2 + (h.priority || 0) * 0.15;
-      }
-    }
-    let best = open[0], bestScore = -1;
-    for(const c of open){
-      if(scores[c] > bestScore){ bestScore = scores[c]; best = c; }
-    }
-    return best;
+    return open[(Math.random()*open.length)|0];
   }
 
   function autoDropOnce(reserved){
@@ -7951,7 +7909,6 @@
     fpsFrameCount = 0;
     lastFpsSampleTime = 0;
     lastPhysicsSteps = 0;
-    markHintsDirty();
     shoe = makeDeck().concat(makeDeck());
     nextCard = dealCard();
     updateNextUI();
@@ -8238,6 +8195,21 @@
       default:
         return 'normal';
     }
+  }
+
+  // Suit color only when the hand is suit-defined. Straights use peg purple;
+  // rank/pattern hands use ivory→gold by strength so a mixed trips line
+  // never reads as a flush connector.
+  function handGroupColor(name, cards){
+    if(name === 'FLUSH' || name === 'STRAIGHT FLUSH' || name === 'ROYAL FLUSH'){
+      return flushHintColor(cards);
+    }
+    if(name === 'STRAIGHT') return PEG;
+    const kindN = parseOfAKindCount(name);
+    if(kindN >= 5 || name === 'QUADS FULL') return '#FFE08A';
+    if(kindN === 4 || name === 'FULLER HOUSE') return '#F0D78C';
+    if(name === 'FULL HOUSE') return '#E2D49A';
+    return getCSS('--ink') || '#F1EEFB';
   }
 
   // Of-a-kind pop punctuation: five → !?!, six → ‽, seven+ → more interrobangs.
@@ -8666,7 +8638,6 @@
     }
     for(let r=0;r<ROWS;r++) grid[c][r] = col[r];
     colHeights[c] = stack[c].length;
-    markHintsDirty();
   }
 
   const GRID_SETTLE_FRAMES = 150;
@@ -8951,7 +8922,6 @@
     const angle = ball.angle || 0;
     const card = cloneCard(ball.card, {angle});
     grid[col][row] = card;
-    markHintsDirty();
     scheduleCountingUiRefresh();
     ball.stackEntry.type = 'piece';
     ball.stackEntry.card = cloneCard(card);
@@ -9070,7 +9040,6 @@
     if(bigRoomActive()){
       spawnExplosion(x, y, merged);
     }
-    markHintsDirty();
     scheduleCountingUiRefresh();
     startLoop();
   }
@@ -9163,21 +9132,18 @@
     if(stackIdx < 0 || stackIdx >= stack[col].length){
       rebuildColumnFromStack(col);
       recomputeBumpers();
-      markHintsDirty();
       return null;
     }
     const entry = stack[col][stackIdx];
     if(!entry || entry.type !== 'piece'){
       rebuildColumnFromStack(col);
       recomputeBumpers();
-      markHintsDirty();
       return null;
     }
     const card = entry.card;
     stack[col].splice(stackIdx, 1);
     rebuildColumnFromStack(col);
     recomputeBumpers();
-    markHintsDirty();
     return card;
   }
 
@@ -9309,7 +9275,7 @@
               burnCount: cand.burnCount || 0,
               sleeveUsed: !!cand.sleeveUsed,
               cells: cand.cells,
-              color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
+              color: handGroupColor(cand.name, cards.slice(cand.i, cand.i + cand.len))
             });
           }
         }
@@ -9318,205 +9284,58 @@
     return groups;
   }
 
-  // Scan contiguous runs for patterns that are one card away from scoring.
-  // Returns guide lines sorted strongest-first (flush draw > straight > pair).
-  function findNearMisses(){
-    const dirs = [[1,0],[0,1],[1,1],[1,-1]];
-    const hints = [];
-    const seen = new Set();
-
-    function pushHint(cells, kind, label, color, priority){
-      const key = kind + '|' + cells.map(([c,r])=>c+','+r).join(';');
-      if(seen.has(key)) return;
-      // Skip if every cell is already flashing in a real hand clear
-      if(flashCells && cells.every(([c,r]) => flashCells.has(c+','+r))) return;
-      seen.add(key);
-      hints.push({cells, kind, label, color, priority});
+  // True when cells walk a constant grid step (poker lines, floor row, single-col siege).
+  function cellsFormLine(cells){
+    if(!cells || cells.length < 2) return false;
+    const dx = cells[1][0] - cells[0][0];
+    const dy = cells[1][1] - cells[0][1];
+    if(dx === 0 && dy === 0) return false;
+    for(let i = 1; i < cells.length; i++){
+      if(cells[i][0] - cells[i - 1][0] !== dx) return false;
+      if(cells[i][1] - cells[i - 1][1] !== dy) return false;
     }
-
-    for(const [dx,dy] of dirs){
-      for(let c=0;c<COLS;c++){
-        for(let r=0;r<ROWS;r++){
-          if(!grid[c][r]) continue;
-          const pc = c-dx, pr = r-dy;
-          if(pc>=0 && pc<COLS && pr>=0 && pr<ROWS && grid[pc][pr]) continue;
-
-          const cells = [];
-          const cards = [];
-          let cc=c, cr=r;
-          while(cc>=0 && cc<COLS && cr>=0 && cr<ROWS && grid[cc][cr]){
-            cells.push([cc,cr]);
-            cards.push(grid[cc][cr]);
-            cc+=dx; cr+=dy;
-          }
-          if(cards.length < 2) continue;
-
-          const scoringMask = new Array(cards.length).fill(false);
-          for(let len=5; len>=3; len--){
-            if(cards.length < len) continue;
-            for(let i=0;i<=cards.length-len;i++){
-              if(!evaluateHandSlice(cards.slice(i, i+len))) continue;
-              for(let k=i;k<i+len;k++) scoringMask[k]=true;
-            }
-          }
-
-          // Same-cell flush+straight draws collapse to one "SF" hint so
-          // labels never stack on top of each other.
-          const sfWindows = new Set();
-
-          if(cards.length >= 4){
-            for(let i=0;i<=cards.length-4;i++){
-              const slice = cards.slice(i, i+4);
-              const sliceCells = cells.slice(i, i+4);
-              if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              const sameSuit = sliceSharesFlushSuit(slice);
-              const straightish = canCompleteStraight(slice.map(card => card.rank));
-              if(sameSuit && straightish){
-                sfWindows.add('4:'+i);
-                pushHint(sliceCells, 'sf4', 'SF', flushHintColor(slice), 50);
-              } else if(sameSuit){
-                pushHint(sliceCells, 'flush4', 'flush', flushHintColor(slice), 40);
-              } else if(straightish){
-                pushHint(sliceCells, 'straight4', 'straight', PEG, 35);
-              }
-            }
-          }
-
-          if(cards.length >= 3){
-            for(let i=0;i<=cards.length-3;i++){
-              const slice = cards.slice(i, i+3);
-              const sliceCells = cells.slice(i, i+3);
-              if(slice.some((_,k)=>scoringMask[i+k])) continue;
-              // Covered by a 4-card SF window that includes this stub
-              if(sfWindows.has('4:'+i) || sfWindows.has('4:'+(i-1))) continue;
-              const sameSuit = sliceSharesFlushSuit(slice);
-              const straightish = isConnectedStraight3(slice.map(card => card.rank));
-              if(sameSuit && straightish){
-                pushHint(sliceCells, 'sf3', 'SF', flushHintColor(slice), 28);
-              } else if(sameSuit){
-                pushHint(sliceCells, 'flush3', 'flush', flushHintColor(slice), 18);
-              } else if(straightish){
-                pushHint(sliceCells, 'straight3', 'straight', '#B8B0E0', 16);
-              }
-            }
-          }
-
-          // Adjacent pair → one away from trips
-          for(let i=0;i<=cards.length-2;i++){
-            if(scoringMask[i] || scoringMask[i+1]) continue;
-            if(cards[i].rank === cards[i+1].rank){
-              pushHint(
-                cells.slice(i, i+2),
-                'pair',
-                'trips',
-                cardGlowColor(cards[i]),
-                22
-              );
-            }
-          }
-        }
-      }
-    }
-
-    // Prefer stronger draws; drop stubs covered by a longer same-family hint.
-    // SF also suppresses flush/straight on the same cells.
-    function family(kind){
-      if(kind.startsWith('sf')) return 'sf';
-      if(kind.startsWith('flush')) return 'flush';
-      if(kind.startsWith('straight')) return 'straight';
-      return kind;
-    }
-    function coversFamily(keeper, other){
-      const kf = family(keeper.kind), of = family(other.kind);
-      if(kf === of) return true;
-      if(kf === 'sf' && (of === 'flush' || of === 'straight')) return true;
-      return false;
-    }
-
-    hints.sort((a,b)=> b.priority - a.priority);
-    const kept = [];
-    for(const h of hints){
-      const keys = h.cells.map(([c,r])=>c+','+r);
-      const covered = kept.some(k => {
-        if(!coversFamily(k, h)) return false;
-        const set = new Set(k.cells.map(([c,r])=>c+','+r));
-        return keys.every(key => set.has(key));
-      });
-      if(covered) continue;
-      kept.push(h);
-      if(kept.length >= 12) break;
-    }
-    return kept;
+    return true;
   }
 
-  function drawNearMissHints(){
-    if(!gameSettings.nearHandHints) return;
-    if(gameOver || resolving) return;
-    const hints = getNearMisses();
-    if(!hints.length) return;
-    const lite = perfLite();
+  // Paint-only: suit-colored strokes on the plate plastic during flash.
+  // Caller draws these BEFORE punching seat holes so card windows erase
+  // any overlap — lines remain only in the gaps. Never touches resolve state.
+  function drawResolveHandLines(target, flashElapsed, pulses){
+    if(!target || !resolving || resolvePhase !== 'flash') return;
+    if(!currentGroups || !currentGroups.length) return;
+    const frac = flashElapsed || 0;
+    const pulseWaves = pulses || 7;
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(frac * Math.PI * pulseWaves));
 
-    for(const h of hints){
-      const pts = h.cells.map(([c,r]) => cellCenter(c,r));
-      const strong = h.priority >= 30;
-      const alpha = strong ? 0.34 : 0.2;
-      const width = strong ? 2.4 : 1.6;
+    try{
+      for(const g of currentGroups){
+        // Suit Purge hits scattered seats — no single connector.
+        if(g.suitBomb) continue;
+        const cells = g.cells;
+        if(!cellsFormLine(cells)) continue;
+        const color = g.color || '#ffffff';
+        const pts = cells.map(([c, r]) => cellCenter(c, r));
+        const alpha = 0.78 + 0.22 * pulse;
 
-      ctx.save();
-      ctx.setLineDash(strong ? [6, 6] : [4, 7]);
-      ctx.lineWidth = width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = h.color;
-      ctx.globalAlpha = alpha;
-      if(!lite){
-        ctx.shadowColor = h.color;
-        ctx.shadowBlur = strong ? 10 : 5;
+        target.save();
+        target.globalAlpha = alpha;
+        target.strokeStyle = color;
+        target.lineCap = 'round';
+        target.lineJoin = 'round';
+        target.lineWidth = 4.5;
+        target.shadowBlur = 0;
+        target.beginPath();
+        target.moveTo(pts[0].x, pts[0].y);
+        for(let i = 1; i < pts.length; i++) target.lineTo(pts[i].x, pts[i].y);
+        target.stroke();
+        target.restore();
       }
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
-      ctx.stroke();
-
-      // Soft rings so the linked cards read even when the dash sits on plastic
-      ctx.setLineDash([]);
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = alpha * 0.85;
-      for(const p of pts){
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, HOLE_R - 3, 0, Math.PI*2);
-        ctx.stroke();
-      }
-
-      // Odd-length spans (3, 5, …) have their geometric midpoint on a puck —
-      // park the label in a gap between two neighboring cells instead.
-      const a = pts[0], b = pts[pts.length-1];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const len = Math.hypot(dx, dy) || 1;
-      let mx, my;
-      if(pts.length >= 3 && pts.length % 2 === 1){
-        const m = (pts.length/2)|0;
-        mx = (pts[m-1].x + pts[m].x) / 2;
-        my = (pts[m-1].y + pts[m].y) / 2;
-      } else {
-        mx = (a.x + b.x) / 2;
-        my = (a.y + b.y) / 2;
-      }
-      // Slight sideways nudge off the dash itself
-      const ox = (-dy / len) * 8;
-      const oy = (dx / len) * 8;
-      ctx.globalAlpha = Math.min(0.75, alpha * 1.35);
-      ctx.shadowBlur = 0;
-      ctx.font = "600 11px 'IBM Plex Mono', monospace";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = h.color;
-      ctx.fillText(h.label, mx + ox, my + oy);
-      ctx.restore();
+      target.globalAlpha = 1;
+      target.shadowBlur = 0;
+    } catch(_err){
+      // Never let paint break the resolve RAF chain.
+      try{ target.globalAlpha = 1; target.shadowBlur = 0; } catch(_e){}
     }
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-    ctx.setLineDash([]);
   }
 
   function scoreGroups(groups, chainMultiplier){
@@ -9900,7 +9719,6 @@
     stack[col].splice(stackIndex, 1);
     rebuildColumnFromStack(col);
     recomputeBumpers();
-    markHintsDirty();
     if(!resolving) maybeStartResolve();
   }
 
@@ -10091,7 +9909,6 @@
     const purgeSuit = groups.find(g => g.suitBomb)?.purgeSuit;
     if(purgeSuit) purgeSuitBalls(purgeSuit);
     recomputeBumpers();
-    markHintsDirty();
     scheduleCountingUiRefresh();
     if(!resolving) resolveKingMerges();
     startLoop();
@@ -10587,11 +10404,18 @@
         }
       }
     }
-    // Physics tick already paints when it's running — avoid double draws.
-    if(!looping) draw();
-    if(resolving){
+    // Chain the next resolve frame before paint so a draw error cannot stall clears.
+    const keepResolving = resolving;
+    if(keepResolving){
       requestAnimationFrame(resolveTick);
-    } else {
+    }
+    try{
+      // Physics tick already paints when it's running — avoid double draws.
+      if(!looping) draw();
+    } catch(err){
+      console.error(err);
+    }
+    if(!keepResolving){
       resolveLooping = false;
       startLoop();
     }
@@ -11108,6 +10932,9 @@
     plateCtx.clearRect(0,PEG_ZONE,W,H-PEG_ZONE);
     plateCtx.fillStyle = PANEL;
     plateCtx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
+    // Resolve connectors live on the plastic; seat punches below cut them out
+    // of every hole so strokes never cover flashing cards.
+    drawResolveHandLines(plateCtx, flashElapsed, flashPulses);
     plateCtx.globalCompositeOperation = 'destination-out';
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
@@ -11170,10 +10997,6 @@
       }
       drawBall(b);
     }
-
-    // Near-miss guides sit on top of the plate so the dotted bridges stay
-    // readable between holes (pairs, flush/straight draws).
-    drawNearMissHints();
 
 
     for(const p of particles){
@@ -11329,7 +11152,6 @@
   const autoStatusValEl = document.getElementById('autoStatusVal');
   const autoStatusFillEl = document.getElementById('autoStatusFill');
   const settingShowFpsEl = document.getElementById('settingShowFps');
-  const settingNearHandHintsEl = document.getElementById('settingNearHandHints');
   const settingChipAnimationEl = document.getElementById('settingChipAnimation');
   const upgradesEl = document.getElementById('upgrades');
   const prestigeUpgradesEl = document.getElementById('prestigeUpgrades');
@@ -12839,12 +12661,6 @@
   if(settingShowFpsEl){
     settingShowFpsEl.addEventListener('change', ()=>{
       setGameSetting('showFps', settingShowFpsEl.checked);
-      draw();
-    });
-  }
-  if(settingNearHandHintsEl){
-    settingNearHandHintsEl.addEventListener('change', ()=>{
-      setGameSetting('nearHandHints', settingNearHandHintsEl.checked);
       draw();
     });
   }
