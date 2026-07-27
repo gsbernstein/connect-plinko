@@ -304,6 +304,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 - **Base branch:** `master` (also the Pages deploy branch).
 - **Feature branches:** `cursor/<short-description>-<suffix>` (cloud agents use suffix `65f3`).
 - **Before you commit:** see `.cursor/rules/agent-workflow.mdc` — especially the merged-branch check.
+- **When the user asks to merge the current branch:** only merge if the PR is **ready for review**, and always squash-merge into `master` (see **Merge when asked** in `.cursor/rules/agent-workflow.mdc`).
 - **Changelog conflicts on rebase:** see **Changelog merge conflicts (fast path)** above — almost always “keep master list, renumber your entry to max+1, sync `version.json`”.
 - Open PRs against `master`. Merged PRs deploy automatically via Pages.
 

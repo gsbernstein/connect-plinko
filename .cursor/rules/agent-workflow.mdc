@@ -41,6 +41,16 @@ Player-visible Poker PRs all prepend to `CHANGELOG` and bump `poker/version.json
 
 Full recipe + sanity-check script: **AGENTS.md → “Changelog merge conflicts (fast path)”**. Rebase onto latest `master` before writing the changelog (or add the entry last) to avoid the collision.
 
+## Merge when asked
+
+When the user tells you to **merge the current branch**, only proceed if the PR is **ready for review** (not draft). Then always **squash-merge into `master`** — do not use a merge commit or rebase merge.
+
+1. Ensure the branch has an open PR against `master` (create or update one if needed).
+2. Confirm the PR is **ready for review** (draft must be converted first). If not ready, stop and ask the user to mark it ready.
+3. Confirm CI is acceptable if the user cares about checks.
+4. Squash-merge via GitHub CLI, e.g. `gh pr merge --squash` (use the PR for the current branch). If there is no PR, open one first or ask which branch/PR to merge.
+5. After merge, sync local `master`: `git checkout master && git pull origin master`.
+
 ## Other defaults
 
 - Base branch for PRs: `master`.
