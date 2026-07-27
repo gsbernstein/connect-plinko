@@ -2977,8 +2977,17 @@
     if(counts[0] >= 5 && n >= 3){
       return {name: ofAKindName(counts[0]), points: ofAKindPoints(counts[0])};
     }
+    // King Me compound houses: quads+pair, then two trips, then classic boat.
+    if(counts[0] >= 4 && counts[1] >= 2 && n >= 3){
+      return {name:'QUADS FULL', points:10};
+    }
     if(n>=4 && counts[0]>=4) return {name:'FOUR OF A KIND', points:6};
-    if(n===5 && counts[0]===3 && counts[1]===2) return {name:'FULL HOUSE', points:5};
+    if(counts[0] >= 3 && counts[1] >= 3 && n >= 3){
+      return {name:'FULLER HOUSE', points:7};
+    }
+    if(counts[0] >= 3 && counts[1] >= 2 && n >= 3){
+      return {name:'FULL HOUSE', points:5};
+    }
     if(n >= flushLen && flush) return {name:'FLUSH', points:4};
     if(n===5 && straight) return {name:'STRAIGHT', points:3};
     if(n>=3 && counts[0]>=3) return {name:'THREE OF A KIND', points:2};
@@ -3088,7 +3097,8 @@
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
         'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
-        'Score labels no longer vanish as one flash — end times spread out when many pops overlap.'
+        'Score labels no longer vanish as one flash — end times spread out when many pops overlap.',
+        'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — with secret achievements for those and for six of a kind+.'
       ]
     },
     {
@@ -3852,8 +3862,11 @@
   const HAND_STAT = {
     'ROYAL FLUSH': 'royalFlushes',
     'FIVE OF A KIND': 'fiveKinds',
+    'SIX OF A KIND': 'sixKinds',
     'STRAIGHT FLUSH': 'straightFlushes',
+    'QUADS FULL': 'quadsFull',
     'FOUR OF A KIND': 'fourKinds',
+    'FULLER HOUSE': 'fullerHouses',
     'FULL HOUSE': 'fullHouses',
     'FLUSH': 'flushes',
     'STRAIGHT': 'straights',
@@ -3863,8 +3876,11 @@
   const RUN_HAND_STAT = {
     'ROYAL FLUSH': 'runRoyalFlushes',
     'FIVE OF A KIND': 'runFiveKinds',
+    'SIX OF A KIND': 'runSixKinds',
     'STRAIGHT FLUSH': 'runStraightFlushes',
+    'QUADS FULL': 'runQuadsFull',
     'FOUR OF A KIND': 'runFourKinds',
+    'FULLER HOUSE': 'runFullerHouses',
     'FULL HOUSE': 'runFullHouses',
     'FLUSH': 'runFlushes',
     'STRAIGHT': 'runStraights',
@@ -3874,11 +3890,17 @@
   // Higher hands also count toward lower-category achievements and quests.
   const HAND_STAT_ALSO = {
     'ROYAL FLUSH': ['straightFlushes', 'straights', 'flushes'],
-    'STRAIGHT FLUSH': ['straights', 'flushes']
+    'STRAIGHT FLUSH': ['straights', 'flushes'],
+    'SIX OF A KIND': ['fiveKinds', 'fourKinds', 'threeKinds'],
+    'QUADS FULL': ['fourKinds', 'fullHouses', 'fullerHouses', 'threeKinds'],
+    'FULLER HOUSE': ['fullHouses', 'threeKinds']
   };
   const RUN_HAND_STAT_ALSO = {
     'ROYAL FLUSH': ['runStraightFlushes', 'runStraights', 'runFlushes'],
-    'STRAIGHT FLUSH': ['runStraights', 'runFlushes']
+    'STRAIGHT FLUSH': ['runStraights', 'runFlushes'],
+    'SIX OF A KIND': ['runFiveKinds', 'runFourKinds', 'runThreeKinds'],
+    'QUADS FULL': ['runFourKinds', 'runFullHouses', 'runFullerHouses', 'runThreeKinds'],
+    'FULLER HOUSE': ['runFullHouses', 'runThreeKinds']
   };
   const MAX_QUEST_SLOTS = 5;
   // Quest slots unlock at these run levels (spread across the full climb).
@@ -4027,6 +4049,30 @@
       ]
     },
     {
+      id: 'a_fuller_house', kind: 'achievement', name: 'Fuller Boat',
+      desc: 'Score {n} Fuller Houses (two trips, via King Me stacks).',
+      stat: 'fullerHouses', secret: true, infinite: true,
+      scale: { targetGrowth: 2.0, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 1, reward: { comps: 2 } },
+        { target: 3, reward: { comps: 3 } },
+        { target: 10, reward: { comps: 5 } },
+        { target: 40, reward: { comps: 7 } }
+      ]
+    },
+    {
+      id: 'a_quads_full', kind: 'achievement', name: 'Quads Full',
+      desc: 'Score {n} Quads Full hands (four + a pair, via King Me stacks).',
+      stat: 'quadsFull', secret: true, infinite: true,
+      scale: { targetGrowth: 1.9, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 1, reward: { comps: 3 } },
+        { target: 3, reward: { comps: 4 } },
+        { target: 10, reward: { comps: 6 } },
+        { target: 30, reward: { comps: 8 } }
+      ]
+    },
+    {
       id: 'a_quads', kind: 'achievement', name: 'Quad Squad',
       desc: 'Score {n} Four of a Kinds.',
       stat: 'fourKinds', unlockAt: 1, infinite: true,
@@ -4036,6 +4082,18 @@
         { target: 3, reward: { comps: 3 } },
         { target: 15, reward: { comps: 4 } },
         { target: 50, reward: { comps: 6 } }
+      ]
+    },
+    {
+      id: 'a_six_kind', kind: 'achievement', name: 'Six High',
+      desc: 'Score {n} Six of a Kinds (or better).',
+      stat: 'sixKinds', secret: true, infinite: true,
+      scale: { targetGrowth: 1.85, compPerLevel: 2, compCap: 40 },
+      tiers: [
+        { target: 1, reward: { comps: 4 } },
+        { target: 3, reward: { comps: 6 } },
+        { target: 10, reward: { comps: 8 } },
+        { target: 25, reward: { comps: 12 } }
       ]
     },
     {
@@ -4471,17 +4529,17 @@
   // Heater steps loaded from save; applied to pendingChain after freshState on boot.
   let resumeHeaterChain = 0;
   const EMPTY_STATS = {
-    hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
-    fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
+    hands: 0, royalFlushes: 0, fiveKinds: 0, sixKinds: 0, straightFlushes: 0, fourKinds: 0,
+    quadsFull: 0, fullerHouses: 0, fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
     maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, achievementClaims: 0,
     sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
-    runFlushes: 0, runStraights: 0, runFullHouses: 0, runFourKinds: 0,
-    runFiveKinds: 0, runThreeKinds: 0, runTwoPairs: 0, runRoyalFlushes: 0,
-    runStraightFlushes: 0
+    runFlushes: 0, runStraights: 0, runFullHouses: 0, runFullerHouses: 0, runQuadsFull: 0,
+    runFourKinds: 0, runFiveKinds: 0, runSixKinds: 0, runThreeKinds: 0, runTwoPairs: 0,
+    runRoyalFlushes: 0, runStraightFlushes: 0
   };
   let stats = Object.assign({}, EMPTY_STATS);
   const DEFAULT_SETTINGS = {
@@ -5608,16 +5666,25 @@
     for(const g of groups){
       let key = HAND_STAT[g.name];
       let runKey = RUN_HAND_STAT[g.name];
-      // King Me can produce 6+ of a kind — fold those into the five-kind stats.
+      // King Me can produce 6+ / 7+ of a kind — map extras onto sixKinds (+ five via ALSO).
       const kindN = parseOfAKindCount(g.name);
-      if(!key && kindN >= 5){
+      if(!key && kindN >= 6){
+        key = 'sixKinds';
+        runKey = 'runSixKinds';
+      } else if(!key && kindN >= 5){
         key = 'fiveKinds';
         runKey = 'runFiveKinds';
       }
       if(key) bumpStat(key, 1);
       if(runKey) bumpStat(runKey, 1);
-      for(const alsoKey of (HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
-      for(const alsoKey of (RUN_HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
+      let also = HAND_STAT_ALSO[g.name];
+      let runAlso = RUN_HAND_STAT_ALSO[g.name];
+      if(!also && kindN >= 6){
+        also = ['fiveKinds', 'fourKinds', 'threeKinds'];
+        runAlso = ['runFiveKinds', 'runFourKinds', 'runThreeKinds'];
+      }
+      for(const alsoKey of (also || [])) bumpStat(alsoKey, 1);
+      for(const alsoKey of (runAlso || [])) bumpStat(alsoKey, 1);
       if(g.sleeveUsed) bumpStat('sleeveHands', 1);
     }
   }
@@ -7829,10 +7896,11 @@
 
   function handTextTier(name){
     const kindN = parseOfAKindCount(name);
-    if(kindN >= 5 || name === 'ROYAL FLUSH') return 'huge';
+    if(kindN >= 5 || name === 'ROYAL FLUSH' || name === 'QUADS FULL') return 'huge';
     switch(name){
       case 'FOUR OF A KIND':
       case 'STRAIGHT FLUSH':
+      case 'FULLER HOUSE':
         return 'big';
       case 'FLUSH':
       case 'STRAIGHT':
