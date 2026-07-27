@@ -10261,8 +10261,12 @@
           }
           applyExplosionClear(currentGroups);
           flashCells = null;
-          resolvePhase = 'explode';
-          resolvePhaseStart = now;
+          if(suitBombResolve){
+            finishResolveOrChain();
+          } else {
+            resolvePhase = 'explode';
+            resolvePhaseStart = now;
+          }
         }
       } else if(resolvePhase==='explode'){
         if(elapsed >= explodeMs){
