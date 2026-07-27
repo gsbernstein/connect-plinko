@@ -51,7 +51,7 @@ Single IIFE at the bottom of the file. Key pieces:
 | Area | What to search for |
 |------|-------------------|
 | Board geometry | `COLS`, `ROWS`, `CELL`, `PEG_ZONE`, `buildPegs` |
-| Bumpers / rails | `addBumperRun`, `recomputeBumpers`, `collideBallWithBumpers` |
+| Bumpers / rails | `addBumperRun`, `recomputeBumpers`, `bumperTopNormal`, `collideBallWithBumpers`, `assertBumperTopside`, `shoveBallsFromBumper` (one-sided topside capsule; post ball–ball topside reassert) |
 | Physics loop | `tick`, `stepBall`, `stepGridBall`, `resolveBallCollisions` |
 | Grid / stacking | `stack`, `enterGridColumn`, `rebuildColumnFromStack` |
 | Match-4 scoring | `findMatches`, `scoreGroups`, cascades in resolve path |

@@ -3092,6 +3092,8 @@
       title: 'Bumper bounce fix',
       items: [
         'Cards no longer kick hard left every time they hit a full-width bumper across a packed board.',
+        'Cards trapped under a bumper pop back onto the playable side instead of oscillating underneath.',
+        'Bumper hits shove nearby cards so a bounce can punch through a pile instead of getting smothered.',
       ]
     },
     {
@@ -7862,6 +7864,34 @@
     return closestPointOnSegment(px, py, a.x, a.y, b.x, b.y);
   }
 
+  // Playable-side normal at a rail point. Arc centers sit below the rail, so
+  // radial-out is the topside; flat full-width bars just face up (ny < 0).
+  function bumperTopNormal(closest, rail){
+    if(rail.arc){
+      let nx = closest.x - rail.arc.cx;
+      let ny = closest.y - rail.arc.cy;
+      const len = Math.hypot(nx, ny) || 1;
+      return {nx: nx/len, ny: ny/len};
+    }
+    return {nx: 0, ny: -1};
+  }
+
+  // Bumper bounce shoves neighbors so a hit can punch through a crowd.
+  function shoveBallsFromBumper(source, hx, hy, kx, ky){
+    const R = 72;
+    for(const other of balls){
+      if(other === source || other.phase !== 'peg') continue;
+      if(other.exploded || other.kingMerged) continue;
+      const ddx = other.x - hx, ddy = other.y - hy;
+      const d = Math.hypot(ddx, ddy);
+      if(d >= R || d < 0.0001) continue;
+      const falloff = 1 - d / R;
+      other.vx += (kx * 2.6 + (ddx / d) * 1.8) * falloff;
+      other.vy += (ky * 3.4 + (ddy / d) * 1.4) * falloff;
+      other.vy = Math.min(other.vy, -1.4 * falloff);
+    }
+  }
+
   function addBumperRun(startCol, endCol){
     const edgeLeft = startCol === 0;
     const edgeRight = endCol === COLS-1;
@@ -7954,13 +7984,40 @@
     ball.spin = Math.max(-0.55, Math.min(0.55, ball.spin));
   }
 
+  // After ball–ball separation, only reassert topside pose + lift — no second
+  // full bounce/shove in the same step (that stacked into rocket launches).
+  function assertBumperTopside(ball){
+    for(const rail of bumperPaths){
+      const closest = closestPointOnBumper(ball.x, ball.y, rail);
+      const {nx, ny} = bumperTopNormal(closest, rail);
+      const dx = ball.x - closest.x, dy = ball.y - closest.y;
+      const signed = dx*nx + dy*ny;
+      const minDist = ball.radius + BUMPER_R;
+      if(signed >= minDist) continue;
+      // Spiked siege cards are allowed through — don't yank them back up.
+      if(ball.card && ball.card.spikes && siegeWeaponsActive() && ball.siegeUsed) continue;
+      ball.x = closest.x + nx*minDist;
+      ball.y = closest.y + ny*minDist;
+      const vn = ball.vx*nx + ball.vy*ny;
+      if(vn < 0){
+        ball.vx -= vn*nx;
+        ball.vy -= vn*ny;
+      }
+      ball.vy = Math.min(ball.vy, signed < 0 ? -4.8 : -2.0);
+    }
+  }
+
   function collideBallWithBumpers(ball){
     for(const rail of bumperPaths){
       const closest = closestPointOnBumper(ball.x, ball.y, rail);
+      const {nx, ny} = bumperTopNormal(closest, rail);
       const dx = ball.x - closest.x, dy = ball.y - closest.y;
-      const dist = Math.hypot(dx, dy);
+      const signed = dx*nx + dy*ny;
       const minDist = ball.radius + BUMPER_R;
-      if(dist >= minDist || dist <= 0.0001) continue;
+      // One-sided capsule: always resolve to the topside. Two-sided separation
+      // used to push stranded pucks further under while vy was forced upward,
+      // trapping them in an oscillation under the rail.
+      if(signed >= minDist) continue;
 
       // Siege Weapons: spiked cards punch through bumpers and clear column(s).
       if(ball.card && ball.card.spikes && siegeWeaponsActive() && !ball.siegeUsed){
@@ -7982,7 +8039,7 @@
         continue;
       }
 
-      const nx = dx/dist, ny = dy/dist;
+      const wasUnder = signed < 0;
       ball.x = closest.x + nx*minDist;
       ball.y = closest.y + ny*minDist;
       // Bias bounce inward on single-wall edge rails so wall-side contacts
@@ -8002,7 +8059,11 @@
       ball.vx += kx*1.4 + (Math.random()*0.6-0.3);
       if(rail.edgeLeft && !rail.edgeRight) ball.vx = Math.max(ball.vx, 2.4);
       if(rail.edgeRight && !rail.edgeLeft) ball.vx = Math.min(ball.vx, -2.4);
-      ball.vy = Math.min(ball.vy, -1.5);
+      // Stronger lift than a soft rest — underside ejections get an extra shove.
+      ball.vy = Math.min(ball.vy, wasUnder ? -4.8 : -2.8);
+      if(wasUnder) ball.vx += kx * 2.4;
+      // Fresh contacts (and underside pops) clear nearby piled cards.
+      if(wasUnder || !rail.hit) shoveBallsFromBumper(ball, closest.x, closest.y, kx, ky);
       impartSpin(ball, kx, ky);
       if(!rail.hit){
         const payout = bumperHitPayout();
@@ -8730,6 +8791,13 @@
       sweepExplodedBalls();
       resolveBallCollisions();
       sweepExplodedBalls();
+      // Ball–ball separation can shove cards back into/under a rail — reassert
+      // the topside capsule so bumper bounce wins over a crowd.
+      for(const ball of balls){
+        if(ball.phase === 'peg' && !ball.exploded && !ball.kingMerged){
+          assertBumperTopside(ball);
+        }
+      }
       forceSeatStuckGridBalls();
       physicsAccumulator -= PHYSICS_DT;
       physicsSteps++;
