@@ -897,6 +897,10 @@
       background:var(--panel-2);
       transform:translateY(-1px);
     }
+    /* No lift on achievements — keeps the hit target stable while progress paints. */
+    .quest.achievement:hover:not(:disabled){
+      transform:none;
+    }
   }
   .quest:disabled{cursor:default;}
   .quest.claimable{
@@ -3020,12 +3024,21 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 60,
+      id: 61,
       date: 'Jul 27, 2026',
       title: 'Mitosis leaves taps alone',
       items: [
         'Percussive Mitosis no longer rate-limits board taps — only Auto Dealer is ~10× slower while it is On.',
         'Tap-to-deal works at full speed even with Mitosis active.'
+      ]
+    },
+    {
+      id: 60,
+      date: 'Jul 27, 2026',
+      title: 'Steadier achievement cards',
+      items: [
+        'Achievement cards no longer reshuffle under the cursor while you browse the list — hover and Claim clicks stay reliable on desktop.',
+        'Progress bars and counts still update live; the list re-sorts when you reopen the tab or a reward becomes claimable.'
       ]
     },
     {
@@ -4326,6 +4339,11 @@
   let questUiTimer = 0;
   let countingUiTimer = 0;
   let achievementProgShown = Object.create(null); // achievement id -> last painted numerator
+  let achievementProgTargetShown = Object.create(null); // achievement id -> last painted tier target
+  // Claim-bucket signature of the last applied achievements DOM order.
+  // While the Achievements panel is open we only reshuffle on claim-state
+  // changes (not live progress %), so hover/click are not stolen mid-play.
+  let achievementOrderBucketSig = '';
   let questClaimed = Object.create(null); // achievement id -> claimed tier count
   let activeQuests = []; // rolled run quests in slots
   let questUidSeq = 1;
@@ -4982,6 +5000,18 @@
     if(a.fullyClaimed !== b.fullyClaimed) return a.fullyClaimed ? 1 : -1;
     if(b.ratio !== a.ratio) return b.ratio - a.ratio;
     return a.order - b.order;
+  }
+
+  function achievementOrderBucketSignature(visible){
+    // Discrete claim buckets only — progress % stays out so live updates
+    // do not reshuffle cards under the cursor.
+    let sig = '';
+    for(let i = 0; i < visible.length; i++){
+      const e = visible[i];
+      if(i) sig += '|';
+      sig += (e.canClaim ? 'c' : (e.fullyClaimed ? 'd' : 'p')) + (e.btn.dataset.id || '');
+    }
+    return sig;
   }
 
   function activeQuestProgress(q){
@@ -10711,6 +10741,11 @@
     }
     markPanelUnlocksSeen(panel);
     if(panel === 'settings') openSettingsChangelog();
+    if(panel === 'achievements'){
+      // Re-apply progress-ratio order when opening the tab (browsing freezes it).
+      achievementOrderBucketSig = '';
+      updateAchievementsUI();
+    }
   }
 
   for(const tab of railTabs){
@@ -11383,13 +11418,23 @@
       const progEl = btn.querySelector('.quest-prog');
       if(progEl){
         if(stillSecret){
-          progEl.innerHTML = '<b>?</b> / ?';
+          if(achievementProgShown[def.id] !== -1){
+            progEl.innerHTML = '<b>?</b> / ?';
+            achievementProgShown[def.id] = -1;
+            delete achievementProgTargetShown[def.id];
+          }
         } else {
           const prev = achievementProgShown[def.id];
-          const shouldPulse = prev != null && progress > prev;
-          progEl.innerHTML = '<b>' + formatNum(progress) + '</b> / ' + formatNum(target);
-          if(shouldPulse) pulseAchievementNumerator(progEl.querySelector('b'));
-          achievementProgShown[def.id] = progress;
+          const prevTarget = achievementProgTargetShown[def.id];
+          // Skip identical rewrites — thrashing <b> every tick kills hover stability
+          // and restarts progress pulse for no reason.
+          if(prev !== progress || prevTarget !== target){
+            const shouldPulse = prev != null && prev >= 0 && progress > prev;
+            progEl.innerHTML = '<b>' + formatNum(progress) + '</b> / ' + formatNum(target);
+            if(shouldPulse) pulseAchievementNumerator(progEl.querySelector('b'));
+            achievementProgShown[def.id] = progress;
+            achievementProgTargetShown[def.id] = target;
+          }
         }
       }
       const actionEl = btn.querySelector('.quest-action');
@@ -11410,7 +11455,15 @@
     if(achieveReadyValEl) achieveReadyValEl.textContent = String(achieveReady);
     if(activeRailPanel === 'achievements') markPanelUnlocksSeen('achievements');
     setTabBadge('achievements', achieveReady);
-    orderUpgradeButtons(achievementsEl, visible.map(entry => entry.btn));
+    const ordered = visible.map(entry => entry.btn);
+    const bucketSig = achievementOrderBucketSignature(visible);
+    // Background tabs keep a fresh progress sort for the next open. While the
+    // Achievements panel is open, only reshuffle when claim buckets change —
+    // continuous progress-ratio sorts were stealing hover and clicks on desktop.
+    if(activeRailPanel !== 'achievements' || bucketSig !== achievementOrderBucketSig){
+      orderUpgradeButtons(achievementsEl, ordered);
+      achievementOrderBucketSig = bucketSig;
+    }
   }
 
   function updateContractsUI(){
@@ -11439,6 +11492,8 @@
     if(questsEl) questsEl.innerHTML = '';
     if(achievementsEl) achievementsEl.innerHTML = '';
     achievementProgShown = Object.create(null);
+    achievementProgTargetShown = Object.create(null);
+    achievementOrderBucketSig = '';
     questSlotButtons.length = 0;
     questLockedButtons.length = 0;
     for(const key of Object.keys(contractButtons)) delete contractButtons[key];
