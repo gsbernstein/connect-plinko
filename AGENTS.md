@@ -95,7 +95,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
 | `SHOP_RECOMMEND_PRIORITY` / `VIP_RECOMMEND_PRIORITY` / `recommendedShopUpgradeId` / `recommendedVipPerkId` / `.upgrade-rec` / `.upgrade-cost-row` | Gold ★ after the price on the next guided buy: shop Auto Dealer→6 → Wild Card→1 → Pin Tip→1 → High Cut→1 → Suit Alliance→2; VIP Quest Desk→1 → Quest Ink→4. First incomplete unlocked step wins (`fillUpgradeButton` `recommended`; `.upgrade-rec.is-on` via `visibility`) |
 | `compCage` / `runCompCredit` | Cashier’s Cage (`unlockAt` 200): each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
-| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `connect4`, `dealMeIn`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, `bigRoom`, `controlBooth`, `slideRule`, …). Skill-bonus perks (`houseEdge` → Hot Streak, `quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`; `houseEdge.maxLevel` must match Hot Streak’s cap (10). |
+| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `connect4`, `dealMeIn`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, `bigRoom`, `controlBooth`, `slideRule`, …). Skill-bonus perks (`quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`. |
 | `controlBooth` / `TOGGLE_DOCK_DEFS` / `updateToggleDockUI` / `#toggleDock` | Control Booth VIP: when owned+On, shows owned toggles in a column to the right of the board (`.board-row` + `.toggle-dock`); Suit Purge uses Shown/Hidden; Short Fuse uses Short/Normal (`fuseStates`); Booth Off hides the column (re-enable from VIP) |
 | `slideRule` / `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` / `syncChipRateVisibility` | Slide Rule VIP: Lv1+On shows chips/s meter (`.score.has-chip-rate`); Lv2 uses `log1p` fill; Control Booth short label `Rate` |
 | `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5) |
@@ -133,7 +133,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `sleeveHands` / `cardsIgnited` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` / `maxHandPayout` / `maxComboPayout` / `maxChipRate` / `achievementClaims` | Achievement stats: sleeve Ace hands, cards lit by I Cast Fireball (`a_big_room`), VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (`a_max_combo`, infinite), best single-hand chip payout (`a_hand_payout`), best COMBO resolve total (`a_combo_payout`), peak chips/s (`a_chip_rate` / Chip Flood), achievement tier claims (`a_claims`) |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
-| `heaterChain` / `heaterChainForSave` / `resumeHeaterChain` / `heaterHoldUntilUse` | Persisted Hot Streak steps; restore into `pendingChain` after boot `freshState`; hold skips empty-board expire until next hand |
+| `heaterChain` / `heaterChainForSave` / `resumeHeaterChain` / `heaterHoldUntilUse` | Persisted chain-heater steps; restore into `pendingChain` after boot `freshState`; hold skips empty-board expire until next hand |
 | `APP_RELEASE` | Alias of `CHANGELOG_LATEST_ID`; must match `poker/version.json` `v` |
 | `appRelease` | Last stamped `APP_RELEASE` in the save; `loadSave` bumps `versionUpgrades` when newer |
 | `RELEASE_URL` / `startReleasePolling` | Polls `poker/version.json` (cache-bust); shows `#updateBanner` when remote `v` is newer |
@@ -217,7 +217,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 
 **Bumper rails:** `collideBallWithBumpers` uses a one-sided topside capsule (`bumperTopNormal`) so cards under a rail eject onto the playable side; contact is gated by Euclidean distance to the rail (signed-only tests falsely blocked the open channel between two bumper ends). Fresh hits / underside pops call `shoveBallsFromBumper` to clear crowds. After `resolveBallCollisions`, `assertBumperTopside` reasserts pose + lift without a second full bounce. Single-wall edge bias is XOR’d (`edgeLeft` / `edgeRight`) so full-width bars do not hard-kick left.
 
-**Chain carryover:** `chainStep` / `pendingChain` keep the heater alive while blast pucks are still in flight (`finishResolveOrChain` → `beginResolveChain`). `enterFlash` advances `chainStep` by `groups.length` (COMBO ×N steps the heater N times). Suit Purge preserves `pendingChain` and scores with chain mult `1` (no CHAIN banner) so Hot Streak alone does not flash a fake low ×N; the next real hand restores the carryover via `finishResolveOrChain`.
+**Chain carryover:** `chainStep` / `pendingChain` keep the heater alive while blast pucks are still in flight (`finishResolveOrChain` → `beginResolveChain`). `enterFlash` advances `chainStep` by `groups.length` (COMBO ×N steps the heater N times). Suit Purge preserves `pendingChain` and scores with chain mult `1` (no CHAIN banner) so a mid-heater purge does not flash a fake low ×N; the next real hand restores the carryover via `finishResolveOrChain`.
 
 **Persisted heater:** `heaterChainForSave()` writes `heaterChain` into the save (active `chainStep` during a hand resolve, else `pendingChain`; Suit Purge keeps `pendingChain`; floor clear → 0). `loadSave` stashes it in `resumeHeaterChain`; after boot `freshState()` that value is copied into `pendingChain` so refresh/update does not reset the streak. `heaterHoldUntilUse` skips the empty-board idle expire until `beginResolveChain` advances the heater once (board is empty on load). Cash Out / hard reset clear it before `persistSave`.
 
@@ -229,8 +229,9 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 - When adding fields, bump `SAVE_VERSION` and add migration logic in `loadSave`.
 - `ACHIEVEMENT_LEGACY_CLAIMS` maps retired achievement ids for old saves.
 - `seenChangelogId` — missing/invalid loads as `0` so existing saves get the Settings red badge once for seeded entries.
-- `heaterChain` — Hot Streak steps surviving refresh (see **Persisted heater** above); missing → 0.
+- `heaterChain` — chain-heater steps surviving refresh (see **Persisted heater** above); missing → 0.
 - v26 — retired Card Sense / near-hand hints; `loadSave` refunds 4 comps once if the old VIP or shop row was owned.
+- v27 — retired Hot Streak (shop) + House Edge (VIP); `loadSave` refunds chip/comp spends once from raw save levels.
 
 ### Settings changelog (What’s New)
 
