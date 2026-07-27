@@ -6842,11 +6842,12 @@
     return p;
   }
 
-  // AABB half-size used for spawn-time deconfliction (mid-slam footprint).
+  // AABB half-size used for spawn-time deconfliction. Bias toward peak slam
+  // so glowing / slamming labels reserve enough air before they settle.
   function popupHalfExtents(p){
     const fontSize = p._fontSize || p.fontSize || (p.big ? 26 : 16);
     const slam = p.slam || (p.big ? 1.35 : 1.15);
-    const fitScale = 1 + (slam - 1) * 0.45;
+    const fitScale = 1 + (slam - 1) * 0.75;
     const tilt = Math.abs(p.tilt || 0) * 1.85;
     const glow = p._glow != null ? p._glow : (p.glow != null ? p.glow : (p.big ? 14 : 8));
     const tw = p.textW > 0 ? p.textW : fontSize * Math.max(4, String(p.text || '').length * 0.55);
@@ -6856,26 +6857,28 @@
     const hh0 = contentH * 0.5 + stroke;
     const cos = Math.cos(tilt);
     const sin = Math.sin(tilt);
-    const pad = glow * 0.25 + 4;
+    const pad = glow * 0.35 + 6;
     return {
       hw: (Math.abs(hw0 * cos) + Math.abs(hh0 * sin)) * fitScale + pad,
       hh: (Math.abs(hw0 * sin) + Math.abs(hh0 * cos)) * fitScale + pad
     };
   }
 
-  // Nudge a freshly spawned label off neighbors so hand / COMBO / CHAIN /
-  // King Me bursts stay readable. Caps drift so labels don't leave the hand.
+  // Nudge a label off neighbors so hand / COMBO / CHAIN / King Me bursts stay
+  // readable. Drift is measured from spawnX/Y so relax passes can't walk away.
   function separatePopupFromOthers(p){
     if(!p || !popups.length) return p;
-    const originX = p.x;
-    const originY = p.y;
-    const GAP = 10;
-    const MAX_DRIFT = CELL * 1.4;
-    for(let iter = 0; iter < 8; iter++){
+    const originX = p.spawnX != null ? p.spawnX : p.x;
+    const originY = p.spawnY != null ? p.spawnY : p.y;
+    const GAP = 18;
+    const MAX_DRIFT = CELL * 2.2;
+    for(let iter = 0; iter < 12; iter++){
       let moved = false;
       const a = popupHalfExtents(p);
       for(const o of popups){
         if(!o || o === p) continue;
+        // Ephemeral peg chips shouldn't shove celebration labels around.
+        if(o.ephemeral && !p.ephemeral) continue;
         const b = popupHalfExtents(o);
         const dx = p.x - o.x;
         const dy = p.y - o.y;
@@ -6884,16 +6887,16 @@
         if(Math.abs(dx) >= minDx || Math.abs(dy) >= minDy) continue;
         const overlapX = minDx - Math.abs(dx);
         const overlapY = minDy - Math.abs(dy);
-        // Resolve the smaller overlap axis first (less travel).
-        if(overlapY <= overlapX){
-          // Prefer pushing the new label up so it sits above older / lower pops.
+        // Prefer vertical separation for grid celebrations; fan sideways when
+        // the vertical gap needed is huge (keeps labels near their hands).
+        if(overlapY <= overlapX * 1.35){
           const dir = dy === 0 ? -1 : (dy < 0 ? -1 : 1);
-          p.y += dir * Math.max(6, overlapY * 0.92);
+          p.y += dir * Math.max(10, overlapY);
         } else {
           const dir = dx === 0
             ? ((originX < W * 0.5) ? -1 : 1)
             : (dx < 0 ? -1 : 1);
-          p.x += dir * Math.max(6, overlapX * 0.92);
+          p.x += dir * Math.max(10, overlapX);
         }
         moved = true;
       }
@@ -6911,9 +6914,23 @@
     return p;
   }
 
+  // After a multi-label burst, let low-worth pops yield space to rarer ones.
+  function relaxPopupPositions(sinceT0){
+    const recent = popups.filter(p =>
+      !p.ephemeral && (p.t0 == null || p.t0 >= sinceT0 - 50)
+    );
+    if(recent.length < 2) return;
+    recent.sort((a, b) => popupWorth(a) - popupWorth(b));
+    for(let iter = 0; iter < 5; iter++){
+      for(const p of recent) separatePopupFromOthers(p);
+    }
+  }
+
   function pushPopup(popup){
     bakePopupSprite(popup);
     clampPopupToBoard(popup);
+    if(popup.spawnX == null) popup.spawnX = popup.x;
+    if(popup.spawnY == null) popup.spawnY = popup.y;
     separatePopupFromOthers(popup);
     const now = performance.now();
     if(popup.t0 == null) popup.t0 = now;
@@ -9333,7 +9350,7 @@
     return {
       x: x / groups.length,
       // Clear of taller hand labels (title + chip subtext).
-      y: y / groups.length + CELL * 0.85
+      y: y / groups.length + CELL * 1.2
     };
   }
 
@@ -9354,7 +9371,7 @@
 
   // Multi-hand clears fire one CHAIN slam per heater step, staggered.
   const CHAIN_POP_STAGGER_MS = 95;
-  const CHAIN_POP_STACK_GAP = 36;
+  const CHAIN_POP_STACK_GAP = 42;
 
   function pushChainBanner(mult, t0, stackIndex){
     // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
@@ -9408,8 +9425,8 @@
       // Fan simultaneous hand labels so neighboring clears don't stack.
       const fan = n > 1 ? (gi - (n - 1) / 2) : 0;
       pushPopup({
-        x: x + fan * CELL * 0.28,
-        y: y - Math.abs(fan) * 8,
+        x: x + fan * CELL * 0.4,
+        y: y - Math.abs(fan) * 14,
         text: g.name + bangs,
         subtext: pts > 0 ? ('+' + formatNum(pts)) : '',
         color: burnCount > 0
@@ -9446,6 +9463,7 @@
         comboN: groups.length
       });
     }
+    if(n > 1 || chainMult > 1) relaxPopupPositions(now);
   }
 
   function spawnExplosion(x, y, card, opts){
@@ -12884,6 +12902,21 @@
   requestAnimationFrame(idleSpin);
   startReleasePolling();
   window.addEventListener('beforeunload', persistSave);
+
+  // TEMP: ?debugPops=1 forces a multi-hand label burst for visual QA — remove after verify.
+  if(/[?&]debugPops=1(?:&|$)/.test(location.search)){
+    setTimeout(() => {
+      chainStep = 6;
+      spawnPopups([
+        { name: 'PAIR', points: 120, cells: [[1,4],[2,4]], color: '#F1EEFB' },
+        { name: 'FLUSH', points: 2400, cells: [[2,1],[3,1],[4,1],[5,1]], color: '#E85D5D' },
+        { name: 'THREE OF A KIND', points: 900, cells: [[5,4],[5,3],[5,2]], color: '#F0D78C' }
+      ], 0, 4);
+      celebrateKingMerge(W * 0.35, PEG_ZONE + CELL * 2.5, 2, {suit: 'h', rank: 13});
+      relaxPopupPositions(performance.now() - 10);
+      if(!looping) startLoop();
+    }, 500);
+  }
 })();
 </script>
 </body>
