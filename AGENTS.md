@@ -197,10 +197,8 @@ Reuse the existing land-pulse pattern instead of inventing new motion:
 
 | Target | Class | Helper | Keyframes |
 |--------|-------|--------|-----------|
-| Chip score box | `.score.chip-pulse` | `pulseScoreBox` | `chipLandPulse` |
-| VIP comps pill | `.comps-pill.comp-pulse` | `pulseCompsBox` | `compLandPulse` |
-
-On phone/tablet shop view, `pulseCompsBox` / `pulseScoreBox` defer while `#railBody` is mid-fling (`shopRailScrolling` / `scrollend`+quiet timeout) so the HUD bounce’s forced layout read doesn’t kill touch momentum; pending pulses fire when scrolling settles.
+| Chip score box | `pulseScoreBox` → `hudLandPulse` | `hudLandPulse` (WAAPI scale + brightness) |
+| VIP comps pill | `pulseCompsBox` → `hudLandPulse` | same — transform/filter only; no layout reflow |
 | Achievement prog numerator | `.quest-prog b.prog-pulse` | `pulseAchievementNumerator` | `achievementProgPulse` |
 
 All helpers restart CSS animation with `el.classList.remove(...); void el.offsetWidth; el.classList.add(...)` and clear via `setTimeout` (~340 ms). Inline numerators that scale need `display: inline-block` on the `<b>` (see `.quest.achievement .quest-prog b`).

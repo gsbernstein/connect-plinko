@@ -164,22 +164,6 @@
       transform:translate(-50%, 54px) scale(1);
     }
   }
-  .comps-pill.comp-pulse{
-    animation:compLandPulse 0.32s ease-out;
-  }
-  @keyframes compLandPulse{
-    0%{ transform:scale(1); }
-    45%{ transform:scale(1.07); filter:brightness(1.14); }
-    100%{ transform:scale(1); filter:brightness(1); }
-  }
-  .score.chip-pulse{
-    animation:chipLandPulse 0.32s ease-out;
-  }
-  @keyframes chipLandPulse{
-    0%{ transform:scale(1); }
-    45%{ transform:scale(1.07); filter:brightness(1.12); }
-    100%{ transform:scale(1); filter:brightness(1); }
-  }
   .app.mode-table .stage,
   .stage.is-active{display:flex;}
   .hud{
@@ -218,7 +202,6 @@
     min-width:0;
   }
   .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor;}
-  .score.chip-pulse{box-shadow:0 0 0 1px var(--felt-bright), 0 0 22px -2px var(--felt-bright);}
   .score b{
     color:var(--ink);
     font-family:'Space Grotesk',sans-serif;
@@ -6914,8 +6897,6 @@
   const MAX_FLYING_CHIPS = 80;
   let flyingChips = [];
   let chipFlyRaf = 0;
-  let scorePulseTimer = 0;
-
   function canvasToStagePoint(cx, cy){
     if(!chipFxLayer) return { x: cx, y: cy };
     const canvasRect = canvas.getBoundingClientRect();
@@ -7026,14 +7007,32 @@
     };
   }
 
+  const HUD_LAND_PULSE_MS = 320;
+
+  // Transform + filter only — no layout box change, no forced reflow.
+  function hudLandPulse(el, peakBrightness){
+    if(!el || el.hidden || !el.animate) return;
+    if(el._hudLandAnim){
+      el._hudLandAnim.cancel();
+      el._hudLandAnim = null;
+    }
+    const bright = peakBrightness != null ? peakBrightness : 1.12;
+    const anim = el.animate(
+      [
+        { transform: 'scale(1)', filter: 'brightness(1)' },
+        { transform: 'scale(1.07)', filter: 'brightness(' + bright + ')' },
+        { transform: 'scale(1)', filter: 'brightness(1)' }
+      ],
+      { duration: HUD_LAND_PULSE_MS, easing: 'ease-out', fill: 'none' }
+    );
+    el._hudLandAnim = anim;
+    anim.onfinish = ()=>{
+      if(el._hudLandAnim === anim) el._hudLandAnim = null;
+    };
+  }
+
   function pulseCompsBox(){
-    const compsBoxEl = document.getElementById('compsBox');
-    if(!compsBoxEl || compsBoxEl.hidden) return;
-    compsBoxEl.classList.remove('comp-pulse');
-    void compsBoxEl.offsetWidth;
-    compsBoxEl.classList.add('comp-pulse');
-    clearTimeout(compsBoxEl._compPulseTimer);
-    compsBoxEl._compPulseTimer = setTimeout(()=>compsBoxEl.classList.remove('comp-pulse'), 340);
+    hudLandPulse(document.getElementById('compsBox'), 1.14);
   }
 
   function spawnFlyBurst(origin, opts){
@@ -7144,13 +7143,7 @@
   }
 
   function pulseScoreBox(){
-    if(!scoreBoxEl) return;
-    scoreBoxEl.classList.remove('chip-pulse');
-    // Restart the land pulse even when chips arrive in a rapid stream.
-    void scoreBoxEl.offsetWidth;
-    scoreBoxEl.classList.add('chip-pulse');
-    clearTimeout(scorePulseTimer);
-    scorePulseTimer = setTimeout(()=>scoreBoxEl.classList.remove('chip-pulse'), 340);
+    hudLandPulse(scoreBoxEl, 1.12);
   }
 
   function pulseAchievementNumerator(el){
