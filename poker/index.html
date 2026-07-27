@@ -2983,6 +2983,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 43,
+      date: 'Jul 27, 2026',
+      title: 'Pit Boss speed-up',
+      items: [
+        'Pit Boss auto-buys up to five affordable upgrades per tick again — no extra VIP levels required.'
+      ]
+    },
+    {
       id: 42,
       date: 'Jul 27, 2026',
       title: 'Upgrade balance pass',
@@ -4018,7 +4026,7 @@
     {
       id: 'pitBoss',
       name: 'Pit Boss',
-      desc: 'Automatically buy the cheapest affordable table upgrade. Toggle On/Off anytime.',
+      desc: 'Automatically buy the cheapest affordable table upgrades each tick. Toggle On/Off anytime.',
       baseCost: 12,
       costScale: 1,
       maxLevel: 1,
@@ -4264,6 +4272,10 @@
   const STORM_BEACHES_BLAST_RADIUS = 280;
   const STORM_BEACHES_BLAST_FORCE = 70;
   const STORM_BEACHES_KNOCKBACK_FRAMES = 55;
+
+  // Pit Boss: fixed batch per tick (no extra VIP levels).
+  const PIT_BOSS_BUY_BATCH = 5;
+  const PIT_BOSS_BUY_INTERVAL_MS = 140;
 
   function stormBeachesSpawnMult(){
     return stormBeachesActive() ? STORM_BEACHES_SPAWN_MULT : 1;
@@ -6790,22 +6802,27 @@
 
   function tryAutoBuyUpgrades(){
     if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return { count: 0, ids: [] };
-    let bestId = null;
-    let bestCost = Infinity;
-    for(const def of UPGRADE_DEFS){
-      if(!upgradeUnlocked(def.id)) continue;
-      const lvl = upgradeLevel(def.id);
-      if(lvl >= def.maxLevel) continue;
-      const cost = upgradeCost(def);
-      if(score < cost) continue;
-      if(cost < bestCost){
-        bestCost = cost;
-        bestId = def.id;
+    const ids = [];
+    for(let i = 0; i < PIT_BOSS_BUY_BATCH; i++){
+      let bestId = null;
+      let bestCost = Infinity;
+      for(const def of UPGRADE_DEFS){
+        if(!upgradeUnlocked(def.id)) continue;
+        const lvl = upgradeLevel(def.id);
+        if(lvl >= def.maxLevel) continue;
+        const cost = upgradeCost(def);
+        if(score < cost) continue;
+        if(cost < bestCost){
+          bestCost = cost;
+          bestId = def.id;
+        }
       }
+      if(!bestId || !purchaseUpgrade(bestId)) break;
+      ids.push(bestId);
     }
-    if(!bestId || !purchaseUpgrade(bestId)) return { count: 0, ids: [] };
+    if(!ids.length) return { count: 0, ids: [] };
     scheduleSave();
-    return { count: 1, ids: [bestId] };
+    return { count: ids.length, ids };
   }
 
   function playUpgradeAutoBuyEffect(btn){
@@ -6845,7 +6862,7 @@
   function maybeAutoBuy(now){
     if(prestigeLevel('pitBoss') <= 0 || !isAutoEnabled('pitBoss')) return 0;
     now = now || performance.now();
-    if(now - lastAutoBuyAt < 220) return 0;
+    if(now - lastAutoBuyAt < PIT_BOSS_BUY_INTERVAL_MS) return 0;
     const result = tryAutoBuyUpgrades();
     if(result.count){
       lastAutoBuyAt = now;

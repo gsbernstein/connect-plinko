@@ -76,6 +76,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `stormBeachLandingPayout` | Storm the Beaches: chips when a card survives pegs and enters the grid (`enterGridColumn`) |
 | `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
 | `suitPurgeActive` / `purgeCardPayout` / `suitBombPickerMinimized` / `suitPurgePairPenalty` | Suit Purge: shop toggle arms/disarms; bar tap minimizes picker; purge pays per card; auto-target deprioritizes Card Counting pairs |
+| `maybeAutoBuy` / `PIT_BOSS_BUY_BATCH` / `PIT_BOSS_BUY_INTERVAL_MS` | Pit Boss (toggleable): up to 5 cheapest affordable shop buys per tick; `140` ms throttle |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
 | `cardCountingGroups` / `cardCountingFactor` / `cardCountingHandMultiplier` / `boardDuplicateExtras` / `effectiveMetaMultiplier` / `handPayoutMultiplier` | Card Counting: Lv1–8 +8% per duplicate extra on hands; Lv9 product of paired rank+suit counts multiplies `runMetaMultiplier` |
