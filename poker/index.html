@@ -3060,6 +3060,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 71,
+      date: 'Jul 27, 2026',
+      title: 'Chips/s achievement',
+      items: [
+        'New achievement: Chip Flood — hit peak chips/s on the Chips HUD (infinite tiers).',
+      ]
+    },
+    {
       id: 70,
       date: 'Jul 27, 2026',
       title: 'Cashier’s Cage later',
@@ -4146,6 +4154,19 @@
       ]
     },
     {
+      id: 'a_chip_rate', kind: 'achievement', name: 'Chip Flood',
+      desc: 'Reach {n} chips/s.',
+      stat: 'maxChipRate', unlockAt: 1, infinite: true,
+      // Same ~10× infinite curve as Big Pot / Combo Payday — income scales with mults.
+      scale: { targetGrowth: 10, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 30 },
+      tiers: [
+        { target: 10, reward: { chips: 100 } },
+        { target: 50, reward: { comps: 1 } },
+        { target: 250, reward: { comps: 2 } },
+        { target: 1000, reward: { comps: 4 } }
+      ]
+    },
+    {
       id: 'a_floor', kind: 'achievement', name: 'Janitor',
       desc: 'Trigger {n} floor clears.',
       stat: 'floorClears', unlockAt: 1, infinite: true,
@@ -4502,7 +4523,7 @@
     quadsFull: 0, fullerHouses: 0, fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
-    maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, achievementClaims: 0,
+    maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, maxChipRate: 0, achievementClaims: 0,
     sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
@@ -6641,6 +6662,14 @@
     let i = 0;
     while(i < chipEarnSamples.length && chipEarnSamples[i].t < cutoff) i++;
     if(i) chipEarnSamples.splice(0, i);
+    // Peak chips/s for Chip Flood (same 5s window as the HUD rate).
+    let sum = 0;
+    for(const s of chipEarnSamples) sum += s.n;
+    const rate = Math.floor(sum / (CHIP_RATE_WINDOW_MS / 1000));
+    if(rate > (stats.maxChipRate || 0)){
+      stats.maxChipRate = rate;
+      scheduleContractsUI();
+    }
   }
 
   function currentChipRate(now){
