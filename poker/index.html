@@ -1297,7 +1297,10 @@
     font-size:12px;
     line-height:1;
     text-shadow:0 0 8px rgba(230,195,92,0.35);
+    /* Stay in flow when idle so chip-tick ★ moves don't resize cards mid-scroll. */
+    visibility:hidden;
   }
+  .upgrade-rec.is-on{ visibility:visible; }
   .upgrade-name-text{
     min-width:0;
   }
@@ -3330,6 +3333,15 @@
   // Merge/rebase conflict here? Keep master's entries+ids, renumber YOUR new
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
+    {
+      id: 88,
+      date: 'Jul 27, 2026',
+      title: 'Rail scroll stays smooth',
+      items: [
+        'Browsing a shop tab no longer reshuffles its list under you — order refreshes when you leave and come back.',
+        'Recommended ★ no longer resizes upgrade cards as chips tick in.',
+      ]
+    },
     {
       id: 87,
       date: 'Jul 27, 2026',
@@ -11961,6 +11973,10 @@
       achievementOrderBucketSig = '';
       updateAchievementsUI();
     }
+    // Apply frozen-while-open list order once when landing on a shop tab.
+    if(panel === 'upgrades') updateShopUI({ forceOrder: true });
+    else if(panel === 'quests') updateQuestsUI({ forceOrder: true });
+    else if(panel === 'vip') updatePrestigeUI({ forceOrder: true });
     // Layout may not be ready until after paint when switching panels.
     requestAnimationFrame(()=>{
       markPanelUnlocksSeen('upgrades');
@@ -11979,53 +11995,22 @@
     if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
     else setRailPanel(activeRailPanel);
   });
-  // Re-appending list nodes mid-fling kills scroll momentum — defer while busy.
-  let railScrollBusyUntil = 0;
-  let railScrollFlushTimer = 0;
-  const deferredRailOrders = new Map();
-  let shopScrollCueRaf = 0;
-
-  function noteRailScroll(){
-    railScrollBusyUntil = performance.now() + 220;
-    if(railScrollFlushTimer) clearTimeout(railScrollFlushTimer);
-    railScrollFlushTimer = setTimeout(flushDeferredRailOrders, 240);
-  }
-
-  function railScrollBusy(){
-    return performance.now() < railScrollBusyUntil;
-  }
-
-  function flushDeferredRailOrders(){
-    railScrollFlushTimer = 0;
-    if(railScrollBusy()){
-      railScrollFlushTimer = setTimeout(flushDeferredRailOrders, 40);
-      return;
-    }
-    if(!deferredRailOrders.size) return;
-    const pending = Array.from(deferredRailOrders.entries());
-    deferredRailOrders.clear();
-    for(const [container, ordered] of pending){
-      orderUpgradeButtons(container, ordered);
-    }
-  }
-
-  for(const panel of railPanels){
-    panel.addEventListener('scroll', noteRailScroll, { passive: true });
+  // Cue / unlock-seen: only after scroll settles (not every frame mid-fling).
+  let shopScrollEndTimer = 0;
+  function onUpgradesScrollSettled(){
+    shopScrollEndTimer = 0;
+    if(activeRailPanel !== 'upgrades') return;
+    markPanelUnlocksSeen('upgrades');
+    setTabBadge('upgrades', countAffordableUpgrades());
+    updateShopScrollCue();
   }
   if(upgradesPanelEl){
     upgradesPanelEl.addEventListener('scroll', ()=>{
       if(activeRailPanel !== 'upgrades') return;
-      if(shopScrollCueRaf) return;
-      shopScrollCueRaf = requestAnimationFrame(()=>{
-        shopScrollCueRaf = 0;
-        const changed = markVisibleUpgradeUnlocksSeen();
-        if(changed){
-          scheduleSave();
-          setTabBadge('upgrades', countAffordableUpgrades());
-        }
-        updateShopScrollCue();
-      });
+      if(shopScrollEndTimer) clearTimeout(shopScrollEndTimer);
+      shopScrollEndTimer = setTimeout(onUpgradesScrollSettled, 140);
     }, { passive: true });
+    upgradesPanelEl.addEventListener('scrollend', onUpgradesScrollSettled, { passive: true });
   }
   if(shopScrollCueBtn){
     shopScrollCueBtn.addEventListener('click', ()=>{
@@ -12034,7 +12019,6 @@
         updateShopScrollCue();
         return;
       }
-      noteRailScroll();
       target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       // Mark after the smooth scroll settles so the cue clears once visible.
       const finish = ()=>{
@@ -12281,16 +12265,7 @@
         if(kids[i] !== ordered[i]){ same = false; break; }
       }
     }
-    if(same){
-      deferredRailOrders.delete(container);
-      return;
-    }
-    // appendChild reorders steal fling/wheel momentum on the rail panels.
-    if(railScrollBusy()){
-      deferredRailOrders.set(container, ordered.slice());
-      return;
-    }
-    deferredRailOrders.delete(container);
+    if(same) return;
     for(const btn of ordered) container.appendChild(btn);
   }
 
@@ -12413,14 +12388,17 @@
     btn.classList.toggle('is-recommended', recommended);
     const recEl = btn.querySelector('.upgrade-rec');
     if(recEl){
-      recEl.hidden = !recommended;
+      // Keep node in flow (visibility) — toggling [hidden] resized cards mid-scroll.
+      recEl.hidden = false;
+      recEl.classList.toggle('is-on', recommended);
       recEl.setAttribute('aria-hidden', recommended ? 'false' : 'true');
     }
     if(recommended) btn.setAttribute('aria-description', 'Recommended next');
     else btn.removeAttribute('aria-description');
   }
 
-  function updateShopUI(){
+  function updateShopUI(opts){
+    opts = opts || {};
     const active = [];
     const maxedList = [];
     let affordableCount = 0;
@@ -12460,8 +12438,10 @@
       }
       (maxed ? maxedList : active).push(btn);
     }
-    // Keep buyable upgrades up top; sink completed ones.
-    orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    // Freeze list order while browsing — reshuffles steal fling momentum.
+    if(opts.forceOrder || activeRailPanel !== 'upgrades'){
+      orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    }
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateShopScrollCue();
@@ -12498,7 +12478,8 @@
     return { gain, ready };
   }
 
-  function updatePrestigeUI(){
+  function updatePrestigeUI(opts){
+    opts = opts || {};
     const { ready } = updateCashOutUI();
     // Badge number = affordable VIP perks only; Cash Out never increments the count.
     let vipReady = 0;
@@ -12525,7 +12506,9 @@
         });
         (maxed ? maxedList : active).push(btn);
       }
-      orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
+      if(opts.forceOrder || activeRailPanel !== 'vip'){
+        orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
+      }
     }
     if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
     setTabBadge('vip', vipReady, ready ? { empty: true, ariaLabel: 'Cash Out ready' } : null);
@@ -12543,7 +12526,7 @@
     btn.innerHTML =
       '<div class="upgrade-top">' +
         '<span class="upgrade-name">' +
-          '<span class="upgrade-rec" hidden aria-hidden="true" title="Recommended next">★</span>' +
+          '<span class="upgrade-rec" aria-hidden="true" title="Recommended next">★</span>' +
           '<span class="upgrade-name-text"></span>' +
         '</span>' +
         '<span class="upgrade-top-right">' +
@@ -12668,7 +12651,8 @@
       'Reach run level ' + unlockLvl + ' to open this quest slot.';
   }
 
-  function updateQuestsUI(){
+  function updateQuestsUI(opts){
+    opts = opts || {};
     updateQuestTabAvailability();
     if(!questsEl) return;
     const cap = questSlotCap();
@@ -12702,11 +12686,13 @@
       fillLockedQuestButton(questLockedButtons[i], cap + i);
     }
 
-    // Only reshuffle DOM when claimable order actually changes.
-    orderUpgradeButtons(
-      questsEl,
-      claimable.concat(inProgress, questLockedButtons)
-    );
+    // Freeze order while browsing (same as shop / VIP).
+    if(opts.forceOrder || activeRailPanel !== 'quests'){
+      orderUpgradeButtons(
+        questsEl,
+        claimable.concat(inProgress, questLockedButtons)
+      );
+    }
     if(questReadyValEl) questReadyValEl.textContent = String(questReady);
     if(questSlotsMetaEl){
       questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
