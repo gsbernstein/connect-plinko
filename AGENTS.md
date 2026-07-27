@@ -209,7 +209,7 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 **Offscreen new upgrades / claimables:** Shop unlocks are marked seen only when their row is in the `#railBody` viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView`). If an unviewed unlock is offscreen while the Upgrades panel is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below). On Achievements, the same cue shows Claim when claimable cards exist offscreen and none are onscreen (`claimableAchievementButtons` / `firstClaimableAchievementOffscreen`) and scrolls `#railBody` to the top (claimables sort first). `updateShopScrollCue` / `railScrollCueTarget` refresh on shop/achieve UI, scroll, resize, and panel switches. **Hold-to-claim:** claimable achievement cards use pointer hold (`attachAchievementHoldHandlers` / `claimNextAchievementInSeries`; tap = one claim, ~280 ms hold = series at `ACHIEVEMENT_HOLD_REPEAT_MS`). Recommended ★ uses `visibility` (`.upgrade-rec.is-on`) so chip ticks don’t resize cards.
 
-**New upgrade cards:** Unviewed unlocks (same `seenUnlocks.upgrades` gate as the tab dot) show an `.upgrade-new-tag` chiclet until scrolled into view (no red card border/background).
+**New upgrade cards:** Unviewed unlocks (same `seenUnlocks.upgrades` gate as the tab dot) show an `.upgrade-new-tag` chiclet until scrolled into view (no red card border/background). Future unlocks stay visible as `.upgrade-locked` rows (lock icon, name, `Lv` unlock) at the bottom of the shop list, like locked quest slots.
 
 ### Physics & board
 

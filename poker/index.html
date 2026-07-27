@@ -1073,7 +1073,8 @@
   .quest.quest-locked:hover{transform:none; background:var(--panel);}
   .quest.quest-locked .quest-reward,
   .quest.quest-locked .quest-progress-row,
-  .quest.quest-locked .quest-bar{display:none;}
+  .quest.quest-locked .quest-bar,
+  .quest.quest-locked .quest-desc{display:none;}
   .quest-top{
     display:flex;
     justify-content:space-between;
@@ -1084,6 +1085,20 @@
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    min-width:0;
+  }
+  .quest-name-text{min-width:0;}
+  .card-lock-icon{
+    flex:0 0 auto;
+    width:11px;
+    height:11px;
+    opacity:0.72;
+    background:currentColor;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23fff' d='M4.5 7V5a3.5 3.5 0 0 1 7 0v2M3 7.25h10a1.25 1.25 0 0 1 1.25 1.25v5.5A1.25 1.25 0 0 1 12.75 15H3.25A1.25 1.25 0 0 1 2 13.75v-5.5A1.25 1.25 0 0 1 3.25 7.25Z'/%3E%3C/svg%3E") center/contain no-repeat;
+    mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23fff' d='M4.5 7V5a3.5 3.5 0 0 1 7 0v2M3 7.25h10a1.25 1.25 0 0 1 1.25 1.25v5.5A1.25 1.25 0 0 1 12.75 15H3.25A1.25 1.25 0 0 1 2 13.75v-5.5A1.25 1.25 0 0 1 3.25 7.25Z'/%3E%3C/svg%3E") center/contain no-repeat;
   }
   .quest-kind{
     color:#7EC8A3;
@@ -1250,6 +1265,23 @@
   .upgrade.buy-blocked:hover{
     transform:none;
   }
+  .upgrade.upgrade-locked{
+    opacity:0.55;
+    border-style:dashed;
+    cursor:default;
+    padding-bottom:12px;
+  }
+  .upgrade.upgrade-locked:hover{
+    transform:none;
+    background:var(--panel);
+    border-color:#2a2545;
+  }
+  .upgrade.upgrade-locked .upgrade-desc,
+  .upgrade.upgrade-locked .upgrade-effect,
+  .upgrade.upgrade-locked .upgrade-cost-row,
+  .upgrade.upgrade-locked .upgrade-progress,
+  .upgrade.upgrade-locked .upgrade-toggle,
+  .upgrade.upgrade-locked .upgrade-new-tag{display:none;}
   .upgrade-top{
     display:flex;
     justify-content:space-between;
@@ -3315,6 +3347,7 @@
         'Achievements shows a Claim button when ready rewards are offscreen — tap to jump back to the top.',
         'Hold a claimable achievement to rip through ready rewards in series.',
         'New upgrade and changelog highlights are chiclet-only — no red card border.',
+        'Locked shop upgrades and quest slots show a lock icon, name/slot label, and unlock level.',
       ]
     },
     {
@@ -12661,6 +12694,7 @@
     const bonus = opts.bonus || 0;
     const effective = Math.min(def.maxLevel, bought + bonus);
     const maxed = !!opts.maxed || effective >= def.maxLevel;
+    const levelLocked = !!opts.levelLocked;
     const locked = !!opts.locked;
     const canAfford = !!opts.canAfford;
     const canToggle = !!opts.canToggle;
@@ -12672,11 +12706,16 @@
     if('disabled' in btn) btn.disabled = disabled;
     btn.classList.toggle('buy-blocked', canToggle && !locked && (maxed || !canAfford));
     btn.classList.toggle('affordable', canAfford && !maxed && !locked);
-    btn.classList.toggle('maxed', maxed);
-    btn.classList.toggle('has-bonus', bonus > 0);
+    btn.classList.toggle('maxed', maxed && !levelLocked);
+    btn.classList.toggle('has-bonus', bonus > 0 && !levelLocked);
+    btn.classList.toggle('upgrade-locked', levelLocked);
+    btn.tabIndex = levelLocked ? -1 : 0;
+    const lockIcon = btn.querySelector('.card-lock-icon');
+    if(lockIcon) lockIcon.hidden = !levelLocked;
     const lvlEl = btn.querySelector('.upgrade-lvl');
     if(lvlEl){
-      if(maxed) lvlEl.textContent = 'MAX';
+      if(levelLocked) lvlEl.textContent = 'Lv ' + (def.unlockAt || 1);
+      else if(maxed) lvlEl.textContent = 'MAX';
       else if(bonus > 0) lvlEl.textContent = 'Lv ' + bought + '+' + bonus + '/' + def.maxLevel;
       else lvlEl.textContent = 'Lv ' + effective + '/' + def.maxLevel;
     }
@@ -12723,7 +12762,7 @@
       costEl.textContent = formatNum(opts.cost) + ' ' + (opts.unit || 'chips');
       costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
     }
-    const recommended = !!opts.recommended && !locked && !maxed;
+    const recommended = !!opts.recommended && !locked && !maxed && !levelLocked;
     btn.classList.toggle('is-recommended', recommended);
     const recEl = btn.querySelector('.upgrade-rec');
     if(recEl){
@@ -12739,6 +12778,7 @@
   function updateShopUI(){
     const active = [];
     const maxedList = [];
+    const lockedList = [];
     let affordableCount = 0;
     const recommendedId = recommendedShopUpgradeId();
     for(const def of UPGRADE_DEFS){
@@ -12755,19 +12795,20 @@
       // Always refresh state — including locked cards — so Cash Out can't leave
       // stale disabled/maxed/affordable flags on upgrades that hide/show by level.
       fillUpgradeButton(btn, def, {
-        bought, bonus, maxed, locked: !revealed, cost, canAfford,
+        bought, bonus, maxed, locked: !revealed, levelLocked: !revealed, cost, canAfford,
         canToggle: !!(def.toggleable && lvl > 0),
         effect: upgradeEffectText(def),
         costLabel: 'Unlocks at Lv ' + (def.unlockAt || 1),
         unit: 'chips',
         recommended: def.id === recommendedId
       });
-      btn.hidden = !revealed;
+      btn.hidden = false;
       if(!revealed){
         btn.classList.remove('affordable', 'maxed', 'is-new', 'is-recommended');
         const newTag = btn.querySelector('.upgrade-new-tag');
         if(newTag) newTag.hidden = true;
         btn.removeAttribute('aria-label');
+        lockedList.push(btn);
         continue;
       }
       const isNew = upgradeIsUnviewed(def);
@@ -12778,8 +12819,8 @@
       else btn.removeAttribute('aria-label');
       (maxed ? maxedList : active).push(btn);
     }
-    // Keep buyable upgrades up top; sink completed ones.
-    orderUpgradeButtons(upgradesEl, active.concat(maxedList));
+    // Buyable first, then maxed, then future unlocks (like locked quest slots).
+    orderUpgradeButtons(upgradesEl, active.concat(maxedList, lockedList));
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateShopScrollCue();
@@ -12861,6 +12902,7 @@
     btn.innerHTML =
       '<div class="upgrade-top">' +
         '<span class="upgrade-name">' +
+          '<span class="card-lock-icon" hidden aria-hidden="true"></span>' +
           '<span class="upgrade-name-text"></span>' +
           '<span class="upgrade-new-tag" hidden>New</span>' +
         '</span>' +
@@ -12899,7 +12941,7 @@
       });
     }
     const tryBuy = ()=>{
-      if(btn.classList.contains('is-disabled')) return;
+      if(btn.classList.contains('is-disabled') || btn.classList.contains('upgrade-locked')) return;
       onBuy(def.id);
     };
     btn.addEventListener('click', (e)=>{
@@ -12921,7 +12963,10 @@
     btn.className = 'quest';
     btn.innerHTML =
       '<div class="quest-top">' +
-        '<span class="quest-name"></span>' +
+        '<span class="quest-name">' +
+          '<span class="card-lock-icon" hidden aria-hidden="true"></span>' +
+          '<span class="quest-name-text"></span>' +
+        '</span>' +
         '<span class="quest-kind"></span>' +
       '</div>' +
       '<p class="quest-desc"></p>' +
@@ -12959,7 +13004,9 @@
     btn.style.setProperty('--quest-spark-glow', questSparkGlowShadow(meta.color));
     btn.classList.toggle('claimable', complete);
     btn.disabled = !complete;
-    btn.querySelector('.quest-name').textContent = q.name;
+    const lockIcon = btn.querySelector('.card-lock-icon');
+    if(lockIcon) lockIcon.hidden = true;
+    btn.querySelector('.quest-name-text').textContent = q.name;
     btn.querySelector('.quest-kind').textContent = meta.label;
     btn.querySelector('.quest-desc').textContent = q.desc;
     btn.querySelector('.quest-reward').textContent = contractRewardText(q.reward);
@@ -12983,10 +13030,11 @@
     btn.hidden = false;
     btn.disabled = true;
     delete btn.dataset.id;
-    btn.querySelector('.quest-name').textContent = 'Locked slot';
+    const lockIcon = btn.querySelector('.card-lock-icon');
+    if(lockIcon) lockIcon.hidden = false;
+    btn.querySelector('.quest-name-text').textContent = 'Slot ' + (slotIndex + 1);
     btn.querySelector('.quest-kind').textContent = 'Lv ' + unlockLvl;
-    btn.querySelector('.quest-desc').textContent =
-      'Reach run level ' + unlockLvl + ' to open this quest slot.';
+    btn.querySelector('.quest-desc').textContent = '';
   }
 
   function updateQuestsUI(){
@@ -13058,7 +13106,9 @@
       btn.classList.toggle('claimable', canClaim);
       btn.classList.toggle('claimed', fullyClaimed);
       btn.classList.add('achievement');
-      btn.querySelector('.quest-name').textContent = stillSecret ? '???' : achievementName(def, tier);
+      const lockIcon = btn.querySelector('.card-lock-icon');
+      if(lockIcon) lockIcon.hidden = true;
+      btn.querySelector('.quest-name-text').textContent = stillSecret ? '???' : achievementName(def, tier);
       btn.querySelector('.quest-kind').textContent = stillSecret ? 'Achievement' : achievementKindLabel(def);
       btn.querySelector('.quest-desc').textContent = stillSecret
         ? 'Hidden achievement — keep playing.'
@@ -13138,7 +13188,9 @@
     const tier = achievementActiveTier(def);
     btn.classList.add('achievement');
     btn.dataset.id = def.id;
-    btn.querySelector('.quest-name').textContent = def.secret ? '???' : achievementName(def, tier);
+    const lockIcon = btn.querySelector('.card-lock-icon');
+    if(lockIcon) lockIcon.hidden = true;
+    btn.querySelector('.quest-name-text').textContent = def.secret ? '???' : achievementName(def, tier);
     btn.querySelector('.quest-kind').textContent = def.secret ? 'Achievement' : achievementKindLabel(def);
     btn.querySelector('.quest-desc').textContent = def.secret
       ? 'Hidden achievement — keep playing.'
