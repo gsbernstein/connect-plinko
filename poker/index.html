@@ -3347,6 +3347,14 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 95,
+      date: 'Jul 27, 2026',
+      title: 'Fuse dock labels',
+      items: [
+        'Control Booth Fuse now reads Short / Normal instead of On / Off (shop card still uses On / Off).',
+      ]
+    },
+    {
       id: 94,
       date: 'Jul 27, 2026',
       title: 'Deal Me In',
@@ -5013,7 +5021,7 @@
   // Board-side Control Booth column — short labels; order is display order.
   const TOGGLE_DOCK_DEFS = [
     { id: 'autoDealer', short: 'Deal', source: 'upgrade', autoManual: true },
-    { id: 'shortFuse', short: 'Fuse', source: 'upgrade' },
+    { id: 'shortFuse', short: 'Fuse', source: 'upgrade', fuseStates: true },
     { id: 'suitBomb', short: 'Suits', source: 'upgrade', picker: true },
     { id: 'autoSuitBomb', short: 'Purge', source: 'prestige', autoManual: true },
     { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
@@ -13037,6 +13045,9 @@
       } else if(def.autoManual){
         on = isAutoEnabled(id);
         label = on ? 'Auto' : 'Manual';
+      } else if(def.fuseStates){
+        on = isAutoEnabled(id);
+        label = on ? 'Short' : 'Normal';
       } else {
         on = isAutoEnabled(id);
         label = on ? 'On' : 'Off';
