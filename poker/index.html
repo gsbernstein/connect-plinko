@@ -3024,6 +3024,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 64,
+      date: 'Jul 27, 2026',
+      title: 'Bigger chip readouts',
+      items: [
+        'Past Q (quadrillion), chip and mult readouts switch to scientific notation so late-game stacks stay short — no second “Q” for quintillion.'
+      ]
+    },
+    {
       id: 63,
       date: 'Jul 27, 2026',
       title: 'Cashier’s Cage & deeper table levels',
@@ -5789,11 +5797,15 @@
     return Math.max(1, Math.floor(linear * mult));
   }
 
+  // Short-scale HUD suffixes through Q (quadrillion = 1e15). Quintillion+
+  // also wants "Q", so past 1e18 we drop to scientific instead of inventing Qi/Sx…
   function formatCompactSuffix(n){
     if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
     if(n < 1e12) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
     if(n < 1e15) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + 'T';
-    return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+    if(n < 1e18) return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+    if(!Number.isFinite(n)) return String(n);
+    return n.toExponential(2).replace(/\.?0+e/, 'e').replace('e+', 'e');
   }
 
   function formatMultFactor(v, noun){
