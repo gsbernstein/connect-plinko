@@ -3087,6 +3087,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 67,
+      date: 'Jul 27, 2026',
+      title: 'Hand resolve lines',
+      items: [
+        'Scoring hands flash bright connector dashes in the gaps between seats before clearing — easier to read combos without covering the cards.',
+        'Flush lines keep suit color; straights and rank hands use their own connector colors so mixed lines don’t look suited.',
+      ]
+    },
+    {
       id: 66,
       date: 'Jul 27, 2026',
       title: 'Crowned kings',
@@ -4104,7 +4113,7 @@
     },
     {
       id: 'a_max_combo', kind: 'achievement', name: 'C-Combo',
-      desc: 'Reach COMBO ×{n}.',
+      desc: 'Get a COMBO ×{n}.',
       stat: 'maxCombo', unlockAt: 1, infinite: true,
       scale: { targetStep: 1, compPerLevel: 2, compCap: 40 },
       tiers: [
@@ -8066,6 +8075,21 @@
     }
   }
 
+  // Suit color only when the hand is suit-defined. Straights match near-miss
+  // PEG guides; rank/pattern hands use ivory→gold by strength so a mixed
+  // trips line never reads as a flush connector.
+  function handGroupColor(name, cards){
+    if(name === 'FLUSH' || name === 'STRAIGHT FLUSH' || name === 'ROYAL FLUSH'){
+      return flushHintColor(cards);
+    }
+    if(name === 'STRAIGHT') return PEG;
+    const kindN = parseOfAKindCount(name);
+    if(kindN >= 5 || name === 'QUADS FULL') return '#FFE08A';
+    if(kindN === 4 || name === 'FULLER HOUSE') return '#F0D78C';
+    if(name === 'FULL HOUSE') return '#E2D49A';
+    return getCSS('--ink') || '#F1EEFB';
+  }
+
   // Of-a-kind pop punctuation: five → !?!, six → ‽, seven+ → more interrobangs.
   function handPopupPunctuation(name, fx){
     const kindN = parseOfAKindCount(name);
@@ -9135,7 +9159,7 @@
               burnCount: cand.burnCount || 0,
               sleeveUsed: !!cand.sleeveUsed,
               cells: cand.cells,
-              color: flushHintColor(cards.slice(cand.i, cand.i + cand.len))
+              color: handGroupColor(cand.name, cards.slice(cand.i, cand.i + cand.len))
             });
           }
         }
@@ -9343,6 +9367,60 @@
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
     ctx.setLineDash([]);
+  }
+
+  // True when cells walk a constant grid step (poker lines, floor row, single-col siege).
+  function cellsFormLine(cells){
+    if(!cells || cells.length < 2) return false;
+    const dx = cells[1][0] - cells[0][0];
+    const dy = cells[1][1] - cells[0][1];
+    if(dx === 0 && dy === 0) return false;
+    for(let i = 1; i < cells.length; i++){
+      if(cells[i][0] - cells[i - 1][0] !== dx) return false;
+      if(cells[i][1] - cells[i - 1][1] !== dy) return false;
+    }
+    return true;
+  }
+
+  // Paint-only: suit-colored strokes on the plate plastic during flash.
+  // Caller draws these BEFORE punching seat holes so card windows erase
+  // any overlap — lines remain only in the gaps. Never touches resolve state.
+  function drawResolveHandLines(target, flashElapsed, pulses){
+    if(!target || !resolving || resolvePhase !== 'flash') return;
+    if(!currentGroups || !currentGroups.length) return;
+    const frac = flashElapsed || 0;
+    const pulseWaves = pulses || 7;
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(frac * Math.PI * pulseWaves));
+
+    try{
+      for(const g of currentGroups){
+        // Suit Purge hits scattered seats — no single connector.
+        if(g.suitBomb) continue;
+        const cells = g.cells;
+        if(!cellsFormLine(cells)) continue;
+        const color = g.color || '#ffffff';
+        const pts = cells.map(([c, r]) => cellCenter(c, r));
+        const alpha = 0.78 + 0.22 * pulse;
+
+        target.save();
+        target.globalAlpha = alpha;
+        target.strokeStyle = color;
+        target.lineCap = 'round';
+        target.lineJoin = 'round';
+        target.lineWidth = 4.5;
+        target.shadowBlur = 0;
+        target.beginPath();
+        target.moveTo(pts[0].x, pts[0].y);
+        for(let i = 1; i < pts.length; i++) target.lineTo(pts[i].x, pts[i].y);
+        target.stroke();
+        target.restore();
+      }
+      target.globalAlpha = 1;
+      target.shadowBlur = 0;
+    } catch(_err){
+      // Never let paint break the resolve RAF chain.
+      try{ target.globalAlpha = 1; target.shadowBlur = 0; } catch(_e){}
+    }
   }
 
   function scoreGroups(groups, chainMultiplier){
@@ -10410,11 +10488,18 @@
         }
       }
     }
-    // Physics tick already paints when it's running — avoid double draws.
-    if(!looping) draw();
-    if(resolving){
+    // Chain the next resolve frame before paint so a draw error cannot stall clears.
+    const keepResolving = resolving;
+    if(keepResolving){
       requestAnimationFrame(resolveTick);
-    } else {
+    }
+    try{
+      // Physics tick already paints when it's running — avoid double draws.
+      if(!looping) draw();
+    } catch(err){
+      console.error(err);
+    }
+    if(!keepResolving){
       resolveLooping = false;
       startLoop();
     }
@@ -10931,6 +11016,9 @@
     plateCtx.clearRect(0,PEG_ZONE,W,H-PEG_ZONE);
     plateCtx.fillStyle = PANEL;
     plateCtx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
+    // Resolve connectors live on the plastic; seat punches below cut them out
+    // of every hole so strokes never cover flashing cards.
+    drawResolveHandLines(plateCtx, flashElapsed, flashPulses);
     plateCtx.globalCompositeOperation = 'destination-out';
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
