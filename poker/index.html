@@ -3024,6 +3024,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 65,
+      date: 'Jul 27, 2026',
+      title: 'Auto Suit Purge unstuck',
+      items: [
+        'Auto Purge no longer sits on ready forever when a suit is flooded with identical Pin Split / Card Counting duplicates.',
+        'Pair-aware targeting still prefers suits that break fewer duplicate extras; it just won’t refuse a crowded suit entirely.'
+      ]
+    },
+    {
       id: 64,
       date: 'Jul 27, 2026',
       title: 'Bigger chip readouts',
@@ -9677,29 +9686,33 @@
 
   function pickAutoSuitBombTarget(){
     const inShoe = new Set(activeSuits());
-    let best = null, bestCount = 0;
-    let bestExiled = null, bestExiledBoard = 0, bestExiledCount = 0;
+    // Rank by pair-safe "effective" count (Card Counting), but keep raw n so a
+    // Pin Split duplicate flood (effective 1, raw many) is never treated as a
+    // singleton — that left Auto Purge ready forever without casting.
+    let best = null, bestEffective = -1, bestRaw = 0;
+    let bestExiled = null, bestExiledBoard = 0, bestExiledEffective = -1;
     for(const s of SUITS){
       const board = findSuitCells(s).length;
       const n = countSuitInPlay(s);
       if(!n) continue;
       const effective = n - suitPurgePairPenalty(s);
       if(!inShoe.has(s) && board > 0){
-        if(board > bestExiledBoard || (board === bestExiledBoard && effective > bestExiledCount)){
+        if(board > bestExiledBoard || (board === bestExiledBoard && effective > bestExiledEffective)){
           bestExiledBoard = board;
-          bestExiledCount = effective;
+          bestExiledEffective = effective;
           bestExiled = s;
         }
         continue;
       }
-      if(effective > bestCount){
-        bestCount = effective;
+      if(effective > bestEffective || (effective === bestEffective && n > bestRaw)){
+        bestEffective = effective;
+        bestRaw = n;
         best = s;
       }
     }
     if(bestExiled) return bestExiled;
-    // Don't waste a charge on a lonely singleton.
-    if(bestCount < 2) return null;
+    // Don't waste a charge on a lonely singleton (raw cards in play).
+    if(!best || bestRaw < 2) return null;
     return best;
   }
 
@@ -11713,10 +11726,14 @@
       if(suitBombChargeFill) suitBombChargeFill.style.width = '0%';
     }
     if(ready){
-      suitBombStatus.textContent = auto
-        ? 'ready · auto'
-        : (autoOwned ? 'ready · paused' : 'ready');
-      suitBombStatus.className = auto ? 'ready auto' : 'ready';
+      if(auto){
+        // Distinguish "armed but no 2+ suit yet" from actively targeting.
+        suitBombStatus.textContent = autoTarget ? 'ready · auto' : 'ready · waiting';
+        suitBombStatus.className = 'ready auto';
+      } else {
+        suitBombStatus.textContent = autoOwned ? 'ready · paused' : 'ready';
+        suitBombStatus.className = 'ready';
+      }
     } else {
       const left = Math.max(0, suitBombReadyAt - now);
       suitBombStatus.textContent = formatInterval(left)
