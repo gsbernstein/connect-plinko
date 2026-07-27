@@ -206,6 +206,8 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 **Per-tab scroll:** `#railBody` is one shared scroller; `setRailPanel` saves/restores `railPanelScroll[panel]` (`saveRailPanelScroll` / `restoreRailPanelScroll`) so each shop tab keeps its offset for the session.
 
+**Offscreen new upgrades:** Shop unlocks are marked seen only when their row is in the `#railBody` viewport (`markVisibleUpgradeUnlocksSeen`). If an unviewed unlock is offscreen while the Upgrades panel is open, `#shopScrollCue` (`.shop-scroll-cue`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below); `updateShopScrollCue` refreshes on shop UI, scroll, scroll, resize, and panel switches.
+
 ### Physics & board
 
 Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds per-column occupants (settled cards + in-flight balls); gravity/clear passes update ball target rows in place.
