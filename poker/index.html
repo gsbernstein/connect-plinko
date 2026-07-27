@@ -3328,6 +3328,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 85,
+      date: 'Jul 27, 2026',
+      title: 'Score pops stack on top',
+      items: [
+        'New score labels now slam in above older ones instead of hiding under lingering pops.',
+      ]
+    },
+    {
       id: 84,
       date: 'Jul 27, 2026',
       title: 'Suits toggle labels',
@@ -11456,10 +11464,11 @@
     if(popupCtx){
       popupCtx.clearRect(0, 0, popupCanvas.width, popupCanvas.height);
     }
-    // Paint low-worth first so rarer / fatter labels (and big COMBOs) sit on top.
+    // Paint older first so fresh slams sit on top of lingering labels.
+    // Peg-hit ephemerals stay under celebrations; same-t0 ties break by worth.
     const drawPopups = popups
-      .map((p, i) => ({p, i, w: popupWorth(p)}))
-      .sort((a, b) => a.w - b.w || a.i - b.i);
+      .map((p, i) => ({p, i, w: popupWorth(p), t0: p.t0 || 0, eph: p.ephemeral ? 0 : 1}))
+      .sort((a, b) => a.eph - b.eph || a.t0 - b.t0 || a.w - b.w || a.i - b.i);
     for(const {p} of drawPopups){
       const age = nowP - p.t0;
       // Future t0 = staggered chain pops waiting to slam in.
