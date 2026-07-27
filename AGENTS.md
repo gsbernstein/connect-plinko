@@ -180,7 +180,7 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds per-column occupants (settled cards + in-flight balls); gravity/clear passes update ball target rows in place.
 
-**Bumper rails:** `collideBallWithBumpers` uses a one-sided topside capsule (`bumperTopNormal`) so cards under a rail eject onto the playable side; fresh hits / underside pops call `shoveBallsFromBumper` to clear crowds. After `resolveBallCollisions`, `assertBumperTopside` reasserts pose + lift without a second full bounce. Single-wall edge bias is XOR’d (`edgeLeft` / `edgeRight`) so full-width bars do not hard-kick left.
+**Bumper rails:** `collideBallWithBumpers` uses a one-sided topside capsule (`bumperTopNormal`) so cards under a rail eject onto the playable side; contact is gated by Euclidean distance to the rail (signed-only tests falsely blocked the open channel between two bumper ends). Fresh hits / underside pops call `shoveBallsFromBumper` to clear crowds. After `resolveBallCollisions`, `assertBumperTopside` reasserts pose + lift without a second full bounce. Single-wall edge bias is XOR’d (`edgeLeft` / `edgeRight`) so full-width bars do not hard-kick left.
 
 **Chain carryover:** `chainStep` / `pendingChain` keep the heater alive while blast pucks are still in flight (`finishResolveOrChain` → `beginResolveChain`). `enterFlash` advances `chainStep` by `groups.length` (COMBO ×N steps the heater N times). Suit Purge preserves `pendingChain` and scores with chain mult `1` (no CHAIN banner) so Hot Streak alone does not flash a fake low ×N; the next real hand restores the carryover via `finishResolveOrChain`.
 

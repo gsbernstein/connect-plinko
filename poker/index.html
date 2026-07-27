@@ -3094,6 +3094,7 @@
         'Cards no longer kick hard left every time they hit a full-width bumper across a packed board.',
         'Cards trapped under a bumper pop back onto the playable side instead of oscillating underneath.',
         'Bumper hits shove nearby cards so a bounce can punch through a pile instead of getting smothered.',
+        'Open channels between two bumpers stay passable — cards are no longer yanked back up out of the gap.',
       ]
     },
     {
@@ -7991,9 +7992,12 @@
       const closest = closestPointOnBumper(ball.x, ball.y, rail);
       const {nx, ny} = bumperTopNormal(closest, rail);
       const dx = ball.x - closest.x, dy = ball.y - closest.y;
+      const dist = Math.hypot(dx, dy);
       const signed = dx*nx + dy*ny;
       const minDist = ball.radius + BUMPER_R;
-      if(signed >= minDist) continue;
+      // Euclidean capsule gate — signed-only tests falsely catch balls in the
+      // open channel between two bumper ends and yank them back up.
+      if(dist >= minDist || dist <= 0.0001) continue;
       // Spiked siege cards are allowed through — don't yank them back up.
       if(ball.card && ball.card.spikes && siegeWeaponsActive() && ball.siegeUsed) continue;
       ball.x = closest.x + nx*minDist;
@@ -8012,12 +8016,13 @@
       const closest = closestPointOnBumper(ball.x, ball.y, rail);
       const {nx, ny} = bumperTopNormal(closest, rail);
       const dx = ball.x - closest.x, dy = ball.y - closest.y;
+      const dist = Math.hypot(dx, dy);
       const signed = dx*nx + dy*ny;
       const minDist = ball.radius + BUMPER_R;
-      // One-sided capsule: always resolve to the topside. Two-sided separation
-      // used to push stranded pucks further under while vy was forced upward,
-      // trapping them in an oscillation under the rail.
-      if(signed >= minDist) continue;
+      // Capsule contact by Euclidean distance; always resolve along the topside
+      // normal so underside contacts eject up instead of oscillating under the rail.
+      // Signed-only tests falsely treat the gap between two rails as penetration.
+      if(dist >= minDist || dist <= 0.0001) continue;
 
       // Siege Weapons: spiked cards punch through bumpers and clear column(s).
       if(ball.card && ball.card.spikes && siegeWeaponsActive() && !ball.siegeUsed){

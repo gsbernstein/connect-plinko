@@ -552,9 +552,12 @@
       const closest = closestPointOnBumper(ball.x, ball.y, rail);
       const {nx, ny} = bumperTopNormal(closest, rail);
       const dx = ball.x - closest.x, dy = ball.y - closest.y;
+      const dist = Math.hypot(dx, dy);
       const signed = dx*nx + dy*ny;
       const minDist = ball.radius + BUMPER_R;
-      if(signed >= minDist) continue;
+      // Euclidean capsule gate — signed-only tests falsely catch balls in the
+      // open channel between two bumper ends and yank them back up.
+      if(dist >= minDist || dist <= 0.0001) continue;
       ball.x = closest.x + nx*minDist;
       ball.y = closest.y + ny*minDist;
       const vn = ball.vx*nx + ball.vy*ny;
@@ -571,12 +574,13 @@
       const closest = closestPointOnBumper(ball.x, ball.y, rail);
       const {nx, ny} = bumperTopNormal(closest, rail);
       const dx = ball.x - closest.x, dy = ball.y - closest.y;
+      const dist = Math.hypot(dx, dy);
       const signed = dx*nx + dy*ny;
       const minDist = ball.radius + BUMPER_R;
-      // One-sided capsule: always resolve to the topside. Two-sided separation
-      // used to push stranded pucks further under while vy was forced upward,
-      // trapping them in an oscillation under the rail.
-      if(signed >= minDist) continue;
+      // Capsule contact by Euclidean distance; always resolve along the topside
+      // normal so underside contacts eject up instead of oscillating under the rail.
+      // Signed-only tests falsely treat the gap between two rails as penetration.
+      if(dist >= minDist || dist <= 0.0001) continue;
       const wasUnder = signed < 0;
       ball.x = closest.x + nx*minDist;
       ball.y = closest.y + ny*minDist;
