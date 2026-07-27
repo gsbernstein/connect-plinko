@@ -69,10 +69,11 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | Symbol | Purpose |
 |--------|---------|
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, …) — order = shop order |
-| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, …) |
+| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, …) |
 | `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Percussive Mitosis (`pinSplit`): ~10× slower drops; bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
 | `stormBeachesActive` / `detonateFallingBall` / `applyStormBlast` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits; blast knocks nearby in-flight chips |
 | `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `beginSiegeResolve` / `tryBeginSiegeColumnSlam` / `siegeCardPayout` / `SIEGE_*` | Siege Weapons (toggleable): Lv1 bumper smash clears one column; Lv2 all columns on that bumper; Lv3 landing column slam with combo payout |
+| `kingMeActive` / `maybeQueueKingMe` / `kingJumpers` / `KING_ME_*` | King Me: bottom-row kings crown (double-stack draw); leap diagonally over cards for chips; explode after ≤4 jumps |
 | `stormBeachLandingPayout` | Storm the Beaches: chips when a card survives pegs and enters the grid (`enterGridColumn`) |
 | `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
 | `suitPurgeActive` / `purgeCardPayout` / `suitBombPickerMinimized` / `suitPurgePairPenalty` | Suit Purge: shop toggle arms/disarms; bar tap minimizes picker; purge pays per card; auto-target deprioritizes Card Counting pairs |
@@ -212,6 +213,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult`, `manualDropCooldownMs` in `dropAt`, `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
 | Storm the Beaches | `stormBeachesActive` / `STORM_BEACHES_EXPLODE_CHANCE` on fresh peg hits → `detonateFallingBall` / `applyStormBlast` + `sweepExplodedBalls`; spawn via `stormBeachesSpawnMult` in `dropSpawnMult` |
 | Siege Weapons | `dealCard` spike roll when `siegeWeaponsActive`; bumper smash → column(s) clear; Lv3 `tryBeginSiegeColumnSlam` on grid entry; toggle via `AUTO_TOGGLE_IDS` |
+| King Me | `kingMeActive` / `maybeQueueKingMe` on `finalizeDrop` (rank 13 @ bottom row) → crown → `kingJumpers` diagonal captures → `detonateKingJumper`; skip crowned in `findPokerHands` |
 | Storm the Beaches landing | `stormBeachLandingPayout` in `enterGridColumn` when peg → grid |
 | Short Fuse toggle | `shortFuseActive` / `resolveSpeed` / `flashPulseCount`; `toggleable` on `shortFuse` def + `AUTO_TOGGLE_IDS` |
 | Suit Purge UI | `#suitBombBar`, `suitPurgeActive` / `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI`; shop toggle arms/disarms; bar tap minimizes picker |
