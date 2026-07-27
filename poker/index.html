@@ -2629,6 +2629,10 @@
     // crowned mirrors kingStack>=1 (legacy + draw/helpers).
     if((card && card.crowned) || ks > 0) c.crowned = true;
     if(card && card.spikes) c.spikes = true;
+    // Ephemeral crown slam timestamp (not persisted).
+    if(card && typeof card.crownSlamAt === 'number' && card.crownSlamAt > 0){
+      c.crownSlamAt = card.crownSlamAt;
+    }
     if(extra) Object.assign(c, extra);
     if((c.kingStack | 0) > 0) c.crowned = true;
     return c;
@@ -2903,12 +2907,58 @@
     return prestigeLevel('connect4') > 0 ? 4 : 5;
   }
 
+  // King Me stacks count as multiple kings toward of-a-kind.
+  // Plain K=1; King Me (ks=1)=2; named tiers match popup weight for ks>=2
+  // (Double=2, Triple=3, …) so a double king + four kings = six of a kind.
+  function kingKindWeight(card){
+    if(!card || card.rank !== 13) return 1;
+    const ks = kingStackLevel(card);
+    if(ks <= 0) return 1;
+    if(ks === 1) return 2;
+    return ks;
+  }
+
+  function cardKindWeight(card){
+    return card && card.rank === 13 ? kingKindWeight(card) : 1;
+  }
+
+  const OF_A_KIND_WORDS = {
+    3: 'THREE', 4: 'FOUR', 5: 'FIVE', 6: 'SIX', 7: 'SEVEN',
+    8: 'EIGHT', 9: 'NINE', 10: 'TEN', 11: 'ELEVEN', 12: 'TWELVE'
+  };
+
+  function ofAKindName(n){
+    const word = OF_A_KIND_WORDS[n];
+    return (word || String(n)) + ' OF A KIND';
+  }
+
+  function ofAKindPoints(n){
+    if(n <= 3) return 2;
+    if(n === 4) return 6;
+    if(n === 5) return 14;
+    // Each step past five beats the last (and royal flush at 12).
+    return 14 + (n - 5) * 8;
+  }
+
+  function parseOfAKindCount(name){
+    if(!name || !/ OF A KIND$/.test(name)) return 0;
+    const word = name.slice(0, -(' OF A KIND'.length));
+    for(const [k, v] of Object.entries(OF_A_KIND_WORDS)){
+      if(v === word) return k | 0;
+    }
+    const n = parseInt(word, 10);
+    return n > 0 ? n : 0;
+  }
+
   function evaluateCards(cards){
     const n = cards.length;
     if(n < 3) return null;
     const ranks = cards.map(c=>c.rank);
     const rankCounts = {};
-    for(const r of ranks) rankCounts[r] = (rankCounts[r]||0)+1;
+    for(const c of cards){
+      const r = c.rank;
+      rankCounts[r] = (rankCounts[r] || 0) + cardKindWeight(c);
+    }
     const counts = Object.values(rankCounts).sort((a,b)=>b-a);
     const flushLen = flushMinLength();
     const flush = n >= flushLen && sliceSharesFlushSuit(cards);
@@ -2921,10 +2971,23 @@
         ? {name:'ROYAL FLUSH', points:12}
         : {name:'STRAIGHT FLUSH', points:8};
     }
-    // Multi-deck shoe can deal five of one rank.
-    if(n>=5 && counts[0]>=5) return {name:'FIVE OF A KIND', points:14};
+    // Multi-deck shoe + King Me stacks can make five+ of one rank.
+    // Of-a-kind uses weighted king stacks; card-count gates stay so a lone
+    // stacked king never clears the board by itself.
+    if(counts[0] >= 5 && n >= 3){
+      return {name: ofAKindName(counts[0]), points: ofAKindPoints(counts[0])};
+    }
+    // King Me compound houses: quads+pair, then two trips, then classic boat.
+    if(counts[0] >= 4 && counts[1] >= 2 && n >= 3){
+      return {name:'QUADS FULL', points:10};
+    }
     if(n>=4 && counts[0]>=4) return {name:'FOUR OF A KIND', points:6};
-    if(n===5 && counts[0]===3 && counts[1]===2) return {name:'FULL HOUSE', points:5};
+    if(counts[0] >= 3 && counts[1] >= 3 && n >= 3){
+      return {name:'FULLER HOUSE', points:7};
+    }
+    if(counts[0] >= 3 && counts[1] >= 2 && n >= 3){
+      return {name:'FULL HOUSE', points:5};
+    }
     if(n >= flushLen && flush) return {name:'FLUSH', points:4};
     if(n===5 && straight) return {name:'STRAIGHT', points:3};
     if(n>=3 && counts[0]>=3) return {name:'THREE OF A KIND', points:2};
@@ -3024,12 +3087,22 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 66,
+      date: 'Jul 27, 2026',
+      title: 'Crowned kings',
+      items: [
+        'Kings merge wherever they meet.',
+        'King Me kings wear a larger golden crown on the letter K.',
+        'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
+        'Improvements to score pops rendering and priority.',
+      ]
+    },
+    {
       id: 65,
       date: 'Jul 27, 2026',
       title: 'Auto Suit Purge unstuck',
       items: [
-        'Auto Purge no longer sits on ready forever when a suit is flooded with identical Pin Split / Card Counting duplicates.',
-        'Pair-aware targeting still prefers suits that break fewer duplicate extras; it just won’t refuse a crowded suit entirely.'
+        'Fix Auto Purge.',
       ]
     },
     {
@@ -3037,15 +3110,15 @@
       date: 'Jul 27, 2026',
       title: 'Bigger chip readouts',
       items: [
-        'Past Q (quadrillion), chip and mult readouts switch to scientific notation so late-game stacks stay short — no second “Q” for quintillion.'
+        'Past Q (quadrillion), chip and mult readouts switch to scientific notation.'
       ]
     },
     {
       id: 63,
       date: 'Jul 27, 2026',
-      title: 'Cashier’s Cage & deeper table levels',
+      title: 'New uses for chips',
       items: [
-        'New upgrade: Cashier’s Cage — spend chips to bank Cash Out comps (up to Lv 100). Steep costs from the first buy; a late-game sink that feeds VIP instead of printing more chips.',
+        'New upgrade: Cashier’s Cage — spend chips to bank Cash Out comps (up to Lv 100).',
         'Felt Grease goes to Lv 30 (late levels still speed the table, with softer gains). Big Blind to Lv 60 · Premium Cut to Lv 25.'
       ]
     },
@@ -3062,7 +3135,6 @@
       date: 'Jul 27, 2026',
       title: 'Mitosis leaves taps alone',
       items: [
-        'Percussive Mitosis no longer rate-limits board taps — only Auto Dealer is ~10× slower while it is On.',
         'Tap-to-deal works at full speed even with Mitosis active.'
       ]
     },
@@ -3071,8 +3143,7 @@
       date: 'Jul 27, 2026',
       title: 'Steadier achievement cards',
       items: [
-        'Achievement cards no longer reshuffle under the cursor while you browse the list — hover and Claim clicks stay reliable on desktop.',
-        'Progress bars and counts still update live; the list re-sorts when you reopen the tab or a reward becomes claimable.'
+        'Fix flickering and unreliable clicks.'
       ]
     },
     {
@@ -3080,17 +3151,16 @@
       date: 'Jul 27, 2026',
       title: 'Siege column wipe fix',
       items: [
-        'Siege Weapons no longer leaves permanent empty seats after a column slam — the spiked card waits above the grid until the clear finishes, then lands cleanly.',
+        'Siege Weapons no longer leaves permanent empty seats after a column slam.',
         'Column wipes re-check the live stack at explode time so chips that seated during the flash get cleared too.'
       ]
     },
     {
       id: 58,
       date: 'Jul 27, 2026',
-      title: 'Mults on the level tile',
+      title: 'Fix jerky upgrade and perk cards',
       items: [
         'Blind, payout, combo, and Card Counting multipliers now show on the Level HUD tile instead of shop and VIP effect lines.',
-        'Upgrade and perk rows stay a stable length so On/Off toggles no longer jump while cards land.'
       ]
     },
     {
@@ -3108,7 +3178,7 @@
       title: 'King Me merges',
       items: [
         'King Me no longer hops from the bottom row — instead, two kings of the same suit that meet stack into a crowned king.',
-        'Matching stacks keep merging (double king, triple, …) with exponentially bigger chip payouts. Toggle On/Off anytime.'
+        'Matching stacks keep merging (double king, triple, …) with exponentially bigger chip payouts.'
       ]
     },
     {
@@ -3131,45 +3201,18 @@
     {
       id: 53,
       date: 'Jul 27, 2026',
-      title: 'Tighter blast fire',
+      title: 'Fireball improvements',
       items: [
-        'Storm pin shells still shove a wide ring, but fire only lights nearby fallers — not the whole peg field.',
-        'Lit Percussive Mitosis chips keep a matching small flame halo as they split.'
-      ]
-    },
-    {
-      id: 52,
-      date: 'Jul 27, 2026',
-      title: 'Storm shells light fallers',
-      items: [
-        'I Didn\'t Ask How Big the Room Was now lights chips caught in an explosion while they\'re still in the pins — not just settled board cards.',
-        'Lit fallers keep burning after they land.'
-      ]
-    },
-    {
-      id: 51,
-      date: 'Jul 27, 2026',
-      title: 'The explosion is the fireball',
-      items: [
-        'I Didn\'t Ask How Big the Room Was drops the flying fireball sparks — the blast itself lights nearby cards instantly.',
-        'Burn DoT and the +50% per burning card hand bonus are unchanged.'
+        'Cards in the pins can also light on fire.',
+        'Remove flying fireball sparks — the blast itself lights nearby cards instantly.',
       ]
     },
     {
       id: 50,
       date: 'Jul 27, 2026',
-      title: 'Bigger pot milestones',
+      title: 'Pot milestones grow faster',
       items: [
         'Big Pot and Combo Payday targets now jump ~10× per tier after the early milestones — fewer levels for the same huge payouts.'
-      ]
-    },
-    {
-      id: 49,
-      date: 'Jul 27, 2026',
-      title: 'King Me board holes',
-      items: [
-        'Fixed a King Me race that could leave permanent empty seats at the bottom of the board with cards stuck above them.',
-        'Crowned leaps now only land on a column’s free surface, so kings no longer float over gaps.'
       ]
     },
     {
@@ -3195,8 +3238,7 @@
       date: 'Jul 27, 2026',
       title: 'I Didn\'t Ask How Big the Room Was',
       items: [
-        'New expensive VIP perk: explosions cast fireballs that light other cards on fire.',
-        'Burning cards drip chips until they ash out. Toggle On/Off anytime — pairs well with Storm the Beaches.'
+        'New VIP perk: explosions cast fireballs that light other cards on fire.',
       ]
     },
     {
@@ -3214,7 +3256,7 @@
       date: 'Jul 27, 2026',
       title: 'King Me VIP perk',
       items: [
-        'New expensive VIP perk: King Me — kings that reach the bottom row get crowned with a second king on top.',
+        'New VIP perk: King Me — kings that reach the bottom row get crowned with a second king on top.',
         'Crowned kings leap diagonally over cards for big chips, then explode after a few jumps. Toggle On/Off anytime.'
       ]
     },
@@ -3598,7 +3640,7 @@
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
-  const MAX_POPUPS = 36;
+  const MAX_POPUPS = 120;
   const MAX_PARTICLES = 180;
   const MAX_RUN_LEVEL = 200;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
@@ -3793,8 +3835,11 @@
   const HAND_STAT = {
     'ROYAL FLUSH': 'royalFlushes',
     'FIVE OF A KIND': 'fiveKinds',
+    'SIX OF A KIND': 'sixKinds',
     'STRAIGHT FLUSH': 'straightFlushes',
+    'QUADS FULL': 'quadsFull',
     'FOUR OF A KIND': 'fourKinds',
+    'FULLER HOUSE': 'fullerHouses',
     'FULL HOUSE': 'fullHouses',
     'FLUSH': 'flushes',
     'STRAIGHT': 'straights',
@@ -3804,8 +3849,11 @@
   const RUN_HAND_STAT = {
     'ROYAL FLUSH': 'runRoyalFlushes',
     'FIVE OF A KIND': 'runFiveKinds',
+    'SIX OF A KIND': 'runSixKinds',
     'STRAIGHT FLUSH': 'runStraightFlushes',
+    'QUADS FULL': 'runQuadsFull',
     'FOUR OF A KIND': 'runFourKinds',
+    'FULLER HOUSE': 'runFullerHouses',
     'FULL HOUSE': 'runFullHouses',
     'FLUSH': 'runFlushes',
     'STRAIGHT': 'runStraights',
@@ -3815,11 +3863,17 @@
   // Higher hands also count toward lower-category achievements and quests.
   const HAND_STAT_ALSO = {
     'ROYAL FLUSH': ['straightFlushes', 'straights', 'flushes'],
-    'STRAIGHT FLUSH': ['straights', 'flushes']
+    'STRAIGHT FLUSH': ['straights', 'flushes'],
+    'SIX OF A KIND': ['fiveKinds', 'fourKinds', 'threeKinds'],
+    'QUADS FULL': ['fourKinds', 'fullHouses', 'fullerHouses', 'threeKinds'],
+    'FULLER HOUSE': ['fullHouses', 'threeKinds']
   };
   const RUN_HAND_STAT_ALSO = {
     'ROYAL FLUSH': ['runStraightFlushes', 'runStraights', 'runFlushes'],
-    'STRAIGHT FLUSH': ['runStraights', 'runFlushes']
+    'STRAIGHT FLUSH': ['runStraights', 'runFlushes'],
+    'SIX OF A KIND': ['runFiveKinds', 'runFourKinds', 'runThreeKinds'],
+    'QUADS FULL': ['runFourKinds', 'runFullHouses', 'runFullerHouses', 'runThreeKinds'],
+    'FULLER HOUSE': ['runFullHouses', 'runThreeKinds']
   };
   const MAX_QUEST_SLOTS = 5;
   // Quest slots unlock at these run levels (spread across the full climb).
@@ -3968,6 +4022,30 @@
       ]
     },
     {
+      id: 'a_fuller_house', kind: 'achievement', name: 'Reboot',
+      desc: 'Score {n} Fuller Houses (two trips, via King Me stacks).',
+      stat: 'fullerHouses', secret: true, infinite: true,
+      scale: { targetGrowth: 2.0, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 1, reward: { comps: 2 } },
+        { target: 3, reward: { comps: 3 } },
+        { target: 10, reward: { comps: 5 } },
+        { target: 40, reward: { comps: 7 } }
+      ]
+    },
+    {
+      id: 'a_quads_full', kind: 'achievement', name: 'Quads Full',
+      desc: 'Score {n} Quads Full hands (four + a pair, via King Me stacks).',
+      stat: 'quadsFull', secret: true, infinite: true,
+      scale: { targetGrowth: 1.9, compPerLevel: 1, compCap: 30 },
+      tiers: [
+        { target: 1, reward: { comps: 3 } },
+        { target: 3, reward: { comps: 4 } },
+        { target: 10, reward: { comps: 6 } },
+        { target: 30, reward: { comps: 8 } }
+      ]
+    },
+    {
       id: 'a_quads', kind: 'achievement', name: 'Quad Squad',
       desc: 'Score {n} Four of a Kinds.',
       stat: 'fourKinds', unlockAt: 1, infinite: true,
@@ -3977,6 +4055,18 @@
         { target: 3, reward: { comps: 3 } },
         { target: 15, reward: { comps: 4 } },
         { target: 50, reward: { comps: 6 } }
+      ]
+    },
+    {
+      id: 'a_six_kind', kind: 'achievement', name: 'Clone Wars',
+      desc: 'Score {n} Six of a Kinds (or better).',
+      stat: 'sixKinds', secret: true, infinite: true,
+      scale: { targetGrowth: 1.85, compPerLevel: 2, compCap: 40 },
+      tiers: [
+        { target: 1, reward: { comps: 4 } },
+        { target: 3, reward: { comps: 6 } },
+        { target: 10, reward: { comps: 8 } },
+        { target: 25, reward: { comps: 12 } }
       ]
     },
     {
@@ -4339,7 +4429,7 @@
     {
       id: 'kingMe',
       name: 'King Me',
-      desc: 'When two kings of the same suit meet, they stack into a crowned king. Matching stacks merge again into double kings, triples, and so on — each merge pays exponentially more. Toggle On/Off anytime.',
+      desc: 'When two kings of the same suit meet — on the board or mid-fall through the pins — they merge into a crowned king. Matching crowns merge again (double, triple, …) with exponentially bigger payouts. Stacked kings count as multiple kings in poker hands. Toggle On/Off anytime.',
       baseCost: 120,
       costScale: 1,
       maxLevel: 1,
@@ -4412,17 +4502,17 @@
   // Heater steps loaded from save; applied to pendingChain after freshState on boot.
   let resumeHeaterChain = 0;
   const EMPTY_STATS = {
-    hands: 0, royalFlushes: 0, fiveKinds: 0, straightFlushes: 0, fourKinds: 0,
-    fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
+    hands: 0, royalFlushes: 0, fiveKinds: 0, sixKinds: 0, straightFlushes: 0, fourKinds: 0,
+    quadsFull: 0, fullerHouses: 0, fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
     maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, achievementClaims: 0,
     sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
-    runFlushes: 0, runStraights: 0, runFullHouses: 0, runFourKinds: 0,
-    runFiveKinds: 0, runThreeKinds: 0, runTwoPairs: 0, runRoyalFlushes: 0,
-    runStraightFlushes: 0
+    runFlushes: 0, runStraights: 0, runFullHouses: 0, runFullerHouses: 0, runQuadsFull: 0,
+    runFourKinds: 0, runFiveKinds: 0, runSixKinds: 0, runThreeKinds: 0, runTwoPairs: 0,
+    runRoyalFlushes: 0, runStraightFlushes: 0
   };
   let stats = Object.assign({}, EMPTY_STATS);
   const DEFAULT_SETTINGS = {
@@ -4564,6 +4654,10 @@
   // King Me: same-suit kings that meet merge into taller stacks; payouts double each tier.
   const KING_ME_MERGE_BASE = 48;
   const KING_ME_MERGE_DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+  const KING_CROWN_SLAM_MS = 520;
+  const KING_CROWN_SLAM_SCALE = 3.4;
+  const KING_CROWN_SLAM_DROP = 1.55; // × rankSize — start above the K, slam down
+  const KING_CROWN_SLAM_PAD_MS = 80; // keep the loop a beat after settle
 
   function dropSpawnMult(){
     return pinSplitSpawnMult() * stormBeachesSpawnMult();
@@ -5544,12 +5638,27 @@
       bumpStat('runChainClears', 1);
     }
     for(const g of groups){
-      const key = HAND_STAT[g.name];
+      let key = HAND_STAT[g.name];
+      let runKey = RUN_HAND_STAT[g.name];
+      // King Me can produce 6+ / 7+ of a kind — map extras onto sixKinds (+ five via ALSO).
+      const kindN = parseOfAKindCount(g.name);
+      if(!key && kindN >= 6){
+        key = 'sixKinds';
+        runKey = 'runSixKinds';
+      } else if(!key && kindN >= 5){
+        key = 'fiveKinds';
+        runKey = 'runFiveKinds';
+      }
       if(key) bumpStat(key, 1);
-      const runKey = RUN_HAND_STAT[g.name];
       if(runKey) bumpStat(runKey, 1);
-      for(const alsoKey of (HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
-      for(const alsoKey of (RUN_HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
+      let also = HAND_STAT_ALSO[g.name];
+      let runAlso = RUN_HAND_STAT_ALSO[g.name];
+      if(!also && kindN >= 6){
+        also = ['fiveKinds', 'fourKinds', 'threeKinds'];
+        runAlso = ['runFiveKinds', 'runFourKinds', 'runThreeKinds'];
+      }
+      for(const alsoKey of (also || [])) bumpStat(alsoKey, 1);
+      for(const alsoKey of (runAlso || [])) bumpStat(alsoKey, 1);
       if(g.sleeveUsed) bumpStat('sleeveHands', 1);
     }
   }
@@ -6611,23 +6720,115 @@
   // Keep celebration / hit labels mostly on the felt — allow POPUP_OVERHANG
   // past the edge (overlay canvas) so they can hang off a little without
   // disappearing into .board-frame clipping.
-  function clampPopupToBoard(p){
+
+  // Bake stroke + glow + fill once; each frame only drawImage + transform.
+  // Optional `subtext` paints a smaller second row (hand / King Me chip totals).
+  function bakePopupSprite(p){
     if(!p || p.text == null) return p;
     const fontSize = p.fontSize || (p.big ? 26 : 16);
+    const sub = (p.subtext != null && String(p.subtext) !== '') ? String(p.subtext) : '';
+    const subSize = sub
+      ? Math.max(10, Math.round(p.subFontSize || fontSize * 0.52))
+      : 0;
+    const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
+    const lineW = Math.max(4, fontSize * 0.18);
+    const subLineW = sub ? Math.max(2.5, subSize * 0.18) : 0;
+    const text = String(p.text);
+    const font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+    const subFont = sub ? ('bold ' + subSize + "px 'Space Grotesk', sans-serif") : '';
+    ctx.save();
+    ctx.font = font;
+    let tw = ctx.measureText(text).width;
+    if(sub){
+      ctx.font = subFont;
+      tw = Math.max(tw, ctx.measureText(sub).width);
+    }
+    ctx.restore();
+    const gap = sub ? Math.max(2, Math.round(fontSize * 0.1)) : 0;
+    const contentH = sub
+      ? (fontSize * 0.78 + gap + subSize * 0.78)
+      : fontSize * 1.35;
+    p.textW = tw;
+    p._fontSize = fontSize;
+    p._subSize = subSize;
+    p._contentH = contentH;
+    p._glow = glow;
+    p._lineW = lineW;
+    const pad = Math.ceil(glow + lineW + 6);
+    const cssW = Math.max(1, Math.ceil(tw + pad * 2));
+    const cssH = Math.max(1, Math.ceil(contentH + pad * 2));
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(cssW * dpr));
+    c.height = Math.max(1, Math.ceil(cssH * dpr));
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.miterLimit = 2;
+    const cx = cssW / 2;
+    const blockTop = (cssH - contentH) / 2;
+    const titleY = sub
+      ? (blockTop + fontSize * 0.38)
+      : (cssH / 2);
+    const subY = blockTop + fontSize * 0.78 + gap + subSize * 0.38;
+    const stamp = (str, y, fnt, lw, blur, hotCore) => {
+      g.font = fnt;
+      g.lineWidth = lw;
+      g.strokeStyle = 'rgba(8,6,16,0.92)';
+      g.strokeText(str, cx, y);
+      g.fillStyle = p.color || '#ffffff';
+      g.shadowColor = p.color || '#ffffff';
+      g.shadowBlur = blur;
+      g.fillText(str, cx, y);
+      if(hotCore){
+        g.shadowBlur = blur * 0.35;
+        g.globalAlpha = 0.55;
+        g.fillStyle = '#ffffff';
+        g.fillText(str, cx, y);
+        g.globalAlpha = 1;
+      }
+      g.shadowBlur = 0;
+    };
+    stamp(text, titleY, font, lineW, glow, glow >= 24);
+    if(sub){
+      // Softer glow on the chip row so the hand / king title stays the hero.
+      stamp(sub, subY, subFont, subLineW, Math.max(4, glow * 0.55), false);
+    }
+    p.sprite = c;
+    p.spriteW = cssW;
+    p.spriteH = cssH;
+    return p;
+  }
+
+  function clampPopupToBoard(p){
+    if(!p || p.text == null) return p;
+    const fontSize = p._fontSize || p.fontSize || (p.big ? 26 : 16);
     const slam = p.slam || (p.big ? 1.35 : 1.15);
     // Peak slam rarely fits on edge columns; size the gutter for a strong
     // mid-slam so labels stay near the hand without jumping to dead center.
     const fitScale = 1 + (slam - 1) * 0.45;
     const tilt = Math.abs(p.tilt || 0) * 1.85;
     const floatBoost = p.floatBoost || (p.big ? 40 : 30);
-    const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
-    ctx.save();
-    ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
-    const tw = ctx.measureText(String(p.text)).width;
-    ctx.restore();
-    const stroke = Math.max(4, fontSize * 0.18);
+    const glow = p._glow != null ? p._glow : (p.glow != null ? p.glow : (p.big ? 14 : 8));
+    let tw = p.textW;
+    if(!(tw > 0)){
+      ctx.save();
+      ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+      tw = ctx.measureText(String(p.text)).width;
+      if(p.subtext){
+        const subSize = p._subSize || Math.max(10, Math.round(fontSize * 0.52));
+        ctx.font = 'bold ' + subSize + "px 'Space Grotesk', sans-serif";
+        tw = Math.max(tw, ctx.measureText(String(p.subtext)).width);
+      }
+      ctx.restore();
+      p.textW = tw;
+    }
+    const stroke = p._lineW || Math.max(4, fontSize * 0.18);
+    const contentH = p._contentH || fontSize * 1.1;
     const hw0 = tw * 0.5 + stroke;
-    const hh0 = fontSize * 0.55 + stroke;
+    const hh0 = contentH * 0.5 + stroke;
     const cos = Math.cos(tilt);
     const sin = Math.sin(tilt);
     const pad = glow * 0.25 + 4;
@@ -6645,12 +6846,121 @@
     return p;
   }
   function pushPopup(popup){
+    bakePopupSprite(popup);
     clampPopupToBoard(popup);
+    const now = performance.now();
+    if(popup.t0 == null) popup.t0 = now;
+    if(!(popup.duration > 0)) popup.duration = 1100;
+    // Spread end times so a burst of labels (hands, chains, merges) doesn't
+    // all vanish in one frame — higher-value bases still linger longer.
+    let expiresAt = popup.t0 + popup.duration;
+    const PAD = 160;
+    for(let guard = 0; guard < 32; guard++){
+      let crowded = false;
+      for(const p of popups){
+        const otherEnd = p.expiresAt != null ? p.expiresAt : (p.t0 + (p.duration || 0));
+        if(Math.abs(otherEnd - expiresAt) < PAD){
+          crowded = true;
+          break;
+        }
+      }
+      if(!crowded) break;
+      expiresAt += PAD;
+    }
+    popup.expiresAt = expiresAt;
+    popup.duration = Math.max(popup.duration, expiresAt - popup.t0);
     popups.push(popup);
-    if(popups.length > MAX_POPUPS){
-      popups.splice(0, popups.length - MAX_POPUPS);
+    trimPopups();
+  }
+
+  // Prefer dropping duplicate / low-value labels before rare celebrations.
+  // Within a family (PAIR, COMBO, CHAIN, …), keep the best copy; extras yield.
+  // Old FIFO splice(0, …) nuked whole earlier clears at once.
+  function popupFamily(p){
+    if(!p) return 'other';
+    if(p.ephemeral) return 'hit';
+    if(p.family) return p.family;
+    if(p.chain) return 'chain';
+    if(p.comboN != null) return 'combo';
+    if(p.handName) return 'hand:' + p.handName;
+    if(p.kingStack != null) return 'king';
+    return 'text:' + String(p.text || '');
+  }
+
+  function handPopupWorth(name){
+    const kindN = parseOfAKindCount(name);
+    if(kindN >= 5) return 70 + (kindN - 5) * 10;
+    switch(name){
+      case 'ROYAL FLUSH': return 95;
+      case 'QUADS FULL': return 82;
+      case 'STRAIGHT FLUSH': return 78;
+      case 'FULLER HOUSE': return 68;
+      case 'FOUR OF A KIND': return 62;
+      case 'FULL HOUSE': return 48;
+      case 'FLUSH': return 42;
+      case 'STRAIGHT': return 38;
+      case 'THREE OF A KIND': return 28;
+      case 'TWO PAIR': return 22;
+      case 'PAIR': return 16;
+      default: return 20;
     }
   }
+
+  function popupWorth(p){
+    if(!p) return 0;
+    if(p.ephemeral) return 4;
+    if(p.family === 'burn') return 8;
+    if(p.chain) return 18 + Math.min(50, (p.chainMult || 1) * 4);
+    if(p.comboN != null && p.family === 'combo') return 28 + p.comboN * 10;
+    if(p.handName){
+      let w = handPopupWorth(p.handName);
+      const pts = Math.max(0, Number(p.popPts) || 0);
+      if(pts > 0) w += Math.min(8, Math.log10(pts + 10));
+      return w;
+    }
+    if(p.kingStack != null) return 36 + Math.min(40, (p.kingStack | 0) * 6);
+    if(p.family === 'floor') return 52;
+    if(p.family === 'siege') return 46 + Math.min(30, (p.comboN || 0) * 6);
+    if(p.family === 'comps' || p.family === 'cashout') return 72;
+    if(p.comboN != null) return 28 + p.comboN * 10;
+    if(p.big) return 40;
+    return 24;
+  }
+
+  function trimPopups(){
+    if(popups.length <= MAX_POPUPS) return;
+    const overflow = popups.length - MAX_POPUPS;
+    const byFamily = new Map();
+    for(let i = 0; i < popups.length; i++){
+      const fam = popupFamily(popups[i]);
+      let list = byFamily.get(fam);
+      if(!list){
+        list = [];
+        byFamily.set(fam, list);
+      }
+      list.push(i);
+    }
+    const dupIndex = new Array(popups.length).fill(0);
+    for(const indices of byFamily.values()){
+      indices.sort((a, b) => {
+        const wa = popupWorth(popups[a]);
+        const wb = popupWorth(popups[b]);
+        if(wb !== wa) return wb - wa;
+        return (popups[b].t0 || 0) - (popups[a].t0 || 0) || b - a;
+      });
+      for(let d = 0; d < indices.length; d++) dupIndex[indices[d]] = d;
+    }
+    // One duplicate step outranks a modest hand-tier gap so spam yields first.
+    const DUP_PENALTY = 90;
+    const order = popups.map((p, i) => ({
+      i,
+      score: popupWorth(p) - dupIndex[i] * DUP_PENALTY,
+      t0: p.t0 || 0
+    })).sort((a, b) => a.score - b.score || a.t0 - b.t0 || a.i - b.i);
+    const drop = new Set(order.slice(0, overflow).map(o => o.i));
+    popups = popups.filter((_, i) => !drop.has(i));
+  }
+
   function spawnHitPopup(x, y, text, color){
     const now = performance.now();
     // Peg traffic is dense — keep chip awards, but don't flood the canvas.
@@ -6661,7 +6971,8 @@
       text,
       color: color || '#ffffff',
       t0: now,
-      duration: 650
+      duration: 650,
+      ephemeral: true
     });
     if(!resolving && !looping) startLoop();
   }
@@ -6831,7 +7142,7 @@
       case 'kingMe':
         if(!lvl) return 'Kings stay single';
         if(!isAutoEnabled('kingMe')) return 'Paused';
-        return 'Same-suit kings merge · ×2 payouts';
+        return 'Merge on contact · anywhere';
       case 'bigRoom':
         if(!lvl) return 'No blast fires';
         if(!isAutoEnabled('bigRoom')) return 'Paused';
@@ -7643,7 +7954,7 @@
         const payout = bumperHitPayout();
         if(payout > 0){
           awardChips(payout, ball);
-          spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
+          spawnHitPopup(ball.x, ball.y, '+' + formatNum(payout), trailRGBA(ball.card, 0.95));
         }
         // Drive through toward the grid instead of bouncing back up.
         ball.y = Math.max(ball.y, closest.y + 4);
@@ -7677,7 +7988,7 @@
         const payout = bumperHitPayout();
         if(payout > 0){
           awardChips(payout, ball);
-          spawnHitPopup(ball.x, ball.y, '+' + payout, PEG);
+          spawnHitPopup(ball.x, ball.y, '+' + formatNum(payout), PEG);
         }
       }
       rail.hit = 14;
@@ -7732,19 +8043,19 @@
       glow: 26, bright: 0.32, big: true
     },
     huge: {
-      fontSize: 40, duration: 2300, float: 72,
+      fontSize: 40, duration: 2600, float: 72,
       bangs: 3, tilt: 0.28, slam: 2.9, slamMs: 240,
       glow: 36, bright: 0.5, big: true
     }
   };
 
   function handTextTier(name){
+    const kindN = parseOfAKindCount(name);
+    if(kindN >= 5 || name === 'ROYAL FLUSH' || name === 'QUADS FULL') return 'huge';
     switch(name){
-      case 'ROYAL FLUSH':
-      case 'FIVE OF A KIND':
-        return 'huge';
       case 'FOUR OF A KIND':
       case 'STRAIGHT FLUSH':
+      case 'FULLER HOUSE':
         return 'big';
       case 'FLUSH':
       case 'STRAIGHT':
@@ -7753,6 +8064,32 @@
       default:
         return 'normal';
     }
+  }
+
+  // Of-a-kind pop punctuation: five → !?!, six → ‽, seven+ → more interrobangs.
+  function handPopupPunctuation(name, fx){
+    const kindN = parseOfAKindCount(name);
+    if(kindN === 5) return '!?!';
+    if(kindN >= 6) return '‽'.repeat(kindN - 5);
+    return '!'.repeat((fx && fx.bangs) || 0);
+  }
+
+  // Soft linger boost from chip value so bigger pots stay readable longer.
+  function popupDurationForValue(baseMs, pts){
+    const base = Math.max(0, baseMs | 0);
+    const p = Math.max(0, Number(pts) || 0);
+    if(p <= 0) return base;
+    // ~200 at 10 chips · ~500 at 100 · ~900 at 1k · ~1300 at 10k (cap 1800).
+    const bonus = Math.min(1800, Math.floor(220 * Math.log10(p + 10)));
+    return base + bonus;
+  }
+
+  function handPopupDuration(name, fx, pts){
+    let d = (fx && fx.duration) || 1100;
+    const kindN = parseOfAKindCount(name);
+    // Six+ of a kind outlast plain huge-tier fives.
+    if(kindN >= 6) d += (kindN - 5) * 450;
+    return popupDurationForValue(d, pts);
   }
 
   function brightenColor(hex, amount){
@@ -7921,8 +8258,8 @@
   }
 
   function sweepExplodedBalls(){
-    if(!balls.some(b => b.exploded)) return;
-    balls = balls.filter(b => !b.exploded);
+    if(!balls.some(b => b.exploded || b.kingMerged)) return;
+    balls = balls.filter(b => !b.exploded && !b.kingMerged);
     scheduleCountingUiRefresh();
   }
 
@@ -8003,7 +8340,7 @@
   }
 
   function stepBall(ball, gravity){
-    if(ball.exploded) return;
+    if(ball.exploded || ball.kingMerged) return;
     // Lv3 slam: this chip waits for finishSiegeLand — don't reseat mid-clear.
     if(isPendingSiegeLandBall(ball)){
       parkPendingSiegeLandBall(ball);
@@ -8069,7 +8406,7 @@
             const payout = pinHitPayout();
             if(payout > 0){
               awardChips(payout, ball);
-              spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
+              spawnHitPopup(ball.x, ball.y, '+' + formatNum(payout), trailRGBA(ball.card, 0.95));
             }
           }
           p.hit = 10;
@@ -8110,17 +8447,21 @@
   }
 
   function collideBallWithSettledPieces(ball){
+    if(ball.exploded || ball.kingMerged) return;
     const PIECE_R = 32;
     for(let c=0;c<COLS;c++){
       const px = c*CELL + CELL/2;
       for(let i=0;i<stack[c].length;i++){
         const entry = stack[c][i];
         if(entry.type!=='piece') continue;
-        const py = PEG_ZONE + (ROWS-1-i)*CELL + CELL/2;
+        const row = ROWS - 1 - i;
+        const py = PEG_ZONE + row*CELL + CELL/2;
         const dx = ball.x - px, dy = ball.y - py;
         const dist = Math.hypot(dx, dy);
         const minDist = ball.radius + PIECE_R - 4;
         if(dist < minDist && dist > 0.0001){
+          // King Me: falling chip can merge with a settled peer on contact.
+          if(tryMergeKingBallWithSettled(ball, c, row)) return;
           const nx = dx/dist, ny = dy/dist;
           ball.x = px + nx*minDist;
           ball.y = py + ny*minDist;
@@ -8166,7 +8507,7 @@
       if(beachPts > 0){
         ball.stormBeachPaid = true;
         awardChips(beachPts, ball);
-        spawnHitPopup(ball.x, ball.y, '+' + beachPts, trailRGBA(ball.card, 0.95));
+        spawnHitPopup(ball.x, ball.y, '+' + formatNum(beachPts), trailRGBA(ball.card, 0.95));
       }
     }
     ball.phase = 'grid';
@@ -8292,11 +8633,14 @@
   }
 
   function collideBalls(a, b){
+    if(a.exploded || b.exploded || a.kingMerged || b.kingMerged) return;
     if(a.phase==='grid' && b.phase==='grid' && a.targetCol===b.targetCol) return;
     const dx = b.x-a.x, dy = b.y-a.y;
     const dist = Math.hypot(dx,dy);
     const minDist = a.radius+b.radius;
     if(dist < minDist && dist > 0.0001){
+      // King Me: same-suit equal-stack kings fuse on contact anywhere.
+      if(tryMergeKingBalls(a, b)) return;
       const nx = dx/dist, ny = dy/dist;
       const overlap = (minDist-dist)/2;
       a.x -= nx*overlap; a.y -= ny*overlap;
@@ -8350,6 +8694,7 @@
       }
       sweepExplodedBalls();
       resolveBallCollisions();
+      sweepExplodedBalls();
       forceSeatStuckGridBalls();
       physicsAccumulator -= PHYSICS_DT;
       physicsSteps++;
@@ -8376,18 +8721,41 @@
     sampleFps(performance.now());
 
     const nowEnd = performance.now();
-    const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
+    const popupsAlive = popups.some(p => {
+      const end = p.expiresAt != null ? p.expiresAt : (p.t0 + p.duration);
+      return nowEnd < end;
+    });
     const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
     const bombAuto = prestigeLevel('autoSuitBomb') > 0
       && isAutoEnabled('autoSuitBomb')
       && suitBombUnlocked();
     if(balls.length>0 || particles.length>0
       || hasBurningCards() || popupsAlive || resolving
+      || hasActiveCrownSlam(nowEnd)
       || bombCharging || bombAuto || autoDealerActive()){
       requestAnimationFrame(tick);
     } else {
       looping = false;
     }
+  }
+
+  function hasActiveCrownSlam(now){
+    const windowMs = KING_CROWN_SLAM_MS + KING_CROWN_SLAM_PAD_MS;
+    const active = (card) =>
+      card && typeof card.crownSlamAt === 'number'
+      && now - card.crownSlamAt < windowMs;
+    for(let c = 0; c < COLS; c++){
+      for(let r = 0; r < ROWS; r++){
+        if(active(grid[c][r])) return true;
+      }
+      for(const entry of stack[c]){
+        if(entry && entry.type === 'piece' && active(entry.card)) return true;
+      }
+    }
+    for(const b of balls){
+      if(b && !b.exploded && !b.kingMerged && active(b.card)) return true;
+    }
+    return false;
   }
 
   function finalizeDrop(ball){
@@ -8451,10 +8819,20 @@
   }
 
   function kingMergeLabel(stack){
-    if(stack <= 1) return 'KING ME!';
-    if(stack === 2) return 'DOUBLE KING!';
-    if(stack === 3) return 'TRIPLE KING!';
-    return 'KING ×' + stack + '!';
+    const n = stack | 0;
+    if(n <= 1) return 'KING ME!';
+    const names = {
+      2: 'DOUBLE KING!',
+      3: 'TRIPLE KING!',
+      4: 'QUADRUPLE KING!',
+      5: 'QUINTUPLE KING!',
+      6: 'SEXTUPLE KING!',
+      7: 'SEPTUPLE KING!',
+      8: 'OCTUPLE KING!',
+      9: 'NONUPLE KING!',
+      10: 'DECUPLE KING!'
+    };
+    return names[n] || ('KING ×' + n + '!');
   }
 
   function kingMergePayout(resultStack){
@@ -8463,6 +8841,147 @@
     return Math.floor(
       KING_ME_MERGE_BASE * Math.pow(2, tier) * handPayoutMultiplier()
     );
+  }
+
+  // Build the crowned result of merging two equal-tier kings.
+  function buildMergedKingCard(a, b, angle){
+    const nextStack = kingStackLevel(a) + 1;
+    let suit = a.suit;
+    let wild = !!isWild(a);
+    if(isWild(a) && !isWild(b)){
+      suit = b.suit;
+      wild = false;
+    } else if(isWild(a) && isWild(b)){
+      wild = true;
+    }
+    const merged = cloneCard(a, {
+      suit,
+      wild: wild || undefined,
+      kingStack: nextStack,
+      crowned: true,
+      spikes: !!(a.spikes || b.spikes),
+      tier: Math.max(cardTier(a), cardTier(b)) || undefined,
+      angle: angle || a.angle || 0,
+      crownSlamAt: performance.now()
+    });
+    if(!wild) delete merged.wild;
+    if(!merged.tier) delete merged.tier;
+    return merged;
+  }
+
+  function celebrateKingMerge(x, y, nextStack, merged){
+    const payout = kingMergePayout(nextStack);
+    const label = kingMergeLabel(nextStack);
+    if(payout > 0) awardChips(payout, {x, y});
+    pushPopup({
+      x,
+      y: y - 12,
+      text: label,
+      subtext: payout > 0 ? ('+' + formatNum(payout)) : '',
+      color: '#F0D78C',
+      t0: performance.now(),
+      duration: popupDurationForValue(1100 + Math.min(600, nextStack * 100), payout),
+      big: true,
+      family: 'king',
+      kingStack: nextStack,
+      popPts: payout,
+      fontSize: 26 + Math.min(10, nextStack * 2),
+      subFontSize: Math.max(12, Math.round((26 + Math.min(10, nextStack * 2)) * 0.5)),
+      floatBoost: 44 + nextStack * 4,
+      slam: 1.7 + Math.min(0.5, nextStack * 0.08),
+      slamMs: 200,
+      glow: 18 + nextStack * 2,
+      tilt: -0.05
+    });
+    if(bigRoomActive()){
+      spawnExplosion(x, y, merged);
+    }
+    markHintsDirty();
+    scheduleCountingUiRefresh();
+    startLoop();
+  }
+
+  // Drop a falling chip from play without storm VFX (King Me absorb).
+  function discardFallingKingBall(ball){
+    if(!ball || ball.kingMerged || ball.exploded) return;
+    if(isPendingSiegeLandBall(ball)){
+      pendingSiegeLand = null;
+    }
+    if(ball.stackEntry != null && ball.targetCol != null){
+      const col = ball.targetCol;
+      const idx = stack[col].indexOf(ball.stackEntry);
+      if(idx >= 0){
+        stack[col].splice(idx, 1);
+        rebuildColumnFromStack(col);
+        recomputeBumpers();
+      }
+      ball.stackEntry = null;
+      ball.targetCol = null;
+      ball.row = null;
+      ball.landed = false;
+    }
+    ball.kingMerged = true;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.spin = 0;
+  }
+
+  function applyMergedCardToBall(ball, merged){
+    ball.card = merged;
+    ball.angle = merged.angle || ball.angle || 0;
+    if(ball.stackEntry && ball.stackEntry.type === 'ball'){
+      ball.stackEntry.card = merged;
+      ball.stackEntry.angle = ball.angle;
+    }
+  }
+
+  // Two in-flight kings collide → one crowned survivor keeps falling.
+  function tryMergeKingBalls(a, b){
+    if(!kingMeActive() || gameOver) return false;
+    if(!a || !b || a.exploded || b.exploded || a.kingMerged || b.kingMerged) return false;
+    if(isPendingSiegeLandBall(a) || isPendingSiegeLandBall(b)) return false;
+    if(!kingsCanMerge(a.card, b.card)) return false;
+
+    // Prefer the lower chip as survivor (more "landed"); else keep a.
+    const survivor = (a.y >= b.y) ? a : b;
+    const victim = survivor === a ? b : a;
+    const merged = buildMergedKingCard(survivor.card, victim.card, survivor.angle);
+    const nextStack = kingStackLevel(merged);
+    const x = (survivor.x + victim.x) * 0.5;
+    const y = (survivor.y + victim.y) * 0.5;
+    discardFallingKingBall(victim);
+    applyMergedCardToBall(survivor, merged);
+    // Blend motion so the fuse doesn't yank sideways.
+    survivor.vx = (survivor.vx + victim.vx) * 0.5;
+    survivor.vy = Math.min(survivor.vy, victim.vy);
+    survivor.x = x;
+    survivor.y = y;
+    if(victim.pendingBurn){
+      survivor.pendingBurn = true;
+      survivor.burnStartedAt = victim.burnStartedAt || survivor.burnStartedAt || performance.now();
+    }
+    celebrateKingMerge(x, y, nextStack, merged);
+    return true;
+  }
+
+  // Falling king touches a settled peer → absorb the seat into the faller.
+  function tryMergeKingBallWithSettled(ball, col, row){
+    if(!kingMeActive() || gameOver) return false;
+    if(!ball || ball.exploded || ball.kingMerged) return false;
+    if(isPendingSiegeLandBall(ball)) return false;
+    const stackIdx = ROWS - 1 - row;
+    if(stackIdx < 0 || stackIdx >= stack[col].length) return false;
+    const entry = stack[col][stackIdx];
+    if(!entry || entry.type !== 'piece') return false;
+    if(!kingsCanMerge(ball.card, entry.card)) return false;
+
+    const victim = removeSettledPieceAt(col, row);
+    if(!victim) return false;
+    const merged = buildMergedKingCard(ball.card, victim, ball.angle);
+    const nextStack = kingStackLevel(merged);
+    applyMergedCardToBall(ball, merged);
+    celebrateKingMerge(ball.x, ball.y, nextStack, merged);
+    return true;
   }
 
   function removeSettledPieceAt(col, row){
@@ -8509,7 +9028,7 @@
     return options[0];
   }
 
-  // Merge one pair at (col,row). Returns true if a merge happened.
+  // Merge one settled pair at (col,row). Returns true if a merge happened.
   function tryKingMergeOnce(col, row){
     if(!kingMeActive() || gameOver) return false;
     const stackIdx = ROWS - 1 - row;
@@ -8529,57 +9048,14 @@
     if(newIdx < 0) return false;
     const newRow = ROWS - 1 - newIdx;
 
-    const nextStack = kingStackLevel(card) + 1;
-    // Suit: keep a real suit when a wild merges into a suited king.
-    let suit = card.suit;
-    let wild = !!isWild(card);
-    if(isWild(card) && !isWild(victim)){
-      suit = victim.suit;
-      wild = false;
-    } else if(isWild(card) && isWild(victim)){
-      wild = true;
-    }
-    const merged = cloneCard(card, {
-      suit,
-      wild: wild || undefined,
-      kingStack: nextStack,
-      crowned: true,
-      spikes: !!(card.spikes || victim.spikes),
-      tier: Math.max(cardTier(card), cardTier(victim)) || undefined,
-      angle: card.angle || entry.angle || 0
-    });
-    if(!wild) delete merged.wild;
-    if(!merged.tier) delete merged.tier;
+    const merged = buildMergedKingCard(card, victim, card.angle || entry.angle || 0);
+    const nextStack = kingStackLevel(merged);
     entry.card = merged;
     entry.angle = merged.angle || 0;
     rebuildColumnFromStack(col);
 
     const pos = cellCenter(col, newRow);
-    const payout = kingMergePayout(nextStack);
-    const label = kingMergeLabel(nextStack);
-    if(payout > 0) awardChips(payout, pos);
-    pushPopup({
-      x: pos.x,
-      y: pos.y - 12,
-      text: label + (payout > 0 ? (' +' + payout) : ''),
-      color: '#F0D78C',
-      t0: performance.now(),
-      duration: 1000 + Math.min(400, nextStack * 80),
-      big: true,
-      fontSize: 26 + Math.min(10, nextStack * 2),
-      floatBoost: 44 + nextStack * 4,
-      slam: 1.7 + Math.min(0.5, nextStack * 0.08),
-      slamMs: 200,
-      glow: 18 + nextStack * 2,
-      tilt: -0.05
-    });
-    // Big Room: merges spark like a small crown blast.
-    if(bigRoomActive()){
-      spawnExplosion(pos.x, pos.y, merged);
-    }
-    markHintsDirty();
-    scheduleCountingUiRefresh();
-    startLoop();
+    celebrateKingMerge(pos.x, pos.y, nextStack, merged);
     return true;
   }
 
@@ -8972,7 +9448,7 @@
       slam: Math.min(3.4, 1.6 + extra * 0.35),
       slamMs: Math.min(280, 150 + extra * 24),
       glow: Math.min(44, 14 + extra * 6),
-      duration: Math.min(2400, 1200 + extra * 200),
+      duration: Math.min(3200, 1400 + extra * 280),
       tilt: -0.08 - Math.min(0.18, extra * 0.035),
       big: true
     };
@@ -8983,14 +9459,18 @@
 
   function pushChainBanner(mult, t0, stackIndex){
     // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
+    // family 'chain': trim keeps the best ×, drops surplus copies first.
     pushPopup({
       x: W/2,
       y: PEG_ZONE * 0.4 - stackIndex * 12,
       text: 'CHAIN ×' + mult + '!',
       color: '#ffffff',
       t0,
-      duration: 1100,
+      duration: Math.min(2400, 1000 + Math.max(0, mult - 1) * 120),
       big: true,
+      family: 'chain',
+      chain: true,
+      chainMult: mult,
       fontSize: 26,
       floatBoost: 36,
       tilt: 0.06,
@@ -9021,25 +9501,28 @@
       const pts = Math.floor(g.points * cardMult * chainMult * mult);
       const tier = handTextTier(g.name);
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
-      const bangs = '!'.repeat(fx.bangs);
+      const bangs = handPopupPunctuation(g.name, fx);
       const burnCount = g.burnCount || 0;
-      const multTag = cardMult > 1.001 ? (' ×' + cardMult.toFixed(2).replace(/\.00$/, '')) : '';
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + multTag + bangs + ' +' + pts,
+        text: g.name + bangs,
+        subtext: pts > 0 ? ('+' + formatNum(pts)) : '',
         color: burnCount > 0
           ? BIG_ROOM_BURN_COLOR
           : brightenColor(g.color || '#ffffff', fx.bright),
         t0: now,
-        duration: fx.duration,
+        duration: handPopupDuration(g.name, fx, pts),
         fontSize: fx.fontSize,
+        subFontSize: Math.max(11, Math.round(fx.fontSize * 0.52)),
         floatBoost: fx.float,
         tilt: fx.tilt * sign,
         slam: fx.slam,
         slamMs: fx.slamMs,
         glow: burnCount > 0 ? Math.max(fx.glow, 18) : fx.glow,
-        big: fx.big
+        big: fx.big,
+        handName: g.name,
+        popPts: pts
       });
     }
     if(chainMult > 1){
@@ -9054,7 +9537,9 @@
         text:'COMBO ×'+groups.length+'!',
         color: PEG, t0:now, duration: fx.duration,
         fontSize: fx.fontSize, floatBoost: fx.floatBoost, tilt: fx.tilt,
-        slam: fx.slam, slamMs: fx.slamMs, glow: fx.glow, big: fx.big
+        slam: fx.slam, slamMs: fx.slamMs, glow: fx.glow, big: fx.big,
+        family: 'combo',
+        comboN: groups.length
       });
     }
   }
@@ -9277,10 +9762,12 @@
           awardChips(payout, pos);
           pushPopup({
             x: pos.x, y: pos.y - 8,
-            text: '+' + payout,
+            text: '+' + formatNum(payout),
             color: BIG_ROOM_BURN_COLOR,
             t0: now,
             duration: 650,
+            family: 'burn',
+            popPts: payout,
             fontSize: 14, floatBoost: 26, tilt: 0.04, slam: 1.15, slamMs: 90, glow: 10
           });
         }
@@ -9867,8 +10354,8 @@
             flushScoreUI();
             updateShopUI();
             const label = combo > 1
-              ? ('SIEGE SLAM ×' + combo + (pts > 0 ? ' +' + pts : ''))
-              : (pts > 0 ? ('SIEGE! +' + pts) : 'SIEGE!');
+              ? ('SIEGE SLAM ×' + combo + (pts > 0 ? ' +' + formatNum(pts) : ''))
+              : (pts > 0 ? ('SIEGE! +' + formatNum(pts)) : 'SIEGE!');
             pushPopup({
               x: siegeX,
               y: siegeY,
@@ -9877,6 +10364,9 @@
               t0: performance.now(),
               duration: 900,
               big: true,
+              family: 'siege',
+              comboN: combo,
+              popPts: pts,
               fontSize: 28, floatBoost: 42, tilt: 0.1, slam: 1.85, slamMs: 150, glow: 16
             });
           } else {
@@ -9898,11 +10388,13 @@
             pushPopup({
               x: floorX,
               y: floorY,
-              text: floorPts > 0 ? ('FLOOR CLEAR +' + floorPts) : 'FLOOR CLEAR!',
+              text: floorPts > 0 ? ('FLOOR CLEAR +' + formatNum(floorPts)) : 'FLOOR CLEAR!',
               color: floorPts > 0 ? (getCSS('--felt-bright') || '#2d8a6e') : '#ffffff',
               t0: performance.now(),
               duration: 900,
               big: true,
+              family: 'floor',
+              popPts: floorPts,
               fontSize: 26, floatBoost: 40, tilt: 0.08, slam: 1.7, slamMs: 160, glow: 14
             });
           }
@@ -10006,6 +10498,103 @@
       `700 ${rankSize}px Fraunces, Georgia, serif`,
       strokeW
     );
+    // King Me: high-contrast golden crown(s) perched on the letter K.
+    const ks = kingStackLevel(card);
+    if(ks > 0) drawKingCrowns(target, rankX, rankY, rankSize, ks, card);
+  }
+
+  // Golden crowns perched on the K — sized to read at chip scale, dark outline
+  // so they don't disappear into the cream letter. Newest crown slams down.
+  function drawKingCrowns(target, rankX, rankY, rankSize, count, card){
+    const n = Math.min(Math.max(1, count | 0), 5);
+    // Large enough to read through the hole; shrink slightly when stacked.
+    const cw = rankSize * (n >= 4 ? 0.48 : n >= 3 ? 0.54 : 0.62);
+    const ch = rankSize * (n >= 4 ? 0.38 : n >= 3 ? 0.42 : 0.48);
+    const gap = cw * (n >= 3 ? 0.55 : 0.62);
+    const totalW = gap * (n - 1);
+    // Clear of the K's top so gold isn't lost in the cream glyph.
+    const baseY = rankY - rankSize * 0.58;
+    const midX = rankX;
+    const slamAt = card && card.crownSlamAt;
+    const slamAge = (typeof slamAt === 'number' && slamAt > 0)
+      ? (performance.now() - slamAt)
+      : Infinity;
+    const slamming = slamAge < KING_CROWN_SLAM_MS;
+    const slamT = slamming ? easeOutBack(slamAge / KING_CROWN_SLAM_MS) : 1;
+    const slamScale = KING_CROWN_SLAM_SCALE + (1 - KING_CROWN_SLAM_SCALE) * slamT;
+    const slamDrop = rankSize * KING_CROWN_SLAM_DROP * (1 - slamT);
+    target.save();
+    for(let i = 0; i < n; i++){
+      const restX = midX - totalW / 2 + i * gap;
+      const restY = baseY - i * ch * 0.38;
+      const isNew = i === n - 1;
+      if(isNew && slamming){
+        target.save();
+        target.translate(restX, restY - slamDrop);
+        target.scale(slamScale, slamScale);
+        drawOneKingCrown(target, 0, 0, cw, ch, true);
+        target.restore();
+      } else {
+        drawOneKingCrown(target, restX, restY, cw, ch, false);
+      }
+    }
+    target.restore();
+  }
+
+  function drawOneKingCrown(target, cx, cy, w, h, slamming){
+    const left = cx - w / 2;
+    const right = cx + w / 2;
+    const bot = cy + h * 0.38;
+    const band = cy + h * 0.08;
+    const tip = cy - h * 0.58;
+    const midL = cx - w * 0.2;
+    const midR = cx + w * 0.2;
+    target.save();
+    // Soft gold bloom so the crown pops off cream K / dark felt.
+    target.shadowColor = slamming ? '#FFE08A' : 'rgba(240, 190, 70, 0.95)';
+    target.shadowBlur = slamming ? Math.max(6, w * 0.85) : Math.max(3, w * 0.45);
+    target.beginPath();
+    target.moveTo(left, bot);
+    target.lineTo(left, band);
+    target.lineTo(left, tip + h * 0.18);
+    target.lineTo(midL, band);
+    target.lineTo(cx, tip);
+    target.lineTo(midR, band);
+    target.lineTo(right, tip + h * 0.18);
+    target.lineTo(right, band);
+    target.lineTo(right, bot);
+    target.closePath();
+    // Deep gold body — high contrast vs #FFF6D6 rank letter.
+    target.fillStyle = '#E4A820';
+    target.fill();
+    target.shadowBlur = 0;
+    target.strokeStyle = '#3A2408';
+    target.lineWidth = Math.max(1.2, w * 0.12);
+    target.lineJoin = 'round';
+    target.stroke();
+    // Jewel dots — ruby center, amber sides.
+    const jewelR = Math.max(1.1, w * 0.12);
+    const jewels = [
+      [left, tip + h * 0.18, '#FFD978'],
+      [cx, tip, '#FF4D5E'],
+      [right, tip + h * 0.18, '#FFD978']
+    ];
+    for(const [jx, jy, fill] of jewels){
+      target.beginPath();
+      target.arc(jx, jy, jewelR, 0, Math.PI * 2);
+      target.fillStyle = fill;
+      target.fill();
+      target.strokeStyle = 'rgba(40, 20, 6, 0.7)';
+      target.lineWidth = Math.max(0.6, jewelR * 0.35);
+      target.stroke();
+    }
+    // Band under the spikes.
+    target.fillStyle = '#C88914';
+    target.fillRect(left + w * 0.06, band, w * 0.88, Math.max(1.4, h * 0.2));
+    target.strokeStyle = '#3A2408';
+    target.lineWidth = Math.max(0.7, w * 0.06);
+    target.strokeRect(left + w * 0.06, band, w * 0.88, Math.max(1.4, h * 0.2));
+    target.restore();
   }
 
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
@@ -10069,19 +10658,6 @@
   }
 
   function drawPiece(cx, cy, card, isBall, highlight){
-    const ks = kingStackLevel(card);
-    if(ks > 0){
-      // Stacked kings: one extra chip per merge tier (capped for readability).
-      const layers = Math.min(ks + 1, 5);
-      for(let i = 0; i < layers; i++){
-        const fromTop = layers - 1 - i;
-        const oy = 7 - fromTop * 5.5;
-        const rad = fromTop === 0 ? 32 : 26;
-        const hi = fromTop === 0 ? highlight : 0;
-        drawCardFace(ctx, cx, cy + oy, card, card.angle || 0, rad, isBall, hi);
-      }
-      return;
-    }
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
@@ -10438,22 +11014,30 @@
     ctx.globalAlpha = 1;
 
     const nowP = performance.now();
-    popups = popups.filter(p => nowP - p.t0 < p.duration);
+    popups = popups.filter(p => {
+      const end = p.expiresAt != null ? p.expiresAt : (p.t0 + p.duration);
+      return nowP < end;
+    });
     layoutPopupLayer();
     const pctx = popupCtx || ctx;
     const ox = popupCtx ? POPUP_OVERHANG : 0;
     if(popupCtx){
       popupCtx.clearRect(0, 0, popupCanvas.width, popupCanvas.height);
     }
-    for(const p of popups){
+    // Paint low-worth first so rarer / fatter labels (and big COMBOs) sit on top.
+    const drawPopups = popups
+      .map((p, i) => ({p, i, w: popupWorth(p)}))
+      .sort((a, b) => a.w - b.w || a.i - b.i);
+    for(const {p} of drawPopups){
       const age = nowP - p.t0;
       // Future t0 = staggered chain pops waiting to slam in.
       if(age < 0) continue;
-      const t = age / p.duration;
+      const life = Math.max(1, (p.expiresAt != null ? p.expiresAt : (p.t0 + p.duration)) - p.t0);
+      const t = age / life;
       const alpha = t < 0.7 ? 1 : Math.max(0, 1-(t-0.7)/0.3);
       const floatDist = p.floatBoost || (p.big ? 40 : 30);
       const dy = -floatDist*t;
-      const fontSize = p.fontSize || (p.big ? 26 : 16);
+      const fontSize = p._fontSize || p.fontSize || (p.big ? 26 : 16);
       const slamMs = p.slamMs || 120;
       const slamFrom = p.slam || (p.big ? 1.35 : 1.15);
       const slamT = easeOutBack(Math.min(1, age / slamMs));
@@ -10462,19 +11046,28 @@
       const restTilt = p.tilt || 0;
       const entryTilt = restTilt * 1.85;
       const tilt = entryTilt + (restTilt - entryTilt) * slamT;
-      const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
-
-      pctx.save();
-      pctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
-      pctx.textAlign = 'center';
-      pctx.textBaseline = 'middle';
-      // Dark outline so labels stay readable over suit-colored pucks.
-      const lineW = Math.max(4, fontSize * 0.18);
+      const glow = p._glow != null ? p._glow : (p.glow != null ? p.glow : (p.big ? 14 : 8));
+      const lineW = p._lineW || Math.max(4, fontSize * 0.18);
+      // Prefer baked metrics — avoid measureText / strokeText / shadowBlur per frame.
+      if(!p.sprite) bakePopupSprite(p);
+      let tw = p.textW;
+      if(!(tw > 0)){
+        pctx.save();
+        pctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+        tw = pctx.measureText(p.text).width;
+        if(p.subtext){
+          const subSize = p._subSize || Math.max(10, Math.round(fontSize * 0.52));
+          pctx.font = 'bold ' + subSize + "px 'Space Grotesk', sans-serif";
+          tw = Math.max(tw, pctx.measureText(String(p.subtext)).width);
+        }
+        pctx.restore();
+        p.textW = tw;
+      }
       // Re-clamp with this frame's scale. Labels may hang POPUP_OVERHANG past
       // the felt; shrink only when they'd exceed that hang budget.
-      const tw = pctx.measureText(p.text).width;
+      const contentH = p._contentH || fontSize * 1.1;
       const hw0 = tw * 0.5 + lineW;
-      const hh0 = fontSize * 0.55 + lineW;
+      const hh0 = contentH * 0.5 + lineW;
       const cos = Math.cos(tilt);
       const sin = Math.sin(tilt);
       const pad = glow * 0.25 + 4;
@@ -10487,27 +11080,35 @@
       const halfH = baseH * drawScale + pad;
       const drawX = Math.max(halfW - POPUP_OVERHANG, Math.min(W - (halfW - POPUP_OVERHANG), p.x));
       const drawY = Math.max(halfH - POPUP_OVERHANG, Math.min(H - (halfH - POPUP_OVERHANG), p.y + dy));
+      pctx.save();
       pctx.translate(drawX + ox, drawY + ox);
       pctx.rotate(tilt);
       pctx.scale(drawScale, drawScale);
       pctx.globalAlpha = alpha;
-      pctx.lineWidth = lineW;
-      pctx.strokeStyle = 'rgba(8,6,16,0.92)';
-      pctx.lineJoin = 'round';
-      pctx.miterLimit = 2;
-      pctx.strokeText(p.text, 0, 0);
-      pctx.fillStyle = p.color;
-      pctx.shadowColor = p.color;
-      pctx.shadowBlur = glow;
-      pctx.fillText(p.text, 0, 0);
-      // Hot white core on premium pops — reads brighter without changing hue much.
-      if(glow >= 24){
-        pctx.shadowBlur = glow * 0.35;
-        pctx.globalAlpha = alpha * 0.55;
-        pctx.fillStyle = '#ffffff';
+      if(p.sprite){
+        pctx.drawImage(p.sprite, -p.spriteW / 2, -p.spriteH / 2, p.spriteW, p.spriteH);
+      } else {
+        // Fallback if bake failed (should be rare).
+        pctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+        pctx.textAlign = 'center';
+        pctx.textBaseline = 'middle';
+        pctx.lineWidth = lineW;
+        pctx.strokeStyle = 'rgba(8,6,16,0.92)';
+        pctx.lineJoin = 'round';
+        pctx.miterLimit = 2;
+        pctx.strokeText(p.text, 0, 0);
+        pctx.fillStyle = p.color;
+        pctx.shadowColor = p.color;
+        pctx.shadowBlur = glow;
         pctx.fillText(p.text, 0, 0);
+        if(glow >= 24){
+          pctx.shadowBlur = glow * 0.35;
+          pctx.globalAlpha = alpha * 0.55;
+          pctx.fillStyle = '#ffffff';
+          pctx.fillText(p.text, 0, 0);
+        }
+        pctx.shadowBlur = 0;
       }
-      pctx.shadowBlur = 0;
       pctx.globalAlpha = 1;
       pctx.restore();
     }
@@ -11935,7 +12536,8 @@
       color: '#F0D78C',
       t0: performance.now(),
       duration: 1800,
-      big: true
+      big: true,
+      family: 'comps'
     });
     pushPopup({
       x: W / 2,
@@ -11944,7 +12546,8 @@
       color: '#C9A84A',
       t0: performance.now() + 80,
       duration: 1600,
-      big: true
+      big: true,
+      family: 'cashout'
     });
     if(!resolving && !looping) startLoop();
   }

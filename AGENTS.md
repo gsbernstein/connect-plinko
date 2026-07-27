@@ -75,7 +75,9 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Percussive Mitosis (`pinSplit`): Auto Dealer ~10× slower via `dropSpawnMult` (manual taps unaffected); bifurcate on fresh peg hits (max gen 4); shrink in flight, full size in columns |
 | `stormBeachesActive` / `detonateFallingBall` / `applyStormBlast` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits; blast knocks nearby in-flight chips |
 | `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `beginSiegeResolve` / `tryBeginSiegeColumnSlam` / `finishSiegeLand` / `pendingSiegeLand` / `siegeCardPayout` / `SIEGE_*` | Siege Weapons (toggleable): Lv1 bumper smash clears one column; Lv2 all columns on that bumper; Lv3 landing column slam with combo payout. Lv3 parks the spiked chip in `pendingSiegeLand` (no mid-flash re-entry); `applyExplosionClear` re-expands siege columns at explode time; `finishSiegeLand` re-queues the chip into `balls` before `commitBallToColumn`. |
-| `kingMeActive` / `kingStackLevel` / `resolveKingMerges` / `tryKingMergeOnce` / `KING_ME_*` | King Me: same-suit equal-stack kings that meet (4-dir) merge into `kingStack+1` with exponential payout (`KING_ME_MERGE_BASE * 2^tier`); chains via `resolveKingMerges` after settles/clears; stacked kings still score in poker hands |
+| `kingMeActive` / `kingStackLevel` / `kingKindWeight` / `resolveKingMerges` / `tryKingMergeOnce` / `tryMergeKingBalls` / `tryMergeKingBallWithSettled` / `kingMergeLabel` / `KING_ME_*` / `KING_CROWN_SLAM_*` / `hasActiveCrownSlam` | King Me: same-suit equal-stack kings merge on contact anywhere — settled 4-dir (`tryKingMergeOnce`), falling↔falling (`tryMergeKingBalls` in `collideBalls`), or falling↔settled (`tryMergeKingBallWithSettled`); payout `KING_ME_MERGE_BASE * 2^tier`; popups `KING ME!` / `DOUBLE KING!` / `TRIPLE KING!` / …; `kingKindWeight` for of-a-kind; high-contrast crowns on the K via `drawKingCrowns` + `crownSlamAt` slam (`hasActiveCrownSlam` keeps the loop on grid/stack/balls); victim fallers flagged `kingMerged` then swept |
+| `handTextTier` / `handPopupPunctuation` / `handPopupDuration` / `popupDurationForValue` / `TEXT_JUICE` | Score popup size/slam tier; of-a-kind punctuation (five `!?!`, six+ `‽`×(n−5)); duration scales with payout + extra linger for 6+ of a kind |
+| `pushPopup` / `bakePopupSprite` / `trimPopups` / `popupFamily` / `popupWorth` / `MAX_POPUPS` / `expiresAt` | Score labels: baked offscreen sprite at spawn (`bakePopupSprite`; optional `subtext` second row for hand/King Me totals); per-frame `drawImage` + transform; draw order low→high `popupWorth`; value-scaled duration + `expiresAt` spacing (~160 ms); cap 120; over-cap drops by worth − duplicate index |
 | `bigRoomActive` / `igniteNearbyFromBlast` / `markBallLit` / `handBurnMultiplier` / `stepBurning` / `BIG_ROOM_*` | Big Room: explosions instantly ignite settled cards (`BIG_ROOM_BLAST_IGNITE_R` 145) and in-flight chips (`BIG_ROOM_FLIGHT_IGNITE_R` 110 — tighter than Storm shove 280); `pendingBurn` transfers to the seat in `finalizeDrop`; `drawBurningOverlay(..., scale)` shrinks with Pin Split draw radius; burn ticks drip chips then ash out; hands with burning cards get +50%/card via `handBurnMultiplier`; King Me merges can spark a blast ignite |
 | `stormBeachLandingPayout` | Storm the Beaches: chips when a card survives pegs and enters the grid (`enterGridColumn`) |
 | `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
@@ -95,8 +97,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `achievementName` | `a_max_combo` tier title: C-Combo, C-C-Combo… from active tier target |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
 | `QUEST_RARITY_WEIGHTS_BY_INK` / `pickQuestRarity` | Quest Ink level (0–4) indexes per-rarity roll weights; max Ink favors Rare |
-| `HAND_STAT` / `RUN_HAND_STAT` | Lifetime vs per-run hand counters |
-| `HAND_STAT_ALSO` / `RUN_HAND_STAT_ALSO` | Higher hands counting toward lower stats |
+| `HAND_STAT` / `HAND_STAT_ALSO` / `sixKinds` / `fullerHouses` / `quadsFull` | Hand → lifetime/run counters; King Me adds `SIX OF A KIND`→`sixKinds` (7+ folds in), `FULLER HOUSE` (3+3), `QUADS FULL` (4+2); ALSO chains bump lower cats (six→five→four→trips; quads full→four/boat/fuller; fuller→boat/trips) |
+| `a_six_kind` / `a_fuller_house` / `a_quads_full` | Secret infinite achievements: Clone Wars (`sixKinds`), Reboot (`fullerHouses`), Quads Full (`quadsFull`) |
 | `sleeveHands` / `prestigeBought` / `settingsOpened` / `versionUpgrades` / `maxCombo` / `maxHandPayout` / `maxComboPayout` / `achievementClaims` | Achievement stats: sleeve Ace hands, VIP perk buys, first Settings open, app version upgrades, peak simultaneous COMBO ×N (`a_max_combo`, infinite), best single-hand chip payout (`a_hand_payout`), best COMBO resolve total (`a_combo_payout`), achievement tier claims (`a_claims`) |
 | `SAVE_KEY` / `SETTINGS_KEY` | `localStorage` keys |
 | `SAVE_VERSION` | Bump when save shape changes; handle migration in `loadSave` |
@@ -108,7 +110,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
 | `noteChipEarn` / `updateChipRateUI` / `#chipRateVal` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset) |
-| `formatNum` / `formatCompactSuffix` | HUD chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
+| `formatNum` / `formatCompactSuffix` | HUD + score-pop chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
 
 ### Progression model (high level)
 
@@ -129,7 +131,7 @@ Game design detail for players lives in `README.md`.
 | 4970–5200 | `persistSave`, `loadSave`, migrations, Cash Out / reset |
 | 5800–6100 | Ball physics (`tick`, `stepBall`, collisions) |
 | 6160–6500 | Hand detection, near-miss guides, scoring payouts |
-| ~5330 | `pushPopup` / `clampPopupToBoard` / `#popupLayer` — score labels hang up to `POPUP_OVERHANG` past the felt |
+| ~5330 | `pushPopup` / `bakePopupSprite` / `clampPopupToBoard` / `#popupLayer` — score labels bake once, hang up to `POPUP_OVERHANG` past the felt |
 | 6700–7100 | Floor clear, board-full escape, drawing cards on canvas |
 | 7500–8900 | Rail tabs, quest UI, modals, init, keeper loop |
 
@@ -181,7 +183,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 
 **Persisted heater:** `heaterChainForSave()` writes `heaterChain` into the save (active `chainStep` during a hand resolve, else `pendingChain`; Suit Purge keeps `pendingChain`; floor clear → 0). `loadSave` stashes it in `resumeHeaterChain`; after boot `freshState()` that value is copied into `pendingChain` so refresh/update does not reset the streak. `heaterHoldUntilUse` skips the empty-board idle expire until `beginResolveChain` advances the heater once (board is empty on load). Cash Out / hard reset clear it before `persistSave`.
 
-**Combo popups:** `comboPopupJuice(n)` / `spawnPopups` — COMBO ×N banner size/slam/glow scale with simultaneous hands. Multi-hand clears call `spawnStaggeredChainPopups` (`CHAIN_POP_STAGGER_MS`) so each heater step gets its own delayed CHAIN slam (`t0` in the future; draw skips `age < 0`).
+**Combo popups:** `comboPopupJuice(n)` / `spawnPopups` — COMBO ×N banner size/slam/glow scale with simultaneous hands. Multi-hand clears call `spawnStaggeredChainPopups` (`CHAIN_POP_STAGGER_MS`) so each heater step gets its own delayed CHAIN slam (`t0` in the future; draw skips `age < 0`). `trimPopups` uses `popupFamily` / `popupWorth` / `handPopupWorth`: duplicate labels in a family (PAIR, COMBO, CHAIN, …) drop after the best copy; lower hands and smaller COMBO/CHAIN × yield before rarer ones. Labels bake via `bakePopupSprite` at spawn (`subtext` = smaller chip total under hand / King Me titles); the draw loop `drawImage`s sprites in low→high `popupWorth` order so stronger hands/combos land on top.
 
 ### Saves
 
@@ -222,7 +224,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult` only (no manual cooldown), `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
 | Storm the Beaches | `stormBeachesActive` / `STORM_BEACHES_EXPLODE_CHANCE` on fresh peg hits → `detonateFallingBall` / `applyStormBlast` + `sweepExplodedBalls`; spawn via `stormBeachesSpawnMult` in `dropSpawnMult` |
 | Siege Weapons | `dealCard` spike roll when `siegeWeaponsActive`; bumper smash → column(s) clear; Lv3 `tryBeginSiegeColumnSlam` → `pendingSiegeLand` / `finishSiegeLand`; siege clears re-scanned in `applyExplosionClear`; toggle via `AUTO_TOGGLE_IDS` |
-| King Me | `kingMeActive` / `resolveKingMerges` on `finalizeDrop` / post-clear; same-suit equal `kingStack` neighbors merge (`tryKingMergeOnce`); payout `kingMergePayout`; draw via `drawPiece` stack layers; Big Room merge sparks `spawnExplosion` |
+| King Me | `kingMeActive` / `resolveKingMerges` on `finalizeDrop` / post-clear; flight merges via `tryMergeKingBalls` / `tryMergeKingBallWithSettled` in collide paths; `kingMergeLabel` / `kingKindWeight` / `drawKingCrowns` / `crownSlamAt`; Big Room merge sparks `spawnExplosion` |
 | Big Room blast ignite | `bigRoomActive` / `spawnExplosion` → `igniteNearbyFromBlast` (settled + `markBallLit` fallers); `finalizeDrop` applies `pendingBurn`; `handBurnMultiplier` / `countBurningInCells` in `findPokerHands`; `stepBurning` / `ashOutStackEntry` (`noIgnite`); King Me merge spark via `spawnExplosion` in `tryKingMergeOnce` |
 | Storm the Beaches landing | `stormBeachLandingPayout` in `enterGridColumn` when peg → grid |
 | Short Fuse toggle | `shortFuseActive` / `resolveSpeed` / `flashPulseCount`; `toggleable` on `shortFuse` def + `AUTO_TOGGLE_IDS` |
