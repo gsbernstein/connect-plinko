@@ -528,10 +528,12 @@
       const nx = dx/dist, ny = dy/dist;
       ball.x = closest.x + nx*minDist;
       ball.y = closest.y + ny*minDist;
-      // Bias bounce inward on edge rails so wall-side contacts don't skitter
+      // Bias bounce inward on single-wall edge rails so wall-side contacts
+      // don't skitter. Full-width bars set both flags — applying both clamps
+      // used to cancel into a hard left kick on every hit.
       let kx = nx, ky = ny;
-      if(rail.edgeLeft) kx = Math.max(kx, 0.4);
-      if(rail.edgeRight) kx = Math.min(kx, -0.4);
+      if(rail.edgeLeft && !rail.edgeRight) kx = Math.max(kx, 0.4);
+      if(rail.edgeRight && !rail.edgeLeft) kx = Math.min(kx, -0.4);
       const kLen = Math.hypot(kx, ky) || 1;
       kx /= kLen; ky /= kLen;
       const dot = ball.vx*kx + ball.vy*ky;
@@ -541,8 +543,8 @@
       }
       ball.vx *= 1.05; ball.vy *= 1.05;
       ball.vx += kx*1.4 + (Math.random()*0.6-0.3);
-      if(rail.edgeLeft) ball.vx = Math.max(ball.vx, 2.4);
-      if(rail.edgeRight) ball.vx = Math.min(ball.vx, -2.4);
+      if(rail.edgeLeft && !rail.edgeRight) ball.vx = Math.max(ball.vx, 2.4);
+      if(rail.edgeRight && !rail.edgeLeft) ball.vx = Math.min(ball.vx, -2.4);
       ball.vy = Math.min(ball.vy, -1.5);
       rail.hit = 14;
     }
