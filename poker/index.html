@@ -3097,7 +3097,7 @@
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
         'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
-        'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and a tighter on-screen cap drops duplicates and weaker hands/combos first (extra PAIR/CHAIN copies yield before a Flush or big COMBO; one best CHAIN still keeps its duration).',
+        'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and the on-screen cap (72, with rasterized sprites) drops duplicates and weaker hands/combos first (extra PAIR/CHAIN copies yield before a Flush or big COMBO; one best CHAIN still keeps its duration).',
         'Score pops are rasterized once when they spawn, so busy clears draw bitmaps instead of re-stroking glowing text every frame.',
         'Chip amounts on score pops use the same k / M / B / T / Q / scientific shorthand as the HUD.',
         'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — secret achievements Reboot, Quads Full, and Clone Wars (six of a kind+).'
@@ -3678,7 +3678,7 @@
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
-  const MAX_POPUPS = 40;
+  const MAX_POPUPS = 72;
   const MAX_PARTICLES = 180;
   const MAX_RUN_LEVEL = 200;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
