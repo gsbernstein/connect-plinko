@@ -1,0 +1,10 @@
+---
+description: Discourage computer-use / browser subagents unless the user explicitly asks
+alwaysApply: true
+---
+
+# No computer use by default
+
+Do **not** use computer-use, browser automation, or desktop-control subagents (`Task` with `subagent_type: "computerUse"`, Browser, or similar) unless the user explicitly requests a playthrough, screenshot, or computer-use verification in the current turn.
+
+Prefer faster verification: read the edited code, reason about behavior, and use the existing static server (`python3 -m http.server 8080`) only as a smoke check when useful. Do not click through the game UI via the remote desktop for routine changes.
