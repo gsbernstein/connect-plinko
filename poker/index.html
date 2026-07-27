@@ -2971,7 +2971,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 23;
+  const SAVE_VERSION = 24;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2983,6 +2983,16 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 45,
+      date: 'Jul 27, 2026',
+      title: 'Suit Purge fix',
+      items: [
+        'Buying Auto Purge collapses the suit picker again without stopping purges.',
+        'Shop Hide/Show and the bar tap only hide the picker — auto purges keep working when Auto Purge is on.',
+        'Older saves that accidentally paused Suit Purge are migrated back to armed.'
+      ]
+    },
     {
       id: 44,
       date: 'Jul 27, 2026',
@@ -3498,7 +3508,7 @@
     {
       id: 'suitBomb',
       name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle Off to pause; tap the bar to hide suit buttons.',
+      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle to hide the suit picker; tap the bar too.',
       baseCost: 400,
       costScale: 1.85,
       maxLevel: 12,
@@ -4222,10 +4232,6 @@
 
   function suitBombUiVisible(){
     return upgradeLevel('suitBomb') > 0 && !suitBombPickerMinimized;
-  }
-
-  function suitPurgeActive(){
-    return suitBombUnlocked() && isAutoEnabled('suitBomb');
   }
 
   function shortFuseActive(){
@@ -6350,7 +6356,7 @@
       }
       case 'suitBomb':
         if(!lvl) return 'Locked';
-        if(!suitPurgeActive()) return 'Paused';
+        if(suitBombPickerMinimized) return 'Picker hidden · +' + purgeCardPayout() + '/card';
         return 'Cooldown ' + formatInterval(suitBombCooldownMs()) + ' · +' + purgeCardPayout() + '/card';
       case 'feltGrease':
         return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
@@ -6587,6 +6593,14 @@
       }
       if(typeof data.suitBombPickerMinimized === 'boolean'){
         suitBombPickerMinimized = data.suitBombPickerMinimized;
+      }
+      // v24: picker hide vs arm/disarm split — old false toggles and Auto Purge buy paused purges.
+      if((data.v || 0) < 24 && autoEnabled.suitBomb === false){
+        const autoPurgeBuyBug = prestigeLevel('autoSuitBomb') > 0 && !suitBombPickerMinimized;
+        if((data.v || 0) < 23 || autoPurgeBuyBug){
+          suitBombPickerMinimized = true;
+          autoEnabled.suitBomb = true;
+        }
       }
       runLevel = runLevelFromLifetime(lifetime);
       if(typeof data.runCompCredit === 'number' && data.runCompCredit >= 0){
@@ -6927,7 +6941,7 @@
     prestigeUpgrades[id] = lvl + 1;
     bumpStat('prestigeBought', 1);
     // First Auto Purge unlock: collapse the manual picker (minimized charge bar).
-    if(id === 'autoSuitBomb' && lvl === 0) autoEnabled.suitBomb = false;
+    if(id === 'autoSuitBomb' && lvl === 0) suitBombPickerMinimized = true;
     // VIP skill bonuses may cap purchasable room — clamp bought levels.
     for(const uDef of UPGRADE_DEFS){
       upgrades[uDef.id] = Math.min(purchasedLevel(uDef.id), maxPurchasableLevel(uDef.id));
@@ -9061,7 +9075,7 @@
 
   function castSuitBomb(suit){
     const now = performance.now();
-    if(!suitPurgeActive() || !suitBombReady(now) || gameOver) return false;
+    if(!suitBombUnlocked() || !suitBombReady(now) || gameOver) return false;
     if(!SUITS.includes(suit)) return false;
     const cells = findSuitCells(suit);
     if(countSuitInPlay(suit) < 1) return false;
@@ -10454,10 +10468,17 @@
     if(toggle){
       toggle.hidden = !canToggle;
       if(canToggle){
-        const on = def.id === 'suitBomb' ? suitPurgeActive() : isAutoEnabled(def.id);
-        toggle.textContent = on ? 'On' : 'Off';
-        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
-        toggle.classList.toggle('is-off', !on);
+        if(def.id === 'suitBomb'){
+          const visible = suitBombUiVisible();
+          toggle.textContent = visible ? 'Hide' : 'Show';
+          toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !visible);
+        } else {
+          const on = isAutoEnabled(def.id);
+          toggle.textContent = on ? 'On' : 'Off';
+          toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !on);
+        }
       }
     }
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
@@ -10625,7 +10646,13 @@
       toggle.addEventListener('click', (e)=>{
         e.preventDefault();
         e.stopPropagation();
-        setAutoEnabled(def.id, !isAutoEnabled(def.id));
+        if(def.id === 'suitBomb'){
+          suitBombPickerMinimized = !suitBombPickerMinimized;
+          scheduleSave();
+          updateSuitBombUI(performance.now(), true);
+        } else {
+          setAutoEnabled(def.id, !isAutoEnabled(def.id));
+        }
       });
     }
     const tryBuy = ()=>{
@@ -11009,18 +11036,6 @@
 
     const cd = suitBombCooldownMs();
     const ready = suitBombReady(now);
-    if(!suitPurgeActive()){
-      suitBombBar.removeAttribute('data-target-suit');
-      suitBombBar.classList.remove('suit-bomb-flash');
-      if(suitBombChargeFill){
-        const charge = ready ? 1 : Math.max(0, Math.min(1, 1 - (suitBombReadyAt - now) / cd));
-        suitBombChargeFill.style.width = (charge * 100) + '%';
-      }
-      suitBombStatus.textContent = 'paused';
-      suitBombStatus.className = '';
-      return;
-    }
-
     const autoOwned = prestigeLevel('autoSuitBomb') > 0;
     const auto = autoOwned && isAutoEnabled('autoSuitBomb');
     const autoTarget = auto ? pickAutoSuitBombTarget() : null;
