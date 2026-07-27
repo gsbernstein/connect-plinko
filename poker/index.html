@@ -1547,7 +1547,7 @@
     overflow:hidden;
     border:1px solid #2a2545;
     border-radius:10px;
-    padding:6px 0;
+    padding:8px 0;
     cursor:pointer;
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
@@ -1565,15 +1565,15 @@
     position:relative;
     z-index:1;
     display:block;
-    width:40px;
-    height:40px;
+    width:34px;
+    height:34px;
     margin:0 auto;
     pointer-events:none;
   }
   /* Suit Alliance: one purge button paints both glyphs side by side. */
   .suit-btn.pair-suit .suit-glyph{
-    width:80px;
-    height:40px;
+    width:68px;
+    height:34px;
   }
   .suit-btn:hover:not(:disabled){
     transform:translateY(-1px);
@@ -13068,7 +13068,7 @@
 
   // CSS box is the on-screen size; canvas is 2× and paint fills it (old paint
   // used half-canvas sizes, so icons looked tiny inside empty button padding).
-  const SUIT_BOMB_GLYPH_CSS = 40;
+  const SUIT_BOMB_GLYPH_CSS = 34;
   const SUIT_BOMB_CANVAS_DPR = 2;
 
   function buildSuitBombUI(){
@@ -13119,9 +13119,8 @@
       if(glyph.height !== h) glyph.height = h;
       const ctx = glyph.getContext('2d');
       ctx.clearRect(0, 0, glyph.width, glyph.height);
-      // Suit fonts leave empty metrics in the em box — oversize paint so the
-      // shape fills the CSS box (stroke may kiss the canvas edge).
-      const paintSize = Math.floor(h * 1.2);
+      // Leave a little stroke room so outlines aren't clipped at the canvas edge.
+      const paintSize = Math.floor(h * 0.9);
       if(pair){
         const cy = h / 2;
         const half = w / 4;
