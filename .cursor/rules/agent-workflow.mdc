@@ -22,7 +22,7 @@ Before committing on an existing feature branch — especially `cursor/*` branch
    - `git checkout master && git pull origin master`
    - Create a new branch: `cursor/<descriptive-name>-65f3`
    - Cherry-pick only if you still need unmerged commits; otherwise start fresh from `master`.
-4. If **not merged**: rebasing on latest `master` is fine when it reduces conflict risk; avoid piling unrelated changes onto stale branches.
+4. If **not merged**: sync by **merging** latest `master` into the branch (`git fetch origin master && git merge origin/master`) — do **not** rebase onto `master`. Avoid piling unrelated changes onto stale branches.
 
 List merged remote cursor branches for a quick scan:
 
@@ -39,12 +39,31 @@ Player-visible Poker PRs all prepend to `CHANGELOG` and bump `poker/version.json
 3. Prepend yours (newest-first); set `poker/version.json` `"v"` to that new max.
 4. Never renumber or drop master’s entries; never reuse a shipped id.
 
-Full recipe + sanity-check script: **AGENTS.md → “Changelog merge conflicts (fast path)”**. Rebase onto latest `master` before writing the changelog (or add the entry last) to avoid the collision.
+Full recipe + sanity-check script: **AGENTS.md → “Changelog merge conflicts (fast path)”**. Merge latest `master` into the branch before writing the changelog (or add the entry last) to avoid the collision.
+
+## Merge when asked
+
+When the user tells you to **merge the current branch**, only proceed if the PR is **ready for review** (not draft). Then always **squash-merge into `master`** — do not use a merge commit or rebase merge.
+
+1. Ensure the branch has an open PR against `master` (create or update one if needed).
+2. Confirm the PR is **ready for review** (draft must be converted first). If not ready, stop and ask the user to mark it ready.
+3. Confirm CI is acceptable if the user cares about checks.
+4. Squash-merge via GitHub CLI, e.g. `gh pr merge --squash` (use the PR for the current branch). If there is no PR, open one first or ask which branch/PR to merge.
+5. After merge, sync local `master`: `git checkout master && git pull origin master`.
+
+## Do not use computer use unless asked
+
+Computer-use / browser / desktop-control subagents are slow and must not be the default verification path.
+
+- Do **not** spawn `computerUse`, browser, or desktop-control subagents via the Task tool.
+- Do **not** drive the remote desktop or browser to click through Classic/Poker.
+- Prefer: edit + read the affected code, keep `python3 -m http.server 8080` up for smoke checks, describe expected UI/behavior in the PR.
+- Only use computer use / screenshots / click-through playtesting when the user **explicitly** asks for it in that turn.
 
 ## Other defaults
 
 - Base branch for PRs: `master`.
-- This repo has no build or test command — validate with `python3 -m http.server 8080` and manual play when UI/gameplay changes.
+- This repo has no build or test command — validate by reading code paths and keeping the static server up; skip GUI playthroughs unless requested.
 - Most edits are in `index.html` (classic) or `poker/index.html` (poker). Read `AGENTS.md` before wide exploration.
 - If your change affects areas covered in `AGENTS.md`, update that file in the same PR.
 - Bump `SAVE_VERSION` and migrate in `loadSave` when changing poker save shape.

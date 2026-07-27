@@ -57,12 +57,12 @@ Cloud Agents resolve env config from `.cursor/environment.json` first (then pers
 | Terminal | `static-server` → `python3 -m http.server 8080` (shared tmux) |
 | Ports | `8080` |
 
-**Validate UI/gameplay changes**
+**Validate UI/gameplay changes (no computer use by default)**
 
 1. Confirm the static server is up (or start it yourself with the same command).
 2. Classic: http://localhost:8080/ — Poker: http://localhost:8080/poker/
-3. Hard-refresh after edits. Use browser/computer use to click through affected flows (drops, shop, VIP, Settings What’s New, etc.).
-4. There is no automated test suite; screenshots or a short playthrough are the verification.
+3. Prefer fast checks: read the edited code paths, reason about expected behavior, and (when useful) curl/`python3 -m http.server` smoke checks. Do **not** spawn `computerUse` / browser / desktop-control subagents, and do **not** drive the remote desktop to click through the UI, unless the user **explicitly** asks for a playthrough, screenshot, or computer-use pass in that turn.
+4. There is no automated test suite; a short code-path review is enough for most PRs. Manual play / screenshots are optional and only when requested.
 
 **Secrets / network** — none required for local play. Do not add API keys for this static site. If team egress is allowlisted, keep `cloud-agent-artifacts.s3.us-east-1.amazonaws.com` for demo artifacts.
 
@@ -93,9 +93,10 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | Symbol | Purpose |
 |--------|---------|
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
+| `SHOP_RECOMMEND_PRIORITY` / `VIP_RECOMMEND_PRIORITY` / `recommendedShopUpgradeId` / `recommendedVipPerkId` / `.upgrade-rec` / `.upgrade-cost-row` | Gold ★ after the price on the next guided buy: shop Auto Dealer→6 → Wild Card→1 → Pin Tip→1 → High Cut→1 → Suit Alliance→2; VIP Quest Desk→1 → Quest Ink→4. First incomplete unlocked step wins (`fillUpgradeButton` `recommended`; `.upgrade-rec.is-on` via `visibility`) |
 | `compCage` / `runCompCredit` | Cashier’s Cage (`unlockAt` 200): each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `connect4`, `dealMeIn`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, `bigRoom`, `controlBooth`, …). Skill-bonus perks (`houseEdge` → Hot Streak, `quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`; `houseEdge.maxLevel` must match Hot Streak’s cap (10). |
-| `controlBooth` / `TOGGLE_DOCK_DEFS` / `updateToggleDockUI` / `#toggleDock` | Control Booth VIP: when owned+On, shows owned toggles in a column to the right of the board (`.board-row` + `.toggle-dock`); Suit Purge uses Hide/Show; Booth Off hides the column (re-enable from VIP) |
+| `controlBooth` / `TOGGLE_DOCK_DEFS` / `updateToggleDockUI` / `#toggleDock` | Control Booth VIP: when owned+On, shows owned toggles in a column to the right of the board (`.board-row` + `.toggle-dock`); Suit Purge uses Shown/Hidden (state of the picker); Booth Off hides the column (re-enable from VIP) |
 | `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5) |
 | `dealMeIn` / `dealMeInActive` / `tryJoinResolve` / `resolveGroupsSignature` | Deal Me In VIP (toggleable): cards that `finalizeDrop` during `flash` re-scan via `findPokerHands` and rewrite `currentGroups` / `flashCells` before score; new simultaneous hands bump `chainStep`; Suit Purge / Siege / Floor skipped; flash leftover capped by `DEAL_ME_IN_FLASH_EXTEND_CAP` |
 | `drawResolveHandLines` / `cellsFormLine` / `handGroupColor` | Paint-only flash connectors on `plateCtx` before seat holes are punched (plastic gaps only; no labels; skips Suit Purge). `handGroupColor`: flush family → suit via `flushHintColor`; straight → `PEG`; rank/pattern → ivory→gold by strength (also feeds score-popup color) |
@@ -103,13 +104,14 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `stormBeachesActive` / `detonateFallingBall` / `applyStormBlast` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits; blast knocks nearby in-flight chips |
 | `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `beginSiegeResolve` / `tryBeginSiegeColumnSlam` / `finishSiegeLand` / `pendingSiegeLand` / `siegeCardPayout` / `SIEGE_*` | Siege Weapons (toggleable): Lv1 bumper smash clears one column; Lv2 all columns on that bumper; Lv3 landing column slam with combo payout. Lv3 parks the spiked chip in `pendingSiegeLand` (no mid-flash re-entry); `applyExplosionClear` re-expands siege columns at explode time; `finishSiegeLand` re-queues the chip into `balls` before `commitBallToColumn`. |
 | `kingMeActive` / `kingStackLevel` / `kingKindWeight` / `resolveKingMerges` / `tryKingMergeOnce` / `tryMergeKingBalls` / `tryMergeKingBallWithSettled` / `kingMergeLabel` / `KING_ME_*` / `KING_CROWN_SLAM_*` / `hasActiveCrownSlam` | King Me: same-suit equal-stack kings merge on contact anywhere — settled 4-dir (`tryKingMergeOnce`), falling↔falling (`tryMergeKingBalls` in `collideBalls`), or falling↔settled (`tryMergeKingBallWithSettled`); payout `KING_ME_MERGE_BASE * 2^tier`; popups `KING ME!` / `DOUBLE KING!` / `TRIPLE KING!` / …; `kingKindWeight` for of-a-kind; high-contrast crowns on the K via `drawKingCrowns` + `crownSlamAt` slam (`hasActiveCrownSlam` keeps the loop on grid/stack/balls); victim fallers flagged `kingMerged` then swept |
-| `handTextTier` / `handPopupPunctuation` / `handPopupDuration` / `popupDurationForValue` / `TEXT_JUICE` | Score popup size/slam tier; of-a-kind punctuation (five `!?!`, six+ `‽`×(n−5)); duration scales with payout + extra linger for 6+ of a kind |
-| `pushPopup` / `bakePopupSprite` / `trimPopups` / `popupFamily` / `popupWorth` / `MAX_POPUPS` / `expiresAt` | Score labels: baked offscreen sprite at spawn (`bakePopupSprite`; optional `subtext` second row for hand/King Me totals); per-frame `drawImage` + transform; draw order low→high `popupWorth`; value-scaled duration + `expiresAt` spacing (~160 ms); cap 120; over-cap drops by worth − duplicate index |
+| `handTextTier` / `handPopupPunctuation` / `handPopupDuration` / `popupDurationForValue` / `TEXT_JUICE` | Score popup size/slam tier; of-a-kind punctuation (five `!?!`, six+ `‽`×(n−5)); light payout linger (cap +400 ms) + modest 6+ of-a-kind bump (+200 ms/tier) |
+| `pushPopup` / `bakePopupSprite` / `trimPopups` / `popupFamily` / `popupWorth` / `MAX_POPUPS` / `expiresAt` | Score labels: baked offscreen sprite at spawn (`bakePopupSprite`; optional `subtext` second row for hand/King Me totals); per-frame `drawImage` + transform; draw order ephemeral under → older `t0` under → worth/index ties; value-scaled duration + `expiresAt` spacing (~90 ms, max +360 ms stagger); cap 120; over-cap drops by worth − duplicate index |
 | `bigRoomActive` / `igniteNearbyFromBlast` / `markBallLit` / `handBurnMultiplier` / `stepBurning` / `BIG_ROOM_*` | I Cast Fireball (`bigRoom`): explosions instantly ignite settled cards (`BIG_ROOM_BLAST_IGNITE_R` 145) and in-flight chips (`BIG_ROOM_FLIGHT_IGNITE_R` 110 — tighter than Storm shove 280); `pendingBurn` transfers to the seat in `finalizeDrop`; `drawBurningOverlay(..., scale)` shrinks with Pin Split draw radius; burn ticks drip chips then ash out; hands with burning cards get +50%/card via `handBurnMultiplier`; King Me merges can spark a blast ignite |
 | `cardsIgnited` / `a_big_room` | Achievement “I Didn’t Ask How Big The Room Was”: counts cards first lit via `markBallLit` / non-silent `igniteStackEntry` (silent seat transfer does not double-count) |
 | `stormBeachLandingPayout` | Storm the Beaches: chips when a card survives pegs and enters the grid (`enterGridColumn`) |
 | `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
-| `purgeCardPayout` / `suitBombPickerMinimized` / `suitBombUiVisible` / `suitPurgePairPenalty` / `pickAutoSuitBombTarget` | Suit Purge: shop Hide/Show and bar tap minimize picker only (purges keep running); purge pays per card; auto-target ranks by pair-safe effective count but gates on raw cards in play (≥2) so Pin Split duplicate floods still cast |
+| `purgeCardPayout` / `suitBombPickerMinimized` / `suitBombUiVisible` / `suitPurgePairPenalty` / `pickAutoSuitBombTarget` | Suit Purge: shop Shown/Hidden and bar tap minimize picker only (purges keep running); purge pays per card; auto-target ranks by pair-safe effective count but gates on raw cards in play (≥2) so Pin Split duplicate floods still cast; with Suit Alliance, targets/buttons are suit families (`purgeFamilies`) and dual-glyph buttons show both allies |
+| `suitCut` / `suitFamily` / `suitsInFamily` / `purgeFamilies` / `SUIT_ALIAS_STEPS` | Suit Alliance: does **not** remove suits from the shoe; Lv1 ♦→♥, Lv2 also ♣→♠ for flush matching (`sliceSharesFlushSuit` / `flushHintColor` family color) and Suit Purge (one button/family, clears both printed suits). Cards keep their own felt/glyph. |
 | `maybeAutoBuy` / `PIT_BOSS_BUY_BATCH` / `PIT_BOSS_BUY_INTERVAL_MS` | Pit Boss (toggleable): up to 5 cheapest affordable shop buys per tick; `140` ms throttle |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
@@ -137,14 +139,14 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
-| `noteChipEarn` / `updateChipRateUI` / `#chipRateVal` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset); `noteChipEarn` also records peak floored rate into `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
+| `noteChipEarn` / `updateChipRateUI` / `#chipRateVal` / `#chipRateFill` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset); `#chipRateBar` reuses shop `.upgrade-progress` and sits flush on the bottom edge (no inset gap) — fill = current rate / `stats.maxChipRate` peak; `noteChipEarn` also records peak floored rate into `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
 | `updateCompsHud` / `#compsCashOutVal` / `.cashout-rate` | Comps HUD secondary line: `pendingComps()` as `+N`; `.is-ready` / `.is-cashout-ready` when Cash Out can collect |
 | `formatNum` / `formatCompactSuffix` | HUD + score-pop chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
 
 ### Progression model (high level)
 
 1. **Chips** — earn from scored poker hands; spend on table upgrades. HUD shows balance plus a live chips/s rate.
-2. **Run level** — rises from chips *earned* this run (`lifetime`); unlocks shop rows and milestone rewards. Resets on Cash Out.
+2. **Run level** — rises from chips *earned* this run (`lifetime` via `awardChips` and quest/achievement `applyContractReward`); unlocks shop rows and milestone rewards. Resets on Cash Out. Level-bonus chips from `grantLevelReward` stay spendable-only (not XP) to avoid chain level-ups.
 3. **Quests** — per-run slots (unlock from run Lv 2); Cash Out clears the board. Achievements persist.
 4. **VIP / prestige** — Cash Out (run Lv 8+) collects Cash Out comps into the VIP balance for permanent `PRESTIGE_DEFS` perks. Achievement/quest `reward.comps` are **instant comps** (VIP balance immediately); `reward.runComps` / level `comps` are **Cash Out comps** (bank until Cash Out). Player-facing labels: `contractRewardText` (“instant comps” vs “Cash Out comps”).
 
@@ -204,6 +206,10 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 `setTabBadge(panel, count, opts)` paints `#badgeUpgrades` / `#badgeQuests` / `#badgeAchievements` / `#badgeVip` (Settings uses its own path). Count badges show a number; `hasNewUnlockBadge` wins with a red `.is-new` empty dot. Optional `opts.empty` shows a numberless `.is-dot` badge when count is 0 (VIP: Cash Out ready with no affordable perks — Cash Out never increments the VIP count).
 
+**Offscreen new upgrades:** Shop unlocks are marked seen only when their row is in the `#railBody` viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView`). If an unviewed unlock is offscreen while the Upgrades panel is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below); `updateShopScrollCue` refreshes on shop UI, scroll, resize, and panel switches. Recommended ★ uses `visibility` (`.upgrade-rec.is-on`) so chip ticks don’t resize cards.
+
+**New upgrade cards:** Unviewed unlocks (same `seenUnlocks.upgrades` gate as the tab dot) get `.upgrade.is-new` styling and an `.upgrade-new-tag` pill matching Settings changelog highlights until scrolled into view.
+
 ### Physics & board
 
 Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds per-column occupants (settled cards + in-flight balls); gravity/clear passes update ball target rows in place.
@@ -214,7 +220,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 
 **Persisted heater:** `heaterChainForSave()` writes `heaterChain` into the save (active `chainStep` during a hand resolve, else `pendingChain`; Suit Purge keeps `pendingChain`; floor clear → 0). `loadSave` stashes it in `resumeHeaterChain`; after boot `freshState()` that value is copied into `pendingChain` so refresh/update does not reset the streak. `heaterHoldUntilUse` skips the empty-board idle expire until `beginResolveChain` advances the heater once (board is empty on load). Cash Out / hard reset clear it before `persistSave`.
 
-**Combo popups:** `comboPopupJuice(n)` / `spawnPopups` — COMBO ×N banner size/slam/glow scale with simultaneous hands. Multi-hand clears call `spawnStaggeredChainPopups` (`CHAIN_POP_STAGGER_MS`) so each heater step gets its own delayed CHAIN slam (`t0` in the future; draw skips `age < 0`). `trimPopups` uses `popupFamily` / `popupWorth` / `handPopupWorth`: duplicate labels in a family (PAIR, COMBO, CHAIN, …) drop after the best copy; lower hands and smaller COMBO/CHAIN × yield before rarer ones. Labels bake via `bakePopupSprite` at spawn (`subtext` = smaller chip total under hand / King Me titles); the draw loop `drawImage`s sprites in low→high `popupWorth` order so stronger hands/combos land on top.
+**Combo popups:** `comboPopupJuice(n)` / `spawnPopups` — COMBO ×N banner size/slam/glow scale with simultaneous hands. Multi-hand clears call `spawnStaggeredChainPopups` (`CHAIN_POP_STAGGER_MS`) so each heater step gets its own delayed CHAIN slam (`t0` in the future; draw skips `age < 0`). `trimPopups` uses `popupFamily` / `popupWorth` / `handPopupWorth`: duplicate labels in a family (PAIR, COMBO, CHAIN, …) drop after the best copy; lower hands and smaller COMBO/CHAIN × yield before rarer ones. Labels bake via `bakePopupSprite` at spawn (`subtext` = smaller chip total under hand / King Me titles); the draw loop `drawImage`s sprites older→newer (`t0`) so fresh slams sit on top of lingering pops (ephemeral peg hits stay under; same-`t0` ties break by `popupWorth`).
 
 ### Saves
 
@@ -241,16 +247,16 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 
 ### Changelog merge conflicts (fast path)
 
-Most rebase/merge conflicts against `master` are only the top of `CHANGELOG` plus `poker/version.json`. Treat them as an id-assignment problem, not a content merge:
+Most merge conflicts against `master` are only the top of `CHANGELOG` plus `poker/version.json`. Treat them as an id-assignment problem, not a content merge:
 
 1. **Prefer master’s list.** Take `origin/master`’s `CHANGELOG` array as the base (keep every existing entry and its `id` untouched).
 2. **Keep your new entry’s copy.** From the conflict, salvage only *your* new object(s) — title/items/date — not the `id` you assigned while the branch was open.
 3. **Renumber yours to `max + 1`.** Read the highest `id` now on master (or `poker/version.json` `"v"` on master — same number). Set your entry’s `id` to that + 1. If you added multiple entries, assign consecutive ids above master’s max. Never renumber or rewrite master’s entries; never reuse an id that already shipped.
 4. **Prepend, newest-first.** Place your renumbered object(s) at the top of the array, then the untouched master list.
 5. **Sync `poker/version.json`.** Set `"v"` to the new max id (same as your newest entry). `CHANGELOG_LATEST_ID` / `APP_RELEASE` derive from the array — no separate constant to edit.
-6. **Finish the rebase/merge** and continue. If non-changelog hunks also conflict, resolve those normally; do not let a version.json “ours/theirs” pick overwrite the max-id rule above.
+6. **Finish the merge** and continue. If non-changelog hunks also conflict, resolve those normally; do not let a version.json “ours/theirs” pick overwrite the max-id rule above.
 
-**Prevention (cheap):** rebase onto latest `master` *before* writing the changelog entry and bumping `version.json`, or add the changelog last (right before opening/updating the PR). Parallel agent PRs almost always collide on the same next id.
+**Prevention (cheap):** merge latest `master` into the branch *before* writing the changelog entry and bumping `version.json`, or add the changelog last (right before opening/updating the PR). Parallel agent PRs almost always collide on the same next id. Do **not** rebase onto `master`.
 
 **Sanity check after resolve:**
 
@@ -291,7 +297,8 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Storm the Beaches landing | `stormBeachLandingPayout` in `enterGridColumn` when peg → grid |
 | Short Fuse toggle | `shortFuseActive` / `resolveSpeed` / `flashPulseCount`; `toggleable` on `shortFuse` def + `AUTO_TOGGLE_IDS` |
 | Control Booth toggle dock | `controlBooth` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS`; `TOGGLE_DOCK_DEFS` / `controlBoothActive` / `updateToggleDockUI`; HTML `#toggleDock` beside `.board-frame` in `.board-row` |
-| Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI`; shop Hide/Show and bar tap minimize picker only |
+| Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI` / `repaintSuitBombGlyphs`; shop Shown/Hidden and bar tap minimize picker only; Suit Alliance folds ally suits onto one `.pair-suit` button |
+| Suit Alliance (flush/purge allies) | `suitFamily` / `SUIT_ALIAS_STEPS` on `suitCut`; flush via `sliceSharesFlushSuit`; purge via `findSuitCells` / `castSuitBomb` family keys |
 | New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
@@ -306,7 +313,9 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 - **Base branch:** `master` (also the Pages deploy branch).
 - **Feature branches:** `cursor/<short-description>-<suffix>` (cloud agents use suffix `65f3`).
 - **Before you commit:** see `.cursor/rules/agent-workflow.mdc` — especially the merged-branch check.
-- **Changelog conflicts on rebase:** see **Changelog merge conflicts (fast path)** above — almost always “keep master list, renumber your entry to max+1, sync `version.json`”.
+- **Sync with master:** always `git fetch origin master && git merge origin/master` — do **not** rebase onto `master`.
+- **When the user asks to merge the current branch:** only merge if the PR is **ready for review**, and always squash-merge into `master` (see **Merge when asked** in `.cursor/rules/agent-workflow.mdc`).
+- **Changelog conflicts on merge:** see **Changelog merge conflicts (fast path)** above — almost always “keep master list, renumber your entry to max+1, sync `version.json`”.
 - Open PRs against `master`. Merged PRs deploy automatically via Pages.
 
 ### Check if a branch is already merged

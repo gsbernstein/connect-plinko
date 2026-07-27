@@ -192,17 +192,27 @@
     flex:0 0 auto;
   }
   .score{
+    position:relative;
     display:flex;
-    align-items:center;
-    gap:8px;
+    flex-direction:column;
+    align-items:stretch;
+    gap:0;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
-    padding:8px 14px;
+    /* Extra bottom padding so the rate clears the absolute progress bar. */
+    padding:8px 14px 4px;
     font-size:13px;
     flex:none;
     white-space:nowrap;
     color:var(--felt-bright);
+    overflow:hidden;
+  }
+  .score-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
   }
   .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor;}
   .score.chip-pulse{box-shadow:0 0 0 1px var(--felt-bright), 0 0 22px -2px var(--felt-bright);}
@@ -582,7 +592,8 @@
     font-weight:700;
     line-height:1.3;
   }
-  .changelog-new-tag{
+  .changelog-new-tag,
+  .upgrade-new-tag{
     flex:0 0 auto;
     padding:2px 6px;
     border-radius:999px;
@@ -678,8 +689,17 @@
   .app.mode-table .rails{
     flex:0 0 auto;
   }
-  .app.mode-table .rail-body{
+  .app.mode-table .rail-body-wrap{
     display:none;
+  }
+  .rail-body-wrap{
+    position:relative;
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    min-height:0;
+    flex:1 1 auto;
   }
   .rail-body{
     width:100%;
@@ -700,6 +720,60 @@
   .rail-body::-webkit-scrollbar-thumb{
     background:#3a3558;
     border-radius:999px;
+  }
+  .shop-scroll-cue{
+    position:absolute;
+    left:50%;
+    z-index:6;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    min-width:44px;
+    min-height:36px;
+    padding:8px 14px;
+    border:1px solid rgba(230,195,92,0.55);
+    border-radius:999px;
+    background:rgba(26,22,40,0.94);
+    color:#F0D78C;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    box-shadow:0 6px 18px rgba(0,0,0,0.35);
+    transform:translateX(-50%);
+    cursor:pointer;
+    animation:shopScrollCuePulse 1.4s ease-in-out infinite;
+  }
+  .shop-scroll-cue.is-down{ bottom:10px; }
+  .shop-scroll-cue.is-up{ top:10px; }
+  .shop-scroll-cue:hover{
+    border-color:rgba(240,215,140,0.85);
+    color:#fff3c4;
+  }
+  .shop-scroll-cue[hidden]{display:none !important;}
+  .shop-scroll-cue-arrow{
+    display:inline-block;
+    font-size:15px;
+    line-height:1;
+  }
+  .shop-scroll-cue.is-down .shop-scroll-cue-arrow{
+    animation:shopScrollCueBounceDown 1.1s ease-in-out infinite;
+  }
+  .shop-scroll-cue.is-up .shop-scroll-cue-arrow{
+    animation:shopScrollCueBounceUp 1.1s ease-in-out infinite;
+  }
+  @keyframes shopScrollCuePulse{
+    0%,100%{ box-shadow:0 6px 18px rgba(0,0,0,0.35); }
+    50%{ box-shadow:0 6px 20px rgba(230,195,92,0.28); }
+  }
+  @keyframes shopScrollCueBounceDown{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(3px); }
+  }
+  @keyframes shopScrollCueBounceUp{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-3px); }
   }
   .rail-panel{
     width:100%;
@@ -953,7 +1027,7 @@
       border-left:1px solid #2a2545;
       background:rgba(23,20,38,0.85);
     }
-    .app.mode-table .rail-body{
+    .app.mode-table .rail-body-wrap{
       display:flex;
     }
     .rail-tab.desktop-hide{display:none !important;}
@@ -1194,6 +1268,21 @@
     opacity:0.75;
     border-color:#3a3558;
   }
+  .upgrade.is-new{
+    border-color:rgba(232,93,106,0.35);
+    background:rgba(232,93,106,0.08);
+    box-shadow:0 0 0 1px rgba(232,93,106,0.12);
+  }
+  .upgrade.is-new.affordable{
+    border-color:rgba(232,93,106,0.45);
+    box-shadow:0 0 0 1px rgba(232,93,106,0.18);
+  }
+  @media (hover:hover) and (pointer:fine){
+    .upgrade.is-new:hover:not(.is-disabled):not(.buy-blocked){
+      border-color:rgba(232,93,106,0.5);
+      background:rgba(232,93,106,0.12);
+    }
+  }
   .upgrade.buy-blocked{
     cursor:default;
   }
@@ -1210,7 +1299,30 @@
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    min-width:0;
   }
+  .upgrade-name-text{
+    min-width:0;
+  }
+  .upgrade-cost-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .upgrade-rec{
+    flex-shrink:0;
+    color:#E6C35C;
+    font-size:13px;
+    line-height:1;
+    text-shadow:0 0 8px rgba(230,195,92,0.35);
+    /* Stay in flow when idle so chip-tick ★ moves don't resize cards mid-scroll. */
+    visibility:hidden;
+  }
+  .upgrade-rec.is-on{ visibility:visible; }
   .upgrade-top-right{
     display:flex;
     align-items:center;
@@ -1457,6 +1569,11 @@
     height:22px;
     margin:0 auto;
     pointer-events:none;
+  }
+  /* Suit Alliance: one purge button paints both glyphs side by side. */
+  .suit-btn.pair-suit .suit-glyph{
+    width:30px;
+    height:18px;
   }
   .suit-btn:hover:not(:disabled){
     transform:translateY(-1px);
@@ -1747,6 +1864,13 @@
       padding:5px 2px;
       white-space:nowrap;
     }
+    .score{padding:5px 2px 3px; gap:0; align-items:stretch; overflow:hidden;}
+    .score-head{
+      flex-direction:column;
+      align-items:center;
+      gap:1px;
+      width:100%;
+    }
     .hud-label{
       display:block;
       font-size:9px;
@@ -1996,13 +2120,6 @@
     font-size:12px;
     color:var(--ink-dim);
     line-height:1.4;
-  }
-  .upgrade.just-unlocked{
-    animation: unlockPulse .7s ease;
-  }
-  @keyframes unlockPulse{
-    0%{ box-shadow:0 0 0 0 rgba(230,195,92,0.55); }
-    100%{ box-shadow:0 0 0 0 transparent; }
   }
   .upgrade.auto-bought{
     animation:upgradeAutoBuy .68s ease;
@@ -2375,11 +2492,16 @@
   <section class="stage is-active" id="panelTable" data-panel="table" aria-label="Table">
     <div class="hud">
       <div class="score hud-tile active" id="scoreBox">
-        <span class="hud-label">Chips</span>
-        <span class="score-stack">
-          <b class="hud-val" id="scoreVal">0</b>
-          <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
-        </span>
+        <div class="score-head">
+          <span class="hud-label">Chips</span>
+          <span class="score-stack">
+            <b class="hud-val" id="scoreVal">0</b>
+            <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
+          </span>
+        </div>
+        <div class="upgrade-progress" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true">
+          <span class="upgrade-progress-bought" id="chipRateFill"></span>
+        </div>
       </div>
       <div class="level-pill hud-tile" id="levelBox" role="button" tabindex="0"
            title="Run level — click for unlocks" aria-label="Run level — show unlocks">
@@ -2442,6 +2564,7 @@
   </section>
 
   <aside class="rails" aria-label="Shop">
+    <div class="rail-body-wrap">
     <div class="rail-body" id="railBody">
       <section class="rail-panel welcome-panel" id="panelWelcome" data-panel="welcome" aria-label="Welcome">
         <div class="welcome">
@@ -2519,6 +2642,11 @@
           <button type="button" class="reset" id="resetScores">Reset all progress</button>
         </div>
       </section>
+    </div>
+    <button type="button" class="shop-scroll-cue is-down" id="shopScrollCue" hidden aria-label="New upgrade below">
+      <span class="shop-scroll-cue-arrow" aria-hidden="true">↓</span>
+      <span>New</span>
+    </button>
     </div>
 
     <nav class="rail-tabs" aria-label="Sections">
@@ -2713,12 +2841,14 @@
   function sliceSharesFlushSuit(cards){
     const fixed = cards.filter(c => !isWild(c));
     if(!fixed.length) return true;
-    const s = fixed[0].suit;
-    return fixed.every(c => c.suit === s);
+    const s = suitFamily(fixed[0].suit);
+    return fixed.every(c => suitFamily(c.suit) === s);
   }
   function flushHintColor(cards){
     const fixed = cards.find(c => !isWild(c));
-    return fixed ? SUIT_COLOR[fixed.suit] : WILD_GLOW;
+    if(!fixed) return WILD_GLOW;
+    // Canonical family color so mixed ♥♦ / ♠♣ flushes teach the Suit Alliance merge.
+    return SUIT_COLOR[suitFamily(fixed.suit)] || SUIT_COLOR[fixed.suit] || WILD_GLOW;
   }
   const CARD_TIER_BONUS = [0, 0.2, 0.5, 1.0];
   // Premium: metallic rim only (face stays suit felt). Rim stops at faceR in bakeChipTexture.
@@ -2973,13 +3103,44 @@
     return arr;
   }
 
-  // Suit Exile removes these in order, always leaving at least two suits.
-  const SUIT_CUT_ORDER = ['♣','♦'];
+  // Suit Alliance allies printed suits for flushes + Suit Purge (deck still deals all four).
+  // Lv1: ♦ → ♥; Lv2: also ♣ → ♠. Cards keep their own felt/glyph.
+  const SUIT_ALIAS_STEPS = [
+    { from: '♦', to: '♥' },
+    { from: '♣', to: '♠' }
+  ];
+
+  function suitFamily(suit){
+    if(!suit || suit === WILD_SUIT) return suit;
+    const cut = upgradeLevel('suitCut');
+    let s = suit;
+    for(let i = 0; i < cut && i < SUIT_ALIAS_STEPS.length; i++){
+      if(s === SUIT_ALIAS_STEPS[i].from) s = SUIT_ALIAS_STEPS[i].to;
+    }
+    return s;
+  }
+
+  function suitsInFamily(family){
+    const f = suitFamily(family);
+    return SUITS.filter(s => suitFamily(s) === f);
+  }
+
+  // One Suit Purge button per family (canonical suit), SUITS order.
+  function purgeFamilies(){
+    const seen = new Set();
+    const out = [];
+    for(const s of SUITS){
+      const f = suitFamily(s);
+      if(seen.has(f)) continue;
+      seen.add(f);
+      out.push(f);
+    }
+    return out;
+  }
 
   function makeDeck(){
     const d = [];
-    const suits = activeSuits();
-    for(const s of suits){
+    for(const s of SUITS){
       for(const r of RANKS){
         if(!rankAllowed(r)) continue;
         d.push({suit:s, rank:r});
@@ -3181,15 +3342,160 @@
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
-  // Merge/rebase conflict here? Keep master's entries+ids, renumber YOUR new
+  // Merge conflict here? Keep master's entries+ids, renumber YOUR new
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
+  // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
-      id: 77,
+      id: 94,
       date: 'Jul 27, 2026',
       title: 'Deal Me In',
       items: [
         'New VIP perk: Deal Me In — cards that settle while a hand is flashing can join that clear (upgrade it or add to the combo). Toggleable.',
+      ]
+    },
+    {
+      id: 93,
+      date: 'Jul 27, 2026',
+      title: 'Star sits by the price',
+      items: [
+        'The recommended-buy ★ now appears after the upgrade or perk cost instead of before the name.',
+      ]
+    },
+    {
+      id: 92,
+      date: 'Jul 27, 2026',
+      title: 'Shop list order stays live',
+      items: [
+        'Removed per-tab scroll memory and the freeze-while-browsing list order that was hitching flings.',
+        'The New-upgrade ↓/↑ cue and red New highlight on unviewed unlocks stay.',
+      ]
+    },
+    {
+      id: 91,
+      date: 'Jul 27, 2026',
+      title: 'Quest & achievement chips level you up',
+      items: [
+        'Chip rewards from quests and achievements now count toward run level, same as chips earned at the table.',
+      ]
+    },
+    {
+      id: 90,
+      date: 'Jul 27, 2026',
+      title: 'New upgrade highlight',
+      items: [
+        'Newly unlocked shop upgrades get the same red New highlight as What’s New entries until you scroll them into view.',
+      ]
+    },
+    {
+      id: 89,
+      date: 'Jul 27, 2026',
+      title: 'Snappier score pops',
+      items: [
+        'Hand, combo, chain, and King Me score labels clear sooner so the board doesn’t stay buried in text.',
+        'Big pots still linger a little longer than small ones — just not for several seconds.',
+      ]
+    },
+    {
+      id: 88,
+      date: 'Jul 27, 2026',
+      title: 'Rail scroll stays smooth',
+      items: [
+        'Browsing a shop tab no longer reshuffles its list under you — order refreshes when you leave and come back.',
+        'Recommended ★ no longer resizes upgrade cards as chips tick in.',
+      ]
+    },
+    {
+      id: 87,
+      date: 'Jul 27, 2026',
+      title: 'Score pops stack on top',
+      items: [
+        'New score labels now slam in above older ones instead of hiding under lingering pops.',
+      ]
+    },
+    {
+      id: 86,
+      date: 'Jul 27, 2026',
+      title: 'Scroll keeps its momentum',
+      items: [
+        'Shop lists no longer reshuffle under your finger mid-fling — upgrades, quests, and achievements wait until scrolling settles.',
+      ]
+    },
+    {
+      id: 85,
+      date: 'Jul 27, 2026',
+      title: 'Smoother tab scrolling',
+      items: [
+        'Rail tabs no longer hitch or snap mid-scroll — each panel scrolls on its own instead of sharing one scroller.',
+      ]
+    },
+    {
+      id: 84,
+      date: 'Jul 27, 2026',
+      title: 'Suits toggle labels',
+      items: [
+        'Suit Purge’s Suits toggle now reads Shown or Hidden to match the picker state.',
+      ]
+    },
+    {
+      id: 83,
+      date: 'Jul 27, 2026',
+      title: 'Shop tab load fix',
+      items: [
+        'Fixed a script error from overlapping shop-tab updates that stopped Poker from loading.',
+      ]
+    },
+    {
+      id: 82,
+      date: 'Jul 27, 2026',
+      title: 'Recommended buy star',
+      items: [
+        'A gold star marks the next recommended shop upgrade or VIP perk you can still buy.',
+        'Shop path: early Auto Dealer → Wild Card → Pin Tip → High Cut → Suit Alliance.',
+        'VIP path: Quest Desk, then Quest Ink.',
+      ]
+    },
+    {
+      id: 81,
+      date: 'Jul 27, 2026',
+      title: 'New upgrade scroll cue',
+      items: [
+        'When a newly unlocked upgrade is offscreen in the shop, a ↓/↑ New button jumps you to it.',
+      ]
+    },
+    {
+      id: 80,
+      date: 'Jul 27, 2026',
+      title: 'Tabs remember scroll',
+      items: [
+        'Each rail tab (Upgrades, Quests, Achieves, VIP, Settings) keeps its own scroll position when you switch away and back.',
+      ]
+    },
+    {
+      id: 79,
+      date: 'Jul 27, 2026',
+      title: 'Chips bar hugs edge',
+      items: [
+        'The chips/s peak bar now sits flush on the Chips tile bottom edge with no gap.',
+      ]
+    },
+    {
+      id: 78,
+      date: 'Jul 27, 2026',
+      title: 'Chips/s peak bar',
+      items: [
+        'The Chips tile now has a bar showing your live chips/s as a fraction of your peak.',
+      ]
+    },
+    {
+      id: 77,
+      date: 'Jul 27, 2026',
+      title: 'Suit Alliance keeps the colors',
+      items: [
+        'Suit Alliance keeps all four suits on the table — diamonds ally with hearts at Lv1, clubs with spades at Lv2.',
+        'Flushes and Suit Purge treat each allied pair as one family; purge buttons show both glyphs.',
+        'Flush connector lines use the family color (heart red / spade purple) so mixed allies still read clearly.',
+        'Suit Purge pops immediately — no flash wait before cards explode.',
       ]
     },
     {
@@ -3971,8 +4277,8 @@
     },
     {
       id: 'suitCut',
-      name: 'Suit Exile',
-      desc: 'Remove up to two suits from the deck.',
+      name: 'Suit Alliance',
+      desc: 'Ally suits for flushes and Suit Purge without removing them from the deck. Lv1: diamonds count as hearts. Lv2: clubs count as spades.',
       baseCost: 6000,
       costScale: 3.5,
       maxLevel: 2,
@@ -3990,6 +4296,19 @@
       costLateBase: 3528000000000,
       costLateScale: 2.5
     }
+  ];
+
+  // Guided "next buy" star — first incomplete unlocked step wins (until = effective level target).
+  const SHOP_RECOMMEND_PRIORITY = [
+    { id: 'autoDealer', until: 6 },
+    { id: 'wildCard', until: 1 },
+    { id: 'pinPayout', until: 1 },
+    { id: 'highCut', until: 1 },
+    { id: 'suitCut', until: 2 }
+  ];
+  const VIP_RECOMMEND_PRIORITY = [
+    { id: 'questDesk', until: 1 },
+    { id: 'questInk', until: 4 }
   ];
 
   // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
@@ -4022,7 +4341,7 @@
   };
 
   // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
-  // reward.chips → spendable chips (not XP); reward.comps → instant comps (VIP balance now);
+  // reward.chips → spendable chips + run lifetime XP (levels); reward.comps → instant comps (VIP balance now);
   // reward.runComps → Cash Out comps (banked until Cash Out); reward.prestige / reward.upgrade as level bonuses.
   const HAND_STAT = {
     'ROYAL FLUSH': 'royalFlushes',
@@ -5146,6 +5465,28 @@
     return highestRunLevelReached() >= (def.unlockAt || 1);
   }
 
+  // Highest-priority incomplete step that is currently available (unlocked / buyable).
+  function recommendedFromPriority(steps, levelFn, availableFn){
+    for(const step of steps){
+      if(availableFn && !availableFn(step.id)) continue;
+      const until = step.until != null ? step.until : 1;
+      if(levelFn(step.id) < until) return step.id;
+    }
+    return null;
+  }
+
+  function recommendedShopUpgradeId(){
+    return recommendedFromPriority(
+      SHOP_RECOMMEND_PRIORITY,
+      upgradeLevel,
+      upgradeUnlocked
+    );
+  }
+
+  function recommendedVipPerkId(){
+    return recommendedFromPriority(VIP_RECOMMEND_PRIORITY, prestigeLevel, null);
+  }
+
   function pendingComps(){
     if(runLevel < MIN_CASH_OUT_LEVEL) return 0;
     if(runCompCredit <= 0) return 0;
@@ -5454,6 +5795,9 @@
     if(r.chips){
       const chips = blindBonusChips(r.chips, 'contracts');
       score += chips;
+      lifetime += chips;
+      noteChipEarn(chips);
+      syncRunLevel();
       if(!opts.skipFly){
         if(opts.originEl) spawnRewardParticles(opts.originEl, { chips });
         else spawnChipFly(W/2, PEG_ZONE * 0.38, chips);
@@ -6283,11 +6627,12 @@
     return Math.max(1, Math.floor(lvl * 8 * blindMultiplier('hands') * shopMetaMultiplier()));
   }
 
-  function suitPurgePairPenalty(suit){
+  function suitPurgePairPenalty(family){
     if(prestigeLevel('cardCounting') <= 0) return 0;
+    const members = new Set(suitsInFamily(family));
     let penalty = 0;
     for(const g of cardCountingGroups()){
-      if(g.card && g.card.suit === suit) penalty += g.count - 1;
+      if(g.card && members.has(g.card.suit)) penalty += g.count - 1;
     }
     return penalty;
   }
@@ -6350,16 +6695,15 @@
     return r >= minKeptRank();
   }
 
+  // All four suits always deal; Suit Alliance only allies them (see suitFamily).
   function activeSuits(){
-    const cut = upgradeLevel('suitCut');
-    const removed = new Set(SUIT_CUT_ORDER.slice(0, cut));
-    return SUITS.filter(s => !removed.has(s));
+    return SUITS.slice();
   }
 
   function cardAllowed(card){
     if(!card) return false;
     if(isWild(card)) return rankAllowed(card.rank);
-    return rankAllowed(card.rank) && activeSuits().includes(card.suit);
+    return rankAllowed(card.rank) && SUITS.includes(card.suit);
   }
 
   function reshapeShoe(){
@@ -6523,6 +6867,7 @@
   const chipFxLayer = document.getElementById('chipFxLayer');
   const scoreBoxEl = document.getElementById('scoreBox');
   const chipRateValEl = document.getElementById('chipRateVal');
+  const chipRateFillEl = document.getElementById('chipRateFill');
   const MAX_FLYING_CHIPS = 80;
   let flyingChips = [];
   let chipFlyRaf = 0;
@@ -6908,6 +7253,7 @@
   let chipEarnSamples = [];
   let lastChipRatePaint = 0;
   let lastChipRateText = '';
+  let lastChipRatePct = -1;
 
   function noteChipEarn(amount, now){
     amount = Math.floor(amount);
@@ -6952,15 +7298,32 @@
     chipEarnSamples = [];
     lastChipRatePaint = 0;
     lastChipRateText = '';
+    lastChipRatePct = -1;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
+    if(chipRateFillEl){
+      chipRateFillEl.style.left = '0%';
+      chipRateFillEl.style.width = '0%';
+    }
   }
 
   function updateChipRateUI(now, force){
-    if(!chipRateValEl) return;
+    if(!chipRateValEl && !chipRateFillEl) return;
     now = now || performance.now();
     if(!force && now - lastChipRatePaint < CHIP_RATE_UI_MS) return;
     lastChipRatePaint = now;
-    const text = formatChipRate(currentChipRate(now));
+    const rate = currentChipRate(now);
+    const max = stats.maxChipRate || 0;
+    const pct = max > 0 ? Math.min(100, (rate / max) * 100) : 0;
+    if(chipRateFillEl){
+      const rounded = Math.round(pct);
+      if(rounded !== lastChipRatePct){
+        lastChipRatePct = rounded;
+        chipRateFillEl.style.left = '0%';
+        chipRateFillEl.style.width = pct + '%';
+      }
+    }
+    if(!chipRateValEl) return;
+    const text = formatChipRate(rate);
     if(text === lastChipRateText) return;
     lastChipRateText = text;
     chipRateValEl.textContent = text;
@@ -7124,11 +7487,13 @@
     const now = performance.now();
     if(popup.t0 == null) popup.t0 = now;
     if(!(popup.duration > 0)) popup.duration = 1100;
-    // Spread end times so a burst of labels (hands, chains, merges) doesn't
-    // all vanish in one frame — higher-value bases still linger longer.
+    // Spread end times so a burst of labels doesn't vanish in one frame —
+    // but cap the stagger so late pops don't hang around forever.
     let expiresAt = popup.t0 + popup.duration;
-    const PAD = 160;
-    for(let guard = 0; guard < 32; guard++){
+    const PAD = 90;
+    const MAX_STAGGER = 360;
+    const maxExpire = expiresAt + MAX_STAGGER;
+    for(let guard = 0; guard < 8; guard++){
       let crowded = false;
       for(const p of popups){
         const otherEnd = p.expiresAt != null ? p.expiresAt : (p.t0 + (p.duration || 0));
@@ -7138,7 +7503,8 @@
         }
       }
       if(!crowded) break;
-      expiresAt += PAD;
+      expiresAt = Math.min(maxExpire, expiresAt + PAD);
+      if(expiresAt >= maxExpire) break;
     }
     popup.expiresAt = expiresAt;
     popup.duration = Math.max(popup.duration, expiresAt - popup.t0);
@@ -7311,9 +7677,8 @@
       }
       case 'suitCut': {
         if(!lvl) return 'All four suits';
-        const left = activeSuits().join('');
-        const gone = SUIT_CUT_ORDER.slice(0, lvl).join('');
-        return 'Out ' + gone + ' · In ' + left;
+        if(lvl === 1) return '♦ = ♥ for flushes & purge';
+        return '♦ = ♥ · ♣ = ♠ for flushes & purge';
       }
       case 'suitBomb':
         if(!lvl) return 'Locked';
@@ -7770,11 +8135,6 @@
     bumpStat('cashOuts', 1);
     applyRunStartBonuses();
     resetRunQuests();
-    // Already-revealed upgrades stay visible; suppress re-flash on the new table.
-    seenUnlockFlash.clear();
-    for(const def of UPGRADE_DEFS){
-      if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
-    }
     // Drop any batched HUD/shop timers so they can't re-apply pre-Cash-Out UI.
     clearTimeout(shopUiTimer);
     clearTimeout(scoreUiTimer);
@@ -8367,7 +8727,7 @@
       glow: 26, bright: 0.32, big: true
     },
     huge: {
-      fontSize: 40, duration: 2600, float: 72,
+      fontSize: 40, duration: 2300, float: 72,
       bangs: 3, tilt: 0.28, slam: 2.9, slamMs: 240,
       glow: 36, bright: 0.5, big: true
     }
@@ -8413,21 +8773,21 @@
     return '!'.repeat((fx && fx.bangs) || 0);
   }
 
-  // Soft linger boost from chip value so bigger pots stay readable longer.
+  // Soft linger boost from chip value so bigger pots stay readable a bit longer.
   function popupDurationForValue(baseMs, pts){
     const base = Math.max(0, baseMs | 0);
     const p = Math.max(0, Number(pts) || 0);
     if(p <= 0) return base;
-    // ~200 at 10 chips · ~500 at 100 · ~900 at 1k · ~1300 at 10k (cap 1800).
-    const bonus = Math.min(1800, Math.floor(220 * Math.log10(p + 10)));
+    // ~100 at 10 chips · ~160 at 100 · ~240 at 1k · ~320 at 10k (cap 400).
+    const bonus = Math.min(400, Math.floor(80 * Math.log10(p + 10)));
     return base + bonus;
   }
 
   function handPopupDuration(name, fx, pts){
     let d = (fx && fx.duration) || 1100;
     const kindN = parseOfAKindCount(name);
-    // Six+ of a kind outlast plain huge-tier fives.
-    if(kindN >= 6) d += (kindN - 5) * 450;
+    // Six+ of a kind outlast plain huge-tier fives — modest bump only.
+    if(kindN >= 6) d += (kindN - 5) * 200;
     return popupDurationForValue(d, pts);
   }
 
@@ -9227,7 +9587,7 @@
       subtext: payout > 0 ? ('+' + formatNum(payout)) : '',
       color: '#F0D78C',
       t0: performance.now(),
-      duration: popupDurationForValue(1100 + Math.min(600, nextStack * 100), payout),
+      duration: popupDurationForValue(1000 + Math.min(400, nextStack * 80), payout),
       big: true,
       family: 'king',
       kingStack: nextStack,
@@ -9644,7 +10004,7 @@
       slam: Math.min(3.4, 1.6 + extra * 0.35),
       slamMs: Math.min(280, 150 + extra * 24),
       glow: Math.min(44, 14 + extra * 6),
-      duration: Math.min(3200, 1400 + extra * 280),
+      duration: Math.min(2400, 1200 + extra * 200),
       tilt: -0.08 - Math.min(0.18, extra * 0.035),
       big: true
     };
@@ -9662,7 +10022,7 @@
       text: 'CHAIN ×' + mult + '!',
       color: '#ffffff',
       t0,
-      duration: Math.min(2400, 1000 + Math.max(0, mult - 1) * 120),
+      duration: Math.min(1600, 1000 + Math.max(0, mult - 1) * 80),
       big: true,
       family: 'chain',
       chain: true,
@@ -10278,27 +10638,30 @@
     startResolveLoop();
   }
 
-  function findSuitCells(suit){
+  function findSuitCells(family){
+    const f = suitFamily(family);
     const cells = [];
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const card = grid[c][r];
-        if(card && card.suit === suit) cells.push([c, r]);
+        if(card && !isWild(card) && suitFamily(card.suit) === f) cells.push([c, r]);
       }
     }
     return cells;
   }
 
-  function findSuitBalls(suit){
-    return balls.filter(b => b.card && b.card.suit === suit);
+  function findSuitBalls(family){
+    const f = suitFamily(family);
+    return balls.filter(b => b.card && !isWild(b.card) && suitFamily(b.card.suit) === f);
   }
 
-  function countSuitInPlay(suit){
-    return findSuitCells(suit).length + findSuitBalls(suit).length;
+  function countSuitInPlay(family){
+    return findSuitCells(family).length + findSuitBalls(family).length;
   }
 
-  function purgeSuitBalls(suit){
-    const victims = findSuitBalls(suit);
+  function purgeSuitBalls(family){
+    const f = suitFamily(family);
+    const victims = findSuitBalls(f);
     if(!victims.length) return;
     const colsTouched = new Set();
     for(const b of victims){
@@ -10312,22 +10675,24 @@
         }
       }
     }
-    balls = balls.filter(b => !(b.card && b.card.suit === suit));
+    balls = balls.filter(b => !(b.card && !isWild(b.card) && suitFamily(b.card.suit) === f));
     for(const c of colsTouched) rebuildColumnFromStack(c);
   }
 
-  function beginSuitBomb(suit, cells){
+  function beginSuitBomb(family, cells){
+    const f = suitFamily(family);
+    const label = suitsInFamily(f).join('');
     resolving = true;
     resolveEpoch++;
-    const inFlight = findSuitBalls(suit).length;
+    const inFlight = findSuitBalls(f).length;
     const cardCount = cells.length + inFlight;
     currentGroups = [{
-      name: 'SUIT PURGE ' + suit,
+      name: 'SUIT PURGE ' + label,
       points: Math.max(1, cardCount * purgeCardPayout()),
       cells,
       suitBomb: true,
-      purgeSuit: suit,
-      color: SUIT_COLOR[suit] || '#ffffff'
+      purgeSuit: f,
+      color: SUIT_COLOR[f] || '#ffffff'
     }];
     flashCells = new Set(cells.map(([c,r]) => c+','+r));
     resolvePhase = 'flash';
@@ -10341,60 +10706,50 @@
     const now = performance.now();
     if(!suitBombUnlocked() || !suitBombReady(now) || gameOver) return false;
     if(!SUITS.includes(suit)) return false;
-    const cells = findSuitCells(suit);
-    if(countSuitInPlay(suit) < 1) return false;
+    const family = suitFamily(suit);
+    const cells = findSuitCells(family);
+    if(countSuitInPlay(family) < 1) return false;
     // Spend the charge immediately so a mid-clear click still counts.
     suitBombReadyAt = now + suitBombCooldownMs();
     noteSuitPurge();
     scheduleSave();
     if(resolving){
-      pendingSuitBomb = suit;
+      pendingSuitBomb = family;
       updateSuitBombUI(performance.now(), true);
       return true;
     }
-    beginSuitBomb(suit, cells);
+    beginSuitBomb(family, cells);
     return true;
   }
 
   function flushPendingSuitBomb(){
     if(!pendingSuitBomb || resolving || gameOver) return;
-    const suit = pendingSuitBomb;
+    const family = suitFamily(pendingSuitBomb);
     pendingSuitBomb = null;
-    const cells = findSuitCells(suit);
-    if(countSuitInPlay(suit) < 1){
+    const cells = findSuitCells(family);
+    if(countSuitInPlay(family) < 1){
       updateSuitBombUI(performance.now(), true);
       return;
     }
-    beginSuitBomb(suit, cells);
+    beginSuitBomb(family, cells);
   }
 
   function pickAutoSuitBombTarget(){
-    const inShoe = new Set(activeSuits());
     // Rank by pair-safe "effective" count (Card Counting), but keep raw n so a
     // Pin Split duplicate flood (effective 1, raw many) is never treated as a
     // singleton — that left Auto Purge ready forever without casting.
+    // Suit Alliance families (♥♦ / ♠♣) are scored as one target.
     let best = null, bestEffective = -1, bestRaw = 0;
-    let bestExiled = null, bestExiledBoard = 0, bestExiledEffective = -1;
-    for(const s of SUITS){
-      const board = findSuitCells(s).length;
-      const n = countSuitInPlay(s);
+    for(const family of purgeFamilies()){
+      const n = countSuitInPlay(family);
       if(!n) continue;
-      const effective = n - suitPurgePairPenalty(s);
-      if(!inShoe.has(s) && board > 0){
-        if(board > bestExiledBoard || (board === bestExiledBoard && effective > bestExiledEffective)){
-          bestExiledBoard = board;
-          bestExiledEffective = effective;
-          bestExiled = s;
-        }
-        continue;
-      }
+      const effective = n - suitPurgePairPenalty(family);
       if(effective > bestEffective || (effective === bestEffective && n > bestRaw)){
         bestEffective = effective;
         bestRaw = n;
-        best = s;
+        best = family;
       }
     }
-    if(bestExiled) return bestExiled;
     // Don't waste a charge on a lonely singleton (raw cards in play).
     if(!best || bestRaw < 2) return null;
     return best;
@@ -10556,8 +10911,9 @@
   function resolveTick(){
     const now = performance.now();
     const speed = resolveSpeed();
-    const flashMs = FLASH_MS / speed;
-    const explodeMs = EXPLODE_MS / speed;
+    const suitBombResolve = resolving && currentGroups.some(g => g.suitBomb);
+    const flashMs = suitBombResolve ? 0 : FLASH_MS / speed;
+    const explodeMs = suitBombResolve ? 0 : EXPLODE_MS / speed;
     if(resolving){
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
@@ -10646,8 +11002,12 @@
           }
           applyExplosionClear(currentGroups);
           flashCells = null;
-          resolvePhase = 'explode';
-          resolvePhaseStart = now;
+          if(suitBombResolve){
+            finishResolveOrChain();
+          } else {
+            resolvePhase = 'explode';
+            resolvePhaseStart = now;
+          }
         }
       } else if(resolvePhase==='explode'){
         if(elapsed >= explodeMs){
@@ -11276,10 +11636,11 @@
     if(popupCtx){
       popupCtx.clearRect(0, 0, popupCanvas.width, popupCanvas.height);
     }
-    // Paint low-worth first so rarer / fatter labels (and big COMBOs) sit on top.
+    // Paint older first so fresh slams sit on top of lingering labels.
+    // Peg-hit ephemerals stay under celebrations; same-t0 ties break by worth.
     const drawPopups = popups
-      .map((p, i) => ({p, i, w: popupWorth(p)}))
-      .sort((a, b) => a.w - b.w || a.i - b.i);
+      .map((p, i) => ({p, i, w: popupWorth(p), t0: p.t0 || 0, eph: p.ephemeral ? 0 : 1}))
+      .sort((a, b) => a.eph - b.eph || a.t0 - b.t0 || a.w - b.w || a.i - b.i);
     for(const {p} of drawPopups){
       const age = nowP - p.t0;
       // Future t0 = staggered chain pops waiting to slam in.
@@ -11427,6 +11788,8 @@
   const questsPanelEl = document.getElementById('panelQuests');
   const achievementsPanelEl = document.getElementById('panelAchievements');
   const vipPanelEl = document.getElementById('panelVip');
+  const railBodyEl = document.getElementById('railBody');
+  const shopScrollCueBtn = document.getElementById('shopScrollCue');
   const welcomeToTableBtn = document.getElementById('welcomeToTable');
   const desktopMq = window.matchMedia('(min-width:1000px)');
   const tabBadges = {
@@ -11531,7 +11894,6 @@
   // Stable slot cards — updated in place so claim/progress ticks don't flicker.
   const questSlotButtons = [];
   const questLockedButtons = [];
-  const seenUnlockFlash = new Set();
 
   function isDesktopLayout(){
     return desktopMq.matches;
@@ -11539,11 +11901,96 @@
 
   function hasUnviewedUpgradeUnlock(){
     for(const def of UPGRADE_DEFS){
-      if((def.unlockAt || 1) <= 1) continue;
-      if(!upgradeUnlocked(def.id)) continue;
-      if(!seenUnlocks.upgrades.includes(def.id)) return true;
+      if(upgradeIsUnviewed(def)) return true;
     }
     return false;
+  }
+
+  function upgradeIsUnviewed(def){
+    if((def.unlockAt || 1) <= 1) return false;
+    if(!upgradeUnlocked(def.id)) return false;
+    return !seenUnlocks.upgrades.includes(def.id);
+  }
+
+  function countAffordableUpgrades(){
+    let n = 0;
+    for(const def of UPGRADE_DEFS){
+      if(!upgradeUnlocked(def.id)) continue;
+      const lvl = upgradeLevel(def.id);
+      if(lvl >= def.maxLevel) continue;
+      if(score >= upgradeCost(def)) n++;
+    }
+    return n;
+  }
+
+  function unviewedUpgradeButtons(){
+    const list = [];
+    for(const def of UPGRADE_DEFS){
+      if(!upgradeIsUnviewed(def)) continue;
+      const btn = upgradeButtons[def.id];
+      if(btn && !btn.hidden) list.push(btn);
+    }
+    return list;
+  }
+
+  function upgradeInScrollerView(btn, mode){
+    if(!railBodyEl || !btn) return false;
+    const sRect = railBodyEl.getBoundingClientRect();
+    const bRect = btn.getBoundingClientRect();
+    const pad = 8;
+    if(mode === 'below') return bRect.top > sRect.bottom - pad;
+    if(mode === 'above') return bRect.bottom < sRect.top + pad;
+    // Visible if any meaningful slice overlaps the scroller viewport.
+    return bRect.bottom > sRect.top + pad && bRect.top < sRect.bottom - pad;
+  }
+
+  function firstUnviewedUpgradeOffscreen(){
+    if(activeRailPanel !== 'upgrades') return null;
+    let below = null;
+    let above = null;
+    for(const btn of unviewedUpgradeButtons()){
+      if(!below && upgradeInScrollerView(btn, 'below')) below = btn;
+      if(upgradeInScrollerView(btn, 'above')) above = above || btn;
+    }
+    // Prefer the more common "new row lower in the list" case.
+    if(below) return { btn: below, dir: 'down' };
+    if(above) return { btn: above, dir: 'up' };
+    return null;
+  }
+
+  function updateShopScrollCue(){
+    if(!shopScrollCueBtn) return;
+    const target = firstUnviewedUpgradeOffscreen();
+    if(!target){
+      if(!shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = true;
+      return;
+    }
+    const down = target.dir === 'down';
+    const label = down ? 'New upgrade below' : 'New upgrade above';
+    const arrowGlyph = down ? '↓' : '↑';
+    if(shopScrollCueBtn.hidden) shopScrollCueBtn.hidden = false;
+    if(shopScrollCueBtn.classList.contains('is-down') !== down){
+      shopScrollCueBtn.classList.toggle('is-down', down);
+      shopScrollCueBtn.classList.toggle('is-up', !down);
+    }
+    if(shopScrollCueBtn.getAttribute('aria-label') !== label){
+      shopScrollCueBtn.setAttribute('aria-label', label);
+    }
+    const arrow = shopScrollCueBtn.querySelector('.shop-scroll-cue-arrow');
+    if(arrow && arrow.textContent !== arrowGlyph) arrow.textContent = arrowGlyph;
+  }
+
+  function markVisibleUpgradeUnlocksSeen(){
+    if(!upgradesTabUnlocked() || activeRailPanel !== 'upgrades') return false;
+    let changed = false;
+    for(const btn of unviewedUpgradeButtons()){
+      if(!upgradeInScrollerView(btn)) continue;
+      const id = btn.dataset.id;
+      if(!id || seenUnlocks.upgrades.includes(id)) continue;
+      seenUnlocks.upgrades.push(id);
+      changed = true;
+    }
+    return changed;
   }
 
   function hasNewUnlockBadge(panel){
@@ -11568,14 +12015,8 @@
       seenUnlocks.tabs.vip = true;
       changed = true;
     }
-    if(panel === 'upgrades' && upgradesTabUnlocked()){
-      for(const def of UPGRADE_DEFS){
-        if((def.unlockAt || 1) <= 1) continue;
-        if(!upgradeUnlocked(def.id)) continue;
-        if(seenUnlocks.upgrades.includes(def.id)) continue;
-        seenUnlocks.upgrades.push(def.id);
-        changed = true;
-      }
+    if(panel === 'upgrades'){
+      if(markVisibleUpgradeUnlocksSeen()) changed = true;
     }
     if(changed) scheduleSave();
   }
@@ -11675,6 +12116,12 @@
       achievementOrderBucketSig = '';
       updateAchievementsUI();
     }
+    // Layout may not be ready until after paint when switching panels.
+    requestAnimationFrame(()=>{
+      markPanelUnlocksSeen('upgrades');
+      updateShopScrollCue();
+      if(activeRailPanel === 'upgrades') setTabBadge('upgrades', countAffordableUpgrades());
+    });
   }
 
   for(const tab of railTabs){
@@ -11686,6 +12133,38 @@
   desktopMq.addEventListener('change', ()=>{
     if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
     else setRailPanel(activeRailPanel);
+  });
+  if(railBodyEl){
+    railBodyEl.addEventListener('scroll', ()=>{
+      if(activeRailPanel !== 'upgrades') return;
+      markPanelUnlocksSeen('upgrades');
+      setTabBadge('upgrades', countAffordableUpgrades());
+      updateShopScrollCue();
+    }, { passive: true });
+  }
+  if(shopScrollCueBtn){
+    shopScrollCueBtn.addEventListener('click', ()=>{
+      const target = firstUnviewedUpgradeOffscreen();
+      if(!target){
+        updateShopScrollCue();
+        return;
+      }
+      target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Mark after the smooth scroll settles so the cue clears once visible.
+      const finish = ()=>{
+        markPanelUnlocksSeen('upgrades');
+        setTabBadge('upgrades', countAffordableUpgrades());
+        updateShopScrollCue();
+      };
+      requestAnimationFrame(()=>requestAnimationFrame(finish));
+      setTimeout(finish, 420);
+    });
+  }
+  window.addEventListener('resize', ()=>{
+    if(activeRailPanel !== 'upgrades') return;
+    markPanelUnlocksSeen('upgrades');
+    setTabBadge('upgrades', countAffordableUpgrades());
+    updateShopScrollCue();
   });
 
   const levelBoxEl = document.getElementById('levelBox');
@@ -11998,7 +12477,7 @@
       if(canToggle){
         if(def.id === 'suitBomb'){
           const visible = suitBombUiVisible();
-          toggle.textContent = visible ? 'Hide' : 'Show';
+          toggle.textContent = visible ? 'Shown' : 'Hidden';
           toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
           toggle.classList.toggle('is-off', !visible);
         } else {
@@ -12035,12 +12514,24 @@
       costEl.textContent = formatNum(opts.cost) + ' ' + (opts.unit || 'chips');
       costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
     }
+    const recommended = !!opts.recommended && !locked && !maxed;
+    btn.classList.toggle('is-recommended', recommended);
+    const recEl = btn.querySelector('.upgrade-rec');
+    if(recEl){
+      // Keep node in flow (visibility) — toggling [hidden] resized cards mid-scroll.
+      recEl.hidden = false;
+      recEl.classList.toggle('is-on', recommended);
+      recEl.setAttribute('aria-hidden', recommended ? 'false' : 'true');
+    }
+    if(recommended) btn.setAttribute('aria-description', 'Recommended next');
+    else btn.removeAttribute('aria-description');
   }
 
   function updateShopUI(){
     const active = [];
     const maxedList = [];
     let affordableCount = 0;
+    const recommendedId = recommendedShopUpgradeId();
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
@@ -12059,26 +12550,30 @@
         canToggle: !!(def.toggleable && lvl > 0),
         effect: upgradeEffectText(def),
         costLabel: 'Unlocks at Lv ' + (def.unlockAt || 1),
-        unit: 'chips'
+        unit: 'chips',
+        recommended: def.id === recommendedId
       });
       btn.hidden = !revealed;
       if(!revealed){
-        btn.classList.remove('affordable', 'maxed', 'just-unlocked');
+        btn.classList.remove('affordable', 'maxed', 'is-new', 'is-recommended');
+        const newTag = btn.querySelector('.upgrade-new-tag');
+        if(newTag) newTag.hidden = true;
+        btn.removeAttribute('aria-label');
         continue;
       }
-      if(!seenUnlockFlash.has(def.id) && (def.unlockAt || 1) > 1){
-        seenUnlockFlash.add(def.id);
-        btn.classList.add('just-unlocked');
-        setTimeout(()=>btn.classList.remove('just-unlocked'), 700);
-      } else {
-        seenUnlockFlash.add(def.id);
-      }
+      const isNew = upgradeIsUnviewed(def);
+      btn.classList.toggle('is-new', isNew);
+      const newTag = btn.querySelector('.upgrade-new-tag');
+      if(newTag) newTag.hidden = !isNew;
+      if(isNew) btn.setAttribute('aria-label', 'New: ' + def.name);
+      else btn.removeAttribute('aria-label');
       (maxed ? maxedList : active).push(btn);
     }
     // Keep buyable upgrades up top; sink completed ones.
     orderUpgradeButtons(upgradesEl, active.concat(maxedList));
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
+    updateShopScrollCue();
     updateRailTabAvailability();
     updateToggleDockUI();
   }
@@ -12119,6 +12614,7 @@
     if(prestigeUpgradesEl){
       const active = [];
       const maxedList = [];
+      const recommendedId = recommendedVipPerkId();
       for(const def of PRESTIGE_DEFS){
         const btn = prestigeButtons[def.id];
         if(!btn) continue;
@@ -12133,7 +12629,8 @@
           canToggle: !!(def.toggleable && lvl > 0),
           effect: prestigeEffectText(def),
           costLabel: needsSuitBomb ? 'Needs Suit Purge' : '',
-          unit: 'comps'
+          unit: 'comps',
+          recommended: def.id === recommendedId
         });
         (maxed ? maxedList : active).push(btn);
       }
@@ -12154,7 +12651,10 @@
     btn.tabIndex = 0;
     btn.innerHTML =
       '<div class="upgrade-top">' +
-        '<span class="upgrade-name"></span>' +
+        '<span class="upgrade-name">' +
+          '<span class="upgrade-name-text"></span>' +
+          '<span class="upgrade-new-tag" hidden>New</span>' +
+        '</span>' +
         '<span class="upgrade-top-right">' +
           (def.toggleable
             ? '<button type="button" class="upgrade-toggle" hidden>On</button>'
@@ -12164,12 +12664,15 @@
       '</div>' +
       '<p class="upgrade-desc"></p>' +
       '<div class="upgrade-effect"></div>' +
-      '<div class="upgrade-cost"></div>' +
+      '<div class="upgrade-cost-row">' +
+        '<div class="upgrade-cost"></div>' +
+        '<span class="upgrade-rec" aria-hidden="true" title="Recommended next">★</span>' +
+      '</div>' +
       '<div class="upgrade-progress" aria-hidden="true">' +
         '<span class="upgrade-progress-bonus"></span>' +
         '<span class="upgrade-progress-bought"></span>' +
       '</div>';
-    btn.querySelector('.upgrade-name').textContent = def.name;
+    btn.querySelector('.upgrade-name-text').textContent = def.name;
     btn.querySelector('.upgrade-desc').textContent = def.desc;
     const toggle = btn.querySelector('.upgrade-toggle');
     if(toggle){
@@ -12311,7 +12814,6 @@
       fillLockedQuestButton(questLockedButtons[i], cap + i);
     }
 
-    // Only reshuffle DOM when claimable order actually changes.
     orderUpgradeButtons(
       questsEl,
       claimable.concat(inProgress, questLockedButtons)
@@ -12531,7 +13033,7 @@
       let label;
       if(def.picker){
         on = suitBombUiVisible();
-        label = on ? 'Hide' : 'Show';
+        label = on ? 'Shown' : 'Hidden';
       } else if(def.autoManual){
         on = isAutoEnabled(id);
         label = on ? 'Auto' : 'Manual';
@@ -12568,13 +13070,13 @@
       glyph.width = 44;
       glyph.height = 44;
       glyph.setAttribute('aria-hidden', 'true');
-      paintSuitGlyph(glyph.getContext('2d'), s, 22, 22, 22, SUIT_COLOR[s]);
       btn.append(fill, glyph);
       btn.addEventListener('click', ()=>castSuitBomb(s));
       suitBombBtnsEl.appendChild(btn);
       suitBombButtons[s] = btn;
     }
-    // Tap chrome (title, status, padding) — not the suit buttons — toggles Hide/Show.
+    repaintSuitBombGlyphs();
+    // Tap chrome (title, status, padding) — not the suit buttons — toggles Shown/Hidden.
     suitBombBar.addEventListener('click', (e)=>{
       if(e.target.closest('.suit-btn')) return;
       toggleSuitBombPicker();
@@ -12587,11 +13089,25 @@
 
   function repaintSuitBombGlyphs(){
     for(const s of SUITS){
-      const glyph = suitBombButtons[s]?.querySelector('.suit-glyph');
-      if(!glyph || glyph.tagName !== 'CANVAS') continue;
+      const btn = suitBombButtons[s];
+      const glyph = btn?.querySelector('.suit-glyph');
+      if(!btn || !glyph || glyph.tagName !== 'CANVAS') continue;
+      const members = suitsInFamily(s);
+      const pair = members.length > 1 && suitFamily(s) === s;
+      btn.classList.toggle('pair-suit', pair);
+      const w = pair ? 60 : 44;
+      const h = pair ? 36 : 44;
+      if(glyph.width !== w) glyph.width = w;
+      if(glyph.height !== h) glyph.height = h;
       const ctx = glyph.getContext('2d');
       ctx.clearRect(0, 0, glyph.width, glyph.height);
-      paintSuitGlyph(ctx, s, 22, 22, 22, SUIT_COLOR[s]);
+      if(pair){
+        // Keep each ally in its own ink so the merge is readable on one button.
+        paintSuitGlyph(ctx, members[0], 16, 18, 18, SUIT_COLOR[members[0]]);
+        paintSuitGlyph(ctx, members[1], 44, 18, 18, SUIT_COLOR[members[1]]);
+      } else {
+        paintSuitGlyph(ctx, s, 22, 22, 22, SUIT_COLOR[s]);
+      }
     }
   }
 
@@ -12620,6 +13136,7 @@
   }
 
   let lastSuitBombUiAt = 0;
+  let lastSuitBombCutLevel = -1;
   function updateSuitBombUI(now, force){
     if(!suitBombBar) return;
     now = now || performance.now();
@@ -12642,6 +13159,12 @@
       suitBombBar.classList.remove('suit-bomb-flash');
       if(suitBombChargeFill) suitBombChargeFill.style.width = '0%';
       return;
+    }
+
+    const cutLvl = upgradeLevel('suitCut');
+    if(force || cutLvl !== lastSuitBombCutLevel){
+      lastSuitBombCutLevel = cutLvl;
+      repaintSuitBombGlyphs();
     }
 
     const cd = suitBombCooldownMs();
@@ -12684,40 +13207,49 @@
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
         const card = grid[c][r];
-        if(card) counts[card.suit] = (counts[card.suit]||0) + 1;
+        if(card && !isWild(card) && counts[card.suit] != null){
+          counts[card.suit] += 1;
+        }
       }
     }
-    const inShoe = new Set(activeSuits());
     const inFlight = {'♠':0,'♥':0,'♦':0,'♣':0};
     for(const b of balls){
-      if(b.card && inFlight[b.card.suit] != null) inFlight[b.card.suit]++;
+      if(b.card && !isWild(b.card) && inFlight[b.card.suit] != null) inFlight[b.card.suit]++;
     }
+    const familySet = new Set(purgeFamilies());
+    const pendingFamily = pendingSuitBomb ? suitFamily(pendingSuitBomb) : null;
     let visible = 0;
     for(const s of SUITS){
       const btn = suitBombButtons[s];
       if(!btn) continue;
-      const count = counts[s] || 0;
-      const queued = pendingSuitBomb === s;
-      const present = count > 0 || inFlight[s] > 0 || queued;
-      // Always show suits still in the shoe (even with none on the board).
-      // Only hide an exiled suit after it is fully gone from play.
-      const gone = !inShoe.has(s) && !present;
+      // Hide ally sources (♦ / ♣) once Suit Alliance folds them into the family button.
+      const gone = !familySet.has(s);
       btn.classList.toggle('gone', gone);
       btn.hidden = gone;
       if(gone) continue;
       visible++;
+      const members = suitsInFamily(s);
+      const label = members.join('');
+      let count = 0;
+      let flight = 0;
+      for(const m of members){
+        count += counts[m] || 0;
+        flight += inFlight[m] || 0;
+      }
+      const queued = pendingFamily === s;
       // Stay clickable during hand clears — cast queues until the board is free.
-      const total = count + inFlight[s];
+      const total = count + flight;
       const canCast = ready && !gameOver && total > 0;
       btn.disabled = !canCast && !queued;
       btn.classList.toggle('charging', !ready && !queued);
       btn.classList.toggle('queued', queued);
       btn.style.setProperty('--cd', Math.round((queued ? 1 : charge) * 100) + '%');
+      btn.setAttribute('aria-label', 'Purge ' + label);
       btn.title = queued
-        ? ('Queued purge ' + s)
+        ? ('Queued purge ' + label)
         : total
-          ? ('Purge ' + total + ' × ' + s + (inFlight[s] ? ' (' + inFlight[s] + ' in flight)' : ''))
-          : ('No ' + s + ' in play');
+          ? ('Purge ' + total + ' × ' + label + (flight ? ' (' + flight + ' in flight)' : ''))
+          : ('No ' + label + ' in play');
     }
     suitBombBtnsEl.style.gridTemplateColumns =
       'repeat(' + Math.max(1, visible) + ', 1fr)';
@@ -13289,10 +13821,6 @@
   loadSettings();
   syncSettingsUI();
   loadSave();
-  // Don't flash unlock animations for upgrades already available on load.
-  for(const def of UPGRADE_DEFS){
-    if(upgradeUnlocked(def.id)) seenUnlockFlash.add(def.id);
-  }
   ensureChipTextures();
   buildShop();
   buildSuitBombUI();
