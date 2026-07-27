@@ -3105,6 +3105,7 @@
         'Suit Exile no longer strips suits from the shoe — diamonds ally with hearts at Lv1, clubs with spades at Lv2.',
         'Flushes and Suit Purge treat each allied pair as one family; purge buttons show both glyphs.',
         'Flush connector lines use the family color (heart red / spade purple) so mixed allies still read clearly.',
+        'Suit Purge pops immediately — no flash wait before cards explode.',
       ]
     },
     {
@@ -10169,8 +10170,9 @@
   function resolveTick(){
     const now = performance.now();
     const speed = resolveSpeed();
-    const flashMs = FLASH_MS / speed;
-    const explodeMs = EXPLODE_MS / speed;
+    const suitBombResolve = resolving && currentGroups.some(g => g.suitBomb);
+    const flashMs = suitBombResolve ? 0 : FLASH_MS / speed;
+    const explodeMs = suitBombResolve ? 0 : EXPLODE_MS / speed;
     if(resolving){
       const elapsed = now - resolvePhaseStart;
       if(resolvePhase==='flash'){
