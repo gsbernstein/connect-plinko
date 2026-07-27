@@ -9366,53 +9366,45 @@
     return true;
   }
 
-  // Gap-only bridges between seats while pieces flash before the clear.
-  // Segments stop at the hole rim so the line never paints over card faces.
-  function drawResolveHandLines(){
-    if(!resolving || resolvePhase !== 'flash') return;
+  // Paint-only: suit-colored strokes on the plate plastic during flash.
+  // Caller draws these BEFORE punching seat holes so card windows erase
+  // any overlap — lines remain only in the gaps. Never touches resolve state.
+  function drawResolveHandLines(target, flashElapsed, pulses){
+    if(!target || !resolving || resolvePhase !== 'flash') return;
     if(!currentGroups || !currentGroups.length) return;
-    const lite = perfLite();
-    const flashElapsed = Math.min(1, (performance.now() - resolvePhaseStart) / (FLASH_MS / resolveSpeed()));
-    const pulses = flashPulseCount();
-    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(flashElapsed * Math.PI * pulses));
-    // Chip draw radius is ~32; leave a hair of plate plastic before the face.
-    const inset = HOLE_R + 1;
+    const frac = flashElapsed || 0;
+    const pulseWaves = pulses || 7;
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(frac * Math.PI * pulseWaves));
 
-    for(const g of currentGroups){
-      // Suit Purge hits scattered seats — no single connector.
-      if(g.suitBomb) continue;
-      const cells = g.cells;
-      if(!cellsFormLine(cells)) continue;
-      const color = g.color || '#ffffff';
-      const pts = cells.map(([c, r]) => cellCenter(c, r));
-      const alpha = 0.72 + 0.28 * pulse;
+    try{
+      for(const g of currentGroups){
+        // Suit Purge hits scattered seats — no single connector.
+        if(g.suitBomb) continue;
+        const cells = g.cells;
+        if(!cellsFormLine(cells)) continue;
+        const color = g.color || '#ffffff';
+        const pts = cells.map(([c, r]) => cellCenter(c, r));
+        const alpha = 0.78 + 0.22 * pulse;
 
-      ctx.save();
-      ctx.setLineDash([]);
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = color;
-      ctx.globalAlpha = alpha;
-      if(!lite){
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 14 * pulse;
+        target.save();
+        target.globalAlpha = alpha;
+        target.strokeStyle = color;
+        target.lineCap = 'round';
+        target.lineJoin = 'round';
+        target.lineWidth = 4.5;
+        target.shadowBlur = 0;
+        target.beginPath();
+        target.moveTo(pts[0].x, pts[0].y);
+        for(let i = 1; i < pts.length; i++) target.lineTo(pts[i].x, pts[i].y);
+        target.stroke();
+        target.restore();
       }
-      for(let i = 1; i < pts.length; i++){
-        const a = pts[i - 1], b = pts[i];
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const len = Math.hypot(dx, dy);
-        if(len <= inset * 2 + 2) continue;
-        const ux = dx / len, uy = dy / len;
-        ctx.beginPath();
-        ctx.moveTo(a.x + ux * inset, a.y + uy * inset);
-        ctx.lineTo(b.x - ux * inset, b.y - uy * inset);
-        ctx.stroke();
-      }
-      ctx.restore();
+      target.globalAlpha = 1;
+      target.shadowBlur = 0;
+    } catch(_err){
+      // Never let paint break the resolve RAF chain.
+      try{ target.globalAlpha = 1; target.shadowBlur = 0; } catch(_e){}
     }
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-    ctx.setLineDash([]);
   }
 
   function scoreGroups(groups, chainMultiplier){
@@ -10480,11 +10472,18 @@
         }
       }
     }
-    // Physics tick already paints when it's running — avoid double draws.
-    if(!looping) draw();
-    if(resolving){
+    // Chain the next resolve frame before paint so a draw error cannot stall clears.
+    const keepResolving = resolving;
+    if(keepResolving){
       requestAnimationFrame(resolveTick);
-    } else {
+    }
+    try{
+      // Physics tick already paints when it's running — avoid double draws.
+      if(!looping) draw();
+    } catch(err){
+      console.error(err);
+    }
+    if(!keepResolving){
       resolveLooping = false;
       startLoop();
     }
@@ -11001,6 +11000,9 @@
     plateCtx.clearRect(0,PEG_ZONE,W,H-PEG_ZONE);
     plateCtx.fillStyle = PANEL;
     plateCtx.fillRect(0,PEG_ZONE,W,H-PEG_ZONE);
+    // Resolve connectors live on the plastic; seat punches below cut them out
+    // of every hole so strokes never cover flashing cards.
+    drawResolveHandLines(plateCtx, flashElapsed, flashPulses);
     plateCtx.globalCompositeOperation = 'destination-out';
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
@@ -11067,8 +11069,6 @@
     // Near-miss guides sit on top of the plate so the dotted bridges stay
     // readable between holes (pairs, flush/straight draws).
     drawNearMissHints();
-    // Scoring hands get gap-only bridges during the pre-clear flash.
-    drawResolveHandLines();
 
 
     for(const p of particles){
