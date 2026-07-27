@@ -3060,6 +3060,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 71,
+      date: 'Jul 27, 2026',
+      title: 'Clearer score pops',
+      items: [
+        'Hand, COMBO, and CHAIN score labels fan out and nudge apart so combo bursts stay readable instead of stacking on top of each other.',
+      ]
+    },
+    {
       id: 70,
       date: 'Jul 27, 2026',
       title: 'Cashier’s Cage later',
@@ -6833,9 +6841,80 @@
     p.y = Math.max(minY, Math.min(maxY, p.y));
     return p;
   }
+
+  // AABB half-size used for spawn-time deconfliction (mid-slam footprint).
+  function popupHalfExtents(p){
+    const fontSize = p._fontSize || p.fontSize || (p.big ? 26 : 16);
+    const slam = p.slam || (p.big ? 1.35 : 1.15);
+    const fitScale = 1 + (slam - 1) * 0.45;
+    const tilt = Math.abs(p.tilt || 0) * 1.85;
+    const glow = p._glow != null ? p._glow : (p.glow != null ? p.glow : (p.big ? 14 : 8));
+    const tw = p.textW > 0 ? p.textW : fontSize * Math.max(4, String(p.text || '').length * 0.55);
+    const stroke = p._lineW || Math.max(4, fontSize * 0.18);
+    const contentH = p._contentH || fontSize * 1.1;
+    const hw0 = tw * 0.5 + stroke;
+    const hh0 = contentH * 0.5 + stroke;
+    const cos = Math.cos(tilt);
+    const sin = Math.sin(tilt);
+    const pad = glow * 0.25 + 4;
+    return {
+      hw: (Math.abs(hw0 * cos) + Math.abs(hh0 * sin)) * fitScale + pad,
+      hh: (Math.abs(hw0 * sin) + Math.abs(hh0 * cos)) * fitScale + pad
+    };
+  }
+
+  // Nudge a freshly spawned label off neighbors so hand / COMBO / CHAIN /
+  // King Me bursts stay readable. Caps drift so labels don't leave the hand.
+  function separatePopupFromOthers(p){
+    if(!p || !popups.length) return p;
+    const originX = p.x;
+    const originY = p.y;
+    const GAP = 10;
+    const MAX_DRIFT = CELL * 1.4;
+    for(let iter = 0; iter < 8; iter++){
+      let moved = false;
+      const a = popupHalfExtents(p);
+      for(const o of popups){
+        if(!o || o === p) continue;
+        const b = popupHalfExtents(o);
+        const dx = p.x - o.x;
+        const dy = p.y - o.y;
+        const minDx = a.hw + b.hw + GAP;
+        const minDy = a.hh + b.hh + GAP;
+        if(Math.abs(dx) >= minDx || Math.abs(dy) >= minDy) continue;
+        const overlapX = minDx - Math.abs(dx);
+        const overlapY = minDy - Math.abs(dy);
+        // Resolve the smaller overlap axis first (less travel).
+        if(overlapY <= overlapX){
+          // Prefer pushing the new label up so it sits above older / lower pops.
+          const dir = dy === 0 ? -1 : (dy < 0 ? -1 : 1);
+          p.y += dir * Math.max(6, overlapY * 0.92);
+        } else {
+          const dir = dx === 0
+            ? ((originX < W * 0.5) ? -1 : 1)
+            : (dx < 0 ? -1 : 1);
+          p.x += dir * Math.max(6, overlapX * 0.92);
+        }
+        moved = true;
+      }
+      if(!moved) break;
+      clampPopupToBoard(p);
+    }
+    const driftX = p.x - originX;
+    const driftY = p.y - originY;
+    const dist = Math.hypot(driftX, driftY);
+    if(dist > MAX_DRIFT){
+      p.x = originX + driftX * (MAX_DRIFT / dist);
+      p.y = originY + driftY * (MAX_DRIFT / dist);
+      clampPopupToBoard(p);
+    }
+    return p;
+  }
+
   function pushPopup(popup){
     bakePopupSprite(popup);
     clampPopupToBoard(popup);
+    separatePopupFromOthers(popup);
     const now = performance.now();
     if(popup.t0 == null) popup.t0 = now;
     if(!(popup.duration > 0)) popup.duration = 1100;
@@ -9253,8 +9332,8 @@
     }
     return {
       x: x / groups.length,
-      // Sit on the grid just below the per-hand labels.
-      y: y / groups.length + CELL * 0.42
+      // Clear of taller hand labels (title + chip subtext).
+      y: y / groups.length + CELL * 0.85
     };
   }
 
@@ -9275,13 +9354,14 @@
 
   // Multi-hand clears fire one CHAIN slam per heater step, staggered.
   const CHAIN_POP_STAGGER_MS = 95;
+  const CHAIN_POP_STACK_GAP = 36;
 
   function pushChainBanner(mult, t0, stackIndex){
     // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
     // family 'chain': trim keeps the best ×, drops surplus copies first.
     pushPopup({
       x: W/2,
-      y: PEG_ZONE * 0.4 - stackIndex * 12,
+      y: PEG_ZONE * 0.4 - stackIndex * CHAIN_POP_STACK_GAP,
       text: 'CHAIN ×' + mult + '!',
       color: '#ffffff',
       t0,
@@ -9314,7 +9394,9 @@
   function spawnPopups(groups, _totalPts, chainMult){
     const now = performance.now();
     const mult = handPayoutMultiplier();
-    for(const g of groups){
+    const n = groups.length;
+    for(let gi = 0; gi < n; gi++){
+      const g = groups[gi];
       const {x, y} = groupGridCenter(g);
       const cardMult = g.cardMult || 1;
       const pts = Math.floor(g.points * cardMult * chainMult * mult);
@@ -9323,8 +9405,11 @@
       const bangs = handPopupPunctuation(g.name, fx);
       const burnCount = g.burnCount || 0;
       const sign = Math.random() < 0.5 ? -1 : 1;
+      // Fan simultaneous hand labels so neighboring clears don't stack.
+      const fan = n > 1 ? (gi - (n - 1) / 2) : 0;
       pushPopup({
-        x, y,
+        x: x + fan * CELL * 0.28,
+        y: y - Math.abs(fan) * 8,
         text: g.name + bangs,
         subtext: pts > 0 ? ('+' + formatNum(pts)) : '',
         color: burnCount > 0
@@ -9509,6 +9594,7 @@
         color: BIG_ROOM_BURN_COLOR,
         t0: performance.now(),
         duration: 700,
+        family: 'burn',
         fontSize: 15, floatBoost: 28, tilt: 0.06, slam: 1.25, slamMs: 110, glow: 12
       });
       // Small ember burst on ignition.
