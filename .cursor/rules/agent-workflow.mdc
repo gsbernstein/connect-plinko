@@ -51,10 +51,19 @@ When the user tells you to **merge the current branch**, only proceed if the PR 
 4. Squash-merge via GitHub CLI, e.g. `gh pr merge --squash` (use the PR for the current branch). If there is no PR, open one first or ask which branch/PR to merge.
 5. After merge, sync local `master`: `git checkout master && git pull origin master`.
 
+## Do not use computer use unless asked
+
+Computer-use / browser / desktop-control subagents are slow and must not be the default verification path.
+
+- Do **not** spawn `computerUse`, browser, or desktop-control subagents via the Task tool.
+- Do **not** drive the remote desktop or browser to click through Classic/Poker.
+- Prefer: edit + read the affected code, keep `python3 -m http.server 8080` up for smoke checks, describe expected UI/behavior in the PR.
+- Only use computer use / screenshots / click-through playtesting when the user **explicitly** asks for it in that turn.
+
 ## Other defaults
 
 - Base branch for PRs: `master`.
-- This repo has no build or test command — validate with `python3 -m http.server 8080` and manual play when UI/gameplay changes.
+- This repo has no build or test command — validate by reading code paths and keeping the static server up; skip GUI playthroughs unless requested.
 - Most edits are in `index.html` (classic) or `poker/index.html` (poker). Read `AGENTS.md` before wide exploration.
 - If your change affects areas covered in `AGENTS.md`, update that file in the same PR.
 - Bump `SAVE_VERSION` and migrate in `loadSave` when changing poker save shape.

@@ -57,12 +57,12 @@ Cloud Agents resolve env config from `.cursor/environment.json` first (then pers
 | Terminal | `static-server` → `python3 -m http.server 8080` (shared tmux) |
 | Ports | `8080` |
 
-**Validate UI/gameplay changes**
+**Validate UI/gameplay changes (no computer use by default)**
 
 1. Confirm the static server is up (or start it yourself with the same command).
 2. Classic: http://localhost:8080/ — Poker: http://localhost:8080/poker/
-3. Hard-refresh after edits. Use browser/computer use to click through affected flows (drops, shop, VIP, Settings What’s New, etc.).
-4. There is no automated test suite; screenshots or a short playthrough are the verification.
+3. Prefer fast checks: read the edited code paths, reason about expected behavior, and (when useful) curl/`python3 -m http.server` smoke checks. Do **not** spawn `computerUse` / browser / desktop-control subagents, and do **not** drive the remote desktop to click through the UI, unless the user **explicitly** asks for a playthrough, screenshot, or computer-use pass in that turn.
+4. There is no automated test suite; a short code-path review is enough for most PRs. Manual play / screenshots are optional and only when requested.
 
 **Secrets / network** — none required for local play. Do not add API keys for this static site. If team egress is allowlisted, keep `cloud-agent-artifacts.s3.us-east-1.amazonaws.com` for demo artifacts.
 
