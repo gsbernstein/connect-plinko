@@ -3091,7 +3091,7 @@
       date: 'Jul 27, 2026',
       title: 'Crowned kings',
       items: [
-        'King Me kings wear a tiny golden crown on the letter K — another crown stacked on it for each merge (double, triple, …), slamming down onto the K.',
+        'King Me kings wear a larger golden crown on the letter K — deep gold with a dark outline and a ruby tip so it reads on the cream K — with another crown for each merge, slamming down onto the letter.',
         'Kings merge wherever they meet — settled on the board or colliding through the pins.',
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
@@ -4691,9 +4691,10 @@
   // King Me: same-suit kings that meet merge into taller stacks; payouts double each tier.
   const KING_ME_MERGE_BASE = 48;
   const KING_ME_MERGE_DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
-  const KING_CROWN_SLAM_MS = 260;
-  const KING_CROWN_SLAM_SCALE = 2.1;
-  const KING_CROWN_SLAM_DROP = 0.85; // × rankSize — start above the K, slam down
+  const KING_CROWN_SLAM_MS = 520;
+  const KING_CROWN_SLAM_SCALE = 3.4;
+  const KING_CROWN_SLAM_DROP = 1.55; // × rankSize — start above the K, slam down
+  const KING_CROWN_SLAM_PAD_MS = 80; // keep the loop a beat after settle
 
   function dropSpawnMult(){
     return pinSplitSpawnMult() * stormBeachesSpawnMult();
@@ -6756,21 +6757,80 @@
   // Keep celebration / hit labels mostly on the felt — allow POPUP_OVERHANG
   // past the edge (overlay canvas) so they can hang off a little without
   // disappearing into .board-frame clipping.
-  function clampPopupToBoard(p){
+
+  // Bake stroke + glow + fill once; each frame only drawImage + transform.
+  function bakePopupSprite(p){
     if(!p || p.text == null) return p;
     const fontSize = p.fontSize || (p.big ? 26 : 16);
+    const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
+    const lineW = Math.max(4, fontSize * 0.18);
+    const text = String(p.text);
+    const font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+    ctx.save();
+    ctx.font = font;
+    const tw = ctx.measureText(text).width;
+    ctx.restore();
+    p.textW = tw;
+    p._fontSize = fontSize;
+    p._glow = glow;
+    p._lineW = lineW;
+    const pad = Math.ceil(glow + lineW + 6);
+    const cssW = Math.max(1, Math.ceil(tw + pad * 2));
+    const cssH = Math.max(1, Math.ceil(fontSize * 1.35 + pad * 2));
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(cssW * dpr));
+    c.height = Math.max(1, Math.ceil(cssH * dpr));
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.font = font;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    const cx = cssW / 2;
+    const cy = cssH / 2;
+    g.lineWidth = lineW;
+    g.strokeStyle = 'rgba(8,6,16,0.92)';
+    g.lineJoin = 'round';
+    g.miterLimit = 2;
+    g.strokeText(text, cx, cy);
+    g.fillStyle = p.color || '#ffffff';
+    g.shadowColor = p.color || '#ffffff';
+    g.shadowBlur = glow;
+    g.fillText(text, cx, cy);
+    // Hot white core on premium pops — baked at rest alpha; outer fade scales it.
+    if(glow >= 24){
+      g.shadowBlur = glow * 0.35;
+      g.globalAlpha = 0.55;
+      g.fillStyle = '#ffffff';
+      g.fillText(text, cx, cy);
+      g.globalAlpha = 1;
+    }
+    g.shadowBlur = 0;
+    p.sprite = c;
+    p.spriteW = cssW;
+    p.spriteH = cssH;
+    return p;
+  }
+
+  function clampPopupToBoard(p){
+    if(!p || p.text == null) return p;
+    const fontSize = p._fontSize || p.fontSize || (p.big ? 26 : 16);
     const slam = p.slam || (p.big ? 1.35 : 1.15);
     // Peak slam rarely fits on edge columns; size the gutter for a strong
     // mid-slam so labels stay near the hand without jumping to dead center.
     const fitScale = 1 + (slam - 1) * 0.45;
     const tilt = Math.abs(p.tilt || 0) * 1.85;
     const floatBoost = p.floatBoost || (p.big ? 40 : 30);
-    const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
-    ctx.save();
-    ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
-    const tw = ctx.measureText(String(p.text)).width;
-    ctx.restore();
-    const stroke = Math.max(4, fontSize * 0.18);
+    const glow = p._glow != null ? p._glow : (p.glow != null ? p.glow : (p.big ? 14 : 8));
+    let tw = p.textW;
+    if(!(tw > 0)){
+      ctx.save();
+      ctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+      tw = ctx.measureText(String(p.text)).width;
+      ctx.restore();
+      p.textW = tw;
+    }
+    const stroke = p._lineW || Math.max(4, fontSize * 0.18);
     const hw0 = tw * 0.5 + stroke;
     const hh0 = fontSize * 0.55 + stroke;
     const cos = Math.cos(tilt);
@@ -6790,6 +6850,7 @@
     return p;
   }
   function pushPopup(popup){
+    bakePopupSprite(popup);
     clampPopupToBoard(popup);
     const now = performance.now();
     if(popup.t0 == null) popup.t0 = now;
@@ -8683,12 +8744,20 @@
   }
 
   function hasActiveCrownSlam(now){
+    const windowMs = KING_CROWN_SLAM_MS + KING_CROWN_SLAM_PAD_MS;
+    const active = (card) =>
+      card && typeof card.crownSlamAt === 'number'
+      && now - card.crownSlamAt < windowMs;
     for(let c = 0; c < COLS; c++){
       for(let r = 0; r < ROWS; r++){
-        const card = grid[c][r];
-        if(!card || typeof card.crownSlamAt !== 'number') continue;
-        if(now - card.crownSlamAt < KING_CROWN_SLAM_MS) return true;
+        if(active(grid[c][r])) return true;
       }
+      for(const entry of stack[c]){
+        if(entry && entry.type === 'piece' && active(entry.card)) return true;
+      }
+    }
+    for(const b of balls){
+      if(b && !b.exploded && !b.kingMerged && active(b.card)) return true;
     }
     return false;
   }
@@ -10430,22 +10499,22 @@
       `700 ${rankSize}px Fraunces, Georgia, serif`,
       strokeW
     );
-    // King Me: tiny golden crown(s) perched on the letter K (not the chip rim).
+    // King Me: high-contrast golden crown(s) perched on the letter K.
     const ks = kingStackLevel(card);
     if(ks > 0) drawKingCrowns(target, rankX, rankY, rankSize, ks, card);
   }
 
-  // Tiny 3-point crowns sitting on top of the K glyph. Count = merge tier.
-  // The newest crown slams down onto the K (easeOutBack) when crownSlamAt is set.
+  // Golden crowns perched on the K — sized to read at chip scale, dark outline
+  // so they don't disappear into the cream letter. Newest crown slams down.
   function drawKingCrowns(target, rankX, rankY, rankSize, count, card){
     const n = Math.min(Math.max(1, count | 0), 5);
-    // Sized to the letter, not the chip radius — stays inside the hole with the K.
-    const cw = rankSize * (n >= 3 ? 0.28 : 0.36);
-    const ch = rankSize * (n >= 3 ? 0.22 : 0.28);
-    const gap = cw * (n >= 3 ? 0.62 : 0.7);
+    // Large enough to read through the hole; shrink slightly when stacked.
+    const cw = rankSize * (n >= 4 ? 0.48 : n >= 3 ? 0.54 : 0.62);
+    const ch = rankSize * (n >= 4 ? 0.38 : n >= 3 ? 0.42 : 0.48);
+    const gap = cw * (n >= 3 ? 0.55 : 0.62);
     const totalW = gap * (n - 1);
-    // Sit just above the K's top edge (baseline middle ± ~0.4× glyph height).
-    const baseY = rankY - rankSize * 0.42;
+    // Clear of the K's top so gold isn't lost in the cream glyph.
+    const baseY = rankY - rankSize * 0.58;
     const midX = rankX;
     const slamAt = card && card.crownSlamAt;
     const slamAge = (typeof slamAt === 'number' && slamAt > 0)
@@ -10458,58 +10527,75 @@
     target.save();
     for(let i = 0; i < n; i++){
       const restX = midX - totalW / 2 + i * gap;
-      // Fan extras slightly so a stack of crowns still reads on the letter.
-      const restY = baseY - i * ch * 0.22;
+      const restY = baseY - i * ch * 0.38;
       const isNew = i === n - 1;
       if(isNew && slamming){
         target.save();
         target.translate(restX, restY - slamDrop);
         target.scale(slamScale, slamScale);
-        drawOneKingCrown(target, 0, 0, cw, ch);
+        drawOneKingCrown(target, 0, 0, cw, ch, true);
         target.restore();
       } else {
-        drawOneKingCrown(target, restX, restY, cw, ch);
+        drawOneKingCrown(target, restX, restY, cw, ch, false);
       }
     }
     target.restore();
   }
 
-  function drawOneKingCrown(target, cx, cy, w, h){
+  function drawOneKingCrown(target, cx, cy, w, h, slamming){
     const left = cx - w / 2;
     const right = cx + w / 2;
-    const bot = cy + h * 0.35;
-    const band = cy + h * 0.05;
-    const tip = cy - h * 0.55;
-    const midL = cx - w * 0.18;
-    const midR = cx + w * 0.18;
+    const bot = cy + h * 0.38;
+    const band = cy + h * 0.08;
+    const tip = cy - h * 0.58;
+    const midL = cx - w * 0.2;
+    const midR = cx + w * 0.2;
+    target.save();
+    // Soft gold bloom so the crown pops off cream K / dark felt.
+    target.shadowColor = slamming ? '#FFE08A' : 'rgba(240, 190, 70, 0.95)';
+    target.shadowBlur = slamming ? Math.max(6, w * 0.85) : Math.max(3, w * 0.45);
     target.beginPath();
     target.moveTo(left, bot);
     target.lineTo(left, band);
-    target.lineTo(left, tip + h * 0.15);
+    target.lineTo(left, tip + h * 0.18);
     target.lineTo(midL, band);
     target.lineTo(cx, tip);
     target.lineTo(midR, band);
-    target.lineTo(right, tip + h * 0.15);
+    target.lineTo(right, tip + h * 0.18);
     target.lineTo(right, band);
     target.lineTo(right, bot);
     target.closePath();
-    target.fillStyle = '#F0D78C';
+    // Deep gold body — high contrast vs #FFF6D6 rank letter.
+    target.fillStyle = '#E4A820';
     target.fill();
-    target.strokeStyle = 'rgba(80,50,10,0.75)';
-    target.lineWidth = Math.max(0.7, w * 0.08);
+    target.shadowBlur = 0;
+    target.strokeStyle = '#3A2408';
+    target.lineWidth = Math.max(1.2, w * 0.12);
     target.lineJoin = 'round';
     target.stroke();
-    // Jewel dots on the three peaks.
-    const jewelR = Math.max(0.55, w * 0.09);
-    target.fillStyle = '#FFE9A8';
-    for(const [jx, jy] of [[left, tip + h * 0.15], [cx, tip], [right, tip + h * 0.15]]){
+    // Jewel dots — ruby center, amber sides.
+    const jewelR = Math.max(1.1, w * 0.12);
+    const jewels = [
+      [left, tip + h * 0.18, '#FFD978'],
+      [cx, tip, '#FF4D5E'],
+      [right, tip + h * 0.18, '#FFD978']
+    ];
+    for(const [jx, jy, fill] of jewels){
       target.beginPath();
       target.arc(jx, jy, jewelR, 0, Math.PI * 2);
+      target.fillStyle = fill;
       target.fill();
+      target.strokeStyle = 'rgba(40, 20, 6, 0.7)';
+      target.lineWidth = Math.max(0.6, jewelR * 0.35);
+      target.stroke();
     }
     // Band under the spikes.
-    target.fillStyle = '#E8C56A';
-    target.fillRect(left + w * 0.06, band, w * 0.88, Math.max(1, h * 0.18));
+    target.fillStyle = '#C88914';
+    target.fillRect(left + w * 0.06, band, w * 0.88, Math.max(1.4, h * 0.2));
+    target.strokeStyle = '#3A2408';
+    target.lineWidth = Math.max(0.7, w * 0.06);
+    target.strokeRect(left + w * 0.06, band, w * 0.88, Math.max(1.4, h * 0.2));
+    target.restore();
   }
 
   function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
