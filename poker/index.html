@@ -6885,7 +6885,7 @@
       case 'kingMe':
         if(!lvl) return 'Kings stay single';
         if(!isAutoEnabled('kingMe')) return 'Paused';
-        return 'Crowned merges · stack counts in hands';
+        return 'Merge on contact · anywhere';
       case 'bigRoom':
         if(!lvl) return 'No blast fires';
         if(!isAutoEnabled('bigRoom')) return 'Paused';
@@ -8064,7 +8064,7 @@
   }
 
   function stepBall(ball, gravity){
-    if(ball.exploded) return;
+    if(ball.exploded || ball.kingMerged) return;
     // Lv3 slam: this chip waits for finishSiegeLand — don't reseat mid-clear.
     if(isPendingSiegeLandBall(ball)){
       parkPendingSiegeLandBall(ball);
@@ -8664,6 +8664,10 @@
     survivor.vy = Math.min(survivor.vy, victim.vy);
     survivor.x = x;
     survivor.y = y;
+    if(victim.pendingBurn){
+      survivor.pendingBurn = true;
+      survivor.burnStartedAt = victim.burnStartedAt || survivor.burnStartedAt || performance.now();
+    }
     celebrateKingMerge(x, y, nextStack, merged);
     return true;
   }
