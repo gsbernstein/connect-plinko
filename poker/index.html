@@ -3087,7 +3087,8 @@
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
-        'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.'
+        'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
+        'Score labels no longer vanish as one flash — end times spread out when many pops overlap.'
       ]
     },
     {
@@ -6713,6 +6714,27 @@
   }
   function pushPopup(popup){
     clampPopupToBoard(popup);
+    const now = performance.now();
+    if(popup.t0 == null) popup.t0 = now;
+    if(!(popup.duration > 0)) popup.duration = 1100;
+    // Spread end times so a burst of labels (hands, chains, merges) doesn't
+    // all vanish in one frame — higher-value bases still linger longer.
+    let expiresAt = popup.t0 + popup.duration;
+    const PAD = 160;
+    for(let guard = 0; guard < 32; guard++){
+      let crowded = false;
+      for(const p of popups){
+        const otherEnd = p.expiresAt != null ? p.expiresAt : (p.t0 + (p.duration || 0));
+        if(Math.abs(otherEnd - expiresAt) < PAD){
+          crowded = true;
+          break;
+        }
+      }
+      if(!crowded) break;
+      expiresAt += PAD;
+    }
+    popup.expiresAt = expiresAt;
+    popup.duration = Math.max(popup.duration, expiresAt - popup.t0);
     popups.push(popup);
     if(popups.length > MAX_POPUPS){
       popups.splice(0, popups.length - MAX_POPUPS);
@@ -8476,7 +8498,10 @@
     sampleFps(performance.now());
 
     const nowEnd = performance.now();
-    const popupsAlive = popups.some(p => nowEnd - p.t0 < p.duration);
+    const popupsAlive = popups.some(p => {
+      const end = p.expiresAt != null ? p.expiresAt : (p.t0 + p.duration);
+      return nowEnd < end;
+    });
     const bombCharging = suitBombUnlocked() && !suitBombReady(nowEnd);
     const bombAuto = prestigeLevel('autoSuitBomb') > 0
       && isAutoEnabled('autoSuitBomb')
@@ -10716,7 +10741,10 @@
     ctx.globalAlpha = 1;
 
     const nowP = performance.now();
-    popups = popups.filter(p => nowP - p.t0 < p.duration);
+    popups = popups.filter(p => {
+      const end = p.expiresAt != null ? p.expiresAt : (p.t0 + p.duration);
+      return nowP < end;
+    });
     layoutPopupLayer();
     const pctx = popupCtx || ctx;
     const ox = popupCtx ? POPUP_OVERHANG : 0;
@@ -10727,7 +10755,8 @@
       const age = nowP - p.t0;
       // Future t0 = staggered chain pops waiting to slam in.
       if(age < 0) continue;
-      const t = age / p.duration;
+      const life = Math.max(1, (p.expiresAt != null ? p.expiresAt : (p.t0 + p.duration)) - p.t0);
+      const t = age / life;
       const alpha = t < 0.7 ? 1 : Math.max(0, 1-(t-0.7)/0.3);
       const floatDist = p.floatBoost || (p.big ? 40 : 30);
       const dy = -floatDist*t;
