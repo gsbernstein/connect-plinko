@@ -2903,12 +2903,58 @@
     return prestigeLevel('connect4') > 0 ? 4 : 5;
   }
 
+  // King Me stacks count as multiple kings toward of-a-kind.
+  // Plain K=1; King Me (ks=1)=2; Double (ks=2)=2; Triple=3; …
+  // Named tiers match the popup (Double/Triple/…) for ks>=2; first crown is 2.
+  function kingKindWeight(card){
+    if(!card || card.rank !== 13) return 1;
+    const ks = kingStackLevel(card);
+    if(ks <= 0) return 1;
+    if(ks === 1) return 2;
+    return ks;
+  }
+
+  function cardKindWeight(card){
+    return card && card.rank === 13 ? kingKindWeight(card) : 1;
+  }
+
+  const OF_A_KIND_WORDS = {
+    3: 'THREE', 4: 'FOUR', 5: 'FIVE', 6: 'SIX', 7: 'SEVEN',
+    8: 'EIGHT', 9: 'NINE', 10: 'TEN', 11: 'ELEVEN', 12: 'TWELVE'
+  };
+
+  function ofAKindName(n){
+    const word = OF_A_KIND_WORDS[n];
+    return (word || String(n)) + ' OF A KIND';
+  }
+
+  function ofAKindPoints(n){
+    if(n <= 3) return 2;
+    if(n === 4) return 6;
+    if(n === 5) return 14;
+    // Each step past five beats the last (and royal flush at 12).
+    return 14 + (n - 5) * 8;
+  }
+
+  function parseOfAKindCount(name){
+    if(!name || !/ OF A KIND$/.test(name)) return 0;
+    const word = name.slice(0, -(' OF A KIND'.length));
+    for(const [k, v] of Object.entries(OF_A_KIND_WORDS)){
+      if(v === word) return k | 0;
+    }
+    const n = parseInt(word, 10);
+    return n > 0 ? n : 0;
+  }
+
   function evaluateCards(cards){
     const n = cards.length;
     if(n < 3) return null;
     const ranks = cards.map(c=>c.rank);
     const rankCounts = {};
-    for(const r of ranks) rankCounts[r] = (rankCounts[r]||0)+1;
+    for(const c of cards){
+      const r = c.rank;
+      rankCounts[r] = (rankCounts[r] || 0) + cardKindWeight(c);
+    }
     const counts = Object.values(rankCounts).sort((a,b)=>b-a);
     const flushLen = flushMinLength();
     const flush = n >= flushLen && sliceSharesFlushSuit(cards);
@@ -2921,8 +2967,12 @@
         ? {name:'ROYAL FLUSH', points:12}
         : {name:'STRAIGHT FLUSH', points:8};
     }
-    // Multi-deck shoe can deal five of one rank.
-    if(n>=5 && counts[0]>=5) return {name:'FIVE OF A KIND', points:14};
+    // Multi-deck shoe + King Me stacks can make five+ of one rank.
+    // Of-a-kind uses weighted king stacks; card-count gates stay so a lone
+    // stacked king never clears the board by itself.
+    if(counts[0] >= 5 && n >= 3){
+      return {name: ofAKindName(counts[0]), points: ofAKindPoints(counts[0])};
+    }
     if(n>=4 && counts[0]>=4) return {name:'FOUR OF A KIND', points:6};
     if(n===5 && counts[0]===3 && counts[1]===2) return {name:'FULL HOUSE', points:5};
     if(n >= flushLen && flush) return {name:'FLUSH', points:4};
@@ -3023,6 +3073,16 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 64,
+      date: 'Jul 27, 2026',
+      title: 'Crowned kings',
+      items: [
+        'King Me kings wear a golden crown on the K — add another crown each merge (double, triple, …).',
+        'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
+        'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.'
+      ]
+    },
     {
       id: 63,
       date: 'Jul 27, 2026',
@@ -4322,7 +4382,7 @@
     {
       id: 'kingMe',
       name: 'King Me',
-      desc: 'When two kings of the same suit meet, they stack into a crowned king. Matching stacks merge again into double kings, triples, and so on — each merge pays exponentially more. Toggle On/Off anytime.',
+      desc: 'When two kings of the same suit meet, they merge into a crowned king. Matching crowns merge again (double, triple, …) with exponentially bigger payouts. Stacked kings count as multiple kings in poker hands. Toggle On/Off anytime.',
       baseCost: 120,
       costScale: 1,
       maxLevel: 1,
@@ -5527,9 +5587,15 @@
       bumpStat('runChainClears', 1);
     }
     for(const g of groups){
-      const key = HAND_STAT[g.name];
+      let key = HAND_STAT[g.name];
+      let runKey = RUN_HAND_STAT[g.name];
+      // King Me can produce 6+ of a kind — fold those into the five-kind stats.
+      const kindN = parseOfAKindCount(g.name);
+      if(!key && kindN >= 5){
+        key = 'fiveKinds';
+        runKey = 'runFiveKinds';
+      }
       if(key) bumpStat(key, 1);
-      const runKey = RUN_HAND_STAT[g.name];
       if(runKey) bumpStat(runKey, 1);
       for(const alsoKey of (HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
       for(const alsoKey of (RUN_HAND_STAT_ALSO[g.name] || [])) bumpStat(alsoKey, 1);
@@ -6810,7 +6876,7 @@
       case 'kingMe':
         if(!lvl) return 'Kings stay single';
         if(!isAutoEnabled('kingMe')) return 'Paused';
-        return 'Same-suit kings merge · ×2 payouts';
+        return 'Crowned merges · stack counts in hands';
       case 'bigRoom':
         if(!lvl) return 'No blast fires';
         if(!isAutoEnabled('bigRoom')) return 'Paused';
@@ -7718,10 +7784,9 @@
   };
 
   function handTextTier(name){
+    const kindN = parseOfAKindCount(name);
+    if(kindN >= 5 || name === 'ROYAL FLUSH') return 'huge';
     switch(name){
-      case 'ROYAL FLUSH':
-      case 'FIVE OF A KIND':
-        return 'huge';
       case 'FOUR OF A KIND':
       case 'STRAIGHT FLUSH':
         return 'big';
@@ -8430,10 +8495,20 @@
   }
 
   function kingMergeLabel(stack){
-    if(stack <= 1) return 'KING ME!';
-    if(stack === 2) return 'DOUBLE KING!';
-    if(stack === 3) return 'TRIPLE KING!';
-    return 'KING ×' + stack + '!';
+    const n = stack | 0;
+    if(n <= 1) return 'KING ME!';
+    const names = {
+      2: 'DOUBLE KING!',
+      3: 'TRIPLE KING!',
+      4: 'QUADRUPLE KING!',
+      5: 'QUINTUPLE KING!',
+      6: 'SEXTUPLE KING!',
+      7: 'SEPTUPLE KING!',
+      8: 'OCTUPLE KING!',
+      9: 'NONUPLE KING!',
+      10: 'DECUPLE KING!'
+    };
+    return names[n] || ('KING ×' + n + '!');
   }
 
   function kingMergePayout(resultStack){
@@ -9946,7 +10021,7 @@
     target.restore();
   }
 
-  function drawChipGlyphs(target, card, radius){
+  function drawChipGlyphs(target, card, radius, opts){
     const color = cardGlowColor(card);
     target.textAlign = 'center';
     target.textBaseline = 'middle';
@@ -9981,9 +10056,69 @@
       `700 ${rankSize}px Fraunces, Georgia, serif`,
       strokeW
     );
+    // King Me: golden crown(s) on the K. Settled seats pass skipCrowns and
+    // redraw above the plate so the plastic hole grid doesn't hide them.
+    const ks = kingStackLevel(card);
+    if(ks > 0 && !(opts && opts.skipCrowns)) drawKingCrowns(target, rankX, rankY, radius, ks);
   }
 
-  function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight){
+  // Tiny 3-point crowns above the K. Count = merge tier (King Me=1, Double=2, …).
+  function drawKingCrowns(target, rankX, rankY, radius, count){
+    const n = Math.min(Math.max(1, count | 0), 6);
+    const cw = radius * (n >= 4 ? 0.22 : 0.28);
+    const ch = radius * (n >= 4 ? 0.18 : 0.22);
+    const gap = cw * (n >= 4 ? 0.72 : 0.85);
+    const totalW = gap * (n - 1);
+    const baseY = rankY - radius * 0.48;
+    const midX = rankX;
+    target.save();
+    for(let i = 0; i < n; i++){
+      const cx = midX - totalW / 2 + i * gap;
+      const cy = baseY - (n > 3 && i % 2 === 1 ? ch * 0.35 : 0);
+      drawOneKingCrown(target, cx, cy, cw, ch);
+    }
+    target.restore();
+  }
+
+  function drawOneKingCrown(target, cx, cy, w, h){
+    const left = cx - w / 2;
+    const right = cx + w / 2;
+    const bot = cy + h * 0.35;
+    const band = cy + h * 0.05;
+    const tip = cy - h * 0.55;
+    const midL = cx - w * 0.18;
+    const midR = cx + w * 0.18;
+    target.beginPath();
+    target.moveTo(left, bot);
+    target.lineTo(left, band);
+    target.lineTo(left, tip + h * 0.15);
+    target.lineTo(midL, band);
+    target.lineTo(cx, tip);
+    target.lineTo(midR, band);
+    target.lineTo(right, tip + h * 0.15);
+    target.lineTo(right, band);
+    target.lineTo(right, bot);
+    target.closePath();
+    target.fillStyle = '#F0D78C';
+    target.fill();
+    target.strokeStyle = 'rgba(80,50,10,0.75)';
+    target.lineWidth = Math.max(0.7, w * 0.08);
+    target.lineJoin = 'round';
+    target.stroke();
+    // Jewel dots on the three peaks.
+    const jewelR = Math.max(0.6, w * 0.09);
+    target.fillStyle = '#FFE9A8';
+    for(const [jx, jy] of [[left, tip + h * 0.15], [cx, tip], [right, tip + h * 0.15]]){
+      target.beginPath();
+      target.arc(jx, jy, jewelR, 0, Math.PI * 2);
+      target.fill();
+    }
+    // Band under the spikes.
+    target.fillStyle = '#E8C56A';
+    target.fillRect(left + w * 0.06, band, w * 0.88, Math.max(1, h * 0.18));
+  }
+
+  function drawCardFace(target, cx, cy, card, angle, radius, isBall, highlight, opts){
     const color = cardGlowColor(card);
     const tex = chipTextureForCard(card);
     const d = radius * 2;
@@ -10007,7 +10142,7 @@
       target.fill();
     }
     target.shadowBlur = 0;
-    drawChipGlyphs(target, card, radius);
+    drawChipGlyphs(target, card, radius, opts);
     if(card && card.spikes) drawCardSpikes(target, radius);
 
     if(highlight){
@@ -10044,20 +10179,8 @@
   }
 
   function drawPiece(cx, cy, card, isBall, highlight){
-    const ks = kingStackLevel(card);
-    if(ks > 0){
-      // Stacked kings: one extra chip per merge tier (capped for readability).
-      const layers = Math.min(ks + 1, 5);
-      for(let i = 0; i < layers; i++){
-        const fromTop = layers - 1 - i;
-        const oy = 7 - fromTop * 5.5;
-        const rad = fromTop === 0 ? 32 : 26;
-        const hi = fromTop === 0 ? highlight : 0;
-        drawCardFace(ctx, cx, cy + oy, card, card.angle || 0, rad, isBall, hi);
-      }
-      return;
-    }
-    drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
+    // Crowns redraw above the plate (see draw); skip them under the plastic.
+    drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight, {skipCrowns: true});
   }
 
   // scale: 1 = full seat size; Pin Split fallers pass drawRadius/32 so fire shrinks with them.
@@ -10126,7 +10249,7 @@
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.stroke();
     ctx.rotate(card.angle || 0);
-    drawChipGlyphs(ctx, card, 32 * 0.92);
+    drawChipGlyphs(ctx, card, 32 * 0.92, {skipCrowns: true});
     if(card && card.spikes) drawCardSpikes(ctx, 32 * 0.92);
     ctx.restore();
   }
@@ -10372,6 +10495,29 @@
           burn,
           nowDraw
         );
+      }
+    }
+
+    // King Me crowns sit above the plate (on top of the K) so stacked kings
+    // stay readable through the hole grid.
+    for(let c=0;c<COLS;c++){
+      for(let r=0;r<ROWS;r++){
+        const card = grid[c][r];
+        if(!card) continue;
+        const ks = kingStackLevel(card);
+        if(ks <= 0) continue;
+        const cx = c*CELL+CELL/2;
+        const cy = PEG_ZONE + r*CELL + CELL/2;
+        ctx.save();
+        ctx.translate(cx, cy);
+        if(flashCells && flashCells.has(c+','+r)){
+          const pulseWaves = flashPulses;
+          const pulse = 1 + 0.04 * Math.sin(flashElapsed * Math.PI * pulseWaves);
+          ctx.scale(pulse, pulse);
+        }
+        ctx.rotate(card.angle || 0);
+        drawKingCrowns(ctx, -32 * 0.14, -32 * 0.20, 32, ks);
+        ctx.restore();
       }
     }
 
