@@ -72,7 +72,9 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, …) |
 | `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Percussive Mitosis (`pinSplit`): ~10× slower drops; bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
 | `stormBeachesActive` / `detonateFallingBall` / `applyStormBlast` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits; blast knocks nearby in-flight chips |
-| `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `SIEGE_*` | Siege Weapons (toggleable): ~18% spiked cards when On; smash bumpers → top-row clear; Lv2 temporarily breaks pins (`p.broken`) |
+| `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `siegeCardPayout` / `SIEGE_*` | Siege Weapons (toggleable): ~18% spiked cards when On; smash bumpers pays Rail Tax → top-row clear pays chips; Lv2 doubles Pin Tip on spiked peg hits |
+| `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
+| `suitPurgeActive` / `purgeCardPayout` / `suitBombPickerMinimized` / `suitPurgePairPenalty` | Suit Purge: shop toggle arms/disarms; bar tap minimizes picker; purge pays per card; auto-target deprioritizes Card Counting pairs |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
 | `cardCountingGroups` / `cardCountingFactor` / `cardCountingHandMultiplier` / `boardDuplicateExtras` / `effectiveMetaMultiplier` / `handPayoutMultiplier` | Card Counting: Lv1–8 +8% per duplicate extra on hands; Lv9 product of paired rank+suit counts multiplies `runMetaMultiplier` |
@@ -207,12 +209,13 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier`; Pin Split via `pinSplitActive` / peg hit in `stepBall` |
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult`, `manualDropCooldownMs` in `dropAt`, `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
 | Storm the Beaches | `stormBeachesActive` / `STORM_BEACHES_EXPLODE_CHANCE` on fresh peg hits → `detonateFallingBall` / `applyStormBlast` + `sweepExplodedBalls`; spawn via `stormBeachesSpawnMult` in `dropSpawnMult` |
-| Siege Weapons | `dealCard` spike roll when `siegeWeaponsActive`; `collideBallWithBumpers` → `queueSiegeClear` / `beginSiegeClear` (top row); Lv2 `p.broken` on peg hits; toggle via `AUTO_TOGGLE_IDS` |
+| Siege Weapons | `dealCard` spike roll when `siegeWeaponsActive`; `collideBallWithBumpers` → Rail Tax + `queueSiegeClear` / `beginSiegeClear` (top row, chip payout); Lv2 `siegeSpikePinMult` on peg hits; toggle via `AUTO_TOGGLE_IDS` |
+| Short Fuse toggle | `shortFuseActive` / `resolveSpeed` / `flashPulseCount`; `toggleable` on `shortFuse` def + `AUTO_TOGGLE_IDS` |
+| Suit Purge UI | `#suitBombBar`, `suitPurgeActive` / `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI`; shop toggle arms/disarms; bar tap minimizes picker |
 | New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
 | New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
 | Hand scoring / stats | hand detection block ~6160+, `HAND_STAT` wiring |
-| Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `autoEnabled.suitBomb`, `updateSuitBombUI`; first Auto Purge buy collapses picker; tap bar chrome toggles Hide/Show |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
 | Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
 | Prompt open Poker tabs to refresh after deploy | Same as changelog: new `CHANGELOG` `id` + set `poker/version.json` `v` to that id |
