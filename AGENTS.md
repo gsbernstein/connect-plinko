@@ -140,7 +140,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
-| `noteChipEarn` / `updateChipRateUI` / `chipRateFillPct` / `chipRateMarkDenom` / `#chipRateVal` / `#chipRateFill` / `#chipRateLag` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset) — meter hidden until Slide Rule Lv1; `#chipRateBar` reuses shop `.upgrade-progress` and sits flush on the bottom edge (no inset gap) — fill via `chipRateFillPct` (linear Lv1, log Lv2); `#chipRateLag` gold tick marks prior `maxChipRate` when the bar scale rises (`chipRateMarkDenom` lags the denominator); `noteChipEarn` bumps `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
+| `noteChipEarn` / `updateChipRateUI` / `chipRateFillPct` / `chipRateMarkDenom` / `chipRateLastMax` / `#chipRateVal` / `#chipRateFill` / `#chipRateLag` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset) — meter hidden until Slide Rule Lv1; `#chipRateBar` reuses shop `.upgrade-progress` and sits flush on the bottom edge (no inset gap) — fill via `chipRateFillPct` (linear Lv1, log Lv2); `#chipRateLag` gold tick marks prior `maxChipRate` when the bar scale rises (`chipRateMarkDenom` holds until `maxChipRate` stops growing, then eases); `noteChipEarn` bumps `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
 | `updateCompsHud` / `#compsCashOutVal` / `.cashout-rate` | Comps HUD secondary line: `pendingComps()` as `+N`; `.is-ready` / `.is-cashout-ready` when Cash Out can collect |
 | `formatNum` / `formatCompactSuffix` | HUD + score-pop chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
 
@@ -199,7 +199,7 @@ Reuse the existing land-pulse pattern instead of inventing new motion:
 |--------|-------|--------|-----------|
 | Chip score box | `pulseScoreBox` | currently no-op (land bounce disabled) |
 | VIP comps pill | `pulseCompsBox` | currently no-op (land bounce disabled) |
-| Chips/s prior-peak tick | `#chipRateLag` `.chip-rate-lag` | `chipRateMarkDenom` in `updateChipRateUI` (tick when `maxChipRate` rises; marks old peak on new scale) | — |
+| Chips/s prior-peak tick | `#chipRateLag` `.chip-rate-lag` | `chipRateMarkDenom` / `chipRateLastMax` in `updateChipRateUI` (tick when `maxChipRate` rises; eases only after scale stops growing) | — |
 | Achievement prog numerator | `.quest-prog b.prog-pulse` | `pulseAchievementNumerator` | `achievementProgPulse` |
 
 All helpers restart CSS animation with `el.classList.remove(...); void el.offsetWidth; el.classList.add(...)` and clear via `setTimeout` (~340 ms). Inline numerators that scale need `display: inline-block` on the `<b>` (see `.quest.achievement .quest-prog b`).
