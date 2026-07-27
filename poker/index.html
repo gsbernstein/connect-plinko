@@ -2984,6 +2984,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 52,
+      date: 'Jul 27, 2026',
+      title: 'Storm shells light fallers',
+      items: [
+        'I Didn\'t Ask How Big the Room Was now lights chips caught in an explosion while they\'re still in the pins — not just settled board cards.',
+        'Lit fallers keep burning after they land. Storm the Beaches pin shells use the same shove radius for fire.'
+      ]
+    },
+    {
       id: 51,
       date: 'Jul 27, 2026',
       title: 'The explosion is the fireball',
@@ -4161,7 +4170,7 @@
     {
       id: 'bigRoom',
       name: 'I Didn\'t Ask How Big the Room Was',
-      desc: 'Explosions light nearby cards on fire. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. Crowned kings leap aflame and light neighbors. Toggle On/Off anytime.',
+      desc: 'Explosions light nearby cards on fire — including chips still falling through the pins. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. Crowned kings leap aflame and light neighbors. Toggle On/Off anytime.',
       baseCost: 80,
       costScale: 1,
       maxLevel: 1,
@@ -4448,7 +4457,9 @@
   }
 
   // I Didn't Ask How Big the Room Was: the explosion IS the fireball — instant radius ignite.
-  const BIG_ROOM_BLAST_IGNITE_R = 145; // ~neighbors + diagonals (CELL=90)
+  const BIG_ROOM_BLAST_IGNITE_R = 145; // settled neighbors + diagonals (CELL=90)
+  // In-flight chips use the Storm knockback ring so pin-shell blasts light what they shove.
+  const BIG_ROOM_FLIGHT_IGNITE_R = STORM_BEACHES_BLAST_RADIUS;
   const BIG_ROOM_BURN_TICKS = 4;
   const BIG_ROOM_BURN_TICK_MS = 420;
   const BIG_ROOM_BURN_COLOR = '#FF7A3D';
@@ -6590,7 +6601,7 @@
       case 'bigRoom':
         if(!lvl) return 'No blast fires';
         if(!isAutoEnabled('bigRoom')) return 'Paused';
-        return 'Nearby ignite · hand +' + Math.round(BIG_ROOM_BURN_HAND_BONUS * 100) + '%/burn · ' + formatNum(burnTickPayout()) + '/tick';
+        return 'Blast ignite · fallers too · hand +' + Math.round(BIG_ROOM_BURN_HAND_BONUS * 100) + '%/burn · ' + formatNum(burnTickPayout()) + '/tick';
       default:
         return '';
     }
@@ -7596,7 +7607,9 @@
       dropEpoch: parent.dropEpoch,
       splitGen: gen,
       splitLock: PIN_SPLIT_LOCK_FRAMES,
-      splitChild: true
+      splitChild: true,
+      pendingBurn: !!parent.pendingBurn,
+      burnStartedAt: parent.burnStartedAt || 0
     };
 
     // Peel apart along the contact tangent so they don't re-collide the same pin.
@@ -8144,6 +8157,14 @@
     ball.stackEntry.card = cloneCard(card);
     ball.stackEntry.angle = angle;
     delete ball.stackEntry.ball;
+    // Big Room: chips lit by peg/board blasts keep burning once they seat.
+    if(ball.pendingBurn){
+      igniteStackEntry(ball.stackEntry, col, row, {
+        silent: true,
+        startedAt: ball.burnStartedAt || performance.now()
+      });
+      ball.pendingBurn = false;
+    }
     maybeQueueKingMe(col, row, card);
     refreshButtons();
   }
@@ -8979,7 +9000,7 @@
         });
       }
     }
-    // Big Room: the blast itself lights nearby settled cards instantly.
+    // Big Room: the blast itself lights nearby settled + in-flight cards instantly.
     if(bigRoomActive() && !opts.noIgnite){
       igniteNearbyFromBlast(x, y, opts.excludeKeys);
     }
@@ -9007,11 +9028,45 @@
     return false;
   }
 
-  // Instantly ignite every settled card inside the blast ring.
+  function markBallLit(ball){
+    if(!ball || ball.exploded || ball.landed || ball.pendingBurn) return false;
+    if(ball.phase !== 'peg' && ball.phase !== 'grid') return false;
+    const now = performance.now();
+    ball.pendingBurn = true;
+    ball.burnStartedAt = now;
+    pushPopup({
+      x: ball.x, y: ball.y - 10,
+      text: 'FIRE!',
+      color: BIG_ROOM_BURN_COLOR,
+      t0: now,
+      duration: 700,
+      fontSize: 15, floatBoost: 28, tilt: 0.06, slam: 1.25, slamMs: 110, glow: 12
+    });
+    if(particles.length < MAX_PARTICLES){
+      const n = Math.min(5, MAX_PARTICLES - particles.length);
+      for(let i = 0; i < n; i++){
+        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+        const spd = 1.5 + Math.random() * 3;
+        particles.push({
+          x: ball.x, y: ball.y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          r: 2 + Math.random() * 3,
+          color: i % 2 ? BIG_ROOM_BURN_COLOR : '#FFD27A',
+          life: 1,
+          decay: 0.04 + Math.random() * 0.03
+        });
+      }
+    }
+    return true;
+  }
+
+  // Instantly ignite settled neighbors + in-flight chips inside the blast rings.
   function igniteNearbyFromBlast(x, y, excludeKeys){
     if(!bigRoomActive()) return;
     const exclude = excludeKeys || null;
-    const r2 = BIG_ROOM_BLAST_IGNITE_R * BIG_ROOM_BLAST_IGNITE_R;
+    const settledR2 = BIG_ROOM_BLAST_IGNITE_R * BIG_ROOM_BLAST_IGNITE_R;
+    const flightR2 = BIG_ROOM_FLIGHT_IGNITE_R * BIG_ROOM_FLIGHT_IGNITE_R;
     let lit = 0;
     for(let c = 0; c < COLS; c++){
       for(let i = 0; i < stack[c].length; i++){
@@ -9024,45 +9079,57 @@
         const pos = cellCenter(c, row);
         const dx = pos.x - x, dy = pos.y - y;
         const d2 = dx * dx + dy * dy;
-        if(d2 > r2 || d2 < 0.0001) continue;
+        if(d2 > settledR2 || d2 < 0.0001) continue;
         if(igniteStackEntry(entry, c, row)) lit++;
       }
+    }
+    // Peg-shell blasts (Storm) mostly hit other fallers — light those too.
+    for(const b of balls){
+      if(b.exploded || b.landed || b.pendingBurn) continue;
+      if(b.phase !== 'peg' && b.phase !== 'grid') continue;
+      const dx = b.x - x, dy = b.y - y;
+      const d2 = dx * dx + dy * dy;
+      if(d2 > flightR2 || d2 < 0.0001) continue;
+      if(markBallLit(b)) lit++;
     }
     if(lit && !looping) startLoop();
   }
 
-  function igniteStackEntry(entry, col, row){
+  function igniteStackEntry(entry, col, row, opts){
+    opts = opts || {};
     if(!entry || entry.type !== 'piece' || entry.burning) return false;
     const now = performance.now();
     entry.burning = {
       ticksLeft: BIG_ROOM_BURN_TICKS,
       nextTickAt: now + BIG_ROOM_BURN_TICK_MS * 0.35,
-      startedAt: now
+      startedAt: opts.startedAt || now
     };
     const pos = cellCenter(col, row);
-    pushPopup({
-      x: pos.x, y: pos.y - 10,
-      text: 'FIRE!',
-      color: BIG_ROOM_BURN_COLOR,
-      t0: performance.now(),
-      duration: 700,
-      fontSize: 15, floatBoost: 28, tilt: 0.06, slam: 1.25, slamMs: 110, glow: 12
-    });
-    // Small ember burst on ignition.
-    if(particles.length < MAX_PARTICLES){
-      const n = Math.min(5, MAX_PARTICLES - particles.length);
-      for(let i = 0; i < n; i++){
-        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
-        const spd = 1.5 + Math.random() * 3;
-        particles.push({
-          x: pos.x, y: pos.y,
-          vx: Math.cos(ang) * spd,
-          vy: Math.sin(ang) * spd,
-          r: 2 + Math.random() * 3,
-          color: i % 2 ? BIG_ROOM_BURN_COLOR : '#FFD27A',
-          life: 1,
-          decay: 0.04 + Math.random() * 0.03
-        });
+    if(!opts.silent){
+      pushPopup({
+        x: pos.x, y: pos.y - 10,
+        text: 'FIRE!',
+        color: BIG_ROOM_BURN_COLOR,
+        t0: performance.now(),
+        duration: 700,
+        fontSize: 15, floatBoost: 28, tilt: 0.06, slam: 1.25, slamMs: 110, glow: 12
+      });
+      // Small ember burst on ignition.
+      if(particles.length < MAX_PARTICLES){
+        const n = Math.min(5, MAX_PARTICLES - particles.length);
+        for(let i = 0; i < n; i++){
+          const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+          const spd = 1.5 + Math.random() * 3;
+          particles.push({
+            x: pos.x, y: pos.y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            r: 2 + Math.random() * 3,
+            color: i % 2 ? BIG_ROOM_BURN_COLOR : '#FFD27A',
+            life: 1,
+            decay: 0.04 + Math.random() * 0.03
+          });
+        }
       }
     }
     return true;
@@ -9970,6 +10037,12 @@
       ? splitDrawRadiusForGen(b.splitGen)
       : 32;
     drawCardFace(ctx, b.x, b.y, b.card, b.angle||0, r, true, 0);
+    if(b.pendingBurn){
+      drawBurningOverlay(b.x, b.y, {
+        startedAt: b.burnStartedAt || performance.now(),
+        ticksLeft: BIG_ROOM_BURN_TICKS
+      }, performance.now());
+    }
   }
 
   function perfLite(){
