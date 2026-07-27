@@ -4572,10 +4572,10 @@
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   // Board-side Control Booth column — short labels; order is display order.
   const TOGGLE_DOCK_DEFS = [
-    { id: 'autoDealer', short: 'Auto', source: 'upgrade' },
+    { id: 'autoDealer', short: 'Deal', source: 'upgrade', autoManual: true },
     { id: 'shortFuse', short: 'Fuse', source: 'upgrade' },
     { id: 'suitBomb', short: 'Purge', source: 'upgrade', picker: true },
-    { id: 'autoSuitBomb', short: 'Auto Purge', source: 'prestige' },
+    { id: 'autoSuitBomb', short: 'Purge', source: 'prestige', autoManual: true },
     { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
     { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
     { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
