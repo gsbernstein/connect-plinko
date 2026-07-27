@@ -3024,12 +3024,20 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 62,
+      id: 63,
       date: 'Jul 27, 2026',
       title: 'Cashier’s Cage & deeper table levels',
       items: [
         'New upgrade: Cashier’s Cage — spend chips to bank Cash Out comps (up to Lv 100). Steep costs from the first buy; a late-game sink that feeds VIP instead of printing more chips.',
         'Felt Grease goes to Lv 30 (late levels still speed the table, with softer gains). Big Blind to Lv 60 · Premium Cut to Lv 25.'
+      ]
+    },
+    {
+      id: 62,
+      date: 'Jul 27, 2026',
+      title: 'Deeper Mitosis splits',
+      items: [
+        'Percussive Mitosis can bifurcate one generation further — chips shrink one more time on the pins before they stop splitting.'
       ]
     },
     {
@@ -4497,9 +4505,8 @@
 
   // Pin Split: rare Auto Dealer cadence, but each pin strike can bifurcate a falling card.
   const PIN_SPLIT_SPAWN_MULT = 10;
-  const PIN_SPLIT_MAX_GEN = 3; // gen 0 → 3 ⇒ up to 8 chips from one drop
+  const PIN_SPLIT_MAX_GEN = 4; // gen 0 → 4 ⇒ up to 16 chips from one drop
   const PIN_SPLIT_SCALE = 0.72;
-  const PIN_SPLIT_MIN_R = 5;
   const PIN_SPLIT_LOCK_FRAMES = 12;
 
   function pinSplitSpawnMult(){
@@ -7779,11 +7786,11 @@
   const SAFETY_LIMIT = 420;
 
   function splitRadiusForGen(gen){
-    return Math.max(PIN_SPLIT_MIN_R, BALL_RADIUS * Math.pow(PIN_SPLIT_SCALE, gen || 0));
+    return BALL_RADIUS * Math.pow(PIN_SPLIT_SCALE, gen || 0);
   }
 
   function splitDrawRadiusForGen(gen){
-    return Math.max(8, 32 * Math.pow(PIN_SPLIT_SCALE, gen || 0));
+    return 32 * Math.pow(PIN_SPLIT_SCALE, gen || 0);
   }
 
   function canSplitBall(ball){
