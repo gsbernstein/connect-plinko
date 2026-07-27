@@ -74,7 +74,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `stormBeachesActive` / `detonateFallingBall` / `applyStormBlast` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits; blast knocks nearby in-flight chips |
 | `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `beginSiegeResolve` / `tryBeginSiegeColumnSlam` / `siegeCardPayout` / `SIEGE_*` | Siege Weapons (toggleable): Lv1 bumper smash clears one column; Lv2 all columns on that bumper; Lv3 landing column slam with combo payout |
 | `kingMeActive` / `maybeQueueKingMe` / `kingJumpers` / `KING_ME_*` | King Me: bottom-row kings crown (double-stack draw); leap diagonally over cards for chips; explode after ≤4 jumps |
-| `bigRoomActive` / `castFireballsFrom` / `stepBurning` / `maybeFlamingKingIgnite` / `BIG_ROOM_*` | Big Room: explosions cast fireballs that ignite settled cards; burn ticks drip chips then ash out; crowned King Me leaps go aflame and light nearby cards |
+| `bigRoomActive` / `castFireballsFrom` / `handBurnMultiplier` / `stepBurning` / `maybeFlamingKingIgnite` / `BIG_ROOM_*` | Big Room: explosions ignite settled cards in blast radius (fireballs = delivery FX); burn ticks drip chips then ash out; hands with burning cards get +50%/card via `handBurnMultiplier`; crowned King Me leaps go aflame and light nearby cards |
 | `stormBeachLandingPayout` | Storm the Beaches: chips when a card survives pegs and enters the grid (`enterGridColumn`) |
 | `shortFuseActive` / `resolveSpeed` | Short Fuse (toggleable): speeds hand-clear flash/explode when On; Off keeps normal timing for combo/Card Counting setup |
 | `purgeCardPayout` / `suitBombPickerMinimized` / `suitBombUiVisible` / `suitPurgePairPenalty` | Suit Purge: shop Hide/Show and bar tap minimize picker only (purges keep running); purge pays per card; auto-target deprioritizes Card Counting pairs |
@@ -216,7 +216,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Storm the Beaches | `stormBeachesActive` / `STORM_BEACHES_EXPLODE_CHANCE` on fresh peg hits → `detonateFallingBall` / `applyStormBlast` + `sweepExplodedBalls`; spawn via `stormBeachesSpawnMult` in `dropSpawnMult` |
 | Siege Weapons | `dealCard` spike roll when `siegeWeaponsActive`; bumper smash → column(s) clear; Lv3 `tryBeginSiegeColumnSlam` on grid entry; toggle via `AUTO_TOGGLE_IDS` |
 | King Me | `kingMeActive` / `maybeQueueKingMe` on `finalizeDrop` (rank 13 @ bottom row) → crown → `kingJumpers` diagonal captures → `detonateKingJumper`; skip crowned in `findPokerHands` |
-| Big Room fireballs | `bigRoomActive` / `spawnExplosion` → `castFireballsFrom` (Storm pin shells + hand/floor clears); `stepFireballs` / `stepBurning` / `ashOutStackEntry`; flaming King Me via `launchKingJumper` → `maybeFlamingKingIgnite` |
+| Big Room blast ignite | `bigRoomActive` / `spawnExplosion` → `castFireballsFrom` (targets within `BIG_ROOM_BLAST_IGNITE_R`); `handBurnMultiplier` / `countBurningInCells` in `findPokerHands`; `stepFireballs` / `stepBurning` / `ashOutStackEntry`; flaming King Me via `launchKingJumper` → `maybeFlamingKingIgnite` |
 | Storm the Beaches landing | `stormBeachLandingPayout` in `enterGridColumn` when peg → grid |
 | Short Fuse toggle | `shortFuseActive` / `resolveSpeed` / `flashPulseCount`; `toggleable` on `shortFuse` def + `AUTO_TOGGLE_IDS` |
 | Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI`; shop Hide/Show and bar tap minimize picker only |
