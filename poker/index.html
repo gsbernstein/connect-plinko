@@ -681,17 +681,7 @@
     min-width:0;
     min-height:0;
     flex:1 1 auto;
-    overflow-x:hidden;
-    overflow-y:auto;
-    padding:14px 12px 12px;
-    scrollbar-gutter:stable;
-    touch-action:pan-y;
-  }
-  .rail-body::-webkit-scrollbar{width:8px;}
-  .rail-body::-webkit-scrollbar-track{background:transparent;}
-  .rail-body::-webkit-scrollbar-thumb{
-    background:#3a3558;
-    border-radius:999px;
+    overflow:hidden;
   }
   .shop-scroll-cue{
     position:absolute;
@@ -753,6 +743,19 @@
     flex-direction:column;
     gap:10px;
     min-width:0;
+    min-height:0;
+    flex:1 1 auto;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:14px 12px 12px;
+    scrollbar-gutter:stable;
+    touch-action:pan-y;
+  }
+  .rail-panel::-webkit-scrollbar{width:8px;}
+  .rail-panel::-webkit-scrollbar-track{background:transparent;}
+  .rail-panel::-webkit-scrollbar-thumb{
+    background:#3a3558;
+    border-radius:999px;
   }
   .rail-panel.is-active{display:flex;}
   .shop-head, .prestige-head, .contracts-head{
@@ -3339,6 +3342,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
+    {
+      id: 100,
+      date: 'Jul 27, 2026',
+      title: 'Tab scroll position restored',
+      items: [
+        'Each rail tab (Upgrades, Quests, Achievements, VIP, Settings) keeps its own scroll position when you switch away and back.',
+      ]
+    },
     {
       id: 99,
       date: 'Jul 27, 2026',
@@ -11975,7 +11986,6 @@
   const questsPanelEl = document.getElementById('panelQuests');
   const achievementsPanelEl = document.getElementById('panelAchievements');
   const vipPanelEl = document.getElementById('panelVip');
-  const railBodyEl = document.getElementById('railBody');
   const shopScrollCueBtn = document.getElementById('shopScrollCue');
   const welcomeToTableBtn = document.getElementById('welcomeToTable');
   const desktopMq = window.matchMedia('(min-width:1000px)');
@@ -12120,9 +12130,9 @@
     return list;
   }
 
-  function upgradeInScrollerView(btn, mode){
-    if(!railBodyEl || !btn) return false;
-    const sRect = railBodyEl.getBoundingClientRect();
+  function panelInScrollerView(scrollerEl, btn, mode){
+    if(!scrollerEl || !btn) return false;
+    const sRect = scrollerEl.getBoundingClientRect();
     const bRect = btn.getBoundingClientRect();
     const pad = 8;
     if(mode === 'below') return bRect.top > sRect.bottom - pad;
@@ -12132,12 +12142,12 @@
   }
 
   function firstUnviewedUpgradeOffscreen(){
-    if(activeRailPanel !== 'upgrades') return null;
+    if(activeRailPanel !== 'upgrades' || !upgradesPanelEl) return null;
     let below = null;
     let above = null;
     for(const btn of unviewedUpgradeButtons()){
-      if(!below && upgradeInScrollerView(btn, 'below')) below = btn;
-      if(upgradeInScrollerView(btn, 'above')) above = above || btn;
+      if(!below && panelInScrollerView(upgradesPanelEl, btn, 'below')) below = btn;
+      if(panelInScrollerView(upgradesPanelEl, btn, 'above')) above = above || btn;
     }
     // Prefer the more common "new row lower in the list" case.
     if(below) return { btn: below, dir: 'down', kind: 'new' };
@@ -12157,16 +12167,16 @@
 
   // Claimables sort to the top — cue only when none are in view (usually scrolled down).
   function firstClaimableAchievementOffscreen(){
-    if(activeRailPanel !== 'achievements') return null;
+    if(activeRailPanel !== 'achievements' || !achievementsPanelEl) return null;
     const claimables = claimableAchievementButtons();
     if(!claimables.length) return null;
     let anyVisible = false;
     let above = null;
     let below = null;
     for(const btn of claimables){
-      if(upgradeInScrollerView(btn)) anyVisible = true;
-      if(upgradeInScrollerView(btn, 'above')) above = above || btn;
-      if(!below && upgradeInScrollerView(btn, 'below')) below = btn;
+      if(panelInScrollerView(achievementsPanelEl, btn)) anyVisible = true;
+      if(panelInScrollerView(achievementsPanelEl, btn, 'above')) above = above || btn;
+      if(!below && panelInScrollerView(achievementsPanelEl, btn, 'below')) below = btn;
     }
     if(anyVisible) return null;
     if(above) return { btn: above, dir: 'up', kind: 'claim', scrollTop: true };
@@ -12212,7 +12222,7 @@
     if(!upgradesTabUnlocked() || activeRailPanel !== 'upgrades') return false;
     let changed = false;
     for(const btn of unviewedUpgradeButtons()){
-      if(!upgradeInScrollerView(btn)) continue;
+      if(!panelInScrollerView(upgradesPanelEl, btn)) continue;
       const id = btn.dataset.id;
       if(!id || seenUnlocks.upgrades.includes(id)) continue;
       seenUnlocks.upgrades.push(id);
@@ -12362,16 +12372,17 @@
     if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
     else setRailPanel(activeRailPanel);
   });
-  if(railBodyEl){
-    railBodyEl.addEventListener('scroll', ()=>{
-      if(activeRailPanel === 'upgrades'){
-        markPanelUnlocksSeen('upgrades');
-        setTabBadge('upgrades', countAffordableUpgrades());
-      }
-      if(activeRailPanel === 'upgrades' || activeRailPanel === 'achievements'){
-        updateShopScrollCue();
-      }
-    }, { passive: true });
+  function onRailPanelScroll(){
+    if(activeRailPanel === 'upgrades'){
+      markPanelUnlocksSeen('upgrades');
+      setTabBadge('upgrades', countAffordableUpgrades());
+    }
+    if(activeRailPanel === 'upgrades' || activeRailPanel === 'achievements'){
+      updateShopScrollCue();
+    }
+  }
+  for(const el of [upgradesPanelEl, achievementsPanelEl]){
+    if(el) el.addEventListener('scroll', onRailPanelScroll, { passive: true });
   }
   if(shopScrollCueBtn){
     shopScrollCueBtn.addEventListener('click', ()=>{
@@ -12380,8 +12391,9 @@
         updateShopScrollCue();
         return;
       }
-      if(target.scrollTop && railBodyEl){
-        railBodyEl.scrollTo({ top: 0, behavior: 'smooth' });
+      if(target.scrollTop){
+        const scroller = activeRailPanel === 'achievements' ? achievementsPanelEl : upgradesPanelEl;
+        if(scroller) scroller.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         target.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
