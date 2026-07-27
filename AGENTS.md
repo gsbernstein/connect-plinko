@@ -95,8 +95,9 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
 | `SHOP_RECOMMEND_PRIORITY` / `VIP_RECOMMEND_PRIORITY` / `recommendedShopUpgradeId` / `recommendedVipPerkId` / `.upgrade-rec` / `.upgrade-cost-row` | Gold ★ after the price on the next guided buy: shop Auto Dealer→6 → Wild Card→1 → Pin Tip→1 → High Cut→1 → Suit Alliance→2; VIP Quest Desk→1 → Quest Ink→4. First incomplete unlocked step wins (`fillUpgradeButton` `recommended`; `.upgrade-rec.is-on` via `visibility`) |
 | `compCage` / `runCompCredit` | Cashier’s Cage (`unlockAt` 200): each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
-| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `connect4`, `dealMeIn`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, `bigRoom`, `controlBooth`, …). Skill-bonus perks (`houseEdge` → Hot Streak, `quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`; `houseEdge.maxLevel` must match Hot Streak’s cap (10). |
+| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `connect4`, `dealMeIn`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, `bigRoom`, `controlBooth`, `slideRule`, …). Skill-bonus perks (`houseEdge` → Hot Streak, `quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`; `houseEdge.maxLevel` must match Hot Streak’s cap (10). |
 | `controlBooth` / `TOGGLE_DOCK_DEFS` / `updateToggleDockUI` / `#toggleDock` | Control Booth VIP: when owned+On, shows owned toggles in a column to the right of the board (`.board-row` + `.toggle-dock`); Suit Purge uses Shown/Hidden; Short Fuse uses Short/Normal (`fuseStates`); Booth Off hides the column (re-enable from VIP) |
+| `slideRule` / `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` / `syncChipRateVisibility` | Slide Rule VIP: Lv1+On shows chips/s meter (`.score.has-chip-rate`); Lv2 uses `log1p` fill; Control Booth short label `Rate` |
 | `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5) |
 | `dealMeIn` / `dealMeInActive` / `tryJoinResolve` / `resolveGroupsSignature` | Deal Me In VIP (toggleable): cards that `finalizeDrop` during `flash` re-scan via `findPokerHands` and rewrite `currentGroups` / `flashCells` before score; new simultaneous hands bump `chainStep`; Suit Purge / Siege / Floor skipped; flash leftover capped by `DEAL_ME_IN_FLASH_EXTEND_CAP` |
 | `drawResolveHandLines` / `cellsFormLine` / `handGroupColor` | Paint-only flash connectors on `plateCtx` before seat holes are punched (plastic gaps only; no labels; skips Suit Purge). `handGroupColor`: flush family → suit via `flushHintColor`; straight → `PEG`; rank/pattern → ivory→gold by strength (also feeds score-popup color) |
@@ -139,7 +140,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
-| `noteChipEarn` / `updateChipRateUI` / `#chipRateVal` / `#chipRateFill` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset); `#chipRateBar` reuses shop `.upgrade-progress` and sits flush on the bottom edge (no inset gap) — fill = current rate / `stats.maxChipRate` peak; `noteChipEarn` also records peak floored rate into `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
+| `noteChipEarn` / `updateChipRateUI` / `chipRateFillPct` / `#chipRateVal` / `#chipRateFill` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset) — meter hidden until Slide Rule Lv1; `#chipRateBar` reuses shop `.upgrade-progress` and sits flush on the bottom edge (no inset gap) — fill via `chipRateFillPct` (linear Lv1, log Lv2); `noteChipEarn` always records peak floored rate into `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
 | `updateCompsHud` / `#compsCashOutVal` / `.cashout-rate` | Comps HUD secondary line: `pendingComps()` as `+N`; `.is-ready` / `.is-cashout-ready` when Cash Out can collect |
 | `formatNum` / `formatCompactSuffix` | HUD + score-pop chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
 
@@ -196,8 +197,8 @@ Reuse the existing land-pulse pattern instead of inventing new motion:
 
 | Target | Class | Helper | Keyframes |
 |--------|-------|--------|-----------|
-| Chip score box | `.score.chip-pulse` | `pulseScoreBox` | `chipLandPulse` |
-| VIP comps pill | `.comps-pill.comp-pulse` | `pulseCompsBox` | `compLandPulse` |
+| Chip score box | `pulseScoreBox` → `hudLandPulse` | `hudLandPulse` (WAAPI scale + brightness) |
+| VIP comps pill | `pulseCompsBox` → `hudLandPulse` | same — transform/filter only; no layout reflow |
 | Achievement prog numerator | `.quest-prog b.prog-pulse` | `pulseAchievementNumerator` | `achievementProgPulse` |
 
 All helpers restart CSS animation with `el.classList.remove(...); void el.offsetWidth; el.classList.add(...)` and clear via `setTimeout` (~340 ms). Inline numerators that scale need `display: inline-block` on the `<b>` (see `.quest.achievement .quest-prog b`).
@@ -287,7 +288,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Multi Deal extras | `multiDealChance` / `rollMultiDealExtras` in `tryAutoDrop` via `autoDropOnce` |
 | Cashier’s Cage (chip→comp sink) | `compCage` in `UPGRADE_DEFS`; `purchaseUpgrade` adds `runCompCredit`; effect via `upgradeEffectText` |
 | Auto Dealer two-tier costs | `costLateAt` / `costLateBase` / `costLateScale` on `autoDealer` def; `upgradeCost` |
-| New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Deal Me In via `dealMeInActive` / `tryJoinResolve` on late `finalizeDrop`; Pin Split via `pinSplitActive` / peg hit in `stepBall` |
+| New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Deal Me In via `dealMeInActive` / `tryJoinResolve` on late `finalizeDrop`; Pin Split via `pinSplitActive` / peg hit in `stepBall`; Slide Rule via `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` |
 | Deal Me In join | `dealMeIn` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS` / `TOGGLE_DOCK_DEFS`; `tryJoinResolve` after landed `finalizeDrop` while `resolvePhase === 'flash'`; `resolveGroupsSignature` change gate; Suit Purge / Siege / Floor excluded |
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult` only (no manual cooldown), `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
 | Storm the Beaches | `stormBeachesActive` / `STORM_BEACHES_EXPLODE_CHANCE` on fresh peg hits → `detonateFallingBall` / `applyStormBlast` + `sweepExplodedBalls`; spawn via `stormBeachesSpawnMult` in `dropSpawnMult` |
