@@ -2970,7 +2970,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 22;
+  const SAVE_VERSION = 23;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2982,6 +2982,16 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 38,
+      date: 'Jul 27, 2026',
+      title: 'Big pots & trophy case',
+      items: [
+        'New Big Pot achievement tracks your highest single-hand chip payout.',
+        'New Trophy Case achievement rewards claiming achievement tiers.',
+        'Double Down no longer duplicates the first COMBO milestone — C-Combo owns ×2.'
+      ]
+    },
     {
       id: 37,
       date: 'Jul 26, 2026',
@@ -3701,7 +3711,6 @@
       stat: 'multiHandClears', unlockAt: 1, infinite: true,
       scale: { targetGrowth: 2.3, compPerLevel: 1, chipBase: 100, chipGrowth: 1.35, compCap: 25 },
       tiers: [
-        { target: 1, reward: { chips: 150 } },
         { target: 10, reward: { comps: 1 } },
         { target: 50, reward: { comps: 3 } },
         { target: 200, reward: { comps: 5 } }
@@ -3717,6 +3726,18 @@
         { target: 3, reward: { comps: 2 } },
         { target: 4, reward: { comps: 4 } },
         { target: 5, reward: { comps: 8 } }
+      ]
+    },
+    {
+      id: 'a_hand_payout', kind: 'achievement', name: 'Big Pot',
+      desc: 'Score a single hand worth {n} chips or more.',
+      stat: 'maxHandPayout', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 30 },
+      tiers: [
+        { target: 50, reward: { chips: 100 } },
+        { target: 200, reward: { comps: 1 } },
+        { target: 1000, reward: { comps: 2 } },
+        { target: 5000, reward: { comps: 4 } }
       ]
     },
     {
@@ -3798,6 +3819,18 @@
         { target: 5, reward: { comps: 2 } },
         { target: 15, reward: { comps: 4 } },
         { target: 40, reward: { comps: 6 } }
+      ]
+    },
+    {
+      id: 'a_claims', kind: 'achievement', name: 'Trophy Case',
+      desc: 'Claim {n} achievement reward(s).',
+      stat: 'achievementClaims', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.1, compPerLevel: 1, chipBase: 40, chipGrowth: 1.3, compCap: 25 },
+      tiers: [
+        { target: 3, reward: { chips: 75 } },
+        { target: 10, reward: { comps: 1 } },
+        { target: 25, reward: { comps: 2 } },
+        { target: 60, reward: { comps: 4 } }
       ]
     },
     {
@@ -4041,7 +4074,7 @@
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
-    maxCombo: 0,
+    maxCombo: 0, maxHandPayout: 0, achievementClaims: 0,
     sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
@@ -4943,6 +4976,7 @@
     const tier = achievementTierAt(def, level);
     if(!tier) return false;
     questClaimed[def.id] = level;
+    bumpStat('achievementClaims', 1);
     applyContractReward(tier.reward);
     refreshQuestUiAndSave();
     const tierSuffix = (def.infinite || achievementSeedTiers(def).length > 1)
@@ -4990,6 +5024,15 @@
     if(!n) return;
     stats[key] = (stats[key] || 0) + n;
     scheduleContractsUI();
+  }
+
+  function noteHandPayout(pts){
+    pts = Math.floor(pts);
+    if(pts <= 0) return;
+    if(pts > (stats.maxHandPayout || 0)){
+      stats.maxHandPayout = pts;
+      scheduleContractsUI();
+    }
   }
 
   function noteHandClear(groups, chainMult){
@@ -6374,6 +6417,13 @@
           if(!def) continue;
           const capped = def.infinite ? tier : Math.min(achievementSeedTiers(def).length, tier);
           questClaimed[id] = Math.max(questClaimed[id] || 0, capped);
+        }
+        // Double Down dropped its tier-1 @ 1 multi-clear — C-Combo owns COMBO ×2.
+        if((data.v || 0) < 23){
+          const comboClaimed = questClaimed.a_combo;
+          if(typeof comboClaimed === 'number' && comboClaimed > 0){
+            questClaimed.a_combo = Math.max(1, comboClaimed - 1);
+          }
         }
       }
       if(typeof data.questUidSeq === 'number' && data.questUidSeq > 0){
@@ -8609,6 +8659,7 @@
             const isSuitBomb = currentGroups.some(g => g.suitBomb);
             const chainMult = isSuitBomb ? 1 : computeChainMult(chainStep);
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * handPayoutMultiplier());
+            noteHandPayout(pts);
             noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
