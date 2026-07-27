@@ -1286,24 +1286,23 @@
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
-    display:inline-flex;
+  }
+  .upgrade-cost-row{
+    display:flex;
     align-items:center;
-    gap:5px;
-    min-width:0;
+    gap:6px;
+    flex-wrap:wrap;
   }
   .upgrade-rec{
     flex-shrink:0;
     color:#E6C35C;
-    font-size:12px;
+    font-size:13px;
     line-height:1;
     text-shadow:0 0 8px rgba(230,195,92,0.35);
     /* Stay in flow when idle so chip-tick ★ moves don't resize cards mid-scroll. */
     visibility:hidden;
   }
   .upgrade-rec.is-on{ visibility:visible; }
-  .upgrade-name-text{
-    min-width:0;
-  }
   .upgrade-top-right{
     display:flex;
     align-items:center;
@@ -3333,6 +3332,14 @@
   // Merge/rebase conflict here? Keep master's entries+ids, renumber YOUR new
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
+    {
+      id: 90,
+      date: 'Jul 27, 2026',
+      title: 'Star sits by the price',
+      items: [
+        'The recommended-buy ★ now appears after the upgrade or perk cost instead of before the name.',
+      ]
+    },
     {
       id: 89,
       date: 'Jul 27, 2026',
@@ -12537,10 +12544,7 @@
     btn.tabIndex = 0;
     btn.innerHTML =
       '<div class="upgrade-top">' +
-        '<span class="upgrade-name">' +
-          '<span class="upgrade-rec" aria-hidden="true" title="Recommended next">★</span>' +
-          '<span class="upgrade-name-text"></span>' +
-        '</span>' +
+        '<span class="upgrade-name"></span>' +
         '<span class="upgrade-top-right">' +
           (def.toggleable
             ? '<button type="button" class="upgrade-toggle" hidden>On</button>'
@@ -12550,12 +12554,15 @@
       '</div>' +
       '<p class="upgrade-desc"></p>' +
       '<div class="upgrade-effect"></div>' +
-      '<div class="upgrade-cost"></div>' +
+      '<div class="upgrade-cost-row">' +
+        '<div class="upgrade-cost"></div>' +
+        '<span class="upgrade-rec" aria-hidden="true" title="Recommended next">★</span>' +
+      '</div>' +
       '<div class="upgrade-progress" aria-hidden="true">' +
         '<span class="upgrade-progress-bonus"></span>' +
         '<span class="upgrade-progress-bought"></span>' +
       '</div>';
-    btn.querySelector('.upgrade-name-text').textContent = def.name;
+    btn.querySelector('.upgrade-name').textContent = def.name;
     btn.querySelector('.upgrade-desc').textContent = def.desc;
     const toggle = btn.querySelector('.upgrade-toggle');
     if(toggle){
