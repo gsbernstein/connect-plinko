@@ -88,7 +88,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `upgradeEffectText` / `prestigeEffectText` / `shopMetaMultiplier` | Shop/VIP effect lines (stable; omit live Card Counting product via `*Display` helpers) |
 | `levelMultParts` / `levelMultDetailTitle` / `#runLevelMult` | Live Blind / payout / combo / Card Counting mults on the Level HUD tile; `scheduleCountingUiRefresh` updates this only (not shop/VIP rows) |
 | `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (`a_max_combo` uses step 1); Big Pot / Combo Payday use `targetGrowth: 10` after seed tiers |
-| `achievementProgress` / `achievementProgShown` | Floored progress numerator; last-painted value for increment pulse |
+| `achievementProgress` / `achievementProgShown` / `achievementProgTargetShown` | Floored progress numerator + last-painted tier target; skip identical prog HTML rewrites; pulse only when numerator rises |
 | `achievementTiersReachedByStat` | Highest infinite/seed tier whose `target` a peak stat already clears (used to remap Big Pot / Combo Payday claims when `targetGrowth` changes) |
 | `achievementName` | `a_max_combo` tier title: C-Combo, C-C-Combo… from active tier target |
 | `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
@@ -141,6 +141,7 @@ Quests and achievements share one card shell (`makeQuestCardShell`):
 | Progress row | `.quest-progress-row` → `.quest-prog` | HTML: `<b>{numerator}</b> / {denominator}` |
 | Progress bar | `.quest-bar > span` | Width from `progress / target` |
 | Card styling | `.quest.achievement` | Gold accent (`#F0D78C`) on kind label + bar |
+| List order | `compareAchievementButtons` / `achievementOrderBucketSig` | Progress-ratio sort when the tab is closed or reopened; while open, only reshuffle on claim-bucket changes (`achievementOrderBucketSignature`) so hover/click stay stable |
 
 **Achievement numerator rules**
 
@@ -151,7 +152,7 @@ Quests and achievements share one card shell (`makeQuestCardShell`):
 
 **Increment pulse (achievements only)**
 
-When the floored numerator rises, `pulseAchievementNumerator` adds `.prog-pulse` to `.quest.achievement .quest-prog b`. `achievementProgShown` (per achievement id) stores the last painted numerator so the first paint and tier resets do not pulse. Reset `achievementProgShown` in `buildContracts` when cards are rebuilt.
+When the floored numerator rises, `pulseAchievementNumerator` adds `.prog-pulse` to `.quest.achievement .quest-prog b`. `achievementProgShown` / `achievementProgTargetShown` store the last painted numerator and tier target so identical refreshes do not rewrite prog HTML, and the first paint and tier resets do not pulse. Reset both maps in `buildContracts` when cards are rebuilt.
 
 ### UI feedback (pulse animations)
 
