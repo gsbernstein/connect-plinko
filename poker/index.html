@@ -9937,35 +9937,39 @@
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
-  function drawBurningOverlay(cx, cy, burn, now){
+  // scale: 1 = full seat size; Pin Split fallers pass drawRadius/32 so fire shrinks with them.
+  function drawBurningOverlay(cx, cy, burn, now, scale){
     if(!burn) return;
+    const s = Math.max(0.25, scale == null ? 1 : scale);
     const age = Math.max(0, (now - (burn.startedAt || now)) / 1000);
     const flicker = 0.55 + 0.45 * Math.abs(Math.sin(age * 14 + cx * 0.01));
     const ticksFrac = Math.max(0.2, (burn.ticksLeft || 1) / BIG_ROOM_BURN_TICKS);
     ctx.save();
     ctx.translate(cx, cy);
     ctx.shadowColor = BIG_ROOM_BURN_COLOR;
-    ctx.shadowBlur = 16 + 10 * flicker;
+    ctx.shadowBlur = (16 + 10 * flicker) * s;
     ctx.globalAlpha = 0.22 + 0.28 * flicker * ticksFrac;
     ctx.beginPath();
-    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.arc(0, 0, 30 * s, 0, Math.PI * 2);
     ctx.fillStyle = BIG_ROOM_BURN_COLOR;
     ctx.fill();
     ctx.globalAlpha = 0.35 + 0.4 * flicker;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = Math.max(1.5, 3 * s);
     ctx.strokeStyle = '#FFD27A';
     ctx.beginPath();
-    ctx.arc(0, 0, 32, 0, Math.PI * 2);
+    ctx.arc(0, 0, 32 * s, 0, Math.PI * 2);
     ctx.stroke();
     // Simple flame tongues above the chip.
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 8 * s;
     ctx.globalAlpha = 0.55 + 0.35 * flicker;
     for(let i = 0; i < 3; i++){
-      const ox = (i - 1) * 9;
-      const h = 10 + 7 * flicker + (i === 1 ? 4 : 0);
+      const ox = (i - 1) * 9 * s;
+      const h = (10 + 7 * flicker + (i === 1 ? 4 : 0)) * s;
+      const baseY = -18 * s;
+      const half = 4 * s;
       ctx.beginPath();
-      ctx.moveTo(ox - 4, -18);
-      ctx.quadraticCurveTo(ox + Math.sin(age * 18 + i) * 3, -18 - h, ox + 4, -18);
+      ctx.moveTo(ox - half, baseY);
+      ctx.quadraticCurveTo(ox + Math.sin(age * 18 + i) * 3 * s, baseY - h, ox + half, baseY);
       ctx.fillStyle = i === 1 ? '#FFD27A' : BIG_ROOM_BURN_COLOR;
       ctx.fill();
     }
@@ -10041,7 +10045,7 @@
       drawBurningOverlay(b.x, b.y, {
         startedAt: b.burnStartedAt || performance.now(),
         ticksLeft: BIG_ROOM_BURN_TICKS
-      }, performance.now());
+      }, performance.now(), r / 32);
     }
   }
 
