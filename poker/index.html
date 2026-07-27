@@ -1547,7 +1547,7 @@
     overflow:hidden;
     border:1px solid #2a2545;
     border-radius:10px;
-    padding:10px 0;
+    padding:14px 0;
     cursor:pointer;
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
@@ -1565,15 +1565,15 @@
     position:relative;
     z-index:1;
     display:block;
-    width:22px;
-    height:22px;
+    width:40px;
+    height:40px;
     margin:0 auto;
     pointer-events:none;
   }
   /* Suit Alliance: one purge button paints both glyphs side by side. */
   .suit-btn.pair-suit .suit-glyph{
-    width:30px;
-    height:18px;
+    width:72px;
+    height:36px;
   }
   .suit-btn:hover:not(:disabled){
     transform:translateY(-1px);
@@ -13066,6 +13066,12 @@
     if(app) app.classList.toggle('has-toggle-dock', show);
   }
 
+  const SUIT_BOMB_GLYPH = 40;
+  const SUIT_BOMB_PAIR_GLYPH = 32;
+  const SUIT_BOMB_CANVAS = SUIT_BOMB_GLYPH * 2;
+  const SUIT_BOMB_PAIR_CANVAS_W = SUIT_BOMB_PAIR_GLYPH * 4 + 16;
+  const SUIT_BOMB_PAIR_CANVAS_H = SUIT_BOMB_PAIR_GLYPH * 2;
+
   function buildSuitBombUI(){
     suitBombBtnsEl.innerHTML = '';
     for(const s of SUITS){
@@ -13078,8 +13084,8 @@
       fill.className = 'cd-fill';
       const glyph = document.createElement('canvas');
       glyph.className = 'suit-glyph';
-      glyph.width = 44;
-      glyph.height = 44;
+      glyph.width = SUIT_BOMB_CANVAS;
+      glyph.height = SUIT_BOMB_CANVAS;
       glyph.setAttribute('aria-hidden', 'true');
       btn.append(fill, glyph);
       btn.addEventListener('click', ()=>castSuitBomb(s));
@@ -13106,18 +13112,22 @@
       const members = suitsInFamily(s);
       const pair = members.length > 1 && suitFamily(s) === s;
       btn.classList.toggle('pair-suit', pair);
-      const w = pair ? 60 : 44;
-      const h = pair ? 36 : 44;
+      const w = pair ? SUIT_BOMB_PAIR_CANVAS_W : SUIT_BOMB_CANVAS;
+      const h = pair ? SUIT_BOMB_PAIR_CANVAS_H : SUIT_BOMB_CANVAS;
       if(glyph.width !== w) glyph.width = w;
       if(glyph.height !== h) glyph.height = h;
       const ctx = glyph.getContext('2d');
       ctx.clearRect(0, 0, glyph.width, glyph.height);
       if(pair){
+        const cy = h / 2;
+        const pad = SUIT_BOMB_PAIR_GLYPH / 2 + 4;
+        const lx = pad;
+        const rx = w - pad;
         // Keep each ally in its own ink so the merge is readable on one button.
-        paintSuitGlyph(ctx, members[0], 16, 18, 18, SUIT_COLOR[members[0]]);
-        paintSuitGlyph(ctx, members[1], 44, 18, 18, SUIT_COLOR[members[1]]);
+        paintSuitGlyph(ctx, members[0], lx, cy, SUIT_BOMB_PAIR_GLYPH, SUIT_COLOR[members[0]]);
+        paintSuitGlyph(ctx, members[1], rx, cy, SUIT_BOMB_PAIR_GLYPH, SUIT_COLOR[members[1]]);
       } else {
-        paintSuitGlyph(ctx, s, 22, 22, 22, SUIT_COLOR[s]);
+        paintSuitGlyph(ctx, s, w / 2, h / 2, SUIT_BOMB_GLYPH, SUIT_COLOR[s]);
       }
     }
   }
