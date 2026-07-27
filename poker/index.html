@@ -2994,12 +2994,20 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 55,
+      id: 56,
       date: 'Jul 27, 2026',
       title: 'King Me merges',
       items: [
         'King Me no longer hops from the bottom row — instead, two kings of the same suit that meet stack into a crowned king.',
         'Matching stacks keep merging (double king, triple, …) with exponentially bigger chip payouts. Toggle On/Off anytime.'
+      ]
+    },
+    {
+      id: 55,
+      date: 'Jul 27, 2026',
+      title: 'House Edge matches Hot Streak',
+      items: [
+        'House Edge now caps at Lv 10 — same as Hot Streak — so VIP no longer offers dozens of useless heater levels.'
       ]
     },
     {
@@ -4051,7 +4059,7 @@
       desc: '+1 Hot Streak level permanently. Raises Hot Streak’s buy cost like a normal level. Capped at Hot Streak max.',
       baseCost: 1,
       costScale: 1.65,
-      maxLevel: 40
+      maxLevel: 10
     },
     {
       id: 'seedStack',
