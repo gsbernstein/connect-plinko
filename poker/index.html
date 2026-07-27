@@ -369,6 +369,16 @@
     background:rgba(255,255,255,0.035);
     color:var(--ink-dim);
   }
+  .toggle-dock-btn.is-settings{
+    border-color:rgba(148,138,210,0.52);
+    background:rgba(148,138,210,0.14);
+    color:#C8BEF0;
+  }
+  .toggle-dock-btn.is-settings.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.035);
+    color:var(--ink-dim);
+  }
   .toggle-dock-name{
     font-family:'Space Grotesk',sans-serif;
     font-size:10px;
@@ -3348,7 +3358,7 @@
       title: 'Control Booth tidy-up',
       items: [
         'Booth and chips/s Rate toggles are no longer in the dock — pause Control Booth or Slide Rule from VIP.',
-        'Flying chips toggle added to the Control Booth column (syncs with Settings).',
+        'Flying chips toggle added to the Control Booth column (syncs with Settings); violet styling marks it as a preference, not a perk.',
       ]
     },
     {
@@ -13290,7 +13300,10 @@
       for(const def of owned){
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'toggle-dock-btn' + (def.source === 'prestige' ? ' is-prestige' : '');
+        let dockBtnClass = 'toggle-dock-btn';
+        if(def.source === 'prestige') dockBtnClass += ' is-prestige';
+        else if(def.source === 'settings') dockBtnClass += ' is-settings';
+        btn.className = dockBtnClass;
         btn.dataset.id = def.id;
         btn.innerHTML =
           '<span class="toggle-dock-name"></span>' +
