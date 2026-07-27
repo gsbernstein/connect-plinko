@@ -2594,6 +2594,7 @@
     if(isWild(card)) c.wild = true;
     const t = cardTier(card);
     if(t) c.tier = t;
+    if(card && card.crowned) c.crowned = true;
     if(card && card.spikes) c.spikes = true;
     if(extra) Object.assign(c, extra);
     return c;
@@ -2983,13 +2984,22 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 44,
+      id: 45,
       date: 'Jul 27, 2026',
       title: 'Suit Purge fix',
       items: [
         'Buying Auto Purge collapses the suit picker again without stopping purges.',
-        'Shop Hide/Show and the bar tap only hide the picker — auto and manual purges keep working.',
+        'Shop Hide/Show and the bar tap only hide the picker — auto purges keep working when Auto Purge is on.',
         'Older saves that accidentally paused Suit Purge are migrated back to armed.'
+      ]
+    },
+    {
+      id: 44,
+      date: 'Jul 27, 2026',
+      title: 'King Me VIP perk',
+      items: [
+        'New expensive VIP perk: King Me — kings that reach the bottom row get crowned with a second king on top.',
+        'Crowned kings leap diagonally over cards for big chips, then explode after a few jumps. Toggle On/Off anytime.'
       ]
     },
     {
@@ -4086,6 +4096,15 @@
       toggleable: true
     },
     {
+      id: 'kingMe',
+      name: 'King Me',
+      desc: 'Kings that reach the bottom row get crowned — a second king stacks on top. Crowned kings leap diagonally over cards for big chips, then explode after a few jumps. Toggle On/Off anytime.',
+      baseCost: 120,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
       id: 'tableTilt',
       name: 'Table Tilt',
       desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
@@ -4099,7 +4118,7 @@
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'shortFuse'];
+  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'shortFuse'];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   let comps = 0;
   let prestigeCount = 0;
@@ -4286,6 +4305,23 @@
   function stormBeachesSpawnMult(){
     return stormBeachesActive() ? STORM_BEACHES_SPAWN_MULT : 1;
   }
+
+  function kingMeUnlocked(){
+    return prestigeLevel('kingMe') > 0;
+  }
+
+  function kingMeActive(){
+    return kingMeUnlocked() && isAutoEnabled('kingMe');
+  }
+
+  // King Me: bottom-row kings crown, leap diagonally over cards, then detonate.
+  const KING_ME_MAX_JUMPS = 4;
+  const KING_ME_CROWN_DELAY_MS = 420;
+  const KING_ME_JUMP_MS = 300;
+  const KING_ME_BASE_JUMP = 32;
+  const KING_ME_FINALE = 55;
+  let pendingKingMe = []; // {col, row, readyAt}
+  let kingJumpers = [];
 
   function dropSpawnMult(){
     return pinSplitSpawnMult() * stormBeachesSpawnMult();
@@ -6426,6 +6462,10 @@
           return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · bumper columns · +' + siegeCardPayout() + '/card';
         }
         return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · column clear · +' + siegeCardPayout() + '/card';
+      case 'kingMe':
+        if(!lvl) return 'Kings stay grounded';
+        if(!isAutoEnabled('kingMe')) return 'Paused';
+        return 'Crown on bottom · up to ' + KING_ME_MAX_JUMPS + ' jumps';
       default:
         return '';
     }
@@ -7025,6 +7065,8 @@
     particles = [];
     popups = [];
     pendingSuitBomb = null;
+    pendingKingMe = [];
+    kingJumpers = [];
     for(const p of pegs){ p.hit = 0; p.broken = 0; }
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
@@ -7900,17 +7942,25 @@
     autoDropTicks += physicsSteps;
     tryAutoDrop();
     stepParticles();
+    tryActivatePendingKingMe(now);
+    const kingMeStepped = stepKingJumpers(now);
 
     const landed = balls.filter(b=>b.landed);
     if(landed.length){
       balls = balls.filter(b=>!b.landed);
       for(const b of landed) finalizeDrop(b);
-      if(!resolving) maybeStartResolve();
+      // Defer hand resolve while crowned kings are mid-leap (captures reshape the board).
+      if(!resolving && !kingMeJumping()) maybeStartResolve();
+    }
+
+    // After crowned leaps settle, resume normal hand / floor clears.
+    if(kingMeStepped && !resolving && !kingMeJumping()){
+      maybeStartResolve();
     }
 
     // Board packed solid with nothing left seating in-column: blow the floor
     // even while peg-zone pucks are still bouncing — they'll fall in after.
-    if(!resolving && boardIsFull() && !hasGridBalls()) beginFloorClear();
+    if(!resolving && !kingMeJumping() && boardIsFull() && !hasGridBalls()) beginFloorClear();
 
     draw();
     lastFrameMs = performance.now() - now;
@@ -7923,7 +7973,7 @@
       && isAutoEnabled('autoSuitBomb')
       && suitBombUnlocked();
     if(balls.length>0 || particles.length>0 || popupsAlive || resolving
-      || bombCharging || bombAuto || autoDealerActive()){
+      || bombCharging || bombAuto || autoDealerActive() || kingMeBusy()){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -7943,7 +7993,288 @@
       ball.stackEntry.angle = angle;
       delete ball.stackEntry.ball;
     }
+    maybeQueueKingMe(col, row, card);
     refreshButtons();
+  }
+
+  function cellCenter(col, row){
+    return {
+      x: col * CELL + CELL / 2,
+      y: PEG_ZONE + row * CELL + CELL / 2
+    };
+  }
+
+  function maybeQueueKingMe(col, row, card){
+    if(!kingMeActive() || !card || card.rank !== 13) return;
+    if(row !== ROWS - 1 || card.crowned) return;
+    if(pendingKingMe.some(p => p.col === col && p.row === row)) return;
+    card.crowned = true;
+    grid[col][row] = cloneCard(card, {crowned: true});
+    const stackIdx = ROWS - 1 - row;
+    const entry = stack[col][stackIdx];
+    if(entry && entry.type === 'piece'){
+      entry.card = cloneCard(card, {crowned: true});
+      entry.angle = card.angle || entry.angle || 0;
+    }
+    const {x, y} = cellCenter(col, row);
+    const now = performance.now();
+    pushPopup({
+      x, y: y - 12,
+      text: 'KING ME!',
+      color: '#F0D78C',
+      t0: now,
+      duration: 1000,
+      big: true,
+      fontSize: 30,
+      floatBoost: 44,
+      slam: 1.9,
+      slamMs: 210,
+      glow: 20,
+      tilt: -0.06
+    });
+    pendingKingMe.push({col, row, readyAt: now + KING_ME_CROWN_DELAY_MS});
+    markHintsDirty();
+    startLoop();
+  }
+
+  function findKingMeJump(col, row){
+    const longJumps = [];
+    const stomps = [];
+    for(const dx of [-1, 1]){
+      for(const dy of [-1, 1]){
+        const mc = col + dx, mr = row + dy;
+        if(mc < 0 || mc >= COLS || mr < 0 || mr >= ROWS) continue;
+        const victim = grid[mc][mr];
+        if(!victim || victim.crowned) continue;
+        const tc = col + 2 * dx, tr = row + 2 * dy;
+        if(tc >= 0 && tc < COLS && tr >= 0 && tr < ROWS
+            && !grid[tc][tr]
+            && !kingJumpers.some(j => j.col === tc && j.row === tr)){
+          longJumps.push({mc, mr, tc, tr, victim, stomp: false});
+        } else if(!kingJumpers.some(j => j.col === mc && j.row === mr)){
+          // No clear landing two steps out — stomp the diagonal neighbor.
+          stomps.push({mc, mr, tc: mc, tr: mr, victim, stomp: true});
+        }
+      }
+    }
+    const options = longJumps.length ? longJumps : stomps;
+    if(!options.length) return null;
+    // Prefer true leaps over stomps, upward (toward pegs), then nearer center.
+    options.sort((a, b) =>
+      (a.stomp === b.stomp ? 0 : a.stomp ? 1 : -1)
+      || a.tr - b.tr
+      || Math.abs(a.tc - 3) - Math.abs(b.tc - 3)
+    );
+    return options[0];
+  }
+
+  function removeSettledPieceAt(col, row){
+    const stackIdx = ROWS - 1 - row;
+    if(stackIdx < 0 || stackIdx >= stack[col].length){
+      grid[col][row] = 0;
+      return null;
+    }
+    const entry = stack[col][stackIdx];
+    if(!entry || entry.type !== 'piece'){
+      grid[col][row] = 0;
+      return null;
+    }
+    const card = entry.card;
+    stack[col].splice(stackIdx, 1);
+    rebuildColumnFromStack(col);
+    recomputeBumpers();
+    markHintsDirty();
+    return card;
+  }
+
+  function launchKingJumper(col, row){
+    const card = grid[col][row];
+    if(!card || card.rank !== 13 || !card.crowned) return false;
+    const lifted = removeSettledPieceAt(col, row);
+    if(!lifted) return false;
+    const {x, y} = cellCenter(col, row);
+    kingJumpers.push({
+      card: cloneCard(lifted, {crowned: true}),
+      col, row,
+      x, y,
+      jumpsLeft: KING_ME_MAX_JUMPS,
+      jumpsDone: 0,
+      phase: 'seek',
+      leapT0: 0,
+      fromX: x, fromY: y,
+      toX: x, toY: y,
+      midCol: -1, midRow: -1,
+      destCol: col, destRow: row
+    });
+    startLoop();
+    return true;
+  }
+
+  function tryActivatePendingKingMe(now){
+    if(!pendingKingMe.length) return;
+    if(resolving) return;
+    const keep = [];
+    for(const p of pendingKingMe){
+      if(now < p.readyAt){
+        keep.push(p);
+        continue;
+      }
+      const card = grid[p.col] && grid[p.col][p.row];
+      if(!card || !card.crowned || card.rank !== 13) continue;
+      // Already crowned — finish the leap even if the perk was toggled off.
+      launchKingJumper(p.col, p.row);
+    }
+    pendingKingMe = keep;
+  }
+
+  function kingMeJumpPayout(jumpIndex){
+    // Escalating capture payout — later hops hit harder.
+    const step = Math.max(1, jumpIndex | 0);
+    return Math.floor(
+      KING_ME_BASE_JUMP * step * (1.35 + step * 0.35) * handPayoutMultiplier()
+    );
+  }
+
+  function kingMeFinalePayout(jumpsDone){
+    return Math.floor(
+      KING_ME_FINALE * (1 + Math.max(0, jumpsDone)) * handPayoutMultiplier()
+    );
+  }
+
+  function beginKingMeLeap(j, jump){
+    j.phase = 'leap';
+    j.leapT0 = performance.now();
+    j.fromX = j.x;
+    j.fromY = j.y;
+    j.midCol = jump.mc;
+    j.midRow = jump.mr;
+    j.destCol = jump.tc;
+    j.destRow = jump.tr;
+    const dest = cellCenter(jump.tc, jump.tr);
+    j.toX = dest.x;
+    j.toY = dest.y;
+  }
+
+  function finishKingMeLeap(j){
+    const mc = j.midCol, mr = j.midRow;
+    const stomping = j.destCol === mc && j.destRow === mr;
+    if(mc >= 0 && mr >= 0 && grid[mc][mr]){
+      const victim = grid[mc][mr];
+      const payout = kingMeJumpPayout(j.jumpsDone + 1);
+      if(payout > 0){
+        const mid = cellCenter(mc, mr);
+        awardChips(payout, mid);
+        pushPopup({
+          x: mid.x,
+          y: mid.y - 8,
+          text: (stomping ? 'STOMP +' : 'JUMP +') + payout,
+          color: '#F0D78C',
+          t0: performance.now(),
+          duration: 900,
+          big: true,
+          fontSize: 22 + Math.min(10, j.jumpsDone * 2),
+          floatBoost: 46,
+          slam: 1.55,
+          slamMs: 170,
+          glow: 16
+        });
+      }
+      applyExplosionClear([{
+        name: stomping ? 'KING STOMP' : 'KING JUMP',
+        points: 0,
+        cells: [[mc, mr]],
+        color: cardGlowColor(victim)
+      }]);
+    }
+    j.col = j.destCol;
+    j.row = j.destRow;
+    j.x = j.toX;
+    j.y = j.toY;
+    j.jumpsDone++;
+    j.jumpsLeft--;
+    j.phase = 'seek';
+    j.midCol = -1;
+    j.midRow = -1;
+  }
+
+  function detonateKingJumper(j){
+    spawnExplosion(j.x, j.y, j.card);
+    spawnExplosion(j.x, j.y - 10, j.card);
+    const payout = kingMeFinalePayout(j.jumpsDone);
+    if(payout > 0){
+      awardChips(payout, j);
+      pushPopup({
+        x: j.x,
+        y: j.y - 14,
+        text: 'CROWN OUT! +' + payout,
+        color: '#FFE7A0',
+        t0: performance.now(),
+        duration: 1100,
+        big: true,
+        fontSize: 26,
+        floatBoost: 52,
+        slam: 2.1,
+        slamMs: 220,
+        glow: 22
+      });
+    }
+    j.phase = 'done';
+  }
+
+  function stepKingJumpers(now){
+    if(!kingJumpers.length) return false;
+    let changed = false;
+    const next = [];
+    for(const j of kingJumpers){
+      if(j.phase === 'done'){
+        changed = true;
+        continue;
+      }
+      if(j.phase === 'leap'){
+        const t = Math.min(1, (now - j.leapT0) / KING_ME_JUMP_MS);
+        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        j.x = j.fromX + (j.toX - j.fromX) * ease;
+        j.y = j.fromY + (j.toY - j.fromY) * ease;
+        // Arc over the victim.
+        j.y -= Math.sin(ease * Math.PI) * (CELL * 0.72);
+        j.card.angle = (j.card.angle || 0) + 0.18;
+        if(t >= 1){
+          finishKingMeLeap(j);
+          changed = true;
+        }
+        if(j.phase !== 'done') next.push(j);
+        continue;
+      }
+      // seek
+      if(resolving){
+        next.push(j);
+        continue;
+      }
+      if(j.jumpsLeft <= 0){
+        detonateKingJumper(j);
+        changed = true;
+        continue;
+      }
+      const jump = findKingMeJump(j.col, j.row);
+      if(!jump){
+        detonateKingJumper(j);
+        changed = true;
+        continue;
+      }
+      beginKingMeLeap(j, jump);
+      next.push(j);
+      changed = true;
+    }
+    kingJumpers = next;
+    return changed;
+  }
+
+  function kingMeJumping(){
+    return kingJumpers.length > 0;
+  }
+
+  function kingMeBusy(){
+    return kingJumpers.length > 0 || pendingKingMe.length > 0;
   }
 
   // ---- poker hand finding ----
@@ -7955,14 +8286,15 @@
     for(const [dx,dy] of dirs){
       for(let c=0;c<COLS;c++){
         for(let r=0;r<ROWS;r++){
-          if(!grid[c][r]) continue;
+          // Crowned kings are leaving for King Me leaps — skip them in hands.
+          if(!grid[c][r] || grid[c][r].crowned) continue;
           const pc = c-dx, pr = r-dy;
-          if(pc>=0 && pc<COLS && pr>=0 && pr<ROWS && grid[pc][pr]) continue;
+          if(pc>=0 && pc<COLS && pr>=0 && pr<ROWS && grid[pc][pr] && !grid[pc][pr].crowned) continue;
 
           const cells = [];
           const cards = [];
           let cc=c, cr=r;
-          while(cc>=0 && cc<COLS && cr>=0 && cr<ROWS && grid[cc][cr]){
+          while(cc>=0 && cc<COLS && cr>=0 && cr<ROWS && grid[cc][cr] && !grid[cc][cr].crowned){
             cells.push([cc,cr]);
             cards.push(grid[cc][cr]);
             cc+=dx; cr+=dy;
@@ -9150,7 +9482,23 @@
   }
 
   function drawPiece(cx, cy, card, isBall, highlight){
+    if(card && card.crowned){
+      // Checkers-style double king: second chip stacked on top.
+      drawCardFace(ctx, cx, cy + 6, card, card.angle || 0, 27, isBall, 0);
+      drawCardFace(ctx, cx, cy - 5, card, card.angle || 0, 32, isBall, highlight);
+      return;
+    }
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
+  }
+
+  function drawKingJumper(j){
+    const pulse = 1 + 0.04 * Math.sin(performance.now() / 90);
+    ctx.save();
+    ctx.shadowColor = '#F0D78C';
+    ctx.shadowBlur = 18;
+    drawCardFace(ctx, j.x, j.y + 7 * pulse, j.card, j.card.angle || 0, 26, true, 0);
+    drawCardFace(ctx, j.x, j.y - 6 * pulse, j.card, j.card.angle || 0, 33, true, 0.55);
+    ctx.restore();
   }
 
   function drawFlashPiece(cx, cy, card, elapsedFrac, pulses){
@@ -9426,6 +9774,8 @@
     // Near-miss guides sit on top of the plate so the dotted bridges stay
     // readable between holes (pairs, flush/straight draws).
     drawNearMissHints();
+
+    for(const j of kingJumpers) drawKingJumper(j);
 
     for(const p of particles){
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
