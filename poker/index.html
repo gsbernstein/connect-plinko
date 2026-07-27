@@ -9371,7 +9371,7 @@
 
   // Multi-hand clears fire one CHAIN slam per heater step, staggered.
   const CHAIN_POP_STAGGER_MS = 95;
-  const CHAIN_POP_STACK_GAP = 42;
+  const CHAIN_POP_STACK_GAP = 52;
 
   function pushChainBanner(mult, t0, stackIndex){
     // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
@@ -12902,21 +12902,6 @@
   requestAnimationFrame(idleSpin);
   startReleasePolling();
   window.addEventListener('beforeunload', persistSave);
-
-  // TEMP: ?debugPops=1 forces a multi-hand label burst for visual QA — remove after verify.
-  if(/[?&]debugPops=1(?:&|$)/.test(location.search)){
-    setTimeout(() => {
-      chainStep = 6;
-      spawnPopups([
-        { name: 'PAIR', points: 120, cells: [[1,4],[2,4]], color: '#F1EEFB' },
-        { name: 'FLUSH', points: 2400, cells: [[2,1],[3,1],[4,1],[5,1]], color: '#E85D5D' },
-        { name: 'THREE OF A KIND', points: 900, cells: [[5,4],[5,3],[5,2]], color: '#F0D78C' }
-      ], 0, 4);
-      celebrateKingMerge(W * 0.35, PEG_ZONE + CELL * 2.5, 2, {suit: 'h', rank: 13});
-      relaxPopupPositions(performance.now() - 10);
-      if(!looping) startLoop();
-    }, 500);
-  }
 })();
 </script>
 </body>
