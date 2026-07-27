@@ -290,10 +290,21 @@
     display:block !important;
     visibility:hidden;
   }
-  .board-frame{
+  .board-row{
     position:relative;
     width:100%;
     flex:1 1 auto;
+    min-width:0;
+    min-height:0;
+    display:flex;
+    flex-direction:row;
+    align-items:stretch;
+    gap:8px;
+  }
+  .board-frame{
+    position:relative;
+    flex:1 1 auto;
+    min-width:0;
     min-height:0;
     display:flex;
     align-items:center;
@@ -305,6 +316,78 @@
     box-shadow:0 20px 50px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.02);
     /* Visible so score popups can hang a little past the felt edge. */
     overflow:visible;
+  }
+  .toggle-dock{
+    flex:0 0 84px;
+    width:84px;
+    min-width:72px;
+    max-width:96px;
+    display:none;
+    flex-direction:column;
+    gap:5px;
+    min-height:0;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:6px 5px;
+    background:var(--panel);
+    border:1px solid #2a2545;
+    border-radius:14px;
+    box-shadow:0 12px 28px -18px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.02);
+    -webkit-overflow-scrolling:touch;
+  }
+  .toggle-dock.show{display:flex;}
+  .toggle-dock[hidden]{display:none !important;}
+  .toggle-dock-btn{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:2px;
+    margin:0;
+    padding:6px 5px;
+    border-radius:9px;
+    border:1px solid rgba(46,138,110,0.45);
+    background:rgba(46,138,110,0.14);
+    color:var(--felt-bright);
+    cursor:pointer;
+    text-align:left;
+    line-height:1.15;
+    flex:0 0 auto;
+  }
+  .toggle-dock-btn:hover,
+  .toggle-dock-btn:focus-visible{
+    filter:brightness(1.08);
+    outline:none;
+  }
+  .toggle-dock-btn.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.035);
+    color:var(--ink-dim);
+  }
+  .toggle-dock-btn.is-prestige{
+    border-color:rgba(230,195,92,0.5);
+    background:rgba(230,195,92,0.12);
+    color:#F0D78C;
+  }
+  .toggle-dock-btn.is-prestige.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.035);
+    color:var(--ink-dim);
+  }
+  .toggle-dock-name{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .toggle-dock-state{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
   }
   canvas#board{
     display:block;
@@ -851,6 +934,9 @@
       flex-direction:row;
       max-width:1100px;
       margin:0 auto;
+    }
+    .app.has-toggle-dock{
+      max-width:1200px;
     }
     .stage,
     .app.mode-table .stage,
@@ -1602,7 +1688,7 @@
       padding-bottom:0;
       overflow:visible;
     }
-    .app.mode-shop .stage .board-frame,
+    .app.mode-shop .stage .board-row,
     .app.mode-shop .stage .suit-bomb{
       display:none !important;
     }
@@ -2306,13 +2392,16 @@
       <div class="suit-bomb-charge" aria-hidden="true"><span id="suitBombChargeFill"></span></div>
     </div>
 
-    <div class="board-frame">
-      <canvas id="board" width="630" height="960"></canvas>
-      <canvas class="board-popup-layer" id="popupLayer" width="702" height="1032" aria-hidden="true"></canvas>
-      <div class="banner" id="banner">
-        <h2 id="bannerText">Nice hand!</h2>
-        <button id="playAgain">Play again</button>
+    <div class="board-row">
+      <div class="board-frame">
+        <canvas id="board" width="630" height="960"></canvas>
+        <canvas class="board-popup-layer" id="popupLayer" width="702" height="1032" aria-hidden="true"></canvas>
+        <div class="banner" id="banner">
+          <h2 id="bannerText">Nice hand!</h2>
+          <button id="playAgain">Play again</button>
+        </div>
       </div>
+      <aside class="toggle-dock" id="toggleDock" hidden aria-label="Toggle controls"></aside>
     </div>
   </section>
 
@@ -3086,6 +3175,15 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 67,
+      date: 'Jul 27, 2026',
+      title: 'Control Booth',
+      items: [
+        'New VIP perk: Control Booth — puts every owned On/Off toggle in a column beside the board.',
+        'Turn the Booth Off anytime to tuck the column away; VIP Lounge still has the full switch list.'
+      ]
+    },
     {
       id: 66,
       date: 'Jul 27, 2026',
@@ -4376,6 +4474,15 @@
       toggleable: true
     },
     {
+      id: 'controlBooth',
+      name: 'Control Booth',
+      desc: 'Show every owned toggle in a column to the right of the board. Toggle On/Off anytime to hide the column.',
+      baseCost: 6,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
       id: 'aceSleeve',
       name: 'Ace Up Your Sleeve',
       desc: 'Each line scores the best 5-card poker hand from its cards plus one invisible Ace. The house looks the other way.',
@@ -4458,8 +4565,27 @@
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
-  const AUTO_TOGGLE_IDS = ['autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom', 'shortFuse'];
+  const AUTO_TOGGLE_IDS = [
+    'autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'controlBooth',
+    'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom', 'shortFuse'
+  ];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
+  // Board-side Control Booth column — short labels; order is display order.
+  const TOGGLE_DOCK_DEFS = [
+    { id: 'autoDealer', short: 'Auto', source: 'upgrade' },
+    { id: 'shortFuse', short: 'Fuse', source: 'upgrade' },
+    { id: 'suitBomb', short: 'Purge', source: 'upgrade', picker: true },
+    { id: 'autoSuitBomb', short: 'Auto Purge', source: 'prestige' },
+    { id: 'questDesk', short: 'Quests', source: 'prestige' },
+    { id: 'pitBoss', short: 'Pit Boss', source: 'prestige' },
+    { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
+    { id: 'pinSplit', short: 'Mitosis', source: 'prestige' },
+    { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
+    { id: 'siegeWeapons', short: 'Siege', source: 'prestige' },
+    { id: 'kingMe', short: 'King Me', source: 'prestige' },
+    { id: 'bigRoom', short: 'Big Room', source: 'prestige' },
+    { id: 'controlBooth', short: 'Booth', source: 'prestige' }
+  ];
   let comps = 0;
   let prestigeCount = 0;
   let runLevel = 1;
@@ -4590,6 +4716,7 @@
     updatePrestigeUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateToggleDockUI();
     if(on && id === 'pitBoss') maybeAutoBuy(performance.now());
     if(on && id === 'questDesk') maybeAutoClaimQuests(performance.now());
     if(on && id === 'autoDealer') lastAutoDropAt = performance.now();
@@ -4600,6 +4727,24 @@
       if(on) activateTableTilt(true);
       else deactivateTableTilt();
     }
+  }
+
+  function controlBoothActive(){
+    return prestigeLevel('controlBooth') > 0 && isAutoEnabled('controlBooth');
+  }
+
+  function toggleDockItemOwned(def){
+    if(def.source === 'upgrade') return upgradeLevel(def.id) > 0;
+    return prestigeLevel(def.id) > 0;
+  }
+
+  function toggleDockFullName(def){
+    if(def.source === 'upgrade'){
+      const u = UPGRADE_DEFS.find(d => d.id === def.id);
+      return u ? u.name : def.short;
+    }
+    const p = PRESTIGE_DEFS.find(d => d.id === def.id);
+    return p ? p.name : def.short;
   }
 
   function pinSplitUnlocked(){
@@ -7109,6 +7254,9 @@
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
         return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
+      case 'controlBooth':
+        if(!lvl) return 'Toggles stay in the lounge';
+        return isAutoEnabled('controlBooth') ? 'Toggles beside the board' : 'Paused';
       case 'aceSleeve':
         return lvl ? 'Hidden Ace in every hand' : 'Play fair';
       case 'connect4':
@@ -7473,6 +7621,7 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateToggleDockUI();
     updateSettingsChangelogBadge();
     // Reset is launched from Settings (always unlocked), so tab gating alone
     // won't leave FTUE — jump back to the first-run default panel.
@@ -7507,6 +7656,7 @@
     updateLevelUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateToggleDockUI();
     // Spend Seed Stack / free levels into the rack immediately if Pit Boss is owned.
     maybeAutoBuy(performance.now());
     return true;
@@ -7549,6 +7699,7 @@
     updatePrestigeUI();
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
+    updateToggleDockUI();
   }
 
   function tryAutoBuyUpgrades(){
@@ -7623,6 +7774,7 @@
       updatePrestigeUI();
       updateAutoStatus();
       updateSuitBombUI(now, true);
+      updateToggleDockUI();
       if(result.ids.includes('compCage')){
         const btn = upgradeButtons.compCage;
         const n = result.ids.filter(id => id === 'compCage').length;
@@ -7654,6 +7806,7 @@
     updateShopUI();
     updatePrestigeUI();
     updateAutoStatus();
+    updateToggleDockUI();
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
     if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
     if(id === 'autoSuitBomb') updateSuitBombUI(performance.now(), true);
@@ -11813,6 +11966,7 @@
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateRailTabAvailability();
+    updateToggleDockUI();
   }
 
   function updateCashOutUI(){
@@ -11874,6 +12028,7 @@
     if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
     setTabBadge('vip', vipReady, ready ? { empty: true, ariaLabel: 'Cash Out ready' } : null);
     updateRailTabAvailability();
+    updateToggleDockUI();
   }
 
   function makeUpgradeButton(def, onBuy, prestige){
@@ -11911,6 +12066,7 @@
           suitBombPickerMinimized = !suitBombPickerMinimized;
           scheduleSave();
           updateSuitBombUI(performance.now(), true);
+          updateShopUI();
         } else {
           setAutoEnabled(def.id, !isAutoEnabled(def.id));
         }
@@ -12215,6 +12371,69 @@
     suitBombPickerMinimized = !suitBombPickerMinimized;
     scheduleSave();
     updateSuitBombUI(performance.now(), true);
+    updateShopUI();
+  }
+
+  let toggleDockOwnedSig = '';
+
+  function updateToggleDockUI(){
+    const dock = document.getElementById('toggleDock');
+    if(!dock) return;
+    const active = controlBoothActive();
+    const owned = active ? TOGGLE_DOCK_DEFS.filter(toggleDockItemOwned) : [];
+    const sig = owned.map(d => d.id).join(',');
+    if(sig !== toggleDockOwnedSig){
+      toggleDockOwnedSig = sig;
+      dock.innerHTML = '';
+      for(const def of owned){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'toggle-dock-btn' + (def.source === 'prestige' ? ' is-prestige' : '');
+        btn.dataset.id = def.id;
+        btn.innerHTML =
+          '<span class="toggle-dock-name"></span>' +
+          '<span class="toggle-dock-state"></span>';
+        btn.querySelector('.toggle-dock-name').textContent = def.short;
+        btn.addEventListener('click', (e)=>{
+          e.preventDefault();
+          if(def.picker){
+            suitBombPickerMinimized = !suitBombPickerMinimized;
+            scheduleSave();
+            updateSuitBombUI(performance.now(), true);
+            updateShopUI();
+          } else {
+            setAutoEnabled(def.id, !isAutoEnabled(def.id));
+          }
+        });
+        dock.appendChild(btn);
+      }
+    }
+    for(const btn of dock.querySelectorAll('.toggle-dock-btn')){
+      const id = btn.dataset.id;
+      const def = TOGGLE_DOCK_DEFS.find(d => d.id === id);
+      if(!def) continue;
+      const stateEl = btn.querySelector('.toggle-dock-state');
+      let on;
+      let label;
+      if(def.picker){
+        on = suitBombUiVisible();
+        label = on ? 'Hide' : 'Show';
+      } else {
+        on = isAutoEnabled(id);
+        label = on ? 'On' : 'Off';
+      }
+      if(stateEl) stateEl.textContent = label;
+      btn.classList.toggle('is-off', !on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const full = toggleDockFullName(def);
+      btn.title = full + ' — ' + label;
+      btn.setAttribute('aria-label', full + ' — ' + label);
+    }
+    const show = active && owned.length > 0;
+    dock.hidden = !show;
+    dock.classList.toggle('show', show);
+    const app = document.getElementById('app');
+    if(app) app.classList.toggle('has-toggle-dock', show);
   }
 
   function buildSuitBombUI(){
@@ -12973,6 +13192,7 @@
   updatePrestigeUI();
   updateContractsUI();
   updateSuitBombUI();
+  updateToggleDockUI();
   refreshButtons();
   updateRailTabAvailability();
   setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
