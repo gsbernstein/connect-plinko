@@ -4482,7 +4482,6 @@
   const PIN_SPLIT_SPAWN_MULT = 10;
   const PIN_SPLIT_MAX_GEN = 4; // gen 0 → 4 ⇒ up to 16 chips from one drop
   const PIN_SPLIT_SCALE = 0.72;
-  const PIN_SPLIT_MIN_R = 3.5; // room for gen-4 physics (~3.76)
   const PIN_SPLIT_LOCK_FRAMES = 12;
 
   function pinSplitSpawnMult(){
@@ -7743,11 +7742,11 @@
   const SAFETY_LIMIT = 420;
 
   function splitRadiusForGen(gen){
-    return Math.max(PIN_SPLIT_MIN_R, BALL_RADIUS * Math.pow(PIN_SPLIT_SCALE, gen || 0));
+    return BALL_RADIUS * Math.pow(PIN_SPLIT_SCALE, gen || 0);
   }
 
   function splitDrawRadiusForGen(gen){
-    return Math.max(8, 32 * Math.pow(PIN_SPLIT_SCALE, gen || 0));
+    return 32 * Math.pow(PIN_SPLIT_SCALE, gen || 0);
   }
 
   function canSplitBall(ball){
