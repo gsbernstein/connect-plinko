@@ -3317,7 +3317,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 26;
+  const SAVE_VERSION = 27;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -3332,6 +3332,15 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
+    {
+      id: 98,
+      date: 'Jul 27, 2026',
+      title: 'Hot Streak retired',
+      items: [
+        'Hot Streak and House Edge are gone — chain multipliers still ramp from consecutive clears alone.',
+        'Saves that owned either get chips and comps refunded for what they spent.'
+      ]
+    },
     {
       id: 97,
       date: 'Jul 27, 2026',
@@ -4190,15 +4199,6 @@
       unlockAt: 1
     },
     {
-      id: 'hotStreak',
-      name: 'Hot Streak',
-      desc: '+1 effective chain multiplier per level.',
-      baseCost: 120,
-      costScale: 2.0,
-      maxLevel: 10,
-      unlockAt: 4
-    },
-    {
       id: 'premiumCut',
       name: 'Premium Cut',
       desc: 'Chance to deal Silver, Gold, or Diamond cards. Each premium card in a scored hand boosts that hand\'s payout.',
@@ -4607,7 +4607,7 @@
       stat: 'royalFlushes', secret: true, infinite: true,
       scale: { targetGrowth: 1.75, compPerLevel: 2, compCap: 40 },
       tiers: [
-        { target: 1, reward: { comps: 5, prestige: 'houseEdge' } },
+        { target: 1, reward: { comps: 5 } },
         { target: 2, reward: { comps: 8 } },
         { target: 5, reward: { comps: 12, prestige: 'compCard' } }
       ]
@@ -4814,14 +4814,6 @@
 
   // Permanent VIP perks bought with comps from Cash Out.
   const PRESTIGE_DEFS = [
-    {
-      id: 'houseEdge',
-      name: 'House Edge',
-      desc: '+1 Hot Streak level permanently. Raises Hot Streak’s buy cost like a normal level. Capped at Hot Streak max.',
-      baseCost: 1,
-      costScale: 1.65,
-      maxLevel: 10
-    },
     {
       id: 'seedStack',
       name: 'Seed Stack',
@@ -5408,7 +5400,6 @@
   function prestigeBonusLevels(id){
     if(id === 'autoDealer') return prestigeLevel('quickDeal');
     if(id === 'pinPayout') return prestigeLevel('pinPrivilege');
-    if(id === 'hotStreak') return prestigeLevel('houseEdge');
     if(id === 'feltGrease') return prestigeLevel('feltWax');
     return 0;
   }
@@ -6529,10 +6520,6 @@
     }, 80);
   }
 
-  function chainBonus(){
-    return upgradeLevel('hotStreak');
-  }
-
   function runLevelBonusProduct(field){
     let mult = 1;
     for(let L = 2; L <= runLevel; L++){
@@ -6551,7 +6538,7 @@
   }
 
   function computeChainMult(chainStep){
-    const linear = Math.max(1, chainStep + chainBonus());
+    const linear = Math.max(1, chainStep);
     const mult = runChainMultiplier();
     if(mult <= 1) return linear;
     return Math.max(1, Math.floor(linear * mult));
@@ -7704,10 +7691,6 @@
         if(!lvl) return 'No bonus';
         return blindSpreadEffectText();
       }
-      case 'hotStreak': {
-        if(!lvl) return 'No bonus';
-        return '+' + lvl + ' chain';
-      }
       case 'premiumCut': {
         if(!lvl) return 'Standard cards only';
         const {silver, gold, diamond} = premiumCutChances();
@@ -7757,10 +7740,6 @@
   function prestigeEffectText(def){
     const lvl = prestigeLevel(def.id);
     switch(def.id){
-      case 'houseEdge':
-        return lvl
-          ? ('+' + lvl + ' Hot Streak · now Lv ' + upgradeLevel('hotStreak'))
-          : 'No Hot Streak bonus';
       case 'seedStack':
         return lvl ? (formatNum(startingChips()) + ' start') : 'Empty pockets';
       case 'rackDiscount':
@@ -7963,6 +7942,25 @@
         const shopSense = data.upgrades && typeof data.upgrades.cardSense === 'number'
           ? Math.floor(data.upgrades.cardSense) : 0;
         if(vipSense > 0 || shopSense > 0) comps += 4;
+      }
+      // Retired Hot Streak (shop) + House Edge (VIP) — refund spends once.
+      if((data.v || 0) < 27){
+        const heLvl = data.prestigeUpgrades && typeof data.prestigeUpgrades.houseEdge === 'number'
+          ? Math.max(0, Math.floor(data.prestigeUpgrades.houseEdge)) : 0;
+        if(heLvl > 0){
+          let compRefund = 0;
+          for(let i = 0; i < heLvl; i++) compRefund += Math.floor(Math.pow(1.65, i));
+          comps += compRefund;
+          delete prestigeUpgrades.houseEdge;
+        }
+        const hsBought = data.upgrades && typeof data.upgrades.hotStreak === 'number'
+          ? Math.max(0, Math.floor(data.upgrades.hotStreak)) : 0;
+        if(hsBought > 0){
+          let chipRefund = 0;
+          for(let i = 0; i < hsBought; i++) chipRefund += Math.floor(120 * Math.pow(2, i));
+          score += chipRefund;
+          delete upgrades.hotStreak;
+        }
       }
       // Felt Grease used to speed clears too — grant matching Short Fuse levels once.
       if((data.v || 0) < 17 && purchasedLevel('shortFuse') <= 0 && purchasedLevel('feltGrease') > 0){
@@ -10666,7 +10664,7 @@
   }
 
   // Siege Weapons: bumper smash clears column(s). Lv3 landing slam is separate.
-  // Preserves Hot Streak carryover like Suit Purge — no fake CHAIN banner.
+  // Preserves heater carryover like Suit Purge — no fake CHAIN banner.
   function beginSiegeClear(cols){
     const cells = siegeCellsForColumns(cols || []);
     return beginSiegeResolve(cells, {cols: cols || []});
@@ -10988,7 +10986,7 @@
           if(!isFloorClear && !isSiegeClear){
             // Suit Purge bridges a heater without consuming it — keep pendingChain
             // for the next real hand. Scoring at chainStep 0 would otherwise flash
-            // a low CHAIN ×N from Hot Streak alone, then jump back up.
+            // a low CHAIN ×N, then jump back up.
             const isSuitBomb = currentGroups.some(g => g.suitBomb);
             const chainMult = isSuitBomb ? 1 : computeChainMult(chainStep);
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * handPayoutMultiplier());
