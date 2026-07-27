@@ -3173,7 +3173,10 @@
   const SAVE_VERSION = 26;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
+  // Localhost uses serve.py's poker/dev-rev.json (live git HEAD) instead —
+  // changelog ids often match across branches, so a commit hash is the signal.
   const RELEASE_URL = new URL('version.json', location.href).href;
+  const LOCAL_REV_URL = new URL('dev-rev.json', location.href).href;
   const RELEASE_POLL_MS = 5 * 60 * 1000;
   const RELEASE_DISMISS_KEY = 'plinkoPokerReleaseDismissed';
   // Newest-first. Bump id (monotonic) when adding an entry so the Settings
@@ -13125,39 +13128,36 @@
   }
 
   // ---- hosted release check (version.json on Pages) ----
+  // Localhost: compare live git HEAD from serve.py's /poker/dev-rev.json.
   let updateBannerShown = false;
   let lastReleaseCheckAt = 0;
-  let pendingRemoteRelease = 0;
+  let pendingRemoteRelease = null;
+  let loadedLocalRev = null;
 
   function isLocalReleaseHost(){
     const h = location.hostname;
     return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
   }
-  function parseReleaseFromHtml(text){
-    const start = text.indexOf('const CHANGELOG');
-    if(start < 0) return 0;
-    const end = text.indexOf('const CHANGELOG_LATEST_ID', start);
-    const chunk = end > start ? text.slice(start, end) : text.slice(start, start + 80000);
-    let max = 0;
-    const re = /\bid:\s*(\d+)/g;
-    let m;
-    while((m = re.exec(chunk))) max = Math.max(max, m[1] | 0);
-    return max;
-  }
 
   function dismissedRelease(){
-    try{ return parseInt(localStorage.getItem(RELEASE_DISMISS_KEY) || '0', 10) || 0; }
-    catch(_){ return 0; }
+    try{ return localStorage.getItem(RELEASE_DISMISS_KEY) || ''; }
+    catch(_){ return ''; }
   }
   function dismissRelease(v){
-    try{ localStorage.setItem(RELEASE_DISMISS_KEY, String(v | 0)); } catch(_){}
+    try{ localStorage.setItem(RELEASE_DISMISS_KEY, String(v)); } catch(_){}
+  }
+  function shouldShowRelease(remoteV){
+    const dismissed = dismissedRelease();
+    if(!dismissed) return true;
+    if(isLocalReleaseHost()) return String(remoteV) !== dismissed;
+    return (remoteV | 0) > (parseInt(dismissed, 10) || 0);
   }
   function showUpdateBanner(remoteV){
     if(updateBannerShown) return;
-    if((remoteV | 0) <= dismissedRelease()) return;
+    if(!shouldShowRelease(remoteV)) return;
     const el = document.getElementById('updateBanner');
     if(!el) return;
-    pendingRemoteRelease = remoteV | 0;
+    pendingRemoteRelease = remoteV;
     el.hidden = false;
     requestAnimationFrame(()=> el.classList.add('show'));
     updateBannerShown = true;
@@ -13172,28 +13172,38 @@
   function releaseCheckDue(minElapsed = RELEASE_POLL_MS){
     return Date.now() - lastReleaseCheckAt >= minElapsed;
   }
+  async function fetchLocalGitRev(){
+    const res = await fetch(LOCAL_REV_URL + '?t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' }
+    });
+    if(!res.ok) return '';
+    const data = await res.json();
+    return data && typeof data.rev === 'string' ? data.rev : '';
+  }
   async function checkForRelease(force){
     const now = Date.now();
     if(!force && now - lastReleaseCheckAt < 30000) return;
     lastReleaseCheckAt = now;
     try{
-      let remote = 0;
       if(isLocalReleaseHost()){
-        const res = await fetch(location.pathname + '?t=' + now, {
-          cache: 'no-store',
-          headers: { Accept: 'text/html' }
-        });
-        if(!res.ok) return;
-        remote = parseReleaseFromHtml(await res.text());
-      } else {
-        const res = await fetch(RELEASE_URL + '?t=' + now, {
-          cache: 'no-store',
-          headers: { Accept: 'application/json' }
-        });
-        if(!res.ok) return;
-        const data = await res.json();
-        remote = data && typeof data.v === 'number' ? (data.v | 0) : 0;
+        const remote = await fetchLocalGitRev();
+        if(!remote) return;
+        // First poll anchors to the HEAD that served this tab.
+        if(loadedLocalRev == null){
+          loadedLocalRev = remote;
+          return;
+        }
+        if(remote !== loadedLocalRev) showUpdateBanner(remote);
+        return;
       }
+      const res = await fetch(RELEASE_URL + '?t=' + now, {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      });
+      if(!res.ok) return;
+      const data = await res.json();
+      const remote = data && typeof data.v === 'number' ? (data.v | 0) : 0;
       if(remote > APP_RELEASE) showUpdateBanner(remote);
     } catch(_){}
   }

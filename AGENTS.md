@@ -22,6 +22,7 @@ Each page links to the other via a Classic / Poker toggle.
 ```
 /
 ├── index.html          # Plinko Four (~1,740 lines) — HTML + CSS + JS in one file
+├── serve.py            # Local static server + /poker/dev-rev.json (live git HEAD)
 ├── poker/
 │   ├── index.html      # Plinko Poker (~8,880 lines) — same pattern
 │   ├── version.json    # Poker release id (`v`) polled for refresh prompts
@@ -34,13 +35,16 @@ Each page links to the other via a Classic / Poker toggle.
 └── AGENTS.md           # this file
 ```
 
-There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `poker/version.json` when shipping a Poker refresh-worthy deploy).
+Almost all work lands in one of the two `index.html` files (plus `poker/version.json` when shipping a Poker refresh-worthy deploy).
 
 ## Local dev
 
 ```bash
-python3 -m http.server 8080
+python3 serve.py
+# or: python3 serve.py 8080
 ```
+
+Same ports as before. `serve.py` is a thin `http.server` wrapper that also answers `/poker/dev-rev.json` with the live git HEAD (used by localhost update detection). Plain `python3 -m http.server 8080` still works for browsing, but the local refresh banner needs `serve.py`.
 
 - Classic: http://localhost:8080/
 - Poker: http://localhost:8080/poker/
@@ -54,7 +58,7 @@ Cloud Agents resolve env config from `.cursor/environment.json` first (then pers
 | Piece | Value |
 |-------|--------|
 | Update / `install` | `python3 --version` (idempotent; confirms the static server toolchain) |
-| Terminal | `static-server` → `python3 -m http.server 8080` (shared tmux) |
+| Terminal | `static-server` → `python3 serve.py` (shared tmux; live `/poker/dev-rev.json`) |
 | Ports | `8080` |
 
 **Validate UI/gameplay changes**
@@ -132,7 +136,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `heaterChain` / `heaterChainForSave` / `resumeHeaterChain` / `heaterHoldUntilUse` | Persisted Hot Streak steps; restore into `pendingChain` after boot `freshState`; hold skips empty-board expire until next hand |
 | `APP_RELEASE` | Alias of `CHANGELOG_LATEST_ID`; must match `poker/version.json` `v` |
 | `appRelease` | Last stamped `APP_RELEASE` in the save; `loadSave` bumps `versionUpgrades` when newer |
-| `RELEASE_URL` / `startReleasePolling` | Polls `poker/version.json` (cache-bust) on hosted Pages; on `localhost` / `127.0.0.1` re-fetches `index.html` and parses the top `CHANGELOG` id instead. Shows `#updateBanner` when remote is newer than loaded `APP_RELEASE`. |
+| `RELEASE_URL` / `LOCAL_REV_URL` / `startReleasePolling` | Hosted: polls `poker/version.json` (cache-bust). Localhost: polls `poker/dev-rev.json` from `serve.py` (live `git rev-parse HEAD`) and prompts Refresh when HEAD differs from the tab’s anchored rev. Shows `#updateBanner` when remote is newer / different. |
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
@@ -269,7 +273,7 @@ PY
 
 ### Release poll (refresh banner)
 
-Poker-only. On **hosted** Pages, polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes (wall-clock via `releaseCheckDue` / `lastReleaseCheckAt`) and when the tab resumes (`visibilitychange`, `pageshow`, `window` `focus` → `resumeReleaseCheck`). On **localhost** (`localhost`, `127.0.0.1`, `[::1]`), skips `version.json` and re-fetches the page HTML to read the newest `CHANGELOG` id — so local dev only needs to bump the changelog in `index.html`. The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`**; if the remote value is greater, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote `v` in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
+Poker-only. On **hosted** Pages, polls **`poker/version.json`** (`{ "v": <int> }`) every 5 minutes (wall-clock via `releaseCheckDue` / `lastReleaseCheckAt`) and when the tab resumes (`visibilitychange`, `pageshow`, `window` `focus` → `resumeReleaseCheck`). On **localhost** (`localhost`, `127.0.0.1`, `[::1]`), polls **`poker/dev-rev.json`** served by `serve.py` as `{ "rev": "<git HEAD>" }` — first poll anchors the tab to the current HEAD; later polls prompt Refresh when HEAD changes (branch switch / pull), even if `CHANGELOG` ids match. Plain `python3 -m http.server` has no `dev-rev.json`, so the local banner stays quiet. The page’s `APP_RELEASE` is **`CHANGELOG_LATEST_ID`** (hosted compare only); if the remote value is greater / different, `#updateBanner` offers **Refresh** (cache-busted reload after `persistSave`). Dismiss stores that remote token in `localStorage` (`plinkoPokerReleaseDismissed`) so the same release is not re-prompted.
 
 No separate release counter — bumping a changelog `id` and setting `poker/version.json` `"v"` to match is enough. Missed `version.json` bumps only delay the refresh prompt.
 

@@ -34,13 +34,15 @@ Saves in the browser — including your Hot Streak chain, so a refresh or update
 Serve the repo root:
 
 ```bash
-python3 -m http.server 8080
+python3 serve.py
 ```
 
 Then visit:
 
 - Classic: `http://localhost:8080/`
 - Poker: `http://localhost:8080/poker/`
+
+`serve.py` also exposes `/poker/dev-rev.json` (live git HEAD) so a long-lived localhost Poker tab can prompt Refresh when you switch branches or pull. Hosted Pages still use `poker/version.json`.
 
 ## Hosting
 
