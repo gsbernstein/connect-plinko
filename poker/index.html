@@ -235,8 +235,8 @@
   }
   #chipRateBar .chip-rate-lag{
     position:absolute;
-    top:0;
-    bottom:0;
+    top:-4px;
+    height:8px;
     width:2px;
     margin-left:-1px;
     background:#F0D78C;
@@ -3361,7 +3361,7 @@
       title: 'Slide Rule early + chips/s lag marker',
       items: [
         'Slide Rule is now a top VIP pick — 1 comp for Lv1 chips/s meter, 2 comps for Lv2 log scale.',
-        'When your chips/s peak rises, a gold tick marks the prior peak on the rescaling meter.',
+        'When your chips/s peak rises, a gold tick marks the prior peak on the rescaling meter (stacks if peak bumps again mid-ease).',
       ]
     },
     {
@@ -7428,7 +7428,8 @@
   let lastChipRatePct = -1;
   let lastChipRateMarkPct = -1;
   let lastChipRateShown = null;
-  let chipRateMarkDenom = 0;
+  let chipRateMarkAt = 0;
+  let chipRateLastMax = 0;
 
   function noteChipEarn(amount, now){
     amount = Math.floor(amount);
@@ -7476,7 +7477,8 @@
     lastChipRatePct = -1;
     lastChipRateMarkPct = -1;
     lastChipRateShown = null;
-    chipRateMarkDenom = 0;
+    chipRateMarkAt = 0;
+    chipRateLastMax = 0;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
     if(chipRateFillEl){
       chipRateFillEl.style.left = '0%';
@@ -7520,7 +7522,10 @@
     const rate = currentChipRate(now);
     const max = stats.maxChipRate || 0;
     const logScale = slideRuleLogScale();
-    if(force && chipRateMarkDenom <= 0 && max > 0) chipRateMarkDenom = max;
+    if(force && chipRateMarkAt <= 0 && max > 0){
+      chipRateMarkAt = max;
+      chipRateLastMax = max;
+    }
     const pct = max > 0 ? chipRateFillPct(rate, max) : 0;
     if(chipRateBarEl){
       chipRateBarEl.title = logScale
@@ -7533,10 +7538,16 @@
       lastChipRatePct = Math.round(pct);
     }
     if(chipRateLagEl && max > 0){
-      if(chipRateMarkDenom <= 0) chipRateMarkDenom = max;
-      const denomGap = max - chipRateMarkDenom;
-      const markPct = chipRateFillPct(chipRateMarkDenom, max);
-      const showMark = denomGap > 0.5;
+      if(max > chipRateLastMax && chipRateLastMax > 0){
+        // Denominator rose — tick marks the prior settled peak, even mid-ease.
+        chipRateMarkAt = chipRateLastMax;
+      } else if(chipRateMarkAt <= 0){
+        chipRateMarkAt = max;
+      }
+      chipRateLastMax = max;
+      const markGap = max - chipRateMarkAt;
+      const markPct = chipRateFillPct(chipRateMarkAt, max);
+      const showMark = markGap > 0.5;
       if(showMark){
         const roundedMark = Math.round(markPct * 10) / 10;
         if(roundedMark !== lastChipRateMarkPct){
@@ -7544,10 +7555,10 @@
           chipRateLagEl.style.left = markPct + '%';
         }
         chipRateLagEl.hidden = false;
-        chipRateMarkDenom += denomGap * CHIP_RATE_MARK_LERP;
+        chipRateMarkAt += markGap * CHIP_RATE_MARK_LERP;
       } else {
         chipRateLagEl.hidden = true;
-        chipRateMarkDenom = max;
+        chipRateMarkAt = max;
       }
     }
     if(!chipRateValEl) return;
