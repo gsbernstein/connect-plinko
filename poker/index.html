@@ -1533,6 +1533,22 @@
     background:linear-gradient(90deg, #8a6f2a, #E6C35C);
     transition:width .25s ease;
   }
+  .level-mult{
+    display:block;
+    width:100%;
+    min-width:0;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:10px;
+    line-height:1.15;
+    font-variant-numeric:tabular-nums;
+    color:#F0D78C;
+    opacity:0.95;
+    text-align:right;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .level-mult[hidden]{display:none !important;}
   .level-pill.level-up{
     z-index:2;
     border-color:rgba(230,195,92,0.9);
@@ -1659,6 +1675,11 @@
       text-align:center;
       flex:none;
       max-width:100%;
+      margin-top:1px;
+    }
+    .level-mult{
+      font-size:8px;
+      text-align:center;
       margin-top:1px;
     }
     .level-bar{margin-top:1px;}
@@ -2243,6 +2264,7 @@
           <span class="hud-xp" id="runLevelXp">0 / 18</span>
         </div>
         <div class="level-bar" aria-hidden="true"><span id="runLevelFill"></span></div>
+        <span class="level-mult" id="runLevelMult" hidden></span>
       </div>
       <div class="comps-pill hud-tile" id="compsBox" title="VIP comps — spend on permanent perks" hidden>
         <span class="hud-label">Comps</span>
@@ -2993,6 +3015,15 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 58,
+      date: 'Jul 27, 2026',
+      title: 'Mults on the level tile',
+      items: [
+        'Blind, payout, combo, and Card Counting multipliers now show on the Level HUD tile instead of shop and VIP effect lines.',
+        'Upgrade and perk rows stay a stable length so On/Off toggles no longer jump while cards land.'
+      ]
+    },
     {
       id: 57,
       date: 'Jul 27, 2026',
@@ -4480,10 +4511,22 @@
     return Math.max(1, Math.floor((pin > 0 ? pin * 2 : 10) * effectiveMetaMultiplier()));
   }
 
+  function stormBeachLandingPayoutDisplay(){
+    if(prestigeLevel('stormBeaches') <= 0) return 0;
+    const pin = pinHitPayoutDisplay();
+    return Math.max(1, Math.floor((pin > 0 ? pin * 2 : 10) * shopMetaMultiplier()));
+  }
+
   function siegeCardPayout(){
     const lvl = siegeWeaponsLevel();
     if(lvl <= 0) return 0;
     return Math.max(1, Math.floor(lvl * 12 * effectiveMetaMultiplier()));
+  }
+
+  function siegeCardPayoutDisplay(){
+    const lvl = siegeWeaponsLevel();
+    if(lvl <= 0) return 0;
+    return Math.max(1, Math.floor(lvl * 12 * shopMetaMultiplier()));
   }
 
   function siegeColumnsForBumperHit(ball, rail){
@@ -4534,6 +4577,11 @@
     // Modest DoT — scales with Pin Tip / Blind / run meta so mid-game fire matters.
     const pin = Math.max(1, upgradeLevel('pinPayout'));
     return Math.max(1, Math.floor((2 + pin * 1.5) * blindMultiplier('pin') * effectiveMetaMultiplier()));
+  }
+
+  function burnTickPayoutDisplay(){
+    const pin = Math.max(1, upgradeLevel('pinPayout'));
+    return Math.max(1, Math.floor((2 + pin * 1.5) * blindMultiplier('pin') * shopMetaMultiplier()));
   }
 
   function countBurningInCells(cells){
@@ -5629,9 +5677,10 @@
   function scheduleCountingUiRefresh(){
     if(prestigeLevel('cardCounting') <= 0) return;
     clearTimeout(countingUiTimer);
+    // Live count math lives on the level HUD tile — keep shop/VIP rows
+    // stable so On/Off toggles don't jump under the cursor.
     countingUiTimer = setTimeout(()=>{
-      updateShopUI();
-      updatePrestigeUI();
+      updateLevelUI();
     }, 80);
   }
 
@@ -5681,20 +5730,47 @@
     return '×' + v.toFixed(2).replace(/\.?0+$/, '');
   }
 
-  // Active Blind / payout / chain multipliers for shop effect lines.
-  function payoutMultLabels(category){
+  // Active Blind / payout / chain / Card Counting mults for the level HUD tile.
+  // Shop and VIP effect lines stay stable (no live board math) so toggles don't jump.
+  function levelMultParts(){
     const parts = [];
-    const blind = blindMultiplier(category);
-    if(blind > 1) parts.push(formatMultShort(blind) + ' Blind');
+    if(upgradeLevel('bigBlind') > 0){
+      const blind = tableScoreMultiplier();
+      if(blind > 1) parts.push(formatMultShort(blind) + ' Blind');
+    }
     const meta = effectiveMetaMultiplier();
     if(meta > 1) parts.push(formatMultShort(meta) + ' mult');
+    const chain = runChainMultiplier();
+    if(chain > 1) parts.push(formatMultShort(chain) + ' combo');
+    const hand = cardCountingHandMultiplier();
+    if(hand > 1) parts.push('hand ' + formatMultShort(hand));
     return parts;
   }
 
-  function withMultLabels(text, parts, opts){
-    if(!parts.length) return text;
-    const joined = parts.join(' · ');
-    return opts && opts.paren ? text + ' (' + joined + ')' : text + ' · ' + joined;
+  function levelMultDetailTitle(parts){
+    const bits = parts ? parts.slice() : levelMultParts();
+    if(prestigeLevel('cardCounting') >= 9){
+      const groups = cardCountingGroups();
+      if(groups.length){
+        const cards = groups.map(g => cardCountingCardLabel(g.card, g.count)).join(' · ');
+        const factor = cardCountingFactor();
+        const baseMeta = runMetaMultiplier();
+        bits.push(
+          baseMeta > 1
+            ? cards + ' = ' + formatMultShort(factor) + ' on ' + formatMultShort(baseMeta) + ' level'
+            : cards + ' = ' + formatMultShort(factor)
+        );
+      }
+    } else if(prestigeLevel('cardCounting') > 0){
+      const extras = boardDuplicateExtras();
+      if(extras) bits.push(extras + ' duplicate' + (extras === 1 ? '' : 's') + ' in play');
+    }
+    return bits.length ? bits.join(' · ') : 'Active payout multipliers';
+  }
+
+  // Shop-facing payouts omit live Card Counting product so rows don't thrash.
+  function shopMetaMultiplier(){
+    return runMetaMultiplier();
   }
 
   function formatMetaMultBonus(v){
@@ -5726,6 +5802,12 @@
     return Math.max(1, Math.floor(lvl * 8 * blindMultiplier('hands') * effectiveMetaMultiplier()));
   }
 
+  function purgeCardPayoutDisplay(){
+    const lvl = upgradeLevel('suitBomb');
+    if(lvl <= 0) return 0;
+    return Math.max(1, Math.floor(lvl * 8 * blindMultiplier('hands') * shopMetaMultiplier()));
+  }
+
   function suitPurgePairPenalty(suit){
     if(prestigeLevel('cardCounting') <= 0) return 0;
     let penalty = 0;
@@ -5740,15 +5822,30 @@
     return lvl ? Math.floor(lvl * blindMultiplier('pin') * effectiveMetaMultiplier()) : 0;
   }
 
+  function pinHitPayoutDisplay(){
+    const lvl = upgradeLevel('pinPayout');
+    return lvl ? Math.floor(lvl * blindMultiplier('pin') * shopMetaMultiplier()) : 0;
+  }
+
   function bumperHitPayout(){
     const lvl = upgradeLevel('bumperPayout');
     return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * effectiveMetaMultiplier()) : 0;
+  }
+
+  function bumperHitPayoutDisplay(){
+    const lvl = upgradeLevel('bumperPayout');
+    return lvl ? Math.floor(lvl * 2 * blindMultiplier('bumper') * shopMetaMultiplier()) : 0;
   }
 
   function floorClearPayout(){
     const lvl = upgradeLevel('floorPayout');
     // Full-board clears are rare — pay enough to matter at each level.
     return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * effectiveMetaMultiplier()) : 0;
+  }
+
+  function floorClearPayoutDisplay(){
+    const lvl = upgradeLevel('floorPayout');
+    return lvl ? Math.floor(lvl * 75 * blindMultiplier('floor') * shopMetaMultiplier()) : 0;
   }
 
   function suitBombCooldownMs(){
@@ -6498,18 +6595,11 @@
       }
       case 'bigBlind': {
         if(!lvl) return 'No bonus';
-        const meta = effectiveMetaMultiplier();
-        return withMultLabels(
-          blindSpreadEffectText(),
-          meta > 1 ? [formatMultShort(meta) + ' mult'] : []
-        );
+        return blindSpreadEffectText();
       }
       case 'hotStreak': {
         if(!lvl) return 'No bonus';
-        const parts = [];
-        const chain = runChainMultiplier();
-        if(chain > 1) parts.push(formatMultShort(chain) + ' combo');
-        return withMultLabels('+' + lvl + ' chain', parts);
+        return '+' + lvl + ' chain';
       }
       case 'premiumCut': {
         if(!lvl) return 'Standard cards only';
@@ -6521,17 +6611,11 @@
         if(!lvl) return 'No wilds';
         return (wildCardChance() * 100).toFixed(1).replace(/\.0$/, '') + '% wild';
       case 'pinPayout':
-        return lvl
-          ? withMultLabels('+' + pinHitPayout() + ' / peg', payoutMultLabels('pin'), { paren: true })
-          : 'No payout';
+        return lvl ? ('+' + pinHitPayoutDisplay() + ' / peg') : 'No payout';
       case 'bumperPayout':
-        return lvl
-          ? withMultLabels('+' + bumperHitPayout() + ' / bumper', payoutMultLabels('bumper'), { paren: true })
-          : 'No payout';
+        return lvl ? ('+' + bumperHitPayoutDisplay() + ' / bumper') : 'No payout';
       case 'floorPayout':
-        return lvl
-          ? withMultLabels('+' + floorClearPayout() + ' / clear', payoutMultLabels('floor'), { paren: true })
-          : 'No payout';
+        return lvl ? ('+' + floorClearPayoutDisplay() + ' / clear') : 'No payout';
       case 'highCut': {
         if(!lvl) return 'All ranks';
         // Lv1 burns 2s, Lv2 burns 2–3, … Lv8 burns 2–9.
@@ -6548,8 +6632,8 @@
       }
       case 'suitBomb':
         if(!lvl) return 'Locked';
-        if(suitBombPickerMinimized) return 'Picker hidden · +' + purgeCardPayout() + '/card';
-        return 'Cooldown ' + formatInterval(suitBombCooldownMs()) + ' · +' + purgeCardPayout() + '/card';
+        if(suitBombPickerMinimized) return 'Picker hidden · +' + purgeCardPayoutDisplay() + '/card';
+        return 'Cooldown ' + formatInterval(suitBombCooldownMs()) + ' · +' + purgeCardPayoutDisplay() + '/card';
       case 'feltGrease':
         return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
       case 'shortFuse':
@@ -6617,26 +6701,10 @@
       case 'cardCounting':{
         if(!lvl) return 'No count bonus';
         if(lvl < 9){
-          const extras = boardDuplicateExtras();
           const pct = Math.round(8 * Math.min(lvl, 8));
-          if(!extras) return '+' + pct + '% per duplicate in play';
-          return '+' + pct + '% × ' + extras + ' · now ' + formatMultShort(cardCountingHandMultiplier());
+          return '+' + pct + '% per duplicate in play';
         }
-        const groups = cardCountingGroups();
-        if(!groups.length) return 'No paired cards in play';
-        const cards = groups.map(g => cardCountingCardLabel(g.card, g.count)).join(' · ');
-        const factor = cardCountingFactor();
-        const baseMeta = runMetaMultiplier();
-        const totalMeta = effectiveMetaMultiplier();
-        const total = baseMeta > 1
-          ? formatMultShort(totalMeta) + ' mult'
-          : formatMultShort(factor);
-        const breakdown = baseMeta > 1
-          ? cards + ' = ' + formatMultShort(factor)
-          : cards;
-        const handMult = cardCountingHandMultiplier();
-        const handNote = handMult > 1 ? ' · hand ' + formatMultShort(handMult) : '';
-        return total + ' (' + breakdown + ')' + handNote;
+        return 'Paired cards multiply payout mult';
       }
       case 'pinSplit':
         if(!lvl) return 'Normal drops';
@@ -6645,7 +6713,7 @@
       case 'stormBeaches':
         if(!lvl) return 'Steady landings';
         if(!isAutoEnabled('stormBeaches')) return 'Paused';
-        return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% shells · +' + stormBeachLandingPayout() + ' landing';
+        return '~3× faster · ' + Math.round(STORM_BEACHES_EXPLODE_CHANCE * 100) + '% shells · +' + stormBeachLandingPayoutDisplay() + ' landing';
       case 'siegeWeapons':
         if(!lvl) return 'Smooth rims';
         if(!isAutoEnabled('siegeWeapons')) return 'Paused';
@@ -6653,9 +6721,9 @@
           return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · bumper cols · slam combo';
         }
         if(lvl >= 2){
-          return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · bumper columns · +' + siegeCardPayout() + '/card';
+          return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · bumper columns · +' + siegeCardPayoutDisplay() + '/card';
         }
-        return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · column clear · +' + siegeCardPayout() + '/card';
+        return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · column clear · +' + siegeCardPayoutDisplay() + '/card';
       case 'kingMe':
         if(!lvl) return 'Kings stay single';
         if(!isAutoEnabled('kingMe')) return 'Paused';
@@ -6663,7 +6731,7 @@
       case 'bigRoom':
         if(!lvl) return 'No blast fires';
         if(!isAutoEnabled('bigRoom')) return 'Paused';
-        return 'Blast ignite · fallers too · hand +' + Math.round(BIG_ROOM_BURN_HAND_BONUS * 100) + '%/burn · ' + formatNum(burnTickPayout()) + '/tick';
+        return 'Blast ignite · fallers too · hand +' + Math.round(BIG_ROOM_BURN_HAND_BONUS * 100) + '%/burn · ' + formatNum(burnTickPayoutDisplay()) + '/tick';
       default:
         return '';
     }
@@ -10290,6 +10358,7 @@
   const runLevelValEl = document.getElementById('runLevelVal');
   const runLevelXpEl = document.getElementById('runLevelXp');
   const runLevelFillEl = document.getElementById('runLevelFill');
+  const runLevelMultEl = document.getElementById('runLevelMult');
   const compsBoxEl = document.getElementById('compsBox');
   const compsHudValEl = document.getElementById('compsHudVal');
   const prestigeCountValEl = document.getElementById('prestigeCountVal');
@@ -10716,6 +10785,18 @@
       runLevelXpEl.textContent = runLevel >= MAX_RUN_LEVEL
         ? 'MAX'
         : (formatNum(lifetime) + ' / ' + formatNum(next));
+    }
+    if(runLevelMultEl){
+      const parts = levelMultParts();
+      if(parts.length){
+        runLevelMultEl.hidden = false;
+        runLevelMultEl.textContent = parts.join(' · ');
+        runLevelMultEl.title = levelMultDetailTitle(parts);
+      } else {
+        runLevelMultEl.hidden = true;
+        runLevelMultEl.textContent = '';
+        runLevelMultEl.removeAttribute('title');
+      }
     }
     if(levelModalOpen()) populateLevelModal();
   }
