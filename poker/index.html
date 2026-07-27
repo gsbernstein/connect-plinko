@@ -3176,6 +3176,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 68,
+      date: 'Jul 27, 2026',
+      title: 'I Cast Fireball',
+      items: [
+        'VIP fire perk renamed to I Cast Fireball — same blast ignite, clearer name.',
+        'New achievement: I Didn\'t Ask How Big The Room Was — light cards on fire.'
+      ]
+    },
+    {
       id: 67,
       date: 'Jul 27, 2026',
       title: 'Control Booth',
@@ -4309,6 +4318,18 @@
       ]
     },
     {
+      id: 'a_big_room', kind: 'achievement', name: 'I Didn\'t Ask How Big The Room Was',
+      desc: 'Light {n} cards on fire.',
+      stat: 'cardsIgnited', secret: true, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 100, chipGrowth: 1.3, compCap: 30 },
+      tiers: [
+        { target: 10, reward: { chips: 200, comps: 1 } },
+        { target: 50, reward: { comps: 2 } },
+        { target: 200, reward: { comps: 4 } },
+        { target: 1000, reward: { comps: 6 } }
+      ]
+    },
+    {
       id: 'a_perks', kind: 'achievement', name: 'Lounge Regular',
       desc: 'Buy {n} VIP perks.',
       stat: 'prestigeBought', unlockAt: 8, infinite: true,
@@ -4544,7 +4565,7 @@
     },
     {
       id: 'bigRoom',
-      name: 'I Didn\'t Ask How Big the Room Was',
+      name: 'I Cast Fireball',
       desc: 'Explosions light nearby cards on fire — including chips still falling through the pins. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. King Me merges spark a blast too. Toggle On/Off anytime.',
       baseCost: 80,
       costScale: 1,
@@ -4583,7 +4604,7 @@
     { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
     { id: 'siegeWeapons', short: 'Siege', source: 'prestige' },
     { id: 'kingMe', short: 'King Me', source: 'prestige' },
-    { id: 'bigRoom', short: 'Big Room', source: 'prestige' },
+    { id: 'bigRoom', short: 'Fire', source: 'prestige' },
     { id: 'controlBooth', short: 'Booth', source: 'prestige' }
   ];
   let comps = 0;
@@ -4633,7 +4654,7 @@
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
     maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, achievementClaims: 0,
-    sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
+    sleeveHands: 0, cardsIgnited: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
     runFlushes: 0, runStraights: 0, runFullHouses: 0, runFullerHouses: 0, runQuadsFull: 0,
@@ -4877,7 +4898,7 @@
     return cells;
   }
 
-  // I Didn't Ask How Big the Room Was: the explosion IS the fireball — instant radius ignite.
+  // I Cast Fireball: the explosion IS the fireball — instant radius ignite.
   const BIG_ROOM_BLAST_IGNITE_R = 145; // settled neighbors + diagonals (CELL=90)
   // Fallers use a tighter ring than Storm's shove (280) so pin shells don't torch the whole field.
   const BIG_ROOM_FLIGHT_IGNITE_R = 110;
@@ -8936,7 +8957,7 @@
     ball.stackEntry.card = cloneCard(card);
     ball.stackEntry.angle = angle;
     delete ball.stackEntry.ball;
-    // Big Room: chips lit by peg/board blasts keep burning once they seat.
+    // I Cast Fireball: chips lit by peg/board blasts keep burning once they seat.
     if(ball.pendingBurn){
       igniteStackEntry(ball.stackEntry, col, row, {
         silent: true,
@@ -9731,7 +9752,7 @@
         });
       }
     }
-    // Big Room: the blast itself lights nearby settled + in-flight cards instantly.
+    // I Cast Fireball: the blast itself lights nearby settled + in-flight cards instantly.
     if(bigRoomActive() && !opts.noIgnite){
       igniteNearbyFromBlast(x, y, opts.excludeKeys);
     }
@@ -9765,6 +9786,7 @@
     const now = performance.now();
     ball.pendingBurn = true;
     ball.burnStartedAt = now;
+    bumpStat('cardsIgnited', 1);
     pushPopup({
       x: ball.x, y: ball.y - 10,
       text: 'FIRE!',
@@ -9835,6 +9857,8 @@
       nextTickAt: now + BIG_ROOM_BURN_TICK_MS * 0.35,
       startedAt: opts.startedAt || now
     };
+    // Silent = seating a chip already counted via markBallLit.
+    if(!opts.silent) bumpStat('cardsIgnited', 1);
     const pos = cellCenter(col, row);
     if(!opts.silent){
       pushPopup({
@@ -11113,7 +11137,7 @@
 
     ctx.drawImage(plateCanvas, 0, 0);
 
-    // Big Room burn FX sits above the plastic so flame tongues aren't clipped
+    // I Cast Fireball burn FX sits above the plastic so flame tongues aren't clipped
     // by the plate between holes.
     for(let c=0;c<COLS;c++){
       for(let r=0;r<ROWS;r++){
