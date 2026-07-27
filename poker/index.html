@@ -3328,6 +3328,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 84,
+      date: 'Jul 27, 2026',
+      title: 'Suits toggle labels',
+      items: [
+        'Suit Purge’s Suits toggle now reads Shown or Hidden to match the picker state.',
+      ]
+    },
+    {
       id: 83,
       date: 'Jul 27, 2026',
       title: 'Shop tab load fix',
@@ -12299,7 +12307,7 @@
       if(canToggle){
         if(def.id === 'suitBomb'){
           const visible = suitBombUiVisible();
-          toggle.textContent = visible ? 'Hide' : 'Show';
+          toggle.textContent = visible ? 'Shown' : 'Hidden';
           toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
           toggle.classList.toggle('is-off', !visible);
         } else {
@@ -12849,7 +12857,7 @@
       let label;
       if(def.picker){
         on = suitBombUiVisible();
-        label = on ? 'Hide' : 'Show';
+        label = on ? 'Shown' : 'Hidden';
       } else if(def.autoManual){
         on = isAutoEnabled(id);
         label = on ? 'Auto' : 'Manual';
@@ -12892,7 +12900,7 @@
       suitBombButtons[s] = btn;
     }
     repaintSuitBombGlyphs();
-    // Tap chrome (title, status, padding) — not the suit buttons — toggles Hide/Show.
+    // Tap chrome (title, status, padding) — not the suit buttons — toggles Shown/Hidden.
     suitBombBar.addEventListener('click', (e)=>{
       if(e.target.closest('.suit-btn')) return;
       toggleSuitBombPicker();
