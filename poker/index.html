@@ -6871,12 +6871,26 @@
     return !!(p.handName || p.family === 'combo');
   }
 
+  function clampPopupToRegion(p){
+    if(!p || !p.region) return p;
+    const r = p.region;
+    if(r.minX != null && r.maxX != null){
+      p.x = Math.max(r.minX, Math.min(r.maxX, p.x));
+    }
+    if(r.minY != null && r.maxY != null){
+      p.y = Math.max(r.minY, Math.min(r.maxY, p.y));
+    }
+    return p;
+  }
+
   function separatePopupFromOthers(p){
     if(!p || !popups.length || !popupNeedsSeparation(p)) return p;
     const originX = p.spawnX != null ? p.spawnX : p.x;
     const originY = p.spawnY != null ? p.spawnY : p.y;
     const GAP = 18;
-    const MAX_DRIFT = CELL * 2.2;
+    // Hands stay near their cards; COMBO may roam the whole resolve region.
+    const MAX_DRIFT = p.maxDrift != null ? p.maxDrift : CELL * 2.2;
+    const useRegion = !!(p.region && p.family === 'combo');
     for(let iter = 0; iter < 12; iter++){
       let moved = false;
       const a = popupHalfExtents(p);
@@ -6906,15 +6920,21 @@
         moved = true;
       }
       if(!moved) break;
+      if(useRegion) clampPopupToRegion(p);
       clampPopupToBoard(p);
     }
-    const driftX = p.x - originX;
-    const driftY = p.y - originY;
-    const dist = Math.hypot(driftX, driftY);
-    if(dist > MAX_DRIFT){
-      p.x = originX + driftX * (MAX_DRIFT / dist);
-      p.y = originY + driftY * (MAX_DRIFT / dist);
+    if(useRegion){
+      clampPopupToRegion(p);
       clampPopupToBoard(p);
+    } else {
+      const driftX = p.x - originX;
+      const driftY = p.y - originY;
+      const dist = Math.hypot(driftX, driftY);
+      if(dist > MAX_DRIFT){
+        p.x = originX + driftX * (MAX_DRIFT / dist);
+        p.y = originY + driftY * (MAX_DRIFT / dist);
+        clampPopupToBoard(p);
+      }
     }
     return p;
   }
@@ -9345,18 +9365,65 @@
     };
   }
 
-  function comboPopupPosition(groups){
-    let x = 0, y = 0;
+  // Bounding box of every cell in a multi-hand clear — COMBO may roam here.
+  function resolveRegionBounds(groups){
+    let minC = Infinity, maxC = -Infinity, minR = Infinity, maxR = -Infinity;
     for(const g of groups){
-      const c = groupGridCenter(g);
-      x += c.x;
-      y += c.y;
+      if(!g || !g.cells) continue;
+      for(const cell of g.cells){
+        const c = cell[0], r = cell[1];
+        if(c < minC) minC = c;
+        if(c > maxC) maxC = c;
+        if(r < minR) minR = r;
+        if(r > maxR) maxR = r;
+      }
     }
+    if(!Number.isFinite(minC)){
+      return {
+        minX: CELL * 0.5, maxX: W - CELL * 0.5,
+        minY: PEG_ZONE + CELL * 0.5, maxY: H - CELL * 0.5,
+        cx: W * 0.5, cy: PEG_ZONE + (H - PEG_ZONE) * 0.5
+      };
+    }
+    // Slight pad so the banner can sit just outside crowded hand centers.
+    const pad = CELL * 0.25;
+    const minX = Math.max(pad, minC * CELL + pad);
+    const maxX = Math.min(W - pad, (maxC + 1) * CELL - pad);
+    const minY = Math.max(PEG_ZONE + pad, PEG_ZONE + minR * CELL + pad);
+    const maxY = Math.min(H - pad, PEG_ZONE + (maxR + 1) * CELL - pad);
     return {
-      x: x / groups.length,
-      // Clear of taller hand labels (title + chip subtext).
-      y: y / groups.length + CELL * 1.2
+      minX, maxX,
+      minY: Math.min(minY, maxY),
+      maxY: Math.max(minY, maxY),
+      cx: (minX + maxX) * 0.5,
+      cy: (minY + maxY) * 0.5
     };
+  }
+
+  // Pick the clearest spot inside the resolve region (away from hand labels).
+  function comboPopupPosition(groups){
+    const region = resolveRegionBounds(groups);
+    const handPops = popups.filter(p => p.handName);
+    const cols = 5, rows = 4;
+    let best = { x: region.cx, y: region.cy, score: -Infinity };
+    for(let iy = 0; iy < rows; iy++){
+      for(let ix = 0; ix < cols; ix++){
+        const tx = cols === 1 ? region.cx
+          : region.minX + (ix / (cols - 1)) * (region.maxX - region.minX);
+        const ty = rows === 1 ? region.cy
+          : region.minY + (iy / (rows - 1)) * (region.maxY - region.minY);
+        let score = 0;
+        for(const h of handPops){
+          const d = Math.hypot(tx - h.x, ty - h.y);
+          // Prefer open space; soft preference for staying near region center.
+          score += Math.min(d, CELL * 3);
+        }
+        const toCenter = Math.hypot(tx - region.cx, ty - region.cy);
+        score -= toCenter * 0.25;
+        if(score > best.score) best = { x: tx, y: ty, score };
+      }
+    }
+    return { x: best.x, y: best.y, region };
   }
 
   // Combo banner juice scales with simultaneous hands (×2 baseline → bigger).
@@ -9465,7 +9532,8 @@
         fontSize: fx.fontSize, floatBoost: fx.floatBoost, tilt: fx.tilt,
         slam: fx.slam, slamMs: fx.slamMs, glow: fx.glow, big: fx.big,
         family: 'combo',
-        comboN: groups.length
+        comboN: groups.length,
+        region: comboPos.region
       });
     }
     if(n > 1) relaxPopupPositions(now);
