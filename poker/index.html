@@ -3099,6 +3099,7 @@
         'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
         'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and the on-screen cap no longer FIFO-wipes earlier clears.',
         'Chip amounts on score pops use the same k / M / B / T / Q / scientific shorthand as the HUD.',
+        'CHAIN banners keep their slam look, but yield the canvas to hand and COMBO labels when pops get crowded.',
         'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — secret achievements Reboot, Quads Full, and Clone Wars (six of a kind+).'
       ]
     },
@@ -6807,16 +6808,18 @@
     trimPopups();
   }
 
-  // Prefer dropping short hit labels over celebration banners when over cap.
+  // Prefer dropping short hit labels, then CHAIN banners, before hand celebrations.
   // Old FIFO splice(0, …) nuked whole earlier clears at once.
   function trimPopups(){
     if(popups.length <= MAX_POPUPS) return;
     const overflow = popups.length - MAX_POPUPS;
     const rank = (p) => {
       if(p && p.ephemeral) return 0;
-      if(p && p.big) return 3;
-      if(p && (p.duration || 0) >= 1400) return 2;
-      return 1;
+      // CHAIN keeps slam/glow, but yields the canvas to hand/COMBO labels.
+      if(p && p.chain) return 1;
+      if(p && p.big) return 4;
+      if(p && (p.duration || 0) >= 1400) return 3;
+      return 2;
     };
     const order = popups
       .map((p, i) => ({p, i, r: rank(p), t0: p.t0 || 0}))
@@ -9310,6 +9313,7 @@
 
   function pushChainBanner(mult, t0, stackIndex){
     // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
+    // `chain` keeps the look but ranks below hand/COMBO labels in trimPopups.
     pushPopup({
       x: W/2,
       y: PEG_ZONE * 0.4 - stackIndex * 12,
@@ -9318,6 +9322,7 @@
       t0,
       duration: Math.min(2400, 1000 + Math.max(0, mult - 1) * 120),
       big: true,
+      chain: true,
       fontSize: 26,
       floatBoost: 36,
       tilt: 0.06,
