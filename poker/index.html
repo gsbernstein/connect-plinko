@@ -2984,6 +2984,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 50,
+      date: 'Jul 27, 2026',
+      title: 'The explosion is the fireball',
+      items: [
+        'I Didn\'t Ask How Big the Room Was drops the flying fireball sparks — the blast itself lights nearby cards instantly.',
+        'Burn DoT and the +50% per burning card hand bonus are unchanged.'
+      ]
+    },
+    {
       id: 49,
       date: 'Jul 27, 2026',
       title: 'King Me board holes',
@@ -4429,12 +4438,8 @@
     return cells;
   }
 
-  // I Didn't Ask How Big the Room Was: blasts light nearby cards; burn DoT + hand bonus.
-  // Fireballs are the visual of that spread — they only seek seats inside the blast.
+  // I Didn't Ask How Big the Room Was: the explosion IS the fireball — instant radius ignite.
   const BIG_ROOM_BLAST_IGNITE_R = 145; // ~neighbors + diagonals (CELL=90)
-  const BIG_ROOM_FIREBALLS_PER_BLAST = 8;
-  const BIG_ROOM_MAX_FIREBALLS = 28;
-  const BIG_ROOM_FIREBALL_SPEED = 9.5;
   const BIG_ROOM_BURN_TICKS = 4;
   const BIG_ROOM_BURN_TICK_MS = 420;
   const BIG_ROOM_BURN_COLOR = '#FF7A3D';
@@ -7154,7 +7159,6 @@
     heaterHoldUntilUse = false;
     flashCells = null;
     particles = [];
-    fireballs = [];
     popups = [];
     pendingSuitBomb = null;
     pendingKingMe = [];
@@ -7414,7 +7418,6 @@
   }
   let flashCells = null;
   let particles = [];
-  let fireballs = []; // Big Room projectiles: {x,y,vx,vy,tx,ty,targetCol,targetRow,life}
   let popups = [];
   const FLASH_MS = 480, EXPLODE_MS = 280;
 
@@ -8039,7 +8042,6 @@
     autoDropTicks += physicsSteps;
     tryAutoDrop();
     stepParticles();
-    stepFireballs();
     stepBurning(now);
 
     // Seat chips into the stack BEFORE King Me leaps/captures. Captures call
@@ -8074,7 +8076,7 @@
     const bombAuto = prestigeLevel('autoSuitBomb') > 0
       && isAutoEnabled('autoSuitBomb')
       && suitBombUnlocked();
-    if(balls.length>0 || particles.length>0 || fireballs.length>0
+    if(balls.length>0 || particles.length>0
       || hasBurningCards() || popupsAlive || resolving
       || bombCharging || bombAuto || autoDealerActive() || kingMeBusy()){
       requestAnimationFrame(tick);
@@ -8937,9 +8939,9 @@
         });
       }
     }
-    // Big Room: blasts light nearby settled cards (fireballs are the delivery FX).
-    if(bigRoomActive() && !opts.noFireball){
-      castFireballsFrom(x, y, opts.excludeKeys);
+    // Big Room: the blast itself lights nearby settled cards instantly.
+    if(bigRoomActive() && !opts.noIgnite){
+      igniteNearbyFromBlast(x, y, opts.excludeKeys);
     }
   }
 
@@ -8965,57 +8967,28 @@
     return false;
   }
 
-  // Settled cards inside the blast ring — fireballs only spread to these neighbors.
-  function collectFireballTargets(x, y, excludeKeys){
+  // Instantly ignite every settled card inside the blast ring.
+  function igniteNearbyFromBlast(x, y, excludeKeys){
+    if(!bigRoomActive()) return;
     const exclude = excludeKeys || null;
     const r2 = BIG_ROOM_BLAST_IGNITE_R * BIG_ROOM_BLAST_IGNITE_R;
-    const targets = [];
+    let lit = 0;
     for(let c = 0; c < COLS; c++){
       for(let i = 0; i < stack[c].length; i++){
         const entry = stack[c][i];
-        if(entry.type !== 'piece') continue;
+        if(entry.type !== 'piece' || entry.burning) continue;
         const row = ROWS - 1 - i;
         const key = c + ',' + row;
         if(exclude && exclude.has(key)) continue;
         if(flashCells && flashCells.has(key)) continue;
-        if(entry.burning) continue;
         const pos = cellCenter(c, row);
         const dx = pos.x - x, dy = pos.y - y;
         const d2 = dx * dx + dy * dy;
         if(d2 > r2 || d2 < 0.0001) continue;
-        targets.push({col: c, row, entry, d2});
+        if(igniteStackEntry(entry, c, row)) lit++;
       }
     }
-    targets.sort((a, b) => a.d2 - b.d2);
-    return targets;
-  }
-
-  function castFireballsFrom(x, y, excludeKeys){
-    if(!bigRoomActive()) return;
-    const room = BIG_ROOM_MAX_FIREBALLS - fireballs.length;
-    if(room <= 0) return;
-    const targets = collectFireballTargets(x, y, excludeKeys);
-    if(!targets.length) return;
-    const count = Math.min(BIG_ROOM_FIREBALLS_PER_BLAST, targets.length, room);
-    for(let i = 0; i < count; i++){
-      const t = targets[i];
-      const dest = cellCenter(t.col, t.row);
-      const dx = dest.x - x, dy = dest.y - y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const spd = BIG_ROOM_FIREBALL_SPEED * (0.85 + Math.random() * 0.3);
-      fireballs.push({
-        x, y,
-        vx: (dx / dist) * spd,
-        vy: (dy / dist) * spd,
-        tx: dest.x,
-        ty: dest.y,
-        targetCol: t.col,
-        targetEntry: t.entry,
-        life: 1,
-        trail: []
-      });
-    }
-    if(fireballs.length && !looping) startLoop();
+    if(lit && !looping) startLoop();
   }
 
   function igniteStackEntry(entry, col, row){
@@ -9060,55 +9033,13 @@
     if(!entry || entry.type !== 'piece') return;
     const row = ROWS - 1 - stackIndex;
     const pos = cellCenter(col, row);
-    spawnExplosion(pos.x, pos.y, entry.card, {noFireball: true});
+    // Ash FX only — don't chain-ignite from burn expiry.
+    spawnExplosion(pos.x, pos.y, entry.card, {noIgnite: true});
     stack[col].splice(stackIndex, 1);
     rebuildColumnFromStack(col);
     recomputeBumpers();
     markHintsDirty();
     if(!resolving && !kingMeJumping()) maybeStartResolve();
-  }
-
-  function stepFireballs(){
-    if(!fireballs.length) return;
-    const next = [];
-    for(const fb of fireballs){
-      fb.x += fb.vx;
-      fb.y += fb.vy;
-      fb.trail.push({x: fb.x, y: fb.y});
-      if(fb.trail.length > 7) fb.trail.shift();
-      // Home on the entry object so column collapses don't orphan the aim point.
-      const col = fb.targetCol;
-      const entry = fb.targetEntry;
-      const idx = (col != null && entry) ? stack[col].indexOf(entry) : -1;
-      if(idx >= 0 && entry.type === 'piece'){
-        const row = ROWS - 1 - idx;
-        const dest = cellCenter(col, row);
-        fb.tx = dest.x;
-        fb.ty = dest.y;
-        const dx = dest.x - fb.x, dy = dest.y - fb.y;
-        const dist = Math.hypot(dx, dy);
-        if(dist < 22){
-          igniteStackEntry(entry, col, row);
-          continue;
-        }
-        // Soft steer toward the seat.
-        fb.vx += (dx / dist) * 0.55;
-        fb.vy += (dy / dist) * 0.55;
-        const spd = Math.hypot(fb.vx, fb.vy) || 1;
-        const cap = BIG_ROOM_FIREBALL_SPEED * 1.25;
-        if(spd > cap){
-          fb.vx = fb.vx / spd * cap;
-          fb.vy = fb.vy / spd * cap;
-        }
-      } else {
-        // Target vacated — coast and expire.
-        fb.life -= 0.04;
-        if(fb.life <= 0) continue;
-      }
-      if(fb.x < -40 || fb.x > W + 40 || fb.y < -40 || fb.y > H + 40) continue;
-      next.push(fb);
-    }
-    fireballs = next;
   }
 
   function stepBurning(now){
@@ -9934,38 +9865,6 @@
     ctx.restore();
   }
 
-  function drawFireballs(lite){
-    if(!fireballs.length) return;
-    for(const fb of fireballs){
-      if(fb.trail && fb.trail.length){
-        for(let i = 0; i < fb.trail.length; i++){
-          const t = fb.trail[i];
-          const a = ((i + 1) / fb.trail.length) * 0.45;
-          ctx.globalAlpha = a;
-          ctx.beginPath();
-          ctx.arc(t.x, t.y, 4 + i * 0.6, 0, Math.PI * 2);
-          ctx.fillStyle = i % 2 ? '#FFD27A' : BIG_ROOM_BURN_COLOR;
-          ctx.fill();
-        }
-      }
-      ctx.globalAlpha = Math.max(0.4, fb.life || 1);
-      ctx.beginPath();
-      ctx.arc(fb.x, fb.y, 7, 0, Math.PI * 2);
-      ctx.fillStyle = '#FFD27A';
-      if(!lite){
-        ctx.shadowColor = BIG_ROOM_BURN_COLOR;
-        ctx.shadowBlur = 14;
-      }
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(fb.x, fb.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff6e0';
-      ctx.fill();
-    }
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
-  }
-
   function drawKingJumper(j){
     const pulse = 1 + 0.04 * Math.sin(performance.now() / 90);
     ctx.save();
@@ -10301,8 +10200,6 @@
     }
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
-
-    drawFireballs(lite);
 
     const nowP = performance.now();
     popups = popups.filter(p => nowP - p.t0 < p.duration);
@@ -12079,7 +11976,7 @@
       tryAutoSuitBomb(now);
       maybeAutoBuy(now);
       maybeAutoClaimQuests(now);
-      const needLoop = balls.length || particles.length || fireballs.length
+      const needLoop = balls.length || particles.length
         || hasBurningCards() || resolving || kingMeBusy()
         || autoDealerActive()
         || (prestigeLevel('pitBoss') > 0 && isAutoEnabled('pitBoss'))
