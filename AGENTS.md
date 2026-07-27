@@ -26,6 +26,9 @@ Each page links to the other via a Classic / Poker toggle.
 │   ├── index.html      # Plinko Poker (~8,880 lines) — same pattern
 │   ├── version.json    # Poker release id (`v`) polled for refresh prompts
 │   └── welcome-chip.png
+├── .cursor/
+│   ├── environment.json  # Cloud Agent VM: install + static server terminal
+│   └── rules/            # always-on agent conventions
 ├── .nojekyll           # required for GitHub Pages
 ├── README.md           # player-facing overview
 └── AGENTS.md           # this file
@@ -43,6 +46,27 @@ python3 -m http.server 8080
 - Poker: http://localhost:8080/poker/
 
 Refresh after edits. No compile or lint step in CI.
+
+## Cursor Cloud specific instructions
+
+Cloud Agents resolve env config from `.cursor/environment.json` first (then personal/team dashboard envs). This repo is zero-build — no npm, no Dockerfile.
+
+| Piece | Value |
+|-------|--------|
+| Update / `install` | `python3 --version` (idempotent; confirms the static server toolchain) |
+| Terminal | `static-server` → `python3 -m http.server 8080` (shared tmux) |
+| Ports | `8080` |
+
+**Validate UI/gameplay changes**
+
+1. Confirm the static server is up (or start it yourself with the same command).
+2. Classic: http://localhost:8080/ — Poker: http://localhost:8080/poker/
+3. Hard-refresh after edits. Use browser/computer use to click through affected flows (drops, shop, VIP, Settings What’s New, etc.).
+4. There is no automated test suite; screenshots or a short playthrough are the verification.
+
+**Secrets / network** — none required for local play. Do not add API keys for this static site. If team egress is allowlisted, keep `cloud-agent-artifacts.s3.us-east-1.amazonaws.com` for demo artifacts.
+
+**Optional dashboard follow-up** — after a successful Cloud run, save a VM snapshot from [Cloud Agents → Environments](https://cursor.com/dashboard/cloud-agents#environments) and add its `snapshot` id to `.cursor/environment.json` so future agents boot faster. Set default base branch to `master` in Cloud Agent settings if it is not already.
 
 ## Plinko Four (`index.html`)
 
