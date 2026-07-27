@@ -2971,7 +2971,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 24;
+  const SAVE_VERSION = 25;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -2983,6 +2983,14 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 50,
+      date: 'Jul 27, 2026',
+      title: 'Bigger pot milestones',
+      items: [
+        'Big Pot and Combo Payday targets now jump ~10× per tier after the early milestones — fewer levels for the same huge payouts.'
+      ]
+    },
     {
       id: 49,
       date: 'Jul 27, 2026',
@@ -3832,7 +3840,8 @@
       id: 'a_hand_payout', kind: 'achievement', name: 'Big Pot',
       desc: 'Score a single hand worth {n} chips or more.',
       stat: 'maxHandPayout', unlockAt: 1, infinite: true,
-      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 30 },
+      // ~10× per infinite tier — chip multipliers outrun the old 2.2× curve quickly.
+      scale: { targetGrowth: 10, compPerLevel: 1, chipBase: 80, chipGrowth: 1.35, compCap: 30 },
       tiers: [
         { target: 50, reward: { chips: 100 } },
         { target: 200, reward: { comps: 1 } },
@@ -3844,7 +3853,7 @@
       id: 'a_combo_payout', kind: 'achievement', name: 'Combo Payday',
       desc: 'Score a COMBO resolve worth {n} chips or more.',
       stat: 'maxComboPayout', unlockAt: 1, infinite: true,
-      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 120, chipGrowth: 1.35, compCap: 30 },
+      scale: { targetGrowth: 10, compPerLevel: 1, chipBase: 120, chipGrowth: 1.35, compCap: 30 },
       tiers: [
         { target: 100, reward: { chips: 150 } },
         { target: 500, reward: { comps: 1 } },
@@ -4717,6 +4726,26 @@
       target,
       reward: achievementScaledReward(def, level, last.reward, extra)
     };
+  }
+
+  // Highest tier whose target the given peak stat already clears (for claim remap).
+  function achievementTiersReachedByStat(def, value){
+    value = Math.floor(value) || 0;
+    if(value <= 0) return 0;
+    const seeds = achievementSeedTiers(def);
+    let reached = 0;
+    for(let i = 0; i < seeds.length; i++){
+      if(value >= seeds[i].target) reached = i + 1;
+      else return reached;
+    }
+    if(!def.infinite) return reached;
+    let level = seeds.length;
+    while(level < 500){
+      const next = achievementTierAt(def, level + 1);
+      if(!next || value < next.target) break;
+      level++;
+    }
+    return level;
   }
 
   function achievementClaimedTier(def){
@@ -6739,6 +6768,17 @@
           const comboClaimed = questClaimed.a_combo;
           if(typeof comboClaimed === 'number' && comboClaimed > 0){
             questClaimed.a_combo = Math.max(1, comboClaimed - 1);
+          }
+        }
+        // Big Pot / Combo Payday: infinite targets now grow ~10× (was 2.2×). Clamp
+        // overclaimed tiers to what the peak payout actually reaches on the new curve.
+        if((data.v || 0) < 25){
+          for(const id of ['a_hand_payout', 'a_combo_payout']){
+            const def = ACHIEVEMENT_DEFS.find(d => d.id === id);
+            const claimed = questClaimed[id];
+            if(!def || typeof claimed !== 'number' || claimed <= 0) continue;
+            const reached = achievementTiersReachedByStat(def, stats[def.stat] || 0);
+            questClaimed[id] = Math.min(claimed, reached);
           }
         }
       }
