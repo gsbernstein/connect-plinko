@@ -3245,6 +3245,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 80,
+      date: 'Jul 27, 2026',
+      title: 'Tabs remember scroll',
+      items: [
+        'Each rail tab (Upgrades, Quests, Achieves, VIP, Settings) keeps its own scroll position when you switch away and back.',
+      ]
+    },
+    {
       id: 79,
       date: 'Jul 27, 2026',
       title: 'Chips bar hugs edge',
@@ -11458,6 +11466,9 @@
   };
   const changelogListEl = document.getElementById('changelogList');
   let activeRailPanel = 'table';
+  const railBodyEl = document.getElementById('railBody');
+  // Per-tab scroll inside the shared #railBody scroller (session-only).
+  const railPanelScroll = Object.create(null);
   // Entries with id > this floor show as New for the current Settings visit.
   // Set from seenChangelogId when opening Settings (before markChangelogSeen).
   let changelogHighlightFloor = 0;
@@ -11665,12 +11676,26 @@
     updateRailTabAvailability();
   }
 
+  function saveRailPanelScroll(panel){
+    if(!railBodyEl || !panel || panel === 'table') return;
+    railPanelScroll[panel] = railBodyEl.scrollTop;
+  }
+
+  function restoreRailPanelScroll(panel){
+    if(!railBodyEl || !panel || panel === 'table') return;
+    const y = railPanelScroll[panel];
+    railBodyEl.scrollTop = y == null ? 0 : y;
+  }
+
   function setRailPanel(panel){
     if(!panel) return;
     if(!panelTabUnlocked(panel)) return;
     if(panel === 'table' && isDesktopLayout()) panel = defaultShopPanel();
     const known = panel === 'table' || railPanels.some(p => p.dataset.panel === panel);
     if(!known) return;
+    const prevPanel = activeRailPanel;
+    const panelChanged = prevPanel !== panel;
+    if(panelChanged) saveRailPanelScroll(prevPanel);
     activeRailPanel = panel;
     const tableMode = panel === 'table' && !isDesktopLayout();
     if(appEl){
@@ -11695,6 +11720,8 @@
       achievementOrderBucketSig = '';
       updateAchievementsUI();
     }
+    // Restore after panel content (e.g. achievement reorder) has updated.
+    if(panelChanged) restoreRailPanelScroll(panel);
   }
 
   for(const tab of railTabs){
