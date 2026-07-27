@@ -2983,6 +2983,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 41,
+      date: 'Jul 27, 2026',
+      title: 'VIP perk cost coupling',
+      items: [
+        'VIP skill perks (Quick Deal, Pin Privilege, Felt Wax, House Edge) now fully count toward their paired table upgrade buy costs — bonus levels are no longer “free” on the price curve.',
+        'The same effective level also steepens the matching VIP perk’s comp cost, so chip and comp investment stay in sync.'
+      ]
+    },
+    {
       id: 40,
       date: 'Jul 27, 2026',
       title: 'Siege columns & Storm landings',
@@ -3880,7 +3889,7 @@
     {
       id: 'houseEdge',
       name: 'House Edge',
-      desc: '+1 Hot Streak level permanently. Capped at Hot Streak max.',
+      desc: '+1 Hot Streak level permanently. Raises Hot Streak’s buy cost like a normal level. Capped at Hot Streak max.',
       baseCost: 1,
       costScale: 1.65,
       maxLevel: 40
@@ -3920,7 +3929,7 @@
     {
       id: 'quickDeal',
       name: 'Quick Deal',
-      desc: '+1 Auto Dealer level permanently. Capped at Auto Dealer max.',
+      desc: '+1 Auto Dealer level permanently. Raises Auto Dealer’s buy cost like a normal level. Capped at Auto Dealer max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3928,7 +3937,7 @@
     {
       id: 'pinPrivilege',
       name: 'Pin Privilege',
-      desc: '+1 Pin Tip level permanently. Capped at Pin Tip max.',
+      desc: '+1 Pin Tip level permanently. Raises Pin Tip’s buy cost like a normal level. Capped at Pin Tip max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -3936,7 +3945,7 @@
     {
       id: 'feltWax',
       name: 'Felt Wax',
-      desc: '+1 Felt Grease level permanently. Capped at Felt Grease max.',
+      desc: '+1 Felt Grease level permanently. Raises Felt Grease’s buy cost like a normal level. Capped at Felt Grease max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -4309,6 +4318,21 @@
     if(id === 'hotStreak') return prestigeLevel('houseEdge');
     if(id === 'feltGrease') return prestigeLevel('feltWax');
     return 0;
+  }
+
+  function prestigeLinkedTableId(perkId){
+    if(perkId === 'quickDeal') return 'autoDealer';
+    if(perkId === 'pinPrivilege') return 'pinPayout';
+    if(perkId === 'houseEdge') return 'hotStreak';
+    if(perkId === 'feltWax') return 'feltGrease';
+    return null;
+  }
+
+  function prestigeSkillCostLevel(perkId){
+    const perkLvl = prestigeLevel(perkId);
+    const tableId = prestigeLinkedTableId(perkId);
+    if(!tableId) return perkLvl;
+    return Math.max(perkLvl, upgradeLevel(tableId));
   }
 
   function upgradeMaxLevel(id){
@@ -5151,7 +5175,8 @@
   function prestigeUpgradeCost(def){
     const lvl = prestigeLevel(def.id);
     if(lvl >= def.maxLevel) return Infinity;
-    return Math.floor(def.baseCost * Math.pow(def.costScale, lvl));
+    const costLvl = prestigeSkillCostLevel(def.id);
+    return Math.floor(def.baseCost * Math.pow(def.costScale, costLvl));
   }
 
   const MULTI_DEAL_CHANCE_PER_LEVEL = 0.25;
