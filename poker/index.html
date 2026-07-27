@@ -1220,6 +1220,20 @@
     font-family:'Space Grotesk',sans-serif;
     font-weight:700;
     font-size:14px;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    min-width:0;
+  }
+  .upgrade-rec{
+    flex-shrink:0;
+    color:#E6C35C;
+    font-size:12px;
+    line-height:1;
+    text-shadow:0 0 8px rgba(230,195,92,0.35);
+  }
+  .upgrade-name-text{
+    min-width:0;
   }
   .upgrade-top-right{
     display:flex;
@@ -3245,6 +3259,16 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 80,
+      date: 'Jul 27, 2026',
+      title: 'Recommended buy star',
+      items: [
+        'A gold star marks the next recommended shop upgrade or VIP perk you can still buy.',
+        'Shop path: early Auto Dealer → Wild Card → Pin Tip → High Cut → Suit Alliance.',
+        'VIP path: Quest Desk, then Quest Ink.',
+      ]
+    },
+    {
       id: 79,
       date: 'Jul 27, 2026',
       title: 'Chips bar hugs edge',
@@ -4069,6 +4093,19 @@
       costLateBase: 3528000000000,
       costLateScale: 2.5
     }
+  ];
+
+  // Guided "next buy" star — first incomplete unlocked step wins (until = effective level target).
+  const SHOP_RECOMMEND_PRIORITY = [
+    { id: 'autoDealer', until: 6 },
+    { id: 'wildCard', until: 1 },
+    { id: 'pinPayout', until: 1 },
+    { id: 'highCut', until: 1 },
+    { id: 'suitCut', until: 2 }
+  ];
+  const VIP_RECOMMEND_PRIORITY = [
+    { id: 'questDesk', until: 1 },
+    { id: 'questInk', until: 4 }
   ];
 
   // Extra rewards granted when the run level is reached (unlocks are via unlockAt).
@@ -5204,6 +5241,28 @@
     if(!def) return false;
     // Sticky after first reveal — Cash Out resets run level, not shop discovery.
     return highestRunLevelReached() >= (def.unlockAt || 1);
+  }
+
+  // Highest-priority incomplete step that is currently available (unlocked / buyable).
+  function recommendedFromPriority(steps, levelFn, availableFn){
+    for(const step of steps){
+      if(availableFn && !availableFn(step.id)) continue;
+      const until = step.until != null ? step.until : 1;
+      if(levelFn(step.id) < until) return step.id;
+    }
+    return null;
+  }
+
+  function recommendedShopUpgradeId(){
+    return recommendedFromPriority(
+      SHOP_RECOMMEND_PRIORITY,
+      upgradeLevel,
+      upgradeUnlocked
+    );
+  }
+
+  function recommendedVipPerkId(){
+    return recommendedFromPriority(VIP_RECOMMEND_PRIORITY, prestigeLevel, null);
   }
 
   function pendingComps(){
@@ -12055,12 +12114,22 @@
       costEl.textContent = formatNum(opts.cost) + ' ' + (opts.unit || 'chips');
       costEl.className = 'upgrade-cost' + (canAfford ? '' : ' too-much');
     }
+    const recommended = !!opts.recommended && !locked && !maxed;
+    btn.classList.toggle('is-recommended', recommended);
+    const recEl = btn.querySelector('.upgrade-rec');
+    if(recEl){
+      recEl.hidden = !recommended;
+      recEl.setAttribute('aria-hidden', recommended ? 'false' : 'true');
+    }
+    if(recommended) btn.setAttribute('aria-description', 'Recommended next');
+    else btn.removeAttribute('aria-description');
   }
 
   function updateShopUI(){
     const active = [];
     const maxedList = [];
     let affordableCount = 0;
+    const recommendedId = recommendedShopUpgradeId();
     for(const def of UPGRADE_DEFS){
       const btn = upgradeButtons[def.id];
       if(!btn) continue;
@@ -12079,11 +12148,12 @@
         canToggle: !!(def.toggleable && lvl > 0),
         effect: upgradeEffectText(def),
         costLabel: 'Unlocks at Lv ' + (def.unlockAt || 1),
-        unit: 'chips'
+        unit: 'chips',
+        recommended: def.id === recommendedId
       });
       btn.hidden = !revealed;
       if(!revealed){
-        btn.classList.remove('affordable', 'maxed', 'just-unlocked');
+        btn.classList.remove('affordable', 'maxed', 'just-unlocked', 'is-recommended');
         continue;
       }
       if(!seenUnlockFlash.has(def.id) && (def.unlockAt || 1) > 1){
@@ -12139,6 +12209,7 @@
     if(prestigeUpgradesEl){
       const active = [];
       const maxedList = [];
+      const recommendedId = recommendedVipPerkId();
       for(const def of PRESTIGE_DEFS){
         const btn = prestigeButtons[def.id];
         if(!btn) continue;
@@ -12153,7 +12224,8 @@
           canToggle: !!(def.toggleable && lvl > 0),
           effect: prestigeEffectText(def),
           costLabel: needsSuitBomb ? 'Needs Suit Purge' : '',
-          unit: 'comps'
+          unit: 'comps',
+          recommended: def.id === recommendedId
         });
         (maxed ? maxedList : active).push(btn);
       }
@@ -12174,7 +12246,10 @@
     btn.tabIndex = 0;
     btn.innerHTML =
       '<div class="upgrade-top">' +
-        '<span class="upgrade-name"></span>' +
+        '<span class="upgrade-name">' +
+          '<span class="upgrade-rec" hidden aria-hidden="true" title="Recommended next">★</span>' +
+          '<span class="upgrade-name-text"></span>' +
+        '</span>' +
         '<span class="upgrade-top-right">' +
           (def.toggleable
             ? '<button type="button" class="upgrade-toggle" hidden>On</button>'
@@ -12189,7 +12264,7 @@
         '<span class="upgrade-progress-bonus"></span>' +
         '<span class="upgrade-progress-bought"></span>' +
       '</div>';
-    btn.querySelector('.upgrade-name').textContent = def.name;
+    btn.querySelector('.upgrade-name-text').textContent = def.name;
     btn.querySelector('.upgrade-desc').textContent = def.desc;
     const toggle = btn.querySelector('.upgrade-toggle');
     if(toggle){
