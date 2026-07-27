@@ -204,7 +204,7 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 `setTabBadge(panel, count, opts)` paints `#badgeUpgrades` / `#badgeQuests` / `#badgeAchievements` / `#badgeVip` (Settings uses its own path). Count badges show a number; `hasNewUnlockBadge` wins with a red `.is-new` empty dot. Optional `opts.empty` shows a numberless `.is-dot` badge when count is 0 (VIP: Cash Out ready with no affordable perks — Cash Out never increments the VIP count).
 
-**Per-tab scroll:** `#railBody` is one shared scroller; `setRailPanel` saves/restores `railPanelScroll[panel]` (`saveRailPanelScroll` / `restoreRailPanelScroll`) so each shop tab keeps its offset for the session.
+**Per-tab scroll:** `#railBody` is `overflow:hidden`; each `.rail-panel` is its own `overflow-y:auto` scroller so tabs keep native `scrollTop` without JS restore (avoids interrupting touch/wheel gestures).
 
 ### Physics & board
 
