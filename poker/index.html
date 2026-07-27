@@ -3064,7 +3064,7 @@
       date: 'Jul 27, 2026',
       title: 'Clearer score pops',
       items: [
-        'Hand, COMBO, and CHAIN score labels fan out and nudge apart so combo bursts stay readable instead of stacking on top of each other.',
+        'Hand and COMBO score labels fan out on multi-hand clears so they stay readable — peg-zone CHAIN stacks are unchanged.',
       ]
     },
     {
@@ -6864,10 +6864,15 @@
     };
   }
 
-  // Nudge a label off neighbors so hand / COMBO / CHAIN / King Me bursts stay
-  // readable. Drift is measured from spawnX/Y so relax passes can't walk away.
+  // Nudge grid celebration labels (hands / COMBO) off each other. Peg-zone
+  // CHAIN stacks keep their intentional tight stack and are left alone.
+  function popupNeedsSeparation(p){
+    if(!p || p.ephemeral || p.chain || p.family === 'chain') return false;
+    return !!(p.handName || p.family === 'combo');
+  }
+
   function separatePopupFromOthers(p){
-    if(!p || !popups.length) return p;
+    if(!p || !popups.length || !popupNeedsSeparation(p)) return p;
     const originX = p.spawnX != null ? p.spawnX : p.x;
     const originY = p.spawnY != null ? p.spawnY : p.y;
     const GAP = 18;
@@ -6877,8 +6882,8 @@
       const a = popupHalfExtents(p);
       for(const o of popups){
         if(!o || o === p) continue;
-        // Ephemeral peg chips shouldn't shove celebration labels around.
-        if(o.ephemeral && !p.ephemeral) continue;
+        // Only deconflict against other hand / COMBO labels.
+        if(!popupNeedsSeparation(o)) continue;
         const b = popupHalfExtents(o);
         const dx = p.x - o.x;
         const dy = p.y - o.y;
@@ -6914,10 +6919,10 @@
     return p;
   }
 
-  // After a multi-label burst, let low-worth pops yield space to rarer ones.
+  // After a multi-hand burst, let weaker hand/COMBO pops yield space.
   function relaxPopupPositions(sinceT0){
     const recent = popups.filter(p =>
-      !p.ephemeral && (p.t0 == null || p.t0 >= sinceT0 - 50)
+      popupNeedsSeparation(p) && (p.t0 == null || p.t0 >= sinceT0 - 50)
     );
     if(recent.length < 2) return;
     recent.sort((a, b) => popupWorth(a) - popupWorth(b));
@@ -9371,14 +9376,14 @@
 
   // Multi-hand clears fire one CHAIN slam per heater step, staggered.
   const CHAIN_POP_STAGGER_MS = 95;
-  const CHAIN_POP_STACK_GAP = 52;
 
   function pushChainBanner(mult, t0, stackIndex){
     // Soft slam — rapid-fire combos already sell intensity; keep each pop gentle.
     // family 'chain': trim keeps the best ×, drops surplus copies first.
+    // Intentional tight stack in the peg zone — do not fan these apart.
     pushPopup({
       x: W/2,
-      y: PEG_ZONE * 0.4 - stackIndex * CHAIN_POP_STACK_GAP,
+      y: PEG_ZONE * 0.4 - stackIndex * 12,
       text: 'CHAIN ×' + mult + '!',
       color: '#ffffff',
       t0,
@@ -9463,7 +9468,7 @@
         comboN: groups.length
       });
     }
-    if(n > 1 || chainMult > 1) relaxPopupPositions(now);
+    if(n > 1) relaxPopupPositions(now);
   }
 
   function spawnExplosion(x, y, card, opts){
