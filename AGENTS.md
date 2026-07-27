@@ -193,6 +193,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 - `ACHIEVEMENT_LEGACY_CLAIMS` maps retired achievement ids for old saves.
 - `seenChangelogId` — missing/invalid loads as `0` so existing saves get the Settings red badge once for seeded entries.
 - `heaterChain` — Hot Streak steps surviving refresh (see **Persisted heater** above); missing → 0.
+- v26 — retired Card Sense / near-hand hints; `loadSave` refunds 4 comps once if the old VIP or shop row was owned.
 
 ### Settings changelog (What’s New)
 
