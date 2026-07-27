@@ -3024,6 +3024,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 62,
+      date: 'Jul 27, 2026',
+      title: 'Deeper Mitosis splits',
+      items: [
+        'Percussive Mitosis can bifurcate one generation further — chips shrink one more time on the pins before they stop splitting.'
+      ]
+    },
+    {
       id: 61,
       date: 'Jul 27, 2026',
       title: 'Mitosis leaves taps alone',
@@ -4472,9 +4480,9 @@
 
   // Pin Split: rare Auto Dealer cadence, but each pin strike can bifurcate a falling card.
   const PIN_SPLIT_SPAWN_MULT = 10;
-  const PIN_SPLIT_MAX_GEN = 3; // gen 0 → 3 ⇒ up to 8 chips from one drop
+  const PIN_SPLIT_MAX_GEN = 4; // gen 0 → 4 ⇒ up to 16 chips from one drop
   const PIN_SPLIT_SCALE = 0.72;
-  const PIN_SPLIT_MIN_R = 5;
+  const PIN_SPLIT_MIN_R = 3.5; // room for gen-4 physics (~3.76)
   const PIN_SPLIT_LOCK_FRAMES = 12;
 
   function pinSplitSpawnMult(){
