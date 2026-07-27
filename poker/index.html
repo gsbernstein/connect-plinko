@@ -3185,6 +3185,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 77,
+      date: 'Jul 27, 2026',
+      title: 'Deal Me In',
+      items: [
+        'New VIP perk: Deal Me In — cards that settle while a hand is flashing can join that clear (upgrade it or add to the combo). Toggleable.',
+      ]
+    },
+    {
       id: 76,
       date: 'Jul 27, 2026',
       title: 'Bumper bounce fix',
@@ -4602,6 +4610,15 @@
       maxLevel: 1
     },
     {
+      id: 'dealMeIn',
+      name: 'Deal Me In',
+      desc: 'Cards that settle while a hand is flashing can still join that clear — upgrading it or adding another hand to the combo. Toggle On/Off anytime.',
+      baseCost: 55,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
       id: 'cardCounting',
       name: 'Card Counting',
       desc: 'Lv1–8: +8% hand payout per duplicate in play per level (board + falling chips). Lv9: multiply your level payout mult by paired-card products (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
@@ -4670,7 +4687,8 @@
   // Pause switches for auto systems — ownership stays; automation can be muted.
   const AUTO_TOGGLE_IDS = [
     'autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'controlBooth',
-    'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom', 'shortFuse'
+    'tableTilt', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom',
+    'dealMeIn', 'shortFuse'
   ];
   let autoEnabled = Object.fromEntries(AUTO_TOGGLE_IDS.map(id => [id, true]));
   // Board-side Control Booth column — short labels; order is display order.
@@ -4687,6 +4705,7 @@
     { id: 'siegeWeapons', short: 'Siege', source: 'prestige' },
     { id: 'kingMe', short: 'King Me', source: 'prestige' },
     { id: 'bigRoom', short: 'Fire', source: 'prestige' },
+    { id: 'dealMeIn', short: 'Deal In', source: 'prestige' },
     { id: 'controlBooth', short: 'Booth', source: 'prestige' }
   ];
   let comps = 0;
@@ -4985,6 +5004,14 @@
 
   function bigRoomActive(){
     return bigRoomUnlocked() && isAutoEnabled('bigRoom');
+  }
+
+  function dealMeInUnlocked(){
+    return prestigeLevel('dealMeIn') > 0;
+  }
+
+  function dealMeInActive(){
+    return dealMeInUnlocked() && isAutoEnabled('dealMeIn');
   }
 
   function burnTickPayout(){
@@ -7360,6 +7387,10 @@
         return lvl ? 'Hidden Ace in every hand' : 'Play fair';
       case 'connect4':
         return lvl ? 'Flushes of 4' : 'Need 5 for a flush';
+      case 'dealMeIn':
+        if(!lvl) return 'Flash is locked';
+        if(!isAutoEnabled('dealMeIn')) return 'Paused';
+        return 'Late seats join the flash';
       case 'cardCounting':{
         if(!lvl) return 'No count bonus';
         if(lvl < 9){
@@ -8313,6 +8344,10 @@
   let particles = [];
   let popups = [];
   const FLASH_MS = 480, EXPLODE_MS = 280;
+  // Deal Me In: how many times this flash may be nudged longer for late seats.
+  let dealMeInFlashExtends = 0;
+  const DEAL_ME_IN_FLASH_EXTEND_CAP = 4;
+  const DEAL_ME_IN_FLASH_MIN_MS = 140;
 
   // Flash/explode FX stay uniform — rank intensity lives in the score text.
   const TEXT_JUICE = {
@@ -9022,6 +9057,7 @@
       balls = balls.filter(b=>!b.landed);
       for(const b of landed) finalizeDrop(b);
       if(!resolving) maybeStartResolve();
+      else tryJoinResolve();
     }
 
     // Board packed solid with nothing left seating in-column: blow the floor
@@ -10420,6 +10456,55 @@
     for(const g of groups) for(const [c,r] of g.cells) flashCells.add(c+','+r);
     resolvePhase = 'flash';
     resolvePhaseStart = performance.now();
+    dealMeInFlashExtends = 0;
+  }
+
+  // Stable fingerprint so late seats only rewrite flash when the clear set changes.
+  function resolveGroupsSignature(groups){
+    if(!groups || !groups.length) return '';
+    return groups.map(g => {
+      const cells = (g.cells || []).map(([c, r]) => c + ',' + r).sort().join(';');
+      return (g.name || '') + '@' + cells + '#' + (g.points | 0);
+    }).sort().join('|');
+  }
+
+  // Deal Me In: cards that finalize during flash can upgrade / expand the clear.
+  // Scoring still happens at flash→explode, so the joined set is what pays out.
+  function tryJoinResolve(){
+    if(!dealMeInActive()) return false;
+    if(!resolving || resolvePhase !== 'flash') return false;
+    if(!currentGroups || !currentGroups.length) return false;
+    // Suit Purge / Siege / Floor are fixed clears — don't re-greed poker on top.
+    if(currentGroups.some(g => g.suitBomb || g.siegeClear || g.floorClear)) return false;
+
+    resolveKingMerges();
+    const nextGroups = findPokerHands();
+    if(!nextGroups.length) return false;
+    if(resolveGroupsSignature(nextGroups) === resolveGroupsSignature(currentGroups)){
+      return false;
+    }
+
+    const addedHands = Math.max(0, nextGroups.length - currentGroups.length);
+    if(addedHands > 0) chainStep += addedHands;
+
+    currentGroups = nextGroups;
+    flashCells = new Set();
+    for(const g of nextGroups) for(const [c, r] of g.cells) flashCells.add(c + ',' + r);
+    // Brief leftover flash so a last-frame joiner still reads as part of the slam.
+    // Cap extends so Pin Split floods can't stretch flash forever.
+    if(dealMeInFlashExtends < DEAL_ME_IN_FLASH_EXTEND_CAP){
+      const speed = resolveSpeed();
+      const flashMs = FLASH_MS / speed;
+      const minLeft = DEAL_ME_IN_FLASH_MIN_MS / speed;
+      const now = performance.now();
+      const left = flashMs - (now - resolvePhaseStart);
+      if(left < minLeft){
+        resolvePhaseStart = now - (flashMs - minLeft);
+        dealMeInFlashExtends++;
+      }
+    }
+    scheduleSave();
+    return true;
   }
 
   function finishResolveOrChain(){
