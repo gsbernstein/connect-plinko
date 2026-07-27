@@ -3354,9 +3354,10 @@
     {
       id: 101,
       date: 'Jul 27, 2026',
-      title: 'Chips/s growth pulse',
+      title: 'Slide Rule early + chips/s pulse',
       items: [
-        'Slide Rule chips/s ticks up with a brief scale pulse when the rate rises.',
+        'Slide Rule is now a top VIP pick — 1 comp for Lv1 chips/s meter, 2 comps for Lv2 log scale.',
+        'The chips/s readout pulses briefly when the displayed rate ticks up.',
       ]
     },
     {
@@ -4363,6 +4364,7 @@
     { id: 'suitCut', until: 2 }
   ];
   const VIP_RECOMMEND_PRIORITY = [
+    { id: 'slideRule', until: 1 },
     { id: 'questDesk', until: 1 },
     { id: 'questInk', until: 4 }
   ];
@@ -4872,6 +4874,15 @@
       maxLevel: 20
     },
     {
+      id: 'slideRule',
+      name: 'Slide Rule',
+      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch that meter to a log scale so early trickle and late flood both read. Toggle On/Off anytime.',
+      baseCost: 1,
+      costScale: 2,
+      maxLevel: 2,
+      toggleable: true
+    },
+    {
       id: 'rackDiscount',
       name: 'Rack Discount',
       desc: 'Table upgrades cost less chips.',
@@ -5048,15 +5059,6 @@
       baseCost: 2,
       costScale: 1,
       maxLevel: 1,
-      toggleable: true
-    },
-    {
-      id: 'slideRule',
-      name: 'Slide Rule',
-      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch that meter to a log scale so early trickle and late flood both read. Toggle On/Off anytime.',
-      baseCost: 4,
-      costScale: 2,
-      maxLevel: 2,
       toggleable: true
     }
   ];
