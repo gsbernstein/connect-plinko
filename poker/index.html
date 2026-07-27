@@ -3334,6 +3334,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
     {
+      id: 89,
+      date: 'Jul 27, 2026',
+      title: 'Quest & achievement chips level you up',
+      items: [
+        'Chip rewards from quests and achievements now count toward run level, same as chips earned at the table.',
+      ]
+    },
+    {
       id: 88,
       date: 'Jul 27, 2026',
       title: 'Rail scroll stays smooth',
@@ -4278,7 +4286,7 @@
   };
 
   // Achievements persist forever. Run quests are rolled into slots (see QUEST_*).
-  // reward.chips → spendable chips (not XP); reward.comps → instant comps (VIP balance now);
+  // reward.chips → spendable chips + run lifetime XP (levels); reward.comps → instant comps (VIP balance now);
   // reward.runComps → Cash Out comps (banked until Cash Out); reward.prestige / reward.upgrade as level bonuses.
   const HAND_STAT = {
     'ROYAL FLUSH': 'royalFlushes',
@@ -5713,6 +5721,9 @@
     if(r.chips){
       const chips = blindBonusChips(r.chips, 'contracts');
       score += chips;
+      lifetime += chips;
+      noteChipEarn(chips);
+      syncRunLevel();
       if(!opts.skipFly){
         if(opts.originEl) spawnRewardParticles(opts.originEl, { chips });
         else spawnChipFly(W/2, PEG_ZONE * 0.38, chips);
