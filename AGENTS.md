@@ -68,7 +68,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 
 | Symbol | Purpose |
 |--------|---------|
-| `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, …) — order = shop order |
+| `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
+| `compCage` / `runCompCredit` | Cashier’s Cage: each chip buy banks +1 Cash Out comp (`runCompCredit`); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `connect4`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, `bigRoom`, …). Skill-bonus perks (`houseEdge` → Hot Streak, `quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`; `houseEdge.maxLevel` must match Hot Streak’s cap (10). |
 | `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5); near-miss flush draws shift to 3-card stubs automatically |
 | `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Percussive Mitosis (`pinSplit`): Auto Dealer ~10× slower via `dropSpawnMult` (manual taps unaffected); bifurcate on fresh peg hits (max gen 3); shrink in flight, full size in columns |
@@ -83,7 +84,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
 | `forEachInPlayCard` / `cardCountingGroups` / `cardCountingFactor` / `cardCountingHandMultiplier` / `boardDuplicateExtras` / `effectiveMetaMultiplier` / `handPayoutMultiplier` | Card Counting: counts settled board + falling balls; Lv1–8 +8% per duplicate extra on hands; Lv9 product of paired rank+suit counts multiplies `runMetaMultiplier` |
-| `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels); `costLateAt` / `costLateBase` / `costLateScale` on a def switch to a pricier curve after that level (Auto Dealer Lv 7+). VIP comp buys use `prestigeUpgradeCost` (perk level only). |
+| `upgradeCost` / `upgradeLevel` | Shop cost uses **effective** level (purchased + VIP bonus levels); `costLateAt` / `costLateBase` / `costLateScale` on a def switch to a pricier curve after that level (Auto Dealer Lv 7+, Felt Grease Lv 13+, Cashier’s Cage Lv 41+). VIP comp buys use `prestigeUpgradeCost` (perk level only). |
+| `physicsSpeed` | Felt Grease: linear `1 + 0.22*lvl` through Lv 12, then `+0.08` per late level (sink without exploding collision speed) |
 | `multiDealChance` / `rollMultiDealExtras` / `MULTI_DEAL_CHANCE_PER_LEVEL` | Multi Deal: +25% extra-card chance per level on each auto tick (max Lv 6 = 150%); above 100% rolls multiple extras |
 | `upgradeEffectText` / `prestigeEffectText` / `shopMetaMultiplier` | Shop/VIP effect lines (stable; omit live Card Counting product via `*Display` helpers) |
 | `levelMultParts` / `levelMultDetailTitle` / `#runLevelMult` | Live Blind / payout / combo / Card Counting mults on the Level HUD tile; `scheduleCountingUiRefresh` updates this only (not shop/VIP rows) |
@@ -213,6 +215,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Task | Where to edit |
 |------|----------------|
 | Multi Deal extras | `multiDealChance` / `rollMultiDealExtras` in `tryAutoDrop` via `autoDropOnce` |
+| Cashier’s Cage (chip→comp sink) | `compCage` in `UPGRADE_DEFS`; `purchaseUpgrade` adds `runCompCredit`; effect via `upgradeEffectText` |
 | Auto Dealer two-tier costs | `costLateAt` / `costLateBase` / `costLateScale` on `autoDealer` def; `upgradeCost` |
 | New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Pin Split via `pinSplitActive` / peg hit in `stepBall` |
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult` only (no manual cooldown), `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |

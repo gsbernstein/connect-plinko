@@ -3024,6 +3024,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 62,
+      date: 'Jul 27, 2026',
+      title: 'Cashier’s Cage & deeper table levels',
+      items: [
+        'New upgrade: Cashier’s Cage — spend chips to bank Cash Out comps (up to Lv 100). A late-game sink that feeds VIP instead of printing more chips.',
+        'Felt Grease goes to Lv 30 (late levels still speed the table, with softer gains). Big Blind to Lv 60 · Premium Cut to Lv 25.'
+      ]
+    },
+    {
       id: 61,
       date: 'Jul 27, 2026',
       title: 'Mitosis leaves taps alone',
@@ -3602,7 +3611,7 @@
       desc: '+25% chips from every scored hand.',
       baseCost: 25,
       costScale: 1.65,
-      maxLevel: 40,
+      maxLevel: 60,
       unlockAt: 1
     },
     {
@@ -3620,7 +3629,7 @@
       desc: 'Chance to deal Silver, Gold, or Diamond cards. Each premium card in a scored hand boosts that hand\'s payout.',
       baseCost: 150,
       costScale: 2.0,
-      maxLevel: 15,
+      maxLevel: 25,
       unlockAt: 4
     },
     {
@@ -3662,11 +3671,15 @@
     {
       id: 'feltGrease',
       name: 'Felt Grease',
-      desc: 'Balls fall and settle faster.',
+      desc: 'Balls fall and settle faster. Late levels keep speeding up, with diminishing returns.',
       baseCost: 50,
       costScale: 1.8,
-      maxLevel: 12,
-      unlockAt: 8
+      maxLevel: 30,
+      unlockAt: 8,
+      // Match the old Lv12 curve, then a steeper chip sink for deep levels.
+      costLateAt: 12,
+      costLateBase: 58000,
+      costLateScale: 2.0
     },
     {
       id: 'shortFuse',
@@ -3705,6 +3718,18 @@
       costScale: 3.5,
       maxLevel: 2,
       unlockAt: 15
+    },
+    {
+      id: 'compCage',
+      name: 'Cashier\'s Cage',
+      desc: 'Spend chips to bank Cash Out comps. Each buy adds +1 for this run — a late-game sink that feeds VIP, not more chip income.',
+      baseCost: 2500,
+      costScale: 1.72,
+      maxLevel: 100,
+      unlockAt: 10,
+      costLateAt: 40,
+      costLateBase: 6600000000000,
+      costLateScale: 2.05
     }
   ];
 
@@ -5827,7 +5852,10 @@
   }
 
   function physicsSpeed(){
-    return 1 + 0.22 * upgradeLevel('feltGrease');
+    const lvl = upgradeLevel('feltGrease');
+    if(lvl <= 12) return 1 + 0.22 * lvl;
+    // Late levels: keep buying as a sink, but ease off so collisions stay stable.
+    return 1 + 0.22 * 12 + 0.08 * (lvl - 12);
   }
 
   function resolveSpeed(){
@@ -6685,6 +6713,9 @@
         if(!lvl) return 'Normal timing';
         if(!shortFuseActive()) return 'Paused';
         return '×' + resolveSpeed().toFixed(2).replace(/\.00$/,'') + ' clear speed';
+      case 'compCage':
+        if(!lvl) return 'No cage buys';
+        return '+' + lvl + ' Cash Out comp' + (lvl === 1 ? '' : 's') + ' from Cage';
       default:
         return '';
     }
@@ -7161,11 +7192,18 @@
     if(id === 'suitBomb' && beforeEff === 0){
       suitBombReadyAt = performance.now();
     }
+    if(id === 'compCage'){
+      runCompCredit += 1;
+    }
     return true;
   }
 
   function buyUpgrade(id){
     if(!purchaseUpgrade(id)) return;
+    if(id === 'compCage'){
+      const btn = upgradeButtons[id];
+      if(btn) spawnRewardParticles(btn, { runComps: 1 });
+    }
     scheduleSave();
     updateScoreUI();
     updateShopUI();
@@ -7243,8 +7281,14 @@
       celebrateAutoBuyUpgrades(result.ids);
       updateScoreUI();
       updateShopUI();
+      updatePrestigeUI();
       updateAutoStatus();
       updateSuitBombUI(now, true);
+      if(result.ids.includes('compCage')){
+        const btn = upgradeButtons.compCage;
+        const n = result.ids.filter(id => id === 'compCage').length;
+        if(btn && n > 0) spawnRewardParticles(btn, { runComps: n });
+      }
     }
     return result.count;
   }
