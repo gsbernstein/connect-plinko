@@ -136,7 +136,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `CHANGELOG` / `CHANGELOG_LATEST_ID` | Player-facing What’s New entries in Settings (newest-first; monotonic `id`); also the release poll version |
 | `seenChangelogId` | Highest changelog `id` the player has opened in Settings (persisted in save) |
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
-| `noteChipEarn` / `updateChipRateUI` / `#chipRateVal` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset); `noteChipEarn` also records peak floored rate into `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
+| `noteChipEarn` / `updateChipRateUI` / `#chipRateVal` / `#chipRateFill` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset); `#chipRateBar` reuses shop `.upgrade-progress` flush bottom edge — fill = current rate / `stats.maxChipRate` peak; `noteChipEarn` also records peak floored rate into `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
 | `updateCompsHud` / `#compsCashOutVal` / `.cashout-rate` | Comps HUD secondary line: `pendingComps()` as `+N`; `.is-ready` / `.is-cashout-ready` when Cash Out can collect |
 | `formatNum` / `formatCompactSuffix` | HUD + score-pop chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
 

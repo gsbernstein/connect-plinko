@@ -193,16 +193,23 @@
   }
   .score{
     display:flex;
-    align-items:center;
-    gap:8px;
+    flex-direction:column;
+    align-items:stretch;
+    gap:4px;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
-    padding:8px 14px;
+    padding:8px 14px 6px;
     font-size:13px;
     flex:none;
     white-space:nowrap;
     color:var(--felt-bright);
+  }
+  .score-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:0;
   }
   .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor;}
   .score.chip-pulse{box-shadow:0 0 0 1px var(--felt-bright), 0 0 22px -2px var(--felt-bright);}
@@ -236,6 +243,20 @@
     color:var(--ink-dim);
     opacity:0.9;
     text-align:right;
+  }
+  .chip-rate-bar{
+    height:4px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    overflow:hidden;
+    width:100%;
+  }
+  .chip-rate-bar > span{
+    display:block;
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+    transition:width .25s ease;
   }
   .next-card{
     display:flex;
@@ -1747,6 +1768,13 @@
       padding:5px 2px;
       white-space:nowrap;
     }
+    .score{padding:5px 2px 4px; gap:2px; align-items:stretch;}
+    .score-head{
+      flex-direction:column;
+      align-items:center;
+      gap:1px;
+      width:100%;
+    }
     .hud-label{
       display:block;
       font-size:9px;
@@ -1778,6 +1806,7 @@
       text-align:center;
       font-size:9px;
     }
+    .chip-rate-bar{margin-top:0;}
     .level-pill{
       padding:5px 2px 4px;
       gap:2px;
@@ -2375,11 +2404,16 @@
   <section class="stage is-active" id="panelTable" data-panel="table" aria-label="Table">
     <div class="hud">
       <div class="score hud-tile active" id="scoreBox">
-        <span class="hud-label">Chips</span>
-        <span class="score-stack">
-          <b class="hud-val" id="scoreVal">0</b>
-          <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
-        </span>
+        <div class="score-head">
+          <span class="hud-label">Chips</span>
+          <span class="score-stack">
+            <b class="hud-val" id="scoreVal">0</b>
+            <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
+          </span>
+        </div>
+        <div class="chip-rate-bar" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true">
+          <span id="chipRateFill"></span>
+        </div>
       </div>
       <div class="level-pill hud-tile" id="levelBox" role="button" tabindex="0"
            title="Run level — click for unlocks" aria-label="Run level — show unlocks">
@@ -3184,6 +3218,14 @@
   // Merge/rebase conflict here? Keep master's entries+ids, renumber YOUR new
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
+    {
+      id: 77,
+      date: 'Jul 27, 2026',
+      title: 'Chips/s peak bar',
+      items: [
+        'The Chips tile now has a bar showing your live chips/s as a fraction of your peak.',
+      ]
+    },
     {
       id: 76,
       date: 'Jul 27, 2026',
@@ -6496,6 +6538,7 @@
   const chipFxLayer = document.getElementById('chipFxLayer');
   const scoreBoxEl = document.getElementById('scoreBox');
   const chipRateValEl = document.getElementById('chipRateVal');
+  const chipRateFillEl = document.getElementById('chipRateFill');
   const MAX_FLYING_CHIPS = 80;
   let flyingChips = [];
   let chipFlyRaf = 0;
@@ -6881,6 +6924,7 @@
   let chipEarnSamples = [];
   let lastChipRatePaint = 0;
   let lastChipRateText = '';
+  let lastChipRatePct = -1;
 
   function noteChipEarn(amount, now){
     amount = Math.floor(amount);
@@ -6925,15 +6969,28 @@
     chipEarnSamples = [];
     lastChipRatePaint = 0;
     lastChipRateText = '';
+    lastChipRatePct = -1;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
+    if(chipRateFillEl) chipRateFillEl.style.width = '0%';
   }
 
   function updateChipRateUI(now, force){
-    if(!chipRateValEl) return;
+    if(!chipRateValEl && !chipRateFillEl) return;
     now = now || performance.now();
     if(!force && now - lastChipRatePaint < CHIP_RATE_UI_MS) return;
     lastChipRatePaint = now;
-    const text = formatChipRate(currentChipRate(now));
+    const rate = currentChipRate(now);
+    const max = stats.maxChipRate || 0;
+    const pct = max > 0 ? Math.min(100, (rate / max) * 100) : 0;
+    if(chipRateFillEl){
+      const rounded = Math.round(pct);
+      if(rounded !== lastChipRatePct){
+        lastChipRatePct = rounded;
+        chipRateFillEl.style.width = pct + '%';
+      }
+    }
+    if(!chipRateValEl) return;
+    const text = formatChipRate(rate);
     if(text === lastChipRateText) return;
     lastChipRateText = text;
     chipRateValEl.textContent = text;
