@@ -2987,7 +2987,7 @@
       date: 'Jul 27, 2026',
       title: 'Upgrade balance pass',
       items: [
-        'Hot Streak caps at Lv 10. VIP skill perks (Quick Deal, Pin Privilege, Felt Wax, House Edge) now count toward paired table upgrade buy costs — bonus levels are no longer free on the chip or comp curves.',
+        'Hot Streak caps at Lv 10. VIP skill perks (Quick Deal, Pin Privilege, Felt Wax, House Edge) raise their paired table upgrade chip costs like normal levels.',
         'Auto Dealer stays cheap through Lv 6, then shifts to a pricier curve for top speed. Multi Deal is back: +25% extra-card chance per level on each auto tick; above 100% can deal multiple.',
         'Short Fuse is toggleable — pause fast clears when stacking combos or Card Counting pairs.',
         'Suit Purge shop toggle arms/disarms the blast (bar tap minimizes suit buttons). Purges pay per card; auto-target avoids breaking duplicate pairs.',
@@ -4295,21 +4295,6 @@
     return 0;
   }
 
-  function prestigeLinkedTableId(perkId){
-    if(perkId === 'quickDeal') return 'autoDealer';
-    if(perkId === 'pinPrivilege') return 'pinPayout';
-    if(perkId === 'houseEdge') return 'hotStreak';
-    if(perkId === 'feltWax') return 'feltGrease';
-    return null;
-  }
-
-  function prestigeSkillCostLevel(perkId){
-    const perkLvl = prestigeLevel(perkId);
-    const tableId = prestigeLinkedTableId(perkId);
-    if(!tableId) return perkLvl;
-    return Math.max(perkLvl, upgradeLevel(tableId));
-  }
-
   function upgradeMaxLevel(id){
     const def = UPGRADE_DEFS.find(u => u.id === id);
     return def ? def.maxLevel : 0;
@@ -5150,8 +5135,7 @@
   function prestigeUpgradeCost(def){
     const lvl = prestigeLevel(def.id);
     if(lvl >= def.maxLevel) return Infinity;
-    const costLvl = prestigeSkillCostLevel(def.id);
-    return Math.floor(def.baseCost * Math.pow(def.costScale, costLvl));
+    return Math.floor(def.baseCost * Math.pow(def.costScale, lvl));
   }
 
   const MULTI_DEAL_CHANCE_PER_LEVEL = 0.25;
