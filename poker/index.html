@@ -13129,6 +13129,22 @@
   let lastReleaseCheckAt = 0;
   let pendingRemoteRelease = 0;
 
+  function isLocalReleaseHost(){
+    const h = location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+  }
+  function parseReleaseFromHtml(text){
+    const start = text.indexOf('const CHANGELOG');
+    if(start < 0) return 0;
+    const end = text.indexOf('const CHANGELOG_LATEST_ID', start);
+    const chunk = end > start ? text.slice(start, end) : text.slice(start, start + 80000);
+    let max = 0;
+    const re = /\bid:\s*(\d+)/g;
+    let m;
+    while((m = re.exec(chunk))) max = Math.max(max, m[1] | 0);
+    return max;
+  }
+
   function dismissedRelease(){
     try{ return parseInt(localStorage.getItem(RELEASE_DISMISS_KEY) || '0', 10) || 0; }
     catch(_){ return 0; }
@@ -13161,13 +13177,23 @@
     if(!force && now - lastReleaseCheckAt < 30000) return;
     lastReleaseCheckAt = now;
     try{
-      const res = await fetch(RELEASE_URL + '?t=' + now, {
-        cache: 'no-store',
-        headers: { Accept: 'application/json' }
-      });
-      if(!res.ok) return;
-      const data = await res.json();
-      const remote = data && typeof data.v === 'number' ? (data.v | 0) : 0;
+      let remote = 0;
+      if(isLocalReleaseHost()){
+        const res = await fetch(location.pathname + '?t=' + now, {
+          cache: 'no-store',
+          headers: { Accept: 'text/html' }
+        });
+        if(!res.ok) return;
+        remote = parseReleaseFromHtml(await res.text());
+      } else {
+        const res = await fetch(RELEASE_URL + '?t=' + now, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' }
+        });
+        if(!res.ok) return;
+        const data = await res.json();
+        remote = data && typeof data.v === 'number' ? (data.v | 0) : 0;
+      }
       if(remote > APP_RELEASE) showUpdateBanner(remote);
     } catch(_){}
   }
