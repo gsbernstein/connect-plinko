@@ -3016,6 +3016,15 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 59,
+      date: 'Jul 27, 2026',
+      title: 'Siege column wipe fix',
+      items: [
+        'Siege Weapons no longer leaves permanent empty seats after a column slam — the spiked card waits above the grid until the clear finishes, then lands cleanly.',
+        'Column wipes re-check the live stack at explode time so chips that seated during the flash get cleared too.'
+      ]
+    },
+    {
       id: 58,
       date: 'Jul 27, 2026',
       title: 'Mults on the level tile',
@@ -7881,8 +7890,28 @@
     }
   }
 
+  function isPendingSiegeLandBall(ball){
+    return !!(pendingSiegeLand && pendingSiegeLand.ball === ball);
+  }
+
+  function parkPendingSiegeLandBall(ball){
+    // Hold above the grid so peg-phase physics cannot re-enter mid-flash.
+    ball.phase = 'peg';
+    ball.landed = false;
+    ball.vx *= 0.5;
+    ball.vy = Math.min(ball.vy, 0);
+    ball.y = Math.min(ball.y, PEG_ZONE - ball.radius - 2);
+  }
+
   function stepBall(ball, gravity){
     if(ball.exploded) return;
+    // Lv3 slam: this chip waits for finishSiegeLand — don't reseat mid-clear.
+    if(isPendingSiegeLandBall(ball)){
+      parkPendingSiegeLandBall(ball);
+      ball.angle += ball.spin;
+      ball.spin *= 0.992;
+      return;
+    }
     ball.frameSafety++;
     ball.angle += ball.spin;
     ball.spin *= 0.992;
@@ -8029,6 +8058,10 @@
   const GRID_SETTLE_FRAMES = 150;
 
   function enterGridColumn(ball){
+    if(isPendingSiegeLandBall(ball)){
+      parkPendingSiegeLandBall(ball);
+      return;
+    }
     if(stormBeachesActive() && ball.phase === 'peg' && !ball.cascadeBall && !ball.stormBeachPaid){
       const beachPts = stormBeachLandingPayout();
       if(beachPts > 0){
@@ -8046,7 +8079,7 @@
     const rawCol = Math.min(COLS-1, Math.max(0, Math.floor(ball.x / CELL)));
     const targetCol = nearestOpenColumn(rawCol);
     if(tryBeginSiegeColumnSlam(ball, targetCol)){
-      ball.phase = 'peg';
+      parkPendingSiegeLandBall(ball);
       return;
     }
     commitBallToColumn(ball, targetCol);
@@ -8259,6 +8292,12 @@
   }
 
   function finalizeDrop(ball){
+    // Spiked slam chip is owned by finishSiegeLand until the clear finishes.
+    if(isPendingSiegeLandBall(ball)){
+      ball.landed = false;
+      parkPendingSiegeLandBall(ball);
+      return;
+    }
     const col = ball.targetCol, row = ball.row;
     // Yeeted / released chips must not paint ghosts into the grid.
     if(col == null || row == null || col < 0 || col >= COLS || row < 0 || row >= ROWS){
@@ -9196,6 +9235,24 @@
     const cleared = new Set();
     for(const g of groups) for(const [c,r] of g.cells) cleared.add(c+','+r);
 
+    // Siege means "wipe these columns" — re-scan at explode time so chips that
+    // seated during the flash (and in-stack ball seats) are not left behind as
+    // permanent holes under floating cards.
+    for(const g of groups){
+      if(!g.siegeClear) continue;
+      const cols = new Set();
+      for(const [c] of g.cells) cols.add(c);
+      if(g.siegeSlam && pendingSiegeLand) cols.add(pendingSiegeLand.col);
+      for(const c of cols){
+        for(let r = 0; r < ROWS; r++){
+          if(grid[c][r]) cleared.add(c + ',' + r);
+        }
+        for(let i = 0; i < stack[c].length; i++){
+          cleared.add(c + ',' + (ROWS - 1 - i));
+        }
+      }
+    }
+
     for(const key of cleared){
       const [c,r] = key.split(',').map(Number);
       const card = grid[c][r];
@@ -9311,8 +9368,35 @@
     const land = pendingSiegeLand;
     pendingSiegeLand = null;
     const ball = land.ball;
+    if(!ball || ball.exploded) return;
+    // Physics may have sneaked this chip into a column (or finalized it) during
+    // the flash. Eject any stale seat before recommitting, and ensure it's in
+    // `balls` — otherwise the stack keeps an orphan type:'ball' forever (hole).
+    if(ball.stackEntry && ball.targetCol != null){
+      const col = ball.targetCol;
+      const idx = stack[col].indexOf(ball.stackEntry);
+      if(idx >= 0){
+        stack[col].splice(idx, 1);
+        rebuildColumnFromStack(col);
+        recomputeBumpers();
+      }
+    }
+    ball.stackEntry = null;
+    ball.targetCol = null;
+    ball.row = null;
+    ball.landed = false;
     ball.phase = 'grid';
-    commitBallToColumn(ball, land.col);
+    ball.gridAge = 0;
+    ball.frameSafety = 0;
+    if(balls.indexOf(ball) < 0) balls.push(ball);
+    const col = Math.min(COLS - 1, Math.max(0, land.col));
+    if(!commitBallToColumn(ball, nearestOpenColumn(col))){
+      // Column packed again — drop back into the pegs instead of orphaning.
+      ball.phase = 'peg';
+      ball.y = PEG_ZONE - ball.radius;
+      ball.vy = -Math.abs(ball.vy || 0) - 2;
+    }
+    startLoop();
   }
 
   function beginSiegeResolve(cells, opts){
@@ -9363,8 +9447,8 @@
     if(gameOver || siegeWeaponsLevel() < 3 || !siegeWeaponsActive()) return false;
     if(!ball.card?.spikes || ball.siegeSlamUsed) return false;
     const cells = siegeCellsForColumns([col]);
-    ball.siegeSlamUsed = true;
     if(!cells.length) return false;
+    ball.siegeSlamUsed = true;
     return beginSiegeResolve(cells, {
       cols: [col],
       siegeSlam: true,
