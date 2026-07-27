@@ -192,18 +192,21 @@
     flex:0 0 auto;
   }
   .score{
+    position:relative;
     display:flex;
     flex-direction:column;
     align-items:stretch;
-    gap:4px;
+    gap:0;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
-    padding:8px 14px 6px;
+    /* Extra bottom padding so the rate clears the absolute progress bar. */
+    padding:8px 14px 11px;
     font-size:13px;
     flex:none;
     white-space:nowrap;
     color:var(--felt-bright);
+    overflow:hidden;
   }
   .score-head{
     display:flex;
@@ -243,20 +246,6 @@
     color:var(--ink-dim);
     opacity:0.9;
     text-align:right;
-  }
-  .chip-rate-bar{
-    height:4px;
-    border-radius:999px;
-    background:rgba(255,255,255,0.06);
-    overflow:hidden;
-    width:100%;
-  }
-  .chip-rate-bar > span{
-    display:block;
-    height:100%;
-    width:0%;
-    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
-    transition:width .25s ease;
   }
   .next-card{
     display:flex;
@@ -1768,7 +1757,7 @@
       padding:5px 2px;
       white-space:nowrap;
     }
-    .score{padding:5px 2px 4px; gap:2px; align-items:stretch;}
+    .score{padding:5px 2px 7px; gap:0; align-items:stretch; overflow:hidden;}
     .score-head{
       flex-direction:column;
       align-items:center;
@@ -1806,7 +1795,6 @@
       text-align:center;
       font-size:9px;
     }
-    .chip-rate-bar{margin-top:0;}
     .level-pill{
       padding:5px 2px 4px;
       gap:2px;
@@ -2411,8 +2399,8 @@
             <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
           </span>
         </div>
-        <div class="chip-rate-bar" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true">
-          <span id="chipRateFill"></span>
+        <div class="upgrade-progress" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true">
+          <span class="upgrade-progress-bought" id="chipRateFill"></span>
         </div>
       </div>
       <div class="level-pill hud-tile" id="levelBox" role="button" tabindex="0"
@@ -6971,7 +6959,10 @@
     lastChipRateText = '';
     lastChipRatePct = -1;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
-    if(chipRateFillEl) chipRateFillEl.style.width = '0%';
+    if(chipRateFillEl){
+      chipRateFillEl.style.left = '0%';
+      chipRateFillEl.style.width = '0%';
+    }
   }
 
   function updateChipRateUI(now, force){
@@ -6986,6 +6977,7 @@
       const rounded = Math.round(pct);
       if(rounded !== lastChipRatePct){
         lastChipRatePct = rounded;
+        chipRateFillEl.style.left = '0%';
         chipRateFillEl.style.width = pct + '%';
       }
     }
