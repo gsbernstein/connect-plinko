@@ -205,11 +205,7 @@ All helpers restart CSS animation with `el.classList.remove(...); void el.offset
 
 `setTabBadge(panel, count, opts)` paints `#badgeUpgrades` / `#badgeQuests` / `#badgeAchievements` / `#badgeVip` (Settings uses its own path). Count badges show a number; `hasNewUnlockBadge` wins with a red `.is-new` empty dot. Optional `opts.empty` shows a numberless `.is-dot` badge when count is 0 (VIP: Cash Out ready with no affordable perks — Cash Out never increments the VIP count).
 
-**Per-tab scroll:** `#railBody` is `overflow:hidden`; each `.rail-panel` is its own `overflow-y:auto` scroller so tabs keep native `scrollTop` without JS restore.
-
-**Scroll momentum:** While a rail tab is open, skip `orderUpgradeButtons` for that list (force on panel open via `forceOrder` / achievements’ existing bucket sig). Recommended ★ uses `visibility` (`.upgrade-rec.is-on`) so chip ticks don’t resize cards. Shop cue / unlock-seen updates run on `scrollend` (with a short quiet timeout fallback), not every scroll frame.
-
-**Offscreen new upgrades:** Shop unlocks are marked seen when their row is in the Upgrades panel viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView` vs `#panelUpgrades`). If an unviewed unlock is offscreen while Upgrades is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below).
+**Offscreen new upgrades:** Shop unlocks are marked seen only when their row is in the `#railBody` viewport (`markVisibleUpgradeUnlocksSeen` / `upgradeInScrollerView`). If an unviewed unlock is offscreen while the Upgrades panel is open, `#shopScrollCue` (`.shop-scroll-cue` in `.rail-body-wrap`) shows a ↓/↑ New button that `scrollIntoView`s it (prefers below); `updateShopScrollCue` refreshes on shop UI, scroll, resize, and panel switches. Recommended ★ uses `visibility` (`.upgrade-rec.is-on`) so chip ticks don’t resize cards.
 
 **New upgrade cards:** Unviewed unlocks (same `seenUnlocks.upgrades` gate as the tab dot) get `.upgrade.is-new` styling and an `.upgrade-new-tag` pill matching Settings changelog highlights until scrolled into view.
 
