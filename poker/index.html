@@ -3098,6 +3098,7 @@
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
         'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
         'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and a tighter on-screen cap drops duplicates and weaker hands/combos first (extra PAIR/CHAIN copies yield before a Flush or big COMBO; one best CHAIN still keeps its duration).',
+        'Score pops are rasterized once when they spawn, so busy clears draw bitmaps instead of re-stroking glowing text every frame.',
         'Chip amounts on score pops use the same k / M / B / T / Q / scientific shorthand as the HUD.',
         'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — secret achievements Reboot, Quads Full, and Clone Wars (six of a kind+).'
       ]
@@ -11034,7 +11035,7 @@
       const alpha = t < 0.7 ? 1 : Math.max(0, 1-(t-0.7)/0.3);
       const floatDist = p.floatBoost || (p.big ? 40 : 30);
       const dy = -floatDist*t;
-      const fontSize = p.fontSize || (p.big ? 26 : 16);
+      const fontSize = p._fontSize || p.fontSize || (p.big ? 26 : 16);
       const slamMs = p.slamMs || 120;
       const slamFrom = p.slam || (p.big ? 1.35 : 1.15);
       const slamT = easeOutBack(Math.min(1, age / slamMs));
@@ -11043,17 +11044,20 @@
       const restTilt = p.tilt || 0;
       const entryTilt = restTilt * 1.85;
       const tilt = entryTilt + (restTilt - entryTilt) * slamT;
-      const glow = p.glow != null ? p.glow : (p.big ? 14 : 8);
-
-      pctx.save();
-      pctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
-      pctx.textAlign = 'center';
-      pctx.textBaseline = 'middle';
-      // Dark outline so labels stay readable over suit-colored pucks.
-      const lineW = Math.max(4, fontSize * 0.18);
+      const glow = p._glow != null ? p._glow : (p.glow != null ? p.glow : (p.big ? 14 : 8));
+      const lineW = p._lineW || Math.max(4, fontSize * 0.18);
+      // Prefer baked metrics — avoid measureText / strokeText / shadowBlur per frame.
+      if(!p.sprite) bakePopupSprite(p);
+      let tw = p.textW;
+      if(!(tw > 0)){
+        pctx.save();
+        pctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+        tw = pctx.measureText(p.text).width;
+        pctx.restore();
+        p.textW = tw;
+      }
       // Re-clamp with this frame's scale. Labels may hang POPUP_OVERHANG past
       // the felt; shrink only when they'd exceed that hang budget.
-      const tw = pctx.measureText(p.text).width;
       const hw0 = tw * 0.5 + lineW;
       const hh0 = fontSize * 0.55 + lineW;
       const cos = Math.cos(tilt);
@@ -11068,27 +11072,35 @@
       const halfH = baseH * drawScale + pad;
       const drawX = Math.max(halfW - POPUP_OVERHANG, Math.min(W - (halfW - POPUP_OVERHANG), p.x));
       const drawY = Math.max(halfH - POPUP_OVERHANG, Math.min(H - (halfH - POPUP_OVERHANG), p.y + dy));
+      pctx.save();
       pctx.translate(drawX + ox, drawY + ox);
       pctx.rotate(tilt);
       pctx.scale(drawScale, drawScale);
       pctx.globalAlpha = alpha;
-      pctx.lineWidth = lineW;
-      pctx.strokeStyle = 'rgba(8,6,16,0.92)';
-      pctx.lineJoin = 'round';
-      pctx.miterLimit = 2;
-      pctx.strokeText(p.text, 0, 0);
-      pctx.fillStyle = p.color;
-      pctx.shadowColor = p.color;
-      pctx.shadowBlur = glow;
-      pctx.fillText(p.text, 0, 0);
-      // Hot white core on premium pops — reads brighter without changing hue much.
-      if(glow >= 24){
-        pctx.shadowBlur = glow * 0.35;
-        pctx.globalAlpha = alpha * 0.55;
-        pctx.fillStyle = '#ffffff';
+      if(p.sprite){
+        pctx.drawImage(p.sprite, -p.spriteW / 2, -p.spriteH / 2, p.spriteW, p.spriteH);
+      } else {
+        // Fallback if bake failed (should be rare).
+        pctx.font = 'bold ' + fontSize + "px 'Space Grotesk', sans-serif";
+        pctx.textAlign = 'center';
+        pctx.textBaseline = 'middle';
+        pctx.lineWidth = lineW;
+        pctx.strokeStyle = 'rgba(8,6,16,0.92)';
+        pctx.lineJoin = 'round';
+        pctx.miterLimit = 2;
+        pctx.strokeText(p.text, 0, 0);
+        pctx.fillStyle = p.color;
+        pctx.shadowColor = p.color;
+        pctx.shadowBlur = glow;
         pctx.fillText(p.text, 0, 0);
+        if(glow >= 24){
+          pctx.shadowBlur = glow * 0.35;
+          pctx.globalAlpha = alpha * 0.55;
+          pctx.fillStyle = '#ffffff';
+          pctx.fillText(p.text, 0, 0);
+        }
+        pctx.shadowBlur = 0;
       }
-      pctx.shadowBlur = 0;
       pctx.globalAlpha = 1;
       pctx.restore();
     }
