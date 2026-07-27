@@ -3098,6 +3098,7 @@
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
         'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
         'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and the on-screen cap no longer FIFO-wipes earlier clears.',
+        'Chip amounts on score pops use the same k / M / B / T / Q / scientific shorthand as the HUD.',
         'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — secret achievements Reboot, Quads Full, and Clone Wars (six of a kind+).'
       ]
     },
@@ -7817,7 +7818,7 @@
         const payout = bumperHitPayout();
         if(payout > 0){
           awardChips(payout, ball);
-          spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
+          spawnHitPopup(ball.x, ball.y, '+' + formatNum(payout), trailRGBA(ball.card, 0.95));
         }
         // Drive through toward the grid instead of bouncing back up.
         ball.y = Math.max(ball.y, closest.y + 4);
@@ -7851,7 +7852,7 @@
         const payout = bumperHitPayout();
         if(payout > 0){
           awardChips(payout, ball);
-          spawnHitPopup(ball.x, ball.y, '+' + payout, PEG);
+          spawnHitPopup(ball.x, ball.y, '+' + formatNum(payout), PEG);
         }
       }
       rail.hit = 14;
@@ -8269,7 +8270,7 @@
             const payout = pinHitPayout();
             if(payout > 0){
               awardChips(payout, ball);
-              spawnHitPopup(ball.x, ball.y, '+' + payout, trailRGBA(ball.card, 0.95));
+              spawnHitPopup(ball.x, ball.y, '+' + formatNum(payout), trailRGBA(ball.card, 0.95));
             }
           }
           p.hit = 10;
@@ -8370,7 +8371,7 @@
       if(beachPts > 0){
         ball.stormBeachPaid = true;
         awardChips(beachPts, ball);
-        spawnHitPopup(ball.x, ball.y, '+' + beachPts, trailRGBA(ball.card, 0.95));
+        spawnHitPopup(ball.x, ball.y, '+' + formatNum(beachPts), trailRGBA(ball.card, 0.95));
       }
     }
     ball.phase = 'grid';
@@ -8731,7 +8732,7 @@
     pushPopup({
       x,
       y: y - 12,
-      text: label + (payout > 0 ? (' +' + payout) : ''),
+      text: label + (payout > 0 ? (' +' + formatNum(payout)) : ''),
       color: '#F0D78C',
       t0: performance.now(),
       duration: popupDurationForValue(1100 + Math.min(600, nextStack * 100), payout),
@@ -9353,7 +9354,7 @@
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + multTag + bangs + ' +' + pts,
+        text: g.name + multTag + bangs + ' +' + formatNum(pts),
         color: burnCount > 0
           ? BIG_ROOM_BURN_COLOR
           : brightenColor(g.color || '#ffffff', fx.bright),
@@ -9603,7 +9604,7 @@
           awardChips(payout, pos);
           pushPopup({
             x: pos.x, y: pos.y - 8,
-            text: '+' + payout,
+            text: '+' + formatNum(payout),
             color: BIG_ROOM_BURN_COLOR,
             t0: now,
             duration: 650,
@@ -10189,8 +10190,8 @@
             flushScoreUI();
             updateShopUI();
             const label = combo > 1
-              ? ('SIEGE SLAM ×' + combo + (pts > 0 ? ' +' + pts : ''))
-              : (pts > 0 ? ('SIEGE! +' + pts) : 'SIEGE!');
+              ? ('SIEGE SLAM ×' + combo + (pts > 0 ? ' +' + formatNum(pts) : ''))
+              : (pts > 0 ? ('SIEGE! +' + formatNum(pts)) : 'SIEGE!');
             pushPopup({
               x: siegeX,
               y: siegeY,
@@ -10220,7 +10221,7 @@
             pushPopup({
               x: floorX,
               y: floorY,
-              text: floorPts > 0 ? ('FLOOR CLEAR +' + floorPts) : 'FLOOR CLEAR!',
+              text: floorPts > 0 ? ('FLOOR CLEAR +' + formatNum(floorPts)) : 'FLOOR CLEAR!',
               color: floorPts > 0 ? (getCSS('--felt-bright') || '#2d8a6e') : '#ffffff',
               t0: performance.now(),
               duration: 900,
