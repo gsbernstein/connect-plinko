@@ -2986,9 +2986,10 @@
     {
       id: 53,
       date: 'Jul 27, 2026',
-      title: 'Burning mitosis stays tiny',
+      title: 'Tighter blast fire',
       items: [
-        'Lit Percussive Mitosis chips no longer wear a full-size flame halo — fire scales down with each split so they stay visibly small in the pins.'
+        'Storm pin shells still shove a wide ring, but fire only lights nearby fallers — not the whole peg field.',
+        'Lit Percussive Mitosis chips keep a matching small flame halo as they split.'
       ]
     },
     {
@@ -2997,7 +2998,7 @@
       title: 'Storm shells light fallers',
       items: [
         'I Didn\'t Ask How Big the Room Was now lights chips caught in an explosion while they\'re still in the pins — not just settled board cards.',
-        'Lit fallers keep burning after they land. Storm the Beaches pin shells use the same shove radius for fire.'
+        'Lit fallers keep burning after they land.'
       ]
     },
     {
@@ -4466,8 +4467,8 @@
 
   // I Didn't Ask How Big the Room Was: the explosion IS the fireball — instant radius ignite.
   const BIG_ROOM_BLAST_IGNITE_R = 145; // settled neighbors + diagonals (CELL=90)
-  // In-flight chips use the Storm knockback ring so pin-shell blasts light what they shove.
-  const BIG_ROOM_FLIGHT_IGNITE_R = STORM_BEACHES_BLAST_RADIUS;
+  // Fallers use a tighter ring than Storm's shove (280) so pin shells don't torch the whole field.
+  const BIG_ROOM_FLIGHT_IGNITE_R = 110;
   const BIG_ROOM_BURN_TICKS = 4;
   const BIG_ROOM_BURN_TICK_MS = 420;
   const BIG_ROOM_BURN_COLOR = '#FF7A3D';
