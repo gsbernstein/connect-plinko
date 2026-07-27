@@ -3333,6 +3333,14 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 97,
+      date: 'Jul 27, 2026',
+      title: 'HUD land bounce off',
+      items: [
+        'Chip and comps tile land pulses are disabled while we track down mobile shop scroll hitching.',
+      ]
+    },
+    {
       id: 96,
       date: 'Jul 27, 2026',
       title: 'Slide Rule',
@@ -7007,32 +7015,12 @@
     };
   }
 
-  const HUD_LAND_PULSE_MS = 320;
-
-  // Transform + filter only — no layout box change, no forced reflow.
-  function hudLandPulse(el, peakBrightness){
-    if(!el || el.hidden || !el.animate) return;
-    if(el._hudLandAnim){
-      el._hudLandAnim.cancel();
-      el._hudLandAnim = null;
-    }
-    const bright = peakBrightness != null ? peakBrightness : 1.12;
-    const anim = el.animate(
-      [
-        { transform: 'scale(1)', filter: 'brightness(1)' },
-        { transform: 'scale(1.07)', filter: 'brightness(' + bright + ')' },
-        { transform: 'scale(1)', filter: 'brightness(1)' }
-      ],
-      { duration: HUD_LAND_PULSE_MS, easing: 'ease-out', fill: 'none' }
-    );
-    el._hudLandAnim = anim;
-    anim.onfinish = ()=>{
-      if(el._hudLandAnim === anim) el._hudLandAnim = null;
-    };
+  function pulseCompsBox(){
+    // Disabled — testing whether HUD bounce interrupts mobile shop scroll.
   }
 
-  function pulseCompsBox(){
-    hudLandPulse(document.getElementById('compsBox'), 1.14);
+  function pulseScoreBox(){
+    // Disabled — testing whether HUD bounce interrupts mobile shop scroll.
   }
 
   function spawnFlyBurst(origin, opts){
@@ -7140,10 +7128,6 @@
     if(amount <= 80) return 8;
     if(amount <= 200) return 12;
     return 16;
-  }
-
-  function pulseScoreBox(){
-    hudLandPulse(scoreBoxEl, 1.12);
   }
 
   function pulseAchievementNumerator(el){
