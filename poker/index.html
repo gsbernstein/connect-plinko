@@ -2988,6 +2988,7 @@
       title: 'Big pots & trophy case',
       items: [
         'New Big Pot achievement tracks your highest single-hand chip payout.',
+        'New Combo Payday achievement tracks your biggest COMBO resolve (all hands combined).',
         'New Trophy Case achievement rewards claiming achievement tiers.',
         'Double Down no longer duplicates the first COMBO milestone — C-Combo owns ×2.'
       ]
@@ -3741,6 +3742,18 @@
       ]
     },
     {
+      id: 'a_combo_payout', kind: 'achievement', name: 'Combo Payday',
+      desc: 'Score a COMBO resolve worth {n} chips or more.',
+      stat: 'maxComboPayout', unlockAt: 1, infinite: true,
+      scale: { targetGrowth: 2.2, compPerLevel: 1, chipBase: 120, chipGrowth: 1.35, compCap: 30 },
+      tiers: [
+        { target: 100, reward: { chips: 150 } },
+        { target: 500, reward: { comps: 1 } },
+        { target: 2500, reward: { comps: 2 } },
+        { target: 10000, reward: { comps: 4 } }
+      ]
+    },
+    {
       id: 'a_floor', kind: 'achievement', name: 'Janitor',
       desc: 'Trigger {n} floor clears.',
       stat: 'floorClears', unlockAt: 1, infinite: true,
@@ -4074,7 +4087,7 @@
     fullHouses: 0, flushes: 0, straights: 0, threeKinds: 0, twoPairs: 0,
     multiHandClears: 0, chainClears: 0, floorClears: 0, suitPurges: 0,
     cardsDropped: 0, upgradesBought: 0, cashOuts: 0, maxRunLevel: 1,
-    maxCombo: 0, maxHandPayout: 0, achievementClaims: 0,
+    maxCombo: 0, maxHandPayout: 0, maxComboPayout: 0, achievementClaims: 0,
     sleeveHands: 0, prestigeBought: 0, settingsOpened: 0, versionUpgrades: 0,
     runHands: 0, runFloorClears: 0, runSuitPurges: 0, runChainClears: 0,
     runCardsDropped: 0, runMultiClears: 0,
@@ -5026,12 +5039,24 @@
     scheduleContractsUI();
   }
 
-  function noteHandPayout(pts){
-    pts = Math.floor(pts);
-    if(pts <= 0) return;
-    if(pts > (stats.maxHandPayout || 0)){
-      stats.maxHandPayout = pts;
+  function noteResolvePayout(groups, chainMult){
+    if(!groups || !groups.length) return;
+    const payMult = handPayoutMultiplier();
+    let bestHand = 0;
+    for(const g of groups){
+      const handPts = Math.floor(g.points * (g.cardMult || 1) * chainMult * payMult);
+      if(handPts > bestHand) bestHand = handPts;
+    }
+    if(bestHand > (stats.maxHandPayout || 0)){
+      stats.maxHandPayout = bestHand;
       scheduleContractsUI();
+    }
+    if(groups.length > 1){
+      const comboPts = Math.floor(scoreGroups(groups, chainMult) * payMult);
+      if(comboPts > (stats.maxComboPayout || 0)){
+        stats.maxComboPayout = comboPts;
+        scheduleContractsUI();
+      }
     }
   }
 
@@ -8659,7 +8684,7 @@
             const isSuitBomb = currentGroups.some(g => g.suitBomb);
             const chainMult = isSuitBomb ? 1 : computeChainMult(chainStep);
             const pts = Math.floor(scoreGroups(currentGroups, chainMult) * handPayoutMultiplier());
-            noteHandPayout(pts);
+            noteResolvePayout(currentGroups, chainMult);
             noteHandClear(currentGroups, chainMult);
             awardChips(pts);
             clearTimeout(shopUiTimer);
