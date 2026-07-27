@@ -2984,12 +2984,21 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 53,
+      date: 'Jul 27, 2026',
+      title: 'Tighter blast fire',
+      items: [
+        'Storm pin shells still shove a wide ring, but fire only lights nearby fallers — not the whole peg field.',
+        'Lit Percussive Mitosis chips keep a matching small flame halo as they split.'
+      ]
+    },
+    {
       id: 52,
       date: 'Jul 27, 2026',
       title: 'Storm shells light fallers',
       items: [
         'I Didn\'t Ask How Big the Room Was now lights chips caught in an explosion while they\'re still in the pins — not just settled board cards.',
-        'Lit fallers keep burning after they land. Storm the Beaches pin shells use the same shove radius for fire.'
+        'Lit fallers keep burning after they land.'
       ]
     },
     {
@@ -4458,8 +4467,8 @@
 
   // I Didn't Ask How Big the Room Was: the explosion IS the fireball — instant radius ignite.
   const BIG_ROOM_BLAST_IGNITE_R = 145; // settled neighbors + diagonals (CELL=90)
-  // In-flight chips use the Storm knockback ring so pin-shell blasts light what they shove.
-  const BIG_ROOM_FLIGHT_IGNITE_R = STORM_BEACHES_BLAST_RADIUS;
+  // Fallers use a tighter ring than Storm's shove (280) so pin shells don't torch the whole field.
+  const BIG_ROOM_FLIGHT_IGNITE_R = 110;
   const BIG_ROOM_BURN_TICKS = 4;
   const BIG_ROOM_BURN_TICK_MS = 420;
   const BIG_ROOM_BURN_COLOR = '#FF7A3D';
@@ -9937,35 +9946,39 @@
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
   }
 
-  function drawBurningOverlay(cx, cy, burn, now){
+  // scale: 1 = full seat size; Pin Split fallers pass drawRadius/32 so fire shrinks with them.
+  function drawBurningOverlay(cx, cy, burn, now, scale){
     if(!burn) return;
+    const s = Math.max(0.25, scale == null ? 1 : scale);
     const age = Math.max(0, (now - (burn.startedAt || now)) / 1000);
     const flicker = 0.55 + 0.45 * Math.abs(Math.sin(age * 14 + cx * 0.01));
     const ticksFrac = Math.max(0.2, (burn.ticksLeft || 1) / BIG_ROOM_BURN_TICKS);
     ctx.save();
     ctx.translate(cx, cy);
     ctx.shadowColor = BIG_ROOM_BURN_COLOR;
-    ctx.shadowBlur = 16 + 10 * flicker;
+    ctx.shadowBlur = (16 + 10 * flicker) * s;
     ctx.globalAlpha = 0.22 + 0.28 * flicker * ticksFrac;
     ctx.beginPath();
-    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.arc(0, 0, 30 * s, 0, Math.PI * 2);
     ctx.fillStyle = BIG_ROOM_BURN_COLOR;
     ctx.fill();
     ctx.globalAlpha = 0.35 + 0.4 * flicker;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = Math.max(1.5, 3 * s);
     ctx.strokeStyle = '#FFD27A';
     ctx.beginPath();
-    ctx.arc(0, 0, 32, 0, Math.PI * 2);
+    ctx.arc(0, 0, 32 * s, 0, Math.PI * 2);
     ctx.stroke();
     // Simple flame tongues above the chip.
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 8 * s;
     ctx.globalAlpha = 0.55 + 0.35 * flicker;
     for(let i = 0; i < 3; i++){
-      const ox = (i - 1) * 9;
-      const h = 10 + 7 * flicker + (i === 1 ? 4 : 0);
+      const ox = (i - 1) * 9 * s;
+      const h = (10 + 7 * flicker + (i === 1 ? 4 : 0)) * s;
+      const baseY = -18 * s;
+      const half = 4 * s;
       ctx.beginPath();
-      ctx.moveTo(ox - 4, -18);
-      ctx.quadraticCurveTo(ox + Math.sin(age * 18 + i) * 3, -18 - h, ox + 4, -18);
+      ctx.moveTo(ox - half, baseY);
+      ctx.quadraticCurveTo(ox + Math.sin(age * 18 + i) * 3 * s, baseY - h, ox + half, baseY);
       ctx.fillStyle = i === 1 ? '#FFD27A' : BIG_ROOM_BURN_COLOR;
       ctx.fill();
     }
@@ -10041,7 +10054,7 @@
       drawBurningOverlay(b.x, b.y, {
         startedAt: b.burnStartedAt || performance.now(),
         ticksLeft: BIG_ROOM_BURN_TICKS
-      }, performance.now());
+      }, performance.now(), r / 32);
     }
   }
 
