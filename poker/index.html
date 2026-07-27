@@ -2629,14 +2629,14 @@
         </div>
         <div class="settings-toggles">
           <label class="settings-toggle">
-            <span>Show FPS counter</span>
+            <span>FPS Counter</span>
             <input type="checkbox" id="settingShowFps">
-            <span class="settings-toggle-ui" aria-hidden="true">Off</span>
+            <span class="settings-toggle-ui" aria-hidden="true">Hidden</span>
           </label>
           <label class="settings-toggle">
             <span>Flying chips animation</span>
             <input type="checkbox" id="settingChipAnimation" checked>
-            <span class="settings-toggle-ui" aria-hidden="true">On</span>
+            <span class="settings-toggle-ui" aria-hidden="true">Shown</span>
           </label>
         </div>
         <div class="settings-changelog" aria-label="Changelog">
@@ -3358,7 +3358,8 @@
       title: 'Control Booth tidy-up',
       items: [
         'Booth and chips/s Rate toggles are no longer in the dock — pause Control Booth or Slide Rule from VIP.',
-        'Chips Fly toggle added to the Control Booth column (syncs with Settings); blue styling marks it as a preference, not a perk.',
+        'Chips Fly toggle added to the Control Booth column (syncs with Settings); blue styling and Shown/Hidden state mark it as a preference, not a perk.',
+        'Settings: FPS Counter and Flying chips animation use Shown/Hidden labels.',
       ]
     },
     {
@@ -5081,7 +5082,7 @@
     { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
     { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
     { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
-    { id: 'chipAnimation', short: 'Chips Fly', source: 'settings', label: 'Flying chips animation' },
+    { id: 'chipAnimation', short: 'Chips Fly', source: 'settings', label: 'Flying chips animation', visibilityStates: true },
     { id: 'pinSplit', short: 'Mitosis', source: 'prestige' },
     { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
     { id: 'siegeWeapons', short: 'Siege', source: 'prestige' },
@@ -5178,12 +5179,12 @@
     if(settingShowFpsEl){
       settingShowFpsEl.checked = !!gameSettings.showFps;
       const ui = settingShowFpsEl.nextElementSibling;
-      if(ui) ui.textContent = gameSettings.showFps ? 'On' : 'Off';
+      if(ui) ui.textContent = gameSettings.showFps ? 'Shown' : 'Hidden';
     }
     if(settingChipAnimationEl){
       settingChipAnimationEl.checked = gameSettings.chipAnimation !== false;
       const ui = settingChipAnimationEl.nextElementSibling;
-      if(ui) ui.textContent = gameSettings.chipAnimation !== false ? 'On' : 'Off';
+      if(ui) ui.textContent = gameSettings.chipAnimation !== false ? 'Shown' : 'Hidden';
     }
   }
 
@@ -13341,6 +13342,9 @@
       } else if(def.fuseStates){
         on = isAutoEnabled(id);
         label = on ? 'Short' : 'Normal';
+      } else if(def.visibilityStates){
+        on = gameSettings[id] !== false;
+        label = on ? 'Shown' : 'Hidden';
       } else if(def.source === 'settings'){
         on = gameSettings[id] !== false;
         label = on ? 'On' : 'Off';
