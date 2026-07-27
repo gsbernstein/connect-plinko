@@ -2984,11 +2984,20 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
-      id: 49,
+      id: 50,
       date: 'Jul 27, 2026',
       title: 'Bigger pot milestones',
       items: [
         'Big Pot and Combo Payday targets now jump ~10× per tier after the early milestones — fewer levels for the same huge payouts.'
+      ]
+    },
+    {
+      id: 49,
+      date: 'Jul 27, 2026',
+      title: 'King Me board holes',
+      items: [
+        'Fixed a King Me race that could leave permanent empty seats at the bottom of the board with cards stuck above them.',
+        'Crowned leaps now only land on a column’s free surface, so kings no longer float over gaps.'
       ]
     },
     {
@@ -7648,6 +7657,7 @@
       ball.stackEntry = null;
       ball.targetCol = null;
       ball.row = null;
+      ball.landed = false;
     }
   }
 
@@ -7906,6 +7916,9 @@
     ball.stackEntry = null;
     ball.targetCol = null;
     ball.row = null;
+    // Must clear landed — otherwise tick drops this ball from `balls` as a
+    // "finalize" and leaves a permanent hole (orphan stack seat / ghost grid write).
+    ball.landed = false;
     ball.phase = 'peg';
     ball.frameSafety = 0;
     ball.gridAge = 0;
@@ -8068,19 +8081,22 @@
     stepParticles();
     stepFireballs();
     stepBurning(now);
-    tryActivatePendingKingMe(now);
-    const kingMeStepped = stepKingJumpers(now);
 
+    // Seat chips into the stack BEFORE King Me leaps/captures. Captures call
+    // applyExplosionClear; if they run while balls are landed-but-not-finalized,
+    // those balls get flung to pegs with landed still true, then tick strips them
+    // from `balls` and leaves orphan type:'ball' stack seats — permanent holes.
     const landed = balls.filter(b=>b.landed);
     if(landed.length){
       balls = balls.filter(b=>!b.landed);
       for(const b of landed) finalizeDrop(b);
-      // Defer hand resolve while crowned kings are mid-leap (captures reshape the board).
-      if(!resolving && !kingMeJumping()) maybeStartResolve();
     }
 
-    // After crowned leaps settle, resume normal hand / floor clears.
-    if(kingMeStepped && !resolving && !kingMeJumping()){
+    tryActivatePendingKingMe(now);
+    const kingMeStepped = stepKingJumpers(now);
+
+    // Defer hand resolve while crowned kings are mid-leap (captures reshape the board).
+    if((landed.length || kingMeStepped) && !resolving && !kingMeJumping()){
       maybeStartResolve();
     }
 
@@ -8109,17 +8125,23 @@
 
   function finalizeDrop(ball){
     const col = ball.targetCol, row = ball.row;
+    // Yeeted / released chips must not paint ghosts into the grid.
+    if(col == null || row == null || col < 0 || col >= COLS || row < 0 || row >= ROWS){
+      return;
+    }
+    if(!ball.stackEntry || stack[col].indexOf(ball.stackEntry) < 0){
+      ball.stackEntry = null;
+      return;
+    }
     const angle = ball.angle || 0;
     const card = cloneCard(ball.card, {angle});
     grid[col][row] = card;
     markHintsDirty();
     scheduleCountingUiRefresh();
-    if(ball.stackEntry){
-      ball.stackEntry.type = 'piece';
-      ball.stackEntry.card = cloneCard(card);
-      ball.stackEntry.angle = angle;
-      delete ball.stackEntry.ball;
-    }
+    ball.stackEntry.type = 'piece';
+    ball.stackEntry.card = cloneCard(card);
+    ball.stackEntry.angle = angle;
+    delete ball.stackEntry.ball;
     maybeQueueKingMe(col, row, card);
     refreshButtons();
   }
@@ -8174,11 +8196,18 @@
         const victim = grid[mc][mr];
         if(!victim || victim.crowned) continue;
         const tc = col + 2 * dx, tr = row + 2 * dy;
-        if(tc >= 0 && tc < COLS && tr >= 0 && tr < ROWS
-            && !grid[tc][tr]
-            && !kingJumpers.some(j => j.col === tc && j.row === tr)){
-          longJumps.push({mc, mr, tc, tr, victim, stomp: false});
-        } else if(!kingJumpers.some(j => j.col === mc && j.row === mr)){
+        // Only land on the column's free surface — never float above a gap
+        // (empty cells under a "landing" looked like permanent open bottom seats).
+        if(tc >= 0 && tc < COLS && tr >= 0 && tr < ROWS){
+          const surfaceRow = ROWS - 1 - stack[tc].length;
+          if(tr === surfaceRow
+              && !grid[tc][tr]
+              && !kingJumpers.some(j => j.col === tc && j.row === tr)){
+            longJumps.push({mc, mr, tc, tr, victim, stomp: false});
+            continue;
+          }
+        }
+        if(!kingJumpers.some(j => j.col === mc && j.row === mr)){
           // No clear landing two steps out — stomp the diagonal neighbor.
           stomps.push({mc, mr, tc: mc, tr: mr, victim, stomp: true});
         }
@@ -8198,12 +8227,17 @@
   function removeSettledPieceAt(col, row){
     const stackIdx = ROWS - 1 - row;
     if(stackIdx < 0 || stackIdx >= stack[col].length){
-      grid[col][row] = 0;
+      // Never clear a lone grid cell — that leaves cards floating above holes.
+      rebuildColumnFromStack(col);
+      recomputeBumpers();
+      markHintsDirty();
       return null;
     }
     const entry = stack[col][stackIdx];
     if(!entry || entry.type !== 'piece'){
-      grid[col][row] = 0;
+      rebuildColumnFromStack(col);
+      recomputeBumpers();
+      markHintsDirty();
       return null;
     }
     const card = entry.card;
@@ -9249,6 +9283,7 @@
           b.stackEntry = null;
           b.targetCol = null;
           b.row = null;
+          b.landed = false;
           b.phase = 'peg';
           b.frameSafety = 0;
           b.gridAge = 0;
@@ -9268,6 +9303,7 @@
             b.stackEntry = null;
             b.targetCol = null;
             b.row = null;
+            b.landed = false;
             b.phase = 'peg';
             b.frameSafety = 0;
             b.gridAge = 0;
