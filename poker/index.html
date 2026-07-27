@@ -2987,8 +2987,9 @@
       date: 'Jul 27, 2026',
       title: 'Suit Purge fix',
       items: [
-        'Buying Auto Purge no longer pauses Suit Purge — it only collapses the suit picker like before.',
-        'Older saves that hid the picker via the old toggle are migrated so purges stay armed.'
+        'Buying Auto Purge collapses the suit picker again without stopping purges.',
+        'Shop Hide/Show and the bar tap only hide the picker — auto and manual purges keep working.',
+        'Older saves that accidentally paused Suit Purge are migrated back to armed.'
       ]
     },
     {
@@ -3497,7 +3498,7 @@
     {
       id: 'suitBomb',
       name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle Off to pause; tap the bar to hide suit buttons.',
+      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle to hide the suit picker; tap the bar too.',
       baseCost: 400,
       costScale: 1.85,
       maxLevel: 12,
@@ -4212,10 +4213,6 @@
 
   function suitBombUiVisible(){
     return upgradeLevel('suitBomb') > 0 && !suitBombPickerMinimized;
-  }
-
-  function suitPurgeActive(){
-    return suitBombUnlocked() && isAutoEnabled('suitBomb');
   }
 
   function shortFuseActive(){
@@ -6323,7 +6320,7 @@
       }
       case 'suitBomb':
         if(!lvl) return 'Locked';
-        if(!suitPurgeActive()) return 'Paused';
+        if(suitBombPickerMinimized) return 'Picker hidden · +' + purgeCardPayout() + '/card';
         return 'Cooldown ' + formatInterval(suitBombCooldownMs()) + ' · +' + purgeCardPayout() + '/card';
       case 'feltGrease':
         return '×' + physicsSpeed().toFixed(2).replace(/\.00$/,'') + ' speed';
@@ -8746,7 +8743,7 @@
 
   function castSuitBomb(suit){
     const now = performance.now();
-    if(!suitPurgeActive() || !suitBombReady(now) || gameOver) return false;
+    if(!suitBombUnlocked() || !suitBombReady(now) || gameOver) return false;
     if(!SUITS.includes(suit)) return false;
     const cells = findSuitCells(suit);
     if(countSuitInPlay(suit) < 1) return false;
@@ -10121,10 +10118,17 @@
     if(toggle){
       toggle.hidden = !canToggle;
       if(canToggle){
-        const on = def.id === 'suitBomb' ? suitPurgeActive() : isAutoEnabled(def.id);
-        toggle.textContent = on ? 'On' : 'Off';
-        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
-        toggle.classList.toggle('is-off', !on);
+        if(def.id === 'suitBomb'){
+          const visible = suitBombUiVisible();
+          toggle.textContent = visible ? 'Hide' : 'Show';
+          toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !visible);
+        } else {
+          const on = isAutoEnabled(def.id);
+          toggle.textContent = on ? 'On' : 'Off';
+          toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !on);
+        }
       }
     }
     const bonusFill = btn.querySelector('.upgrade-progress-bonus');
@@ -10292,7 +10296,13 @@
       toggle.addEventListener('click', (e)=>{
         e.preventDefault();
         e.stopPropagation();
-        setAutoEnabled(def.id, !isAutoEnabled(def.id));
+        if(def.id === 'suitBomb'){
+          suitBombPickerMinimized = !suitBombPickerMinimized;
+          scheduleSave();
+          updateSuitBombUI(performance.now(), true);
+        } else {
+          setAutoEnabled(def.id, !isAutoEnabled(def.id));
+        }
       });
     }
     const tryBuy = ()=>{
@@ -10676,18 +10686,6 @@
 
     const cd = suitBombCooldownMs();
     const ready = suitBombReady(now);
-    if(!suitPurgeActive()){
-      suitBombBar.removeAttribute('data-target-suit');
-      suitBombBar.classList.remove('suit-bomb-flash');
-      if(suitBombChargeFill){
-        const charge = ready ? 1 : Math.max(0, Math.min(1, 1 - (suitBombReadyAt - now) / cd));
-        suitBombChargeFill.style.width = (charge * 100) + '%';
-      }
-      suitBombStatus.textContent = 'paused';
-      suitBombStatus.className = '';
-      return;
-    }
-
     const autoOwned = prestigeLevel('autoSuitBomb') > 0;
     const auto = autoOwned && isAutoEnabled('autoSuitBomb');
     const autoTarget = auto ? pickAutoSuitBombTarget() : null;
