@@ -3343,6 +3343,15 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 101,
+      date: 'Jul 27, 2026',
+      title: 'Control Booth tidy-up',
+      items: [
+        'Booth and chips/s Rate toggles are no longer in the dock — pause Control Booth or Slide Rule from VIP.',
+        'Flying chips toggle added to the Control Booth column (syncs with Settings).',
+      ]
+    },
+    {
       id: 100,
       date: 'Jul 27, 2026',
       title: 'Tab scroll position restored',
@@ -5062,14 +5071,13 @@
     { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
     { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
     { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
-    { id: 'slideRule', short: 'Rate', source: 'prestige' },
+    { id: 'chipAnimation', short: 'Chips', source: 'settings', label: 'Flying chips' },
     { id: 'pinSplit', short: 'Mitosis', source: 'prestige' },
     { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
     { id: 'siegeWeapons', short: 'Siege', source: 'prestige' },
     { id: 'kingMe', short: 'King Me', source: 'prestige' },
     { id: 'bigRoom', short: 'Fire', source: 'prestige' },
-    { id: 'dealMeIn', short: 'Deal In', source: 'prestige' },
-    { id: 'controlBooth', short: 'Booth', source: 'prestige' }
+    { id: 'dealMeIn', short: 'Deal In', source: 'prestige' }
   ];
   let comps = 0;
   let prestigeCount = 0;
@@ -5152,6 +5160,7 @@
     gameSettings[key] = !!on;
     persistSettings();
     syncSettingsUI();
+    updateToggleDockUI();
     startLoop();
   }
 
@@ -5222,11 +5231,13 @@
   }
 
   function toggleDockItemOwned(def){
+    if(def.source === 'settings') return true;
     if(def.source === 'upgrade') return upgradeLevel(def.id) > 0;
     return prestigeLevel(def.id) > 0;
   }
 
   function toggleDockFullName(def){
+    if(def.source === 'settings') return def.label || def.short;
     if(def.source === 'upgrade'){
       const u = UPGRADE_DEFS.find(d => d.id === def.id);
       return u ? u.name : def.short;
@@ -13292,6 +13303,8 @@
             scheduleSave();
             updateSuitBombUI(performance.now(), true);
             updateShopUI();
+          } else if(def.source === 'settings'){
+            setGameSetting(def.id, gameSettings[def.id] === false);
           } else {
             setAutoEnabled(def.id, !isAutoEnabled(def.id));
           }
@@ -13315,6 +13328,9 @@
       } else if(def.fuseStates){
         on = isAutoEnabled(id);
         label = on ? 'Short' : 'Normal';
+      } else if(def.source === 'settings'){
+        on = gameSettings[id] !== false;
+        label = on ? 'On' : 'Off';
       } else {
         on = isAutoEnabled(id);
         label = on ? 'On' : 'Off';
