@@ -71,8 +71,8 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
 | `compCage` / `runCompCredit` | Cashier’s Cage: each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
 | `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out (`aceSleeve`, `connect4`, `cardCounting`, `pinSplit`, `stormBeaches`, `siegeWeapons`, `kingMe`, `bigRoom`, …). Skill-bonus perks (`houseEdge` → Hot Streak, `quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`; `houseEdge.maxLevel` must match Hot Streak’s cap (10). |
-| `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5); near-miss flush draws shift to 3-card stubs automatically |
-| `drawResolveHandLines` / `cellsFormLine` / `handGroupColor` | Paint-only flash connectors on `plateCtx` before seat holes are punched (plastic gaps only; no labels; skips Suit Purge). `handGroupColor`: flush family → suit via `flushHintColor`; straight → `PEG`; rank/pattern → ivory→gold by strength (also feeds score-popup color). Near-miss guides stay off while resolving |
+| `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5) |
+| `drawResolveHandLines` / `cellsFormLine` / `handGroupColor` | Paint-only flash connectors on `plateCtx` before seat holes are punched (plastic gaps only; no labels; skips Suit Purge). `handGroupColor`: flush family → suit via `flushHintColor`; straight → `PEG`; rank/pattern → ivory→gold by strength (also feeds score-popup color) |
 | `pinSplitActive` / `spawnSplitTwin` / `PIN_SPLIT_*` | Percussive Mitosis (`pinSplit`): Auto Dealer ~10× slower via `dropSpawnMult` (manual taps unaffected); bifurcate on fresh peg hits (max gen 4); shrink in flight, full size in columns |
 | `stormBeachesActive` / `detonateFallingBall` / `applyStormBlast` / `STORM_BEACHES_*` | Storm the Beaches: ~3× faster Auto Dealer; 22% chance to explode on fresh peg hits; blast knocks nearby in-flight chips |
 | `siegeWeapons` / `siegeWeaponsActive` / `queueSiegeClear` / `beginSiegeClear` / `beginSiegeResolve` / `tryBeginSiegeColumnSlam` / `finishSiegeLand` / `pendingSiegeLand` / `siegeCardPayout` / `SIEGE_*` | Siege Weapons (toggleable): Lv1 bumper smash clears one column; Lv2 all columns on that bumper; Lv3 landing column slam with combo payout. Lv3 parks the spiked chip in `pendingSiegeLand` (no mid-flash re-entry); `applyExplosionClear` re-expands siege columns at explode time; `finishSiegeLand` re-queues the chip into `balls` before `commitBallToColumn`. |
@@ -131,7 +131,7 @@ Game design detail for players lives in `README.md`.
 | 3300–4200 | Level math, shop UI helpers, VIP bonus levels |
 | 4970–5200 | `persistSave`, `loadSave`, migrations, Cash Out / reset |
 | 5800–6100 | Ball physics (`tick`, `stepBall`, collisions) |
-| 6160–6500 | Hand detection, near-miss guides, resolve hand lines (`drawResolveHandLines`), scoring payouts |
+| 6160–6500 | Hand detection, resolve hand lines (`drawResolveHandLines`), scoring payouts |
 | ~5330 | `pushPopup` / `bakePopupSprite` / `clampPopupToBoard` / `#popupLayer` — score labels bake once, hang up to `POPUP_OVERHANG` past the felt |
 | 6700–7100 | Floor clear, board-full escape, drawing cards on canvas |
 | 7500–8900 | Rail tabs, quest UI, modals, init, keeper loop |
@@ -193,6 +193,7 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 - `ACHIEVEMENT_LEGACY_CLAIMS` maps retired achievement ids for old saves.
 - `seenChangelogId` — missing/invalid loads as `0` so existing saves get the Settings red badge once for seeded entries.
 - `heaterChain` — Hot Streak steps surviving refresh (see **Persisted heater** above); missing → 0.
+- v26 — retired Card Sense / near-hand hints; `loadSave` refunds 4 comps once if the old VIP or shop row was owned.
 
 ### Settings changelog (What’s New)
 
