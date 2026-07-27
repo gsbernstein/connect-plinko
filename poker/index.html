@@ -3339,6 +3339,7 @@
       items: [
         'Shop rail scrolling uses one stable scroller again so fling/wheel momentum isn’t cut off mid-gesture (including Settings).',
         'Each tab still remembers its own scroll place when you switch away and back.',
+        'Shop lists still reshuffle when idle — only mid-fling reshuffles are held.',
       ]
     },
     {
@@ -11999,10 +12000,6 @@
       achievementOrderBucketSig = '';
       updateAchievementsUI();
     }
-    // Apply frozen-while-open list order once when landing on a shop tab.
-    if(panel === 'upgrades') updateShopUI({ forceOrder: true });
-    else if(panel === 'quests') updateQuestsUI({ forceOrder: true });
-    else if(panel === 'vip') updatePrestigeUI({ forceOrder: true });
     if(panelChanged) restoreRailPanelScroll(panel);
     // Layout may not be ready until after paint when switching panels.
     requestAnimationFrame(()=>{
@@ -12022,8 +12019,36 @@
     if(isDesktopLayout() && activeRailPanel === 'table') setRailPanel(defaultShopPanel());
     else setRailPanel(activeRailPanel);
   });
-  // Cue / unlock-seen: only after scroll settles (not every frame mid-fling).
+  // Defer list reshuffles while #railBody is flinging; flush when idle.
+  let railScrollBusyUntil = 0;
+  let railScrollFlushTimer = 0;
+  const deferredRailOrders = new Map();
   let shopScrollEndTimer = 0;
+
+  function noteRailScroll(){
+    railScrollBusyUntil = performance.now() + 280;
+    if(railScrollFlushTimer) clearTimeout(railScrollFlushTimer);
+    railScrollFlushTimer = setTimeout(flushDeferredRailOrders, 300);
+  }
+
+  function railScrollBusy(){
+    return performance.now() < railScrollBusyUntil;
+  }
+
+  function flushDeferredRailOrders(){
+    railScrollFlushTimer = 0;
+    if(railScrollBusy()){
+      railScrollFlushTimer = setTimeout(flushDeferredRailOrders, 40);
+      return;
+    }
+    if(!deferredRailOrders.size) return;
+    const pending = Array.from(deferredRailOrders.entries());
+    deferredRailOrders.clear();
+    for(const [container, ordered] of pending){
+      orderUpgradeButtons(container, ordered);
+    }
+  }
+
   function onUpgradesScrollSettled(){
     shopScrollEndTimer = 0;
     if(activeRailPanel !== 'upgrades') return;
@@ -12031,13 +12056,19 @@
     setTabBadge('upgrades', countAffordableUpgrades());
     updateShopScrollCue();
   }
+
   if(railBodyEl){
     railBodyEl.addEventListener('scroll', ()=>{
+      noteRailScroll();
       if(activeRailPanel !== 'upgrades') return;
       if(shopScrollEndTimer) clearTimeout(shopScrollEndTimer);
       shopScrollEndTimer = setTimeout(onUpgradesScrollSettled, 140);
     }, { passive: true });
-    railBodyEl.addEventListener('scrollend', onUpgradesScrollSettled, { passive: true });
+    railBodyEl.addEventListener('scrollend', ()=>{
+      railScrollBusyUntil = 0;
+      flushDeferredRailOrders();
+      onUpgradesScrollSettled();
+    }, { passive: true });
   }
   if(shopScrollCueBtn){
     shopScrollCueBtn.addEventListener('click', ()=>{
@@ -12292,7 +12323,16 @@
         if(kids[i] !== ordered[i]){ same = false; break; }
       }
     }
-    if(same) return;
+    if(same){
+      deferredRailOrders.delete(container);
+      return;
+    }
+    // appendChild mid-fling kills momentum — queue until #railBody is idle.
+    if(railScrollBusy()){
+      deferredRailOrders.set(container, ordered.slice());
+      return;
+    }
+    deferredRailOrders.delete(container);
     for(const btn of ordered) container.appendChild(btn);
   }
 
@@ -12424,8 +12464,7 @@
     else btn.removeAttribute('aria-description');
   }
 
-  function updateShopUI(opts){
-    opts = opts || {};
+  function updateShopUI(){
     const active = [];
     const maxedList = [];
     let affordableCount = 0;
@@ -12465,10 +12504,8 @@
       }
       (maxed ? maxedList : active).push(btn);
     }
-    // Freeze list order while browsing — reshuffles steal fling momentum.
-    if(opts.forceOrder || activeRailPanel !== 'upgrades'){
-      orderUpgradeButtons(upgradesEl, active.concat(maxedList));
-    }
+    // Keep buyable upgrades up top; sink completed ones (deferred while scrolling).
+    orderUpgradeButtons(upgradesEl, active.concat(maxedList));
     if(activeRailPanel === 'upgrades') markPanelUnlocksSeen('upgrades');
     setTabBadge('upgrades', affordableCount);
     updateShopScrollCue();
@@ -12505,8 +12542,7 @@
     return { gain, ready };
   }
 
-  function updatePrestigeUI(opts){
-    opts = opts || {};
+  function updatePrestigeUI(){
     const { ready } = updateCashOutUI();
     // Badge number = affordable VIP perks only; Cash Out never increments the count.
     let vipReady = 0;
@@ -12533,9 +12569,7 @@
         });
         (maxed ? maxedList : active).push(btn);
       }
-      if(opts.forceOrder || activeRailPanel !== 'vip'){
-        orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
-      }
+      orderUpgradeButtons(prestigeUpgradesEl, active.concat(maxedList));
     }
     if(activeRailPanel === 'vip') markPanelUnlocksSeen('vip');
     setTabBadge('vip', vipReady, ready ? { empty: true, ariaLabel: 'Cash Out ready' } : null);
@@ -12678,8 +12712,7 @@
       'Reach run level ' + unlockLvl + ' to open this quest slot.';
   }
 
-  function updateQuestsUI(opts){
-    opts = opts || {};
+  function updateQuestsUI(){
     updateQuestTabAvailability();
     if(!questsEl) return;
     const cap = questSlotCap();
@@ -12713,13 +12746,11 @@
       fillLockedQuestButton(questLockedButtons[i], cap + i);
     }
 
-    // Freeze order while browsing (same as shop / VIP).
-    if(opts.forceOrder || activeRailPanel !== 'quests'){
-      orderUpgradeButtons(
-        questsEl,
-        claimable.concat(inProgress, questLockedButtons)
-      );
-    }
+    // Only reshuffle DOM when claimable order actually changes (deferred while scrolling).
+    orderUpgradeButtons(
+      questsEl,
+      claimable.concat(inProgress, questLockedButtons)
+    );
     if(questReadyValEl) questReadyValEl.textContent = String(questReady);
     if(questSlotsMetaEl){
       questSlotsMetaEl.textContent = cap + ' / ' + MAX_QUEST_SLOTS + ' slots';
