@@ -2904,8 +2904,8 @@
   }
 
   // King Me stacks count as multiple kings toward of-a-kind.
-  // Plain K=1; King Me (ks=1)=2; Double (ks=2)=2; Triple=3; …
-  // Named tiers match the popup (Double/Triple/…) for ks>=2; first crown is 2.
+  // Plain K=1; King Me (ks=1)=2; named tiers match popup weight for ks>=2
+  // (Double=2, Triple=3, …) so a double king + four kings = six of a kind.
   function kingKindWeight(card){
     if(!card || card.rank !== 13) return 1;
     const ks = kingStackLevel(card);
