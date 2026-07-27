@@ -2594,9 +2594,13 @@
     if(isWild(card)) c.wild = true;
     const t = cardTier(card);
     if(t) c.tier = t;
-    if(card && card.crowned) c.crowned = true;
+    const ks = card && (card.kingStack | 0);
+    if(ks > 0) c.kingStack = ks;
+    // crowned mirrors kingStack>=1 (legacy + draw/helpers).
+    if((card && card.crowned) || ks > 0) c.crowned = true;
     if(card && card.spikes) c.spikes = true;
     if(extra) Object.assign(c, extra);
+    if((c.kingStack | 0) > 0) c.crowned = true;
     return c;
   }
   function wildCardChance(){
@@ -2989,6 +2993,15 @@
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
+    {
+      id: 56,
+      date: 'Jul 27, 2026',
+      title: 'King Me merges',
+      items: [
+        'King Me no longer hops from the bottom row — instead, two kings of the same suit that meet stack into a crowned king.',
+        'Matching stacks keep merging (double king, triple, …) with exponentially bigger chip payouts. Toggle On/Off anytime.'
+      ]
+    },
     {
       id: 55,
       date: 'Jul 27, 2026',
@@ -4201,7 +4214,7 @@
     {
       id: 'kingMe',
       name: 'King Me',
-      desc: 'Kings that reach the bottom row get crowned — a second king stacks on top. Crowned kings leap diagonally over cards for big chips, then explode after a few jumps. Toggle On/Off anytime.',
+      desc: 'When two kings of the same suit meet, they stack into a crowned king. Matching stacks merge again into double kings, triples, and so on — each merge pays exponentially more. Toggle On/Off anytime.',
       baseCost: 120,
       costScale: 1,
       maxLevel: 1,
@@ -4210,7 +4223,7 @@
     {
       id: 'bigRoom',
       name: 'I Didn\'t Ask How Big the Room Was',
-      desc: 'Explosions light nearby cards on fire — including chips still falling through the pins. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. Crowned kings leap aflame and light neighbors. Toggle On/Off anytime.',
+      desc: 'Explosions light nearby cards on fire — including chips still falling through the pins. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. King Me merges spark a blast too. Toggle On/Off anytime.',
       baseCost: 80,
       costScale: 1,
       maxLevel: 1,
@@ -4426,14 +4439,9 @@
     return kingMeUnlocked() && isAutoEnabled('kingMe');
   }
 
-  // King Me: bottom-row kings crown, leap diagonally over cards, then detonate.
-  const KING_ME_MAX_JUMPS = 4;
-  const KING_ME_CROWN_DELAY_MS = 420;
-  const KING_ME_JUMP_MS = 300;
-  const KING_ME_BASE_JUMP = 32;
-  const KING_ME_FINALE = 55;
-  let pendingKingMe = []; // {col, row, readyAt}
-  let kingJumpers = [];
+  // King Me: same-suit kings that meet merge into taller stacks; payouts double each tier.
+  const KING_ME_MERGE_BASE = 48;
+  const KING_ME_MERGE_DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
 
   function dropSpawnMult(){
     return pinSplitSpawnMult() * stormBeachesSpawnMult();
@@ -4504,8 +4512,6 @@
   const BIG_ROOM_BURN_TICK_MS = 420;
   const BIG_ROOM_BURN_COLOR = '#FF7A3D';
   const BIG_ROOM_BURN_HAND_BONUS = 0.5; // +50% hand payout per burning card in the line
-  const BIG_ROOM_KING_EMBER_MS = 70;
-  const BIG_ROOM_KING_IGNITE_R = 58;
 
   function bigRoomUnlocked(){
     return prestigeLevel('bigRoom') > 0;
@@ -6637,9 +6643,9 @@
         }
         return Math.round(SIEGE_SPIKE_CHANCE * 100) + '% spiked · column clear · +' + siegeCardPayout() + '/card';
       case 'kingMe':
-        if(!lvl) return 'Kings stay grounded';
+        if(!lvl) return 'Kings stay single';
         if(!isAutoEnabled('kingMe')) return 'Paused';
-        return 'Crown on bottom · up to ' + KING_ME_MAX_JUMPS + ' jumps';
+        return 'Same-suit kings merge · ×2 payouts';
       case 'bigRoom':
         if(!lvl) return 'No blast fires';
         if(!isAutoEnabled('bigRoom')) return 'Paused';
@@ -7254,8 +7260,6 @@
     particles = [];
     popups = [];
     pendingSuitBomb = null;
-    pendingKingMe = [];
-    kingJumpers = [];
     for(const p of pegs){ p.hit = 0; p.broken = 0; }
     autoDropTicks = 0;
     lastAutoDropAt = performance.now();
@@ -8139,27 +8143,16 @@
     stepParticles();
     stepBurning(now);
 
-    // Seat chips into the stack BEFORE King Me leaps/captures. Captures call
-    // applyExplosionClear; if they run while balls are landed-but-not-finalized,
-    // those balls get flung to pegs with landed still true, then tick strips them
-    // from `balls` and leaves orphan type:'ball' stack seats — permanent holes.
     const landed = balls.filter(b=>b.landed);
     if(landed.length){
       balls = balls.filter(b=>!b.landed);
       for(const b of landed) finalizeDrop(b);
-    }
-
-    tryActivatePendingKingMe(now);
-    const kingMeStepped = stepKingJumpers(now);
-
-    // Defer hand resolve while crowned kings are mid-leap (captures reshape the board).
-    if((landed.length || kingMeStepped) && !resolving && !kingMeJumping()){
-      maybeStartResolve();
+      if(!resolving) maybeStartResolve();
     }
 
     // Board packed solid with nothing left seating in-column: blow the floor
     // even while peg-zone pucks are still bouncing — they'll fall in after.
-    if(!resolving && !kingMeJumping() && boardIsFull() && !hasGridBalls()) beginFloorClear();
+    if(!resolving && boardIsFull() && !hasGridBalls()) beginFloorClear();
 
     draw();
     lastFrameMs = performance.now() - now;
@@ -8173,7 +8166,7 @@
       && suitBombUnlocked();
     if(balls.length>0 || particles.length>0
       || hasBurningCards() || popupsAlive || resolving
-      || bombCharging || bombAuto || autoDealerActive() || kingMeBusy()){
+      || bombCharging || bombAuto || autoDealerActive()){
       requestAnimationFrame(tick);
     } else {
       looping = false;
@@ -8207,7 +8200,7 @@
       });
       ball.pendingBurn = false;
     }
-    maybeQueueKingMe(col, row, card);
+    if(card.rank === 13) resolveKingMerges();
     refreshButtons();
   }
 
@@ -8218,81 +8211,40 @@
     };
   }
 
-  function maybeQueueKingMe(col, row, card){
-    if(!kingMeActive() || !card || card.rank !== 13) return;
-    if(row !== ROWS - 1 || card.crowned) return;
-    if(pendingKingMe.some(p => p.col === col && p.row === row)) return;
-    card.crowned = true;
-    grid[col][row] = cloneCard(card, {crowned: true});
-    const stackIdx = ROWS - 1 - row;
-    const entry = stack[col][stackIdx];
-    if(entry && entry.type === 'piece'){
-      entry.card = cloneCard(card, {crowned: true});
-      entry.angle = card.angle || entry.angle || 0;
-    }
-    const {x, y} = cellCenter(col, row);
-    const now = performance.now();
-    pushPopup({
-      x, y: y - 12,
-      text: 'KING ME!',
-      color: '#F0D78C',
-      t0: now,
-      duration: 1000,
-      big: true,
-      fontSize: 30,
-      floatBoost: 44,
-      slam: 1.9,
-      slamMs: 210,
-      glow: 20,
-      tilt: -0.06
-    });
-    pendingKingMe.push({col, row, readyAt: now + KING_ME_CROWN_DELAY_MS});
-    markHintsDirty();
-    startLoop();
+  function kingStackLevel(card){
+    if(!card || card.rank !== 13) return -1;
+    const n = card.kingStack | 0;
+    if(n > 0) return n;
+    // Mid-run leftovers from the old leap perk count as a single crown.
+    if(card.crowned) return 1;
+    return 0;
   }
 
-  function findKingMeJump(col, row){
-    const longJumps = [];
-    const stomps = [];
-    for(const dx of [-1, 1]){
-      for(const dy of [-1, 1]){
-        const mc = col + dx, mr = row + dy;
-        if(mc < 0 || mc >= COLS || mr < 0 || mr >= ROWS) continue;
-        const victim = grid[mc][mr];
-        if(!victim || victim.crowned) continue;
-        const tc = col + 2 * dx, tr = row + 2 * dy;
-        // Only land on the column's free surface — never float above a gap
-        // (empty cells under a "landing" looked like permanent open bottom seats).
-        if(tc >= 0 && tc < COLS && tr >= 0 && tr < ROWS){
-          const surfaceRow = ROWS - 1 - stack[tc].length;
-          if(tr === surfaceRow
-              && !grid[tc][tr]
-              && !kingJumpers.some(j => j.col === tc && j.row === tr)){
-            longJumps.push({mc, mr, tc, tr, victim, stomp: false});
-            continue;
-          }
-        }
-        if(!kingJumpers.some(j => j.col === mc && j.row === mr)){
-          // No clear landing two steps out — stomp the diagonal neighbor.
-          stomps.push({mc, mr, tc: mc, tr: mr, victim, stomp: true});
-        }
-      }
-    }
-    const options = longJumps.length ? longJumps : stomps;
-    if(!options.length) return null;
-    // Prefer true leaps over stomps, upward (toward pegs), then nearer center.
-    options.sort((a, b) =>
-      (a.stomp === b.stomp ? 0 : a.stomp ? 1 : -1)
-      || a.tr - b.tr
-      || Math.abs(a.tc - 3) - Math.abs(b.tc - 3)
+  function kingsCanMerge(a, b){
+    if(kingStackLevel(a) < 0 || kingStackLevel(b) < 0) return false;
+    if(kingStackLevel(a) !== kingStackLevel(b)) return false;
+    if(isWild(a) || isWild(b)) return true;
+    return a.suit === b.suit;
+  }
+
+  function kingMergeLabel(stack){
+    if(stack <= 1) return 'KING ME!';
+    if(stack === 2) return 'DOUBLE KING!';
+    if(stack === 3) return 'TRIPLE KING!';
+    return 'KING ×' + stack + '!';
+  }
+
+  function kingMergePayout(resultStack){
+    const tier = Math.max(1, resultStack | 0);
+    // Exponential: base * 2^tier (48 → 96 → 192 → 384 …).
+    return Math.floor(
+      KING_ME_MERGE_BASE * Math.pow(2, tier) * handPayoutMultiplier()
     );
-    return options[0];
   }
 
   function removeSettledPieceAt(col, row){
     const stackIdx = ROWS - 1 - row;
     if(stackIdx < 0 || stackIdx >= stack[col].length){
-      // Never clear a lone grid cell — that leaves cards floating above holes.
       rebuildColumnFromStack(col);
       recomputeBumpers();
       markHintsDirty();
@@ -8313,240 +8265,117 @@
     return card;
   }
 
-  function launchKingJumper(col, row){
-    const card = grid[col][row];
-    if(!card || card.rank !== 13 || !card.crowned) return false;
+  function findKingMergePartner(col, row, card){
+    const level = kingStackLevel(card);
+    if(level < 0) return null;
+    const options = [];
+    for(const [dx, dy] of KING_ME_MERGE_DIRS){
+      const nc = col + dx, nr = row + dy;
+      if(nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+      const other = grid[nc][nr];
+      if(!kingsCanMerge(card, other)) continue;
+      options.push({col: nc, row: nr, card: other});
+    }
+    if(!options.length) return null;
+    // Prefer vertical merges (same column packs cleanly), then nearer center.
+    options.sort((a, b) =>
+      (a.col === col ? 0 : 1) - (b.col === col ? 0 : 1)
+      || Math.abs(a.col - 3) - Math.abs(b.col - 3)
+      || b.row - a.row
+    );
+    return options[0];
+  }
+
+  // Merge one pair at (col,row). Returns true if a merge happened.
+  function tryKingMergeOnce(col, row){
+    if(!kingMeActive() || gameOver) return false;
     const stackIdx = ROWS - 1 - row;
-    const settled = (stackIdx >= 0 && stackIdx < stack[col].length)
-      ? stack[col][stackIdx]
-      : null;
-    const wasBurning = !!(settled && settled.type === 'piece' && settled.burning);
-    const lifted = removeSettledPieceAt(col, row);
-    if(!lifted) return false;
-    const {x, y} = cellCenter(col, row);
-    // Big Room: crowned leaps go aflame (and keep any burn they already had).
-    const flaming = wasBurning || bigRoomActive();
-    kingJumpers.push({
-      card: cloneCard(lifted, {crowned: true}),
-      col, row,
-      x, y,
-      jumpsLeft: KING_ME_MAX_JUMPS,
-      jumpsDone: 0,
-      phase: 'seek',
-      leapT0: 0,
-      fromX: x, fromY: y,
-      toX: x, toY: y,
-      midCol: -1, midRow: -1,
-      destCol: col, destRow: row,
-      flaming,
-      lastEmberAt: 0
+    if(stackIdx < 0 || stackIdx >= stack[col].length) return false;
+    const entry = stack[col][stackIdx];
+    if(!entry || entry.type !== 'piece') return false;
+    const card = entry.card;
+    if(kingStackLevel(card) < 0) return false;
+    const partner = findKingMergePartner(col, row, card);
+    if(!partner) return false;
+
+    const victim = removeSettledPieceAt(partner.col, partner.row);
+    if(!victim) return false;
+
+    // Survivor may have shifted if the partner was below it in-column.
+    const newIdx = stack[col].indexOf(entry);
+    if(newIdx < 0) return false;
+    const newRow = ROWS - 1 - newIdx;
+
+    const nextStack = kingStackLevel(card) + 1;
+    // Suit: keep a real suit when a wild merges into a suited king.
+    let suit = card.suit;
+    let wild = !!isWild(card);
+    if(isWild(card) && !isWild(victim)){
+      suit = victim.suit;
+      wild = false;
+    } else if(isWild(card) && isWild(victim)){
+      wild = true;
+    }
+    const merged = cloneCard(card, {
+      suit,
+      wild: wild || undefined,
+      kingStack: nextStack,
+      crowned: true,
+      spikes: !!(card.spikes || victim.spikes),
+      tier: Math.max(cardTier(card), cardTier(victim)) || undefined,
+      angle: card.angle || entry.angle || 0
     });
+    if(!wild) delete merged.wild;
+    if(!merged.tier) delete merged.tier;
+    entry.card = merged;
+    entry.angle = merged.angle || 0;
+    rebuildColumnFromStack(col);
+
+    const pos = cellCenter(col, newRow);
+    const payout = kingMergePayout(nextStack);
+    const label = kingMergeLabel(nextStack);
+    if(payout > 0) awardChips(payout, pos);
+    pushPopup({
+      x: pos.x,
+      y: pos.y - 12,
+      text: label + (payout > 0 ? (' +' + payout) : ''),
+      color: '#F0D78C',
+      t0: performance.now(),
+      duration: 1000 + Math.min(400, nextStack * 80),
+      big: true,
+      fontSize: 26 + Math.min(10, nextStack * 2),
+      floatBoost: 44 + nextStack * 4,
+      slam: 1.7 + Math.min(0.5, nextStack * 0.08),
+      slamMs: 200,
+      glow: 18 + nextStack * 2,
+      tilt: -0.05
+    });
+    // Big Room: merges spark like a small crown blast.
+    if(bigRoomActive()){
+      spawnExplosion(pos.x, pos.y, merged);
+    }
+    markHintsDirty();
+    scheduleCountingUiRefresh();
     startLoop();
     return true;
   }
 
-  function tryActivatePendingKingMe(now){
-    if(!pendingKingMe.length) return;
-    if(resolving) return;
-    const keep = [];
-    for(const p of pendingKingMe){
-      if(now < p.readyAt){
-        keep.push(p);
-        continue;
-      }
-      const card = grid[p.col] && grid[p.col][p.row];
-      if(!card || !card.crowned || card.rank !== 13) continue;
-      // Already crowned — finish the leap even if the perk was toggled off.
-      launchKingJumper(p.col, p.row);
-    }
-    pendingKingMe = keep;
-  }
-
-  function kingMeJumpPayout(jumpIndex){
-    // Escalating capture payout — later hops hit harder.
-    const step = Math.max(1, jumpIndex | 0);
-    return Math.floor(
-      KING_ME_BASE_JUMP * step * (1.35 + step * 0.35) * handPayoutMultiplier()
-    );
-  }
-
-  function kingMeFinalePayout(jumpsDone){
-    return Math.floor(
-      KING_ME_FINALE * (1 + Math.max(0, jumpsDone)) * handPayoutMultiplier()
-    );
-  }
-
-  function beginKingMeLeap(j, jump){
-    j.phase = 'leap';
-    j.leapT0 = performance.now();
-    j.fromX = j.x;
-    j.fromY = j.y;
-    j.midCol = jump.mc;
-    j.midRow = jump.mr;
-    j.destCol = jump.tc;
-    j.destRow = jump.tr;
-    const dest = cellCenter(jump.tc, jump.tr);
-    j.toX = dest.x;
-    j.toY = dest.y;
-  }
-
-  function finishKingMeLeap(j){
-    const mc = j.midCol, mr = j.midRow;
-    const stomping = j.destCol === mc && j.destRow === mr;
-    if(mc >= 0 && mr >= 0 && grid[mc][mr]){
-      const victim = grid[mc][mr];
-      const payout = kingMeJumpPayout(j.jumpsDone + 1);
-      if(payout > 0){
-        const mid = cellCenter(mc, mr);
-        awardChips(payout, mid);
-        pushPopup({
-          x: mid.x,
-          y: mid.y - 8,
-          text: (stomping ? 'STOMP +' : 'JUMP +') + payout,
-          color: '#F0D78C',
-          t0: performance.now(),
-          duration: 900,
-          big: true,
-          fontSize: 22 + Math.min(10, j.jumpsDone * 2),
-          floatBoost: 46,
-          slam: 1.55,
-          slamMs: 170,
-          glow: 16
-        });
-      }
-      applyExplosionClear([{
-        name: stomping ? 'KING STOMP' : 'KING JUMP',
-        points: 0,
-        cells: [[mc, mr]],
-        color: cardGlowColor(victim)
-      }]);
-    }
-    j.col = j.destCol;
-    j.row = j.destRow;
-    j.x = j.toX;
-    j.y = j.toY;
-    j.jumpsDone++;
-    j.jumpsLeft--;
-    j.phase = 'seek';
-    j.midCol = -1;
-    j.midRow = -1;
-  }
-
-  function detonateKingJumper(j){
-    spawnExplosion(j.x, j.y, j.card);
-    spawnExplosion(j.x, j.y - 10, j.card);
-    const payout = kingMeFinalePayout(j.jumpsDone);
-    if(payout > 0){
-      awardChips(payout, j);
-      pushPopup({
-        x: j.x,
-        y: j.y - 14,
-        text: 'CROWN OUT! +' + payout,
-        color: '#FFE7A0',
-        t0: performance.now(),
-        duration: 1100,
-        big: true,
-        fontSize: 26,
-        floatBoost: 52,
-        slam: 2.1,
-        slamMs: 220,
-        glow: 22
-      });
-    }
-    j.phase = 'done';
-  }
-
-  function stepKingJumpers(now){
-    if(!kingJumpers.length) return false;
-    let changed = false;
-    const next = [];
-    for(const j of kingJumpers){
-      if(j.phase === 'done'){
-        changed = true;
-        continue;
-      }
-      if(j.phase === 'leap'){
-        const t = Math.min(1, (now - j.leapT0) / KING_ME_JUMP_MS);
-        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        j.x = j.fromX + (j.toX - j.fromX) * ease;
-        j.y = j.fromY + (j.toY - j.fromY) * ease;
-        // Arc over the victim.
-        j.y -= Math.sin(ease * Math.PI) * (CELL * 0.72);
-        j.card.angle = (j.card.angle || 0) + 0.18;
-        maybeFlamingKingIgnite(j, now);
-        if(t >= 1){
-          finishKingMeLeap(j);
-          changed = true;
-        }
-        if(j.phase !== 'done') next.push(j);
-        continue;
-      }
-      // seek
-      if(resolving){
-        next.push(j);
-        continue;
-      }
-      maybeFlamingKingIgnite(j, now);
-      if(j.jumpsLeft <= 0){
-        detonateKingJumper(j);
-        changed = true;
-        continue;
-      }
-      const jump = findKingMeJump(j.col, j.row);
-      if(!jump){
-        detonateKingJumper(j);
-        changed = true;
-        continue;
-      }
-      beginKingMeLeap(j, jump);
-      next.push(j);
-      changed = true;
-    }
-    kingJumpers = next;
-    return changed;
-  }
-
-  function kingMeJumping(){
-    return kingJumpers.length > 0;
-  }
-
-  function kingMeBusy(){
-    return kingJumpers.length > 0 || pendingKingMe.length > 0;
-  }
-
-  // Big Room: flaming crowned kings trail embers and light settled cards they skim.
-  function maybeFlamingKingIgnite(j, now){
-    if(!j || !j.flaming || !bigRoomActive()) return;
-    if(now - (j.lastEmberAt || 0) < BIG_ROOM_KING_EMBER_MS) return;
-    j.lastEmberAt = now;
-    if(particles.length < MAX_PARTICLES && Math.random() < 0.7){
-      const n = Math.min(2, MAX_PARTICLES - particles.length);
-      for(let i = 0; i < n; i++){
-        particles.push({
-          x: j.x + (Math.random() - 0.5) * 14,
-          y: j.y + (Math.random() - 0.5) * 10,
-          vx: (Math.random() - 0.5) * 1.2,
-          vy: -1.4 - Math.random() * 1.6,
-          r: 1.5 + Math.random() * 2.4,
-          color: i % 2 ? '#FFD27A' : BIG_ROOM_BURN_COLOR,
-          life: 1,
-          decay: 0.05 + Math.random() * 0.04
-        });
-      }
-    }
-    const r2 = BIG_ROOM_KING_IGNITE_R * BIG_ROOM_KING_IGNITE_R;
-    for(let c = 0; c < COLS; c++){
-      for(let i = 0; i < stack[c].length; i++){
-        const entry = stack[c][i];
-        if(entry.type !== 'piece' || entry.burning) continue;
-        const row = ROWS - 1 - i;
-        const pos = cellCenter(c, row);
-        const dx = pos.x - j.x, dy = pos.y - j.y;
-        if(dx * dx + dy * dy <= r2){
-          igniteStackEntry(entry, c, row);
+  // Drain every possible same-suit king merge on the board (chains included).
+  function resolveKingMerges(){
+    if(!kingMeActive() || gameOver) return false;
+    let any = false;
+    let guard = 0;
+    while(guard++ < 48){
+      let merged = false;
+      for(let c = 0; c < COLS && !merged; c++){
+        for(let r = ROWS - 1; r >= 0 && !merged; r--){
+          if(tryKingMergeOnce(c, r)) merged = true;
         }
       }
+      if(!merged) break;
+      any = true;
     }
+    return any;
   }
 
   // ---- poker hand finding ----
@@ -8558,15 +8387,14 @@
     for(const [dx,dy] of dirs){
       for(let c=0;c<COLS;c++){
         for(let r=0;r<ROWS;r++){
-          // Crowned kings are leaving for King Me leaps — skip them in hands.
-          if(!grid[c][r] || grid[c][r].crowned) continue;
+          if(!grid[c][r]) continue;
           const pc = c-dx, pr = r-dy;
-          if(pc>=0 && pc<COLS && pr>=0 && pr<ROWS && grid[pc][pr] && !grid[pc][pr].crowned) continue;
+          if(pc>=0 && pc<COLS && pr>=0 && pr<ROWS && grid[pc][pr]) continue;
 
           const cells = [];
           const cards = [];
           let cc=c, cr=r;
-          while(cc>=0 && cc<COLS && cr>=0 && cr<ROWS && grid[cc][cr] && !grid[cc][cr].crowned){
+          while(cc>=0 && cc<COLS && cr>=0 && cr<ROWS && grid[cc][cr]){
             cells.push([cc,cr]);
             cards.push(grid[cc][cr]);
             cc+=dx; cr+=dy;
@@ -9188,14 +9016,11 @@
     rebuildColumnFromStack(col);
     recomputeBumpers();
     markHintsDirty();
-    if(!resolving && !kingMeJumping()) maybeStartResolve();
+    if(!resolving) maybeStartResolve();
   }
 
   function stepBurning(now){
-    // Hands still pause burns; during King Me leaps we keep dripping chips but
-    // defer ash-outs so captures / column rebuilds don't fight each other.
     if(resolving) return;
-    const deferAsh = kingMeJumping();
     let anyAsh = false;
     for(let c = 0; c < COLS; c++){
       // Walk top-down so splices don't skip entries.
@@ -9219,7 +9044,6 @@
           });
         }
         if(burn.ticksLeft <= 0){
-          if(deferAsh) continue;
           ashOutStackEntry(c, i);
           anyAsh = true;
           continue;
@@ -9240,7 +9064,6 @@
         burn.ticksLeft--;
         burn.nextTickAt = now + BIG_ROOM_BURN_TICK_MS;
         if(burn.ticksLeft <= 0){
-          if(deferAsh) continue;
           ashOutStackEntry(c, i);
           anyAsh = true;
         }
@@ -9365,6 +9188,7 @@
     recomputeBumpers();
     markHintsDirty();
     scheduleCountingUiRefresh();
+    if(!resolving) resolveKingMerges();
     startLoop();
   }
 
@@ -9630,6 +9454,8 @@
 
   function maybeStartResolve(){
     if(gameOver || resolving) return;
+    // Kings that slid together after a clear get a chance to stack first.
+    resolveKingMerges();
     const groups = findPokerHands();
     if(groups.length>0){
       beginResolveChain(groups);
@@ -9677,6 +9503,7 @@
   }
 
   function finishResolveOrChain(){
+    resolveKingMerges();
     const nextGroups = findPokerHands();
     const suitBombResolve = currentGroups.some(g => g.suitBomb);
     const siegeResolve = currentGroups.some(g => g.siegeClear);
@@ -9970,10 +9797,17 @@
   }
 
   function drawPiece(cx, cy, card, isBall, highlight){
-    if(card && card.crowned){
-      // Checkers-style double king: second chip stacked on top.
-      drawCardFace(ctx, cx, cy + 6, card, card.angle || 0, 27, isBall, 0);
-      drawCardFace(ctx, cx, cy - 5, card, card.angle || 0, 32, isBall, highlight);
+    const ks = kingStackLevel(card);
+    if(ks > 0){
+      // Stacked kings: one extra chip per merge tier (capped for readability).
+      const layers = Math.min(ks + 1, 5);
+      for(let i = 0; i < layers; i++){
+        const fromTop = layers - 1 - i;
+        const oy = 7 - fromTop * 5.5;
+        const rad = fromTop === 0 ? 32 : 26;
+        const hi = fromTop === 0 ? highlight : 0;
+        drawCardFace(ctx, cx, cy + oy, card, card.angle || 0, rad, isBall, hi);
+      }
       return;
     }
     drawCardFace(ctx, cx, cy, card, card.angle||0, 32, isBall, highlight);
@@ -10018,34 +9852,6 @@
     ctx.restore();
   }
 
-  function drawKingJumper(j){
-    const pulse = 1 + 0.04 * Math.sin(performance.now() / 90);
-    ctx.save();
-    ctx.shadowColor = j.flaming ? BIG_ROOM_BURN_COLOR : '#F0D78C';
-    ctx.shadowBlur = j.flaming ? 22 : 18;
-    drawCardFace(ctx, j.x, j.y + 7 * pulse, j.card, j.card.angle || 0, 26, true, 0);
-    drawCardFace(ctx, j.x, j.y - 6 * pulse, j.card, j.card.angle || 0, 33, true, 0.55);
-    if(j.flaming){
-      const age = performance.now() / 1000;
-      const flicker = 0.55 + 0.45 * Math.abs(Math.sin(age * 16));
-      ctx.globalAlpha = 0.35 + 0.35 * flicker;
-      ctx.beginPath();
-      ctx.arc(j.x, j.y - 4, 30, 0, Math.PI * 2);
-      ctx.fillStyle = BIG_ROOM_BURN_COLOR;
-      ctx.fill();
-      ctx.globalAlpha = 0.65 + 0.3 * flicker;
-      for(let i = 0; i < 3; i++){
-        const ox = j.x + (i - 1) * 8;
-        const top = j.y - 28 - (i === 1 ? 6 : 0) - 6 * flicker;
-        ctx.beginPath();
-        ctx.moveTo(ox - 4, j.y - 18);
-        ctx.quadraticCurveTo(ox + Math.sin(age * 20 + i) * 3, top, ox + 4, j.y - 18);
-        ctx.fillStyle = i === 1 ? '#FFD27A' : BIG_ROOM_BURN_COLOR;
-        ctx.fill();
-      }
-    }
-    ctx.restore();
-  }
 
   function drawFlashPiece(cx, cy, card, elapsedFrac, pulses){
     const color = cardGlowColor(card);
@@ -10344,7 +10150,6 @@
     // readable between holes (pairs, flush/straight draws).
     drawNearMissHints();
 
-    for(const j of kingJumpers) drawKingJumper(j);
 
     for(const p of particles){
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
@@ -12136,7 +11941,7 @@
       maybeAutoBuy(now);
       maybeAutoClaimQuests(now);
       const needLoop = balls.length || particles.length
-        || hasBurningCards() || resolving || kingMeBusy()
+        || hasBurningCards() || resolving
         || autoDealerActive()
         || (prestigeLevel('pitBoss') > 0 && isAutoEnabled('pitBoss'))
         || (prestigeLevel('questDesk') > 0
