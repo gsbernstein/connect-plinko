@@ -3339,8 +3339,9 @@
   // Keep entries player-facing; skip pure agent/docs/internal churn.
   // date: short calendar label (e.g. 'Jul 25, 2026'), not month-only.
   // Also set poker/version.json "v" to the new id (same number as release poll).
-  // Merge/rebase conflict here? Keep master's entries+ids, renumber YOUR new
+  // Merge conflict here? Keep master's entries+ids, renumber YOUR new
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
+  // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
       id: 90,
