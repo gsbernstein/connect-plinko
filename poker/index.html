@@ -201,7 +201,7 @@
     border:1px solid #2a2545;
     border-radius:10px;
     /* Extra bottom padding so the rate clears the absolute progress bar. */
-    padding:8px 14px 11px;
+    padding:8px 14px 4px;
     font-size:13px;
     flex:none;
     white-space:nowrap;
@@ -1757,7 +1757,7 @@
       padding:5px 2px;
       white-space:nowrap;
     }
-    .score{padding:5px 2px 7px; gap:0; align-items:stretch; overflow:hidden;}
+    .score{padding:5px 2px 3px; gap:0; align-items:stretch; overflow:hidden;}
     .score-head{
       flex-direction:column;
       align-items:center;
@@ -3206,6 +3206,14 @@
   // Merge/rebase conflict here? Keep master's entries+ids, renumber YOUR new
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   const CHANGELOG = [
+    {
+      id: 78,
+      date: 'Jul 27, 2026',
+      title: 'Chips bar hugs edge',
+      items: [
+        'The chips/s peak bar now sits flush on the Chips tile bottom edge with no gap.',
+      ]
+    },
     {
       id: 77,
       date: 'Jul 27, 2026',
