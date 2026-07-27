@@ -1304,19 +1304,25 @@
     gap:5px;
     min-width:0;
   }
+  .upgrade-name-text{
+    min-width:0;
+  }
+  .upgrade-cost-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+  }
   .upgrade-rec{
     flex-shrink:0;
     color:#E6C35C;
-    font-size:12px;
+    font-size:13px;
     line-height:1;
     text-shadow:0 0 8px rgba(230,195,92,0.35);
     /* Stay in flow when idle so chip-tick ★ moves don't resize cards mid-scroll. */
     visibility:hidden;
   }
   .upgrade-rec.is-on{ visibility:visible; }
-  .upgrade-name-text{
-    min-width:0;
-  }
   .upgrade-top-right{
     display:flex;
     align-items:center;
@@ -3340,6 +3346,14 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
+    {
+      id: 93,
+      date: 'Jul 27, 2026',
+      title: 'Star sits by the price',
+      items: [
+        'The recommended-buy ★ now appears after the upgrade or perk cost instead of before the name.',
+      ]
+    },
     {
       id: 92,
       date: 'Jul 27, 2026',
@@ -12553,7 +12567,6 @@
     btn.innerHTML =
       '<div class="upgrade-top">' +
         '<span class="upgrade-name">' +
-          '<span class="upgrade-rec" aria-hidden="true" title="Recommended next">★</span>' +
           '<span class="upgrade-name-text"></span>' +
           '<span class="upgrade-new-tag" hidden>New</span>' +
         '</span>' +
@@ -12566,7 +12579,10 @@
       '</div>' +
       '<p class="upgrade-desc"></p>' +
       '<div class="upgrade-effect"></div>' +
-      '<div class="upgrade-cost"></div>' +
+      '<div class="upgrade-cost-row">' +
+        '<div class="upgrade-cost"></div>' +
+        '<span class="upgrade-rec" aria-hidden="true" title="Recommended next">★</span>' +
+      '</div>' +
       '<div class="upgrade-progress" aria-hidden="true">' +
         '<span class="upgrade-progress-bonus"></span>' +
         '<span class="upgrade-progress-bought"></span>' +
