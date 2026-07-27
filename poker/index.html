@@ -3087,6 +3087,14 @@
   // Also set poker/version.json "v" to the new id (same number as release poll).
   const CHANGELOG = [
     {
+      id: 67,
+      date: 'Jul 27, 2026',
+      title: 'Hand resolve lines',
+      items: [
+        'Scoring hands draw a bright connector across their seats while they flash before clearing — easier to read combos and overlapping lines.',
+      ]
+    },
+    {
       id: 66,
       date: 'Jul 27, 2026',
       title: 'Crowned kings',
@@ -9345,6 +9353,113 @@
     ctx.setLineDash([]);
   }
 
+  // True when cells walk a constant grid step (poker lines, floor row, single-col siege).
+  function cellsFormLine(cells){
+    if(!cells || cells.length < 2) return false;
+    const dx = cells[1][0] - cells[0][0];
+    const dy = cells[1][1] - cells[0][1];
+    if(dx === 0 && dy === 0) return false;
+    for(let i = 1; i < cells.length; i++){
+      if(cells[i][0] - cells[i - 1][0] !== dx) return false;
+      if(cells[i][1] - cells[i - 1][1] !== dy) return false;
+    }
+    return true;
+  }
+
+  function resolveHandLineLabel(name){
+    if(!name) return '';
+    if(name.indexOf('SUIT PURGE') === 0) return 'PURGE';
+    if(name === 'FLOOR CLEAR') return 'FLOOR';
+    if(name === 'SIEGE SLAM') return 'SLAM';
+    if(name === 'SIEGE') return 'SIEGE';
+    const kindN = parseOfAKindCount(name);
+    if(kindN >= 3) return kindN + 'K';
+    const map = {
+      'ROYAL FLUSH': 'RF',
+      'STRAIGHT FLUSH': 'SF',
+      'QUADS FULL': 'QF',
+      'FULLER HOUSE': 'FULLER',
+      'FULL HOUSE': 'BOAT',
+      'FLUSH': 'FLUSH',
+      'STRAIGHT': 'STR',
+      'TWO PAIR': '2P'
+    };
+    return map[name] || name;
+  }
+
+  // Solid bridges over each scoring line while pieces flash before the clear.
+  function drawResolveHandLines(){
+    if(!resolving || resolvePhase !== 'flash') return;
+    if(!currentGroups || !currentGroups.length) return;
+    const lite = perfLite();
+    const flashElapsed = Math.min(1, (performance.now() - resolvePhaseStart) / (FLASH_MS / resolveSpeed()));
+    const pulses = flashPulseCount();
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(flashElapsed * Math.PI * pulses));
+
+    for(const g of currentGroups){
+      // Suit Purge hits scattered seats — no single connector.
+      if(g.suitBomb) continue;
+      const cells = g.cells;
+      if(!cellsFormLine(cells)) continue;
+      const color = g.color || '#ffffff';
+      const pts = cells.map(([c, r]) => cellCenter(c, r));
+      const alpha = 0.62 + 0.32 * pulse;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 3.4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      if(!lite){
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 16 * pulse;
+      }
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+
+      ctx.lineWidth = 2.2;
+      ctx.globalAlpha = alpha * 0.95;
+      for(const p of pts){
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, HOLE_R - 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      const label = resolveHandLineLabel(g.name);
+      if(label){
+        const a = pts[0], b = pts[pts.length - 1];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        let mx, my;
+        if(pts.length >= 3 && pts.length % 2 === 1){
+          const m = (pts.length / 2) | 0;
+          mx = (pts[m - 1].x + pts[m].x) / 2;
+          my = (pts[m - 1].y + pts[m].y) / 2;
+        } else {
+          mx = (a.x + b.x) / 2;
+          my = (a.y + b.y) / 2;
+        }
+        const ox = (-dy / len) * 10;
+        const oy = (dx / len) * 10;
+        ctx.globalAlpha = Math.min(0.95, alpha * 1.2);
+        ctx.shadowBlur = 0;
+        ctx.font = "700 12px 'IBM Plex Mono', monospace";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = color;
+        ctx.fillText(label, mx + ox, my + oy);
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.setLineDash([]);
+  }
+
   function scoreGroups(groups, chainMultiplier){
     let pts = 0;
     for(const g of groups) pts += g.points * (g.cardMult || 1);
@@ -10997,6 +11112,8 @@
     // Near-miss guides sit on top of the plate so the dotted bridges stay
     // readable between holes (pairs, flush/straight draws).
     drawNearMissHints();
+    // Scoring hands get a solid bridge during the pre-clear flash.
+    drawResolveHandLines();
 
 
     for(const p of particles){
