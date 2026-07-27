@@ -3097,7 +3097,7 @@
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.',
         'Bigger score pops linger longer — six+ of a kind and fat chip totals stay on screen more.',
-        'Score labels no longer vanish as one flash — end times spread out when many pops overlap.',
+        'Score labels no longer vanish as one flash — end times spread out when many pops overlap, and the on-screen cap no longer FIFO-wipes earlier clears.',
         'King Me stacks can cook Fuller Houses (two trips) and Quads Full (four + a pair) — with secret achievements for those and for six of a kind+.'
       ]
     },
@@ -3667,7 +3667,7 @@
   const MAX_IN_FLIGHT = 14;
   // Pause auto dealer above this — clears still relaunch freely; board is 42 cells.
   const MAX_AUTO_DROP_BALLS = 264;
-  const MAX_POPUPS = 36;
+  const MAX_POPUPS = 96;
   const MAX_PARTICLES = 180;
   const MAX_RUN_LEVEL = 200;
   // Cash Out unlocks once this run level is reached; comps come from level rewards.
@@ -6803,10 +6803,27 @@
     popup.expiresAt = expiresAt;
     popup.duration = Math.max(popup.duration, expiresAt - popup.t0);
     popups.push(popup);
-    if(popups.length > MAX_POPUPS){
-      popups.splice(0, popups.length - MAX_POPUPS);
-    }
+    trimPopups();
   }
+
+  // Prefer dropping short hit labels over celebration banners when over cap.
+  // Old FIFO splice(0, …) nuked whole earlier clears at once.
+  function trimPopups(){
+    if(popups.length <= MAX_POPUPS) return;
+    const overflow = popups.length - MAX_POPUPS;
+    const rank = (p) => {
+      if(p && p.ephemeral) return 0;
+      if(p && p.big) return 3;
+      if(p && (p.duration || 0) >= 1400) return 2;
+      return 1;
+    };
+    const order = popups
+      .map((p, i) => ({p, i, r: rank(p), t0: p.t0 || 0}))
+      .sort((a, b) => a.r - b.r || a.t0 - b.t0 || a.i - b.i);
+    const drop = new Set(order.slice(0, overflow).map(o => o.i));
+    popups = popups.filter((_, i) => !drop.has(i));
+  }
+
   function spawnHitPopup(x, y, text, color){
     const now = performance.now();
     // Peg traffic is dense — keep chip awards, but don't flood the canvas.
@@ -6817,7 +6834,8 @@
       text,
       color: color || '#ffffff',
       t0: now,
-      duration: 650
+      duration: 650,
+      ephemeral: true
     });
     if(!resolving && !looping) startLoop();
   }
