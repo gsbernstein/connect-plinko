@@ -3331,7 +3331,7 @@
   // ---- idle upgrades ----
   const SAVE_KEY = 'plinkoPokerIdle_v1';
   const SETTINGS_KEY = 'plinkoPokerSettings_v1';
-  const SAVE_VERSION = 26;
+  const SAVE_VERSION = 27;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
   const RELEASE_URL = new URL('version.json', location.href).href;
@@ -3346,6 +3346,17 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
+    {
+      id: 95,
+      date: 'Jul 27, 2026',
+      title: 'They Know Me & Kickbacks',
+      items: [
+        'New VIP track: They Know Me — merges Seed Stack, House Edge, Quick Deal, Pin Privilege, and Felt Wax.',
+        'Every level banks starting chips; higher tiers add permanent Hot Streak, Auto Dealer, Kickbacks, and Felt Grease bonuses, then upgrade carryover.',
+        'Rack Discount, Comp Card, Open Blind, and Quest Ink stay separate.',
+        'Pin Tip, Rail Tax, and Sweep Stakes merge into one shop upgrade: Kickbacks.'
+      ]
+    },
     {
       id: 94,
       date: 'Jul 27, 2026',
@@ -4207,31 +4218,13 @@
       unlockAt: 5
     },
     {
-      id: 'bumperPayout',
-      name: 'Rail Tax',
-      desc: 'Earn chips whenever a card hits the bumper arch for a full column.',
-      baseCost: 50,
-      costScale: 1.7,
+      id: 'houseCut',
+      name: 'Kickbacks',
+      desc: 'Earn chips from peg hits, bumper arches, and floor clears. Each level upgrades all three.',
+      baseCost: 80,
+      costScale: 1.75,
       maxLevel: 25,
       unlockAt: 5
-    },
-    {
-      id: 'pinPayout',
-      name: 'Pin Tip',
-      desc: 'Earn chips whenever a card bounces off a peg.',
-      baseCost: 120,
-      costScale: 1.8,
-      maxLevel: 25,
-      unlockAt: 6
-    },
-    {
-      id: 'floorPayout',
-      name: 'Sweep Stakes',
-      desc: 'Earn chips when a full board triggers a floor clear.',
-      baseCost: 90,
-      costScale: 1.8,
-      maxLevel: 20,
-      unlockAt: 7
     },
     {
       id: 'feltGrease',
@@ -4302,7 +4295,7 @@
   const SHOP_RECOMMEND_PRIORITY = [
     { id: 'autoDealer', until: 6 },
     { id: 'wildCard', until: 1 },
-    { id: 'pinPayout', until: 1 },
+    { id: 'houseCut', until: 1 },
     { id: 'highCut', until: 1 },
     { id: 'suitCut', until: 2 }
   ];
@@ -4597,7 +4590,7 @@
       stat: 'royalFlushes', secret: true, infinite: true,
       scale: { targetGrowth: 1.75, compPerLevel: 2, compCap: 40 },
       tiers: [
-        { target: 1, reward: { comps: 5, prestige: 'houseEdge' } },
+        { target: 1, reward: { comps: 5, prestige: 'theyKnowMe' } },
         { target: 2, reward: { comps: 8 } },
         { target: 5, reward: { comps: 12, prestige: 'compCard' } }
       ]
@@ -4805,20 +4798,12 @@
   // Permanent VIP perks bought with comps from Cash Out.
   const PRESTIGE_DEFS = [
     {
-      id: 'houseEdge',
-      name: 'House Edge',
-      desc: '+1 Hot Streak level permanently. Raises Hot Streak’s buy cost like a normal level. Capped at Hot Streak max.',
+      id: 'theyKnowMe',
+      name: 'They Know Me',
+      desc: 'Improve every fresh table. Always bank starting chips; higher levels add permanent Hot Streak, Auto Dealer, Kickbacks, and Felt Grease bonuses, then carry part of your best upgrade into the next run.',
       baseCost: 1,
-      costScale: 1.65,
-      maxLevel: 10
-    },
-    {
-      id: 'seedStack',
-      name: 'Seed Stack',
-      desc: 'Start with chips after Cash Out.',
-      baseCost: 1,
-      costScale: 1.55,
-      maxLevel: 20
+      costScale: 1.58,
+      maxLevel: 25
     },
     {
       id: 'rackDiscount',
@@ -4843,30 +4828,6 @@
       baseCost: 2,
       costScale: 1.95,
       maxLevel: 5
-    },
-    {
-      id: 'quickDeal',
-      name: 'Quick Deal',
-      desc: '+1 Auto Dealer level permanently. Raises Auto Dealer’s buy cost like a normal level. Capped at Auto Dealer max.',
-      baseCost: 2,
-      costScale: 1.9,
-      maxLevel: 10
-    },
-    {
-      id: 'pinPrivilege',
-      name: 'Pin Privilege',
-      desc: '+1 Pin Tip level permanently. Raises Pin Tip’s buy cost like a normal level. Capped at Pin Tip max.',
-      baseCost: 2,
-      costScale: 1.9,
-      maxLevel: 10
-    },
-    {
-      id: 'feltWax',
-      name: 'Felt Wax',
-      desc: '+1 Felt Grease level permanently. Raises Felt Grease’s buy cost like a normal level. Capped at Felt Grease max.',
-      baseCost: 2,
-      costScale: 1.9,
-      maxLevel: 10
     },
     {
       id: 'questInk',
@@ -4966,7 +4927,7 @@
     {
       id: 'siegeWeapons',
       name: 'Siege Weapons',
-      desc: 'Spiked cards smash bumpers for Rail Tax and clear columns. Lv 2: every column on that bumper. Lv 3: landing slam clears the column with combo payout. Toggle On/Off anytime.',
+      desc: 'Spiked cards smash bumpers for Kickbacks chips and clear columns. Lv 2: every column on that bumper. Lv 3: landing slam clears the column with combo payout. Toggle On/Off anytime.',
       baseCost: 55,
       costScale: 2.2,
       maxLevel: 3,
@@ -5003,6 +4964,9 @@
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
+  // Peak purchased table-upgrade level this run — They Know Me carryover on Cash Out.
+  let runPeakUpgradeId = null;
+  let runPeakUpgradeLevel = 0;
   // Pause switches for auto systems — ownership stays; automation can be muted.
   const AUTO_TOGGLE_IDS = [
     'autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'controlBooth',
@@ -5126,6 +5090,50 @@
 
   function purchasedLevel(id){ return upgrades[id] || 0; }
   function prestigeLevel(id){ return prestigeUpgrades[id] || 0; }
+
+  // They Know Me — next-table VIP track: seed chips + permanent skill bonuses + carryover.
+  const THEY_KNOW_ME_CAPS = {
+    seedStack: 20,
+    houseEdge: 10,
+    quickDeal: 10,
+    pinPrivilege: 10,
+    feltWax: 10
+  };
+  const THEY_KNOW_ME_UNLOCKS = {
+    seedStack: 1,
+    houseEdge: 4,
+    quickDeal: 8,
+    pinPrivilege: 12,
+    feltWax: 16,
+    carryover: 20
+  };
+
+  function theyKnowMeLevel(){
+    return prestigeLevel('theyKnowMe');
+  }
+
+  function theyKnowMeEffectLevel(key){
+    const lvl = theyKnowMeLevel();
+    const unlock = THEY_KNOW_ME_UNLOCKS[key];
+    if(!unlock || lvl < unlock) return 0;
+    const cap = THEY_KNOW_ME_CAPS[key] || 0;
+    return Math.min(cap, lvl - unlock + 1);
+  }
+
+  function theyKnowMeCarryoverPercent(){
+    const lvl = theyKnowMeLevel();
+    if(lvl < THEY_KNOW_ME_UNLOCKS.carryover) return 0;
+    // 15% at Lv 20 → 50% at Lv 25.
+    return Math.min(50, 15 + (lvl - 20) * 7);
+  }
+
+  function noteRunUpgradePeak(id){
+    const lvl = purchasedLevel(id);
+    if(lvl > runPeakUpgradeLevel){
+      runPeakUpgradeLevel = lvl;
+      runPeakUpgradeId = id;
+    }
+  }
 
   function isAutoEnabled(id){
     return autoEnabled[id] !== false;
@@ -5334,13 +5342,13 @@
   }
 
   function burnTickPayout(){
-    // Modest DoT — scales with Pin Tip / Blind / run meta so mid-game fire matters.
-    const pin = Math.max(1, upgradeLevel('pinPayout'));
+    // Modest DoT — scales with Kickbacks / Blind / run meta so mid-game fire matters.
+    const pin = Math.max(1, upgradeLevel('houseCut'));
     return Math.max(1, Math.floor((2 + pin * 1.5) * blindMultiplier('pin') * effectiveMetaMultiplier()));
   }
 
   function burnTickPayoutDisplay(){
-    const pin = Math.max(1, upgradeLevel('pinPayout'));
+    const pin = Math.max(1, upgradeLevel('houseCut'));
     return Math.max(1, Math.floor((2 + pin * 1.5) * blindMultiplier('pin') * shopMetaMultiplier()));
   }
 
@@ -5373,10 +5381,10 @@
 
   // Permanent VIP bonus levels for a table skill (count toward effective level & buy cost).
   function prestigeBonusLevels(id){
-    if(id === 'autoDealer') return prestigeLevel('quickDeal');
-    if(id === 'pinPayout') return prestigeLevel('pinPrivilege');
-    if(id === 'hotStreak') return prestigeLevel('houseEdge');
-    if(id === 'feltGrease') return prestigeLevel('feltWax');
+    if(id === 'autoDealer') return theyKnowMeEffectLevel('quickDeal');
+    if(id === 'houseCut') return theyKnowMeEffectLevel('pinPrivilege');
+    if(id === 'hotStreak') return theyKnowMeEffectLevel('houseEdge');
+    if(id === 'feltGrease') return theyKnowMeEffectLevel('feltWax');
     return 0;
   }
 
@@ -5405,6 +5413,7 @@
     const before = purchasedLevel(id);
     const next = Math.min(maxPurchasableLevel(id), before + n);
     upgrades[id] = next;
+    noteRunUpgradePeak(id);
     return next - before;
   }
 
@@ -5414,7 +5423,7 @@
   }
 
   function startingChips(){
-    const lvl = prestigeLevel('seedStack');
+    const lvl = theyKnowMeEffectLevel('seedStack');
     if(!lvl) return 0;
     // 50 → ~1.5k by mid levels, scales into the tens of thousands.
     return Math.floor(50 * lvl * Math.pow(1.35, lvl - 1));
@@ -6638,12 +6647,12 @@
   }
 
   function pinHitPayout(){
-    const lvl = upgradeLevel('pinPayout');
+    const lvl = upgradeLevel('houseCut');
     return lvl ? Math.floor(lvl * blindMultiplier('pin') * effectiveMetaMultiplier()) : 0;
   }
 
   function pinHitPayoutDisplay(){
-    const lvl = upgradeLevel('pinPayout');
+    const lvl = upgradeLevel('houseCut');
     return lvl ? Math.floor(lvl * blindMultiplier('pin') * shopMetaMultiplier()) : 0;
   }
 
@@ -7661,12 +7670,9 @@
       case 'wildCard':
         if(!lvl) return 'No wilds';
         return (wildCardChance() * 100).toFixed(1).replace(/\.0$/, '') + '% wild';
-      case 'pinPayout':
-        return lvl ? ('+' + pinHitPayoutDisplay() + ' / peg') : 'No payout';
-      case 'bumperPayout':
-        return lvl ? ('+' + bumperHitPayoutDisplay() + ' / bumper') : 'No payout';
-      case 'floorPayout':
-        return lvl ? ('+' + floorClearPayoutDisplay() + ' / clear') : 'No payout';
+      case 'houseCut':
+        if(!lvl) return 'No tip · no tax · no sweep';
+        return '+' + pinHitPayoutDisplay() + ' / peg · +' + bumperHitPayoutDisplay() + ' / bumper · +' + floorClearPayoutDisplay() + ' / clear';
       case 'highCut': {
         if(!lvl) return 'All ranks';
         // Lv1 burns 2s, Lv2 burns 2–3, … Lv8 burns 2–9.
@@ -7701,12 +7707,22 @@
   function prestigeEffectText(def){
     const lvl = prestigeLevel(def.id);
     switch(def.id){
-      case 'houseEdge':
-        return lvl
-          ? ('+' + lvl + ' Hot Streak · now Lv ' + upgradeLevel('hotStreak'))
-          : 'No Hot Streak bonus';
-      case 'seedStack':
-        return lvl ? (formatNum(startingChips()) + ' start') : 'Empty pockets';
+      case 'theyKnowMe':{
+        const parts = [];
+        const seed = theyKnowMeEffectLevel('seedStack');
+        parts.push(seed ? (formatNum(startingChips()) + ' start') : 'Empty pockets');
+        const edge = theyKnowMeEffectLevel('houseEdge');
+        if(edge) parts.push('+' + edge + ' Hot Streak');
+        const deal = theyKnowMeEffectLevel('quickDeal');
+        if(deal) parts.push('+' + deal + ' Auto Dealer');
+        const tip = theyKnowMeEffectLevel('pinPrivilege');
+        if(tip) parts.push('+' + tip + ' Kickbacks');
+        const wax = theyKnowMeEffectLevel('feltWax');
+        if(wax) parts.push('+' + wax + ' Felt Grease');
+        const carry = theyKnowMeCarryoverPercent();
+        if(carry) parts.push(carry + '% best upgrade carries');
+        return parts.join(' · ');
+      }
       case 'rackDiscount':
         return lvl
           ? (Math.round((1 - upgradeCostMult()) * 100) + '% off')
@@ -7719,18 +7735,6 @@
         if(!lvl) return 'Upright gravity';
         if(!isAutoEnabled('tableTilt')) return 'Paused';
         return 'Steer up to ±' + tableTiltMaxDeg() + '°';
-      case 'quickDeal':
-        return lvl
-          ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
-          : 'No Auto Dealer bonus';
-      case 'pinPrivilege':
-        return lvl
-          ? ('+' + lvl + ' Pin Tip · now Lv ' + upgradeLevel('pinPayout'))
-          : 'No Pin Tip bonus';
-      case 'feltWax':
-        return lvl
-          ? ('+' + lvl + ' Felt Grease · now Lv ' + upgradeLevel('feltGrease'))
-          : 'No Felt Grease bonus';
       case 'questInk':{
         const rar = QUEST_RARITIES[maxQuestRarityIndex()] || 'common';
         const label = (QUEST_RARITY[rar] || QUEST_RARITY.common).label;
@@ -7796,7 +7800,18 @@
   }
 
   function applyRunStartBonuses(){
+    const peakId = runPeakUpgradeId;
+    const peakLvl = runPeakUpgradeLevel;
     upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));
+    const carryPct = theyKnowMeCarryoverPercent();
+    if(carryPct > 0 && peakId && peakLvl > 0){
+      const carried = Math.floor(peakLvl * carryPct / 100);
+      if(carried > 0){
+        upgrades[peakId] = Math.min(maxPurchasableLevel(peakId), carried);
+      }
+    }
+    runPeakUpgradeId = null;
+    runPeakUpgradeLevel = 0;
     score = startingChips();
     lifetime = 0;
     runLevel = 1;
@@ -7888,6 +7903,39 @@
         const autoDef = UPGRADE_DEFS.find(u => u.id === 'autoDealer');
         const migrated = Math.min(autoDef.maxLevel, Math.floor(data.upgrades.multiDeal));
         if(migrated > upgradeLevel('autoDealer')) upgrades.autoDealer = migrated;
+      }
+      // Kickbacks — merge Pin Tip, Rail Tax, and Sweep Stakes into one upgrade.
+      if((data.v || 0) < 27 && data.upgrades && typeof data.upgrades === 'object'){
+        const u = data.upgrades;
+        let migrated = purchasedLevel('houseCut');
+        for(const legacyId of ['pinPayout', 'bumperPayout', 'floorPayout']){
+          const old = typeof u[legacyId] === 'number' ? Math.floor(u[legacyId]) : 0;
+          if(old > migrated) migrated = old;
+        }
+        if(migrated > 0){
+          const def = UPGRADE_DEFS.find(d => d.id === 'houseCut');
+          upgrades.houseCut = Math.min(def ? def.maxLevel : 25, migrated);
+        }
+      }
+      // They Know Me — merge Seed Stack + House Edge / Quick Deal / Pin Privilege / Felt Wax.
+      if((data.v || 0) < 27 && data.prestigeUpgrades && typeof data.prestigeUpgrades === 'object'){
+        const pu = data.prestigeUpgrades;
+        let migrated = prestigeLevel('theyKnowMe');
+        const skillSources = [
+          ['seedStack', 0],
+          ['houseEdge', 3],
+          ['quickDeal', 7],
+          ['pinPrivilege', 11],
+          ['feltWax', 15]
+        ];
+        for(const [legacyId, offset] of skillSources){
+          const old = typeof pu[legacyId] === 'number' ? Math.floor(pu[legacyId]) : 0;
+          if(old > 0) migrated = Math.max(migrated, old + offset);
+        }
+        if(migrated > 0){
+          const def = PRESTIGE_DEFS.find(u => u.id === 'theyKnowMe');
+          prestigeUpgrades.theyKnowMe = Math.min(def ? def.maxLevel : 25, migrated);
+        }
       }
       // Auto Purge moved from table upgrades to VIP perks.
       if(data.upgrades && typeof data.upgrades === 'object'){
@@ -8101,6 +8149,8 @@
     suitBombReadyAt = 0;
     suitBombPickerMinimized = false;
     pendingSuitBomb = null;
+    runPeakUpgradeId = null;
+    runPeakUpgradeLevel = 0;
     chainStep = 0;
     pendingChain = 0;
     resumeHeaterChain = 0;
@@ -8151,7 +8201,7 @@
     updateAutoStatus();
     updateSuitBombUI(performance.now(), true);
     updateToggleDockUI();
-    // Spend Seed Stack / free levels into the rack immediately if Pit Boss is owned.
+    // Spend starting chips / carryover into the rack immediately if Pit Boss is owned.
     maybeAutoBuy(performance.now());
     return true;
   }
