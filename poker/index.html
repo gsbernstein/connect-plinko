@@ -3083,6 +3083,7 @@
       title: 'Crowned kings',
       items: [
         'King Me kings wear a tiny golden crown on the letter K — another crown stacked on it for each merge (double, triple, …), slamming down onto the K.',
+        'Kings merge wherever they meet — settled on the board or colliding through the pins.',
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.',
         'Five of a kind pops with !?! — six gets an interrobang ‽, and higher kinds stack more.'
@@ -4387,7 +4388,7 @@
     {
       id: 'kingMe',
       name: 'King Me',
-      desc: 'When two kings of the same suit meet, they merge into a crowned king. Matching crowns merge again (double, triple, …) with exponentially bigger payouts. Stacked kings count as multiple kings in poker hands. Toggle On/Off anytime.',
+      desc: 'When two kings of the same suit meet — on the board or mid-fall through the pins — they merge into a crowned king. Matching crowns merge again (double, triple, …) with exponentially bigger payouts. Stacked kings count as multiple kings in poker hands. Toggle On/Off anytime.',
       baseCost: 120,
       costScale: 1,
       maxLevel: 1,
@@ -7981,8 +7982,8 @@
   }
 
   function sweepExplodedBalls(){
-    if(!balls.some(b => b.exploded)) return;
-    balls = balls.filter(b => !b.exploded);
+    if(!balls.some(b => b.exploded || b.kingMerged)) return;
+    balls = balls.filter(b => !b.exploded && !b.kingMerged);
     scheduleCountingUiRefresh();
   }
 
@@ -8170,17 +8171,21 @@
   }
 
   function collideBallWithSettledPieces(ball){
+    if(ball.exploded || ball.kingMerged) return;
     const PIECE_R = 32;
     for(let c=0;c<COLS;c++){
       const px = c*CELL + CELL/2;
       for(let i=0;i<stack[c].length;i++){
         const entry = stack[c][i];
         if(entry.type!=='piece') continue;
-        const py = PEG_ZONE + (ROWS-1-i)*CELL + CELL/2;
+        const row = ROWS - 1 - i;
+        const py = PEG_ZONE + row*CELL + CELL/2;
         const dx = ball.x - px, dy = ball.y - py;
         const dist = Math.hypot(dx, dy);
         const minDist = ball.radius + PIECE_R - 4;
         if(dist < minDist && dist > 0.0001){
+          // King Me: falling chip can merge with a settled peer on contact.
+          if(tryMergeKingBallWithSettled(ball, c, row)) return;
           const nx = dx/dist, ny = dy/dist;
           ball.x = px + nx*minDist;
           ball.y = py + ny*minDist;
@@ -8352,11 +8357,14 @@
   }
 
   function collideBalls(a, b){
+    if(a.exploded || b.exploded || a.kingMerged || b.kingMerged) return;
     if(a.phase==='grid' && b.phase==='grid' && a.targetCol===b.targetCol) return;
     const dx = b.x-a.x, dy = b.y-a.y;
     const dist = Math.hypot(dx,dy);
     const minDist = a.radius+b.radius;
     if(dist < minDist && dist > 0.0001){
+      // King Me: same-suit equal-stack kings fuse on contact anywhere.
+      if(tryMergeKingBalls(a, b)) return;
       const nx = dx/dist, ny = dy/dist;
       const overlap = (minDist-dist)/2;
       a.x -= nx*overlap; a.y -= ny*overlap;
@@ -8410,6 +8418,7 @@
       }
       sweepExplodedBalls();
       resolveBallCollisions();
+      sweepExplodedBalls();
       forceSeatStuckGridBalls();
       physicsAccumulator -= PHYSICS_DT;
       physicsSteps++;
@@ -8547,6 +8556,138 @@
     );
   }
 
+  // Build the crowned result of merging two equal-tier kings.
+  function buildMergedKingCard(a, b, angle){
+    const nextStack = kingStackLevel(a) + 1;
+    let suit = a.suit;
+    let wild = !!isWild(a);
+    if(isWild(a) && !isWild(b)){
+      suit = b.suit;
+      wild = false;
+    } else if(isWild(a) && isWild(b)){
+      wild = true;
+    }
+    const merged = cloneCard(a, {
+      suit,
+      wild: wild || undefined,
+      kingStack: nextStack,
+      crowned: true,
+      spikes: !!(a.spikes || b.spikes),
+      tier: Math.max(cardTier(a), cardTier(b)) || undefined,
+      angle: angle || a.angle || 0,
+      crownSlamAt: performance.now()
+    });
+    if(!wild) delete merged.wild;
+    if(!merged.tier) delete merged.tier;
+    return merged;
+  }
+
+  function celebrateKingMerge(x, y, nextStack, merged){
+    const payout = kingMergePayout(nextStack);
+    const label = kingMergeLabel(nextStack);
+    if(payout > 0) awardChips(payout, {x, y});
+    pushPopup({
+      x,
+      y: y - 12,
+      text: label + (payout > 0 ? (' +' + payout) : ''),
+      color: '#F0D78C',
+      t0: performance.now(),
+      duration: 1000 + Math.min(400, nextStack * 80),
+      big: true,
+      fontSize: 26 + Math.min(10, nextStack * 2),
+      floatBoost: 44 + nextStack * 4,
+      slam: 1.7 + Math.min(0.5, nextStack * 0.08),
+      slamMs: 200,
+      glow: 18 + nextStack * 2,
+      tilt: -0.05
+    });
+    if(bigRoomActive()){
+      spawnExplosion(x, y, merged);
+    }
+    markHintsDirty();
+    scheduleCountingUiRefresh();
+    startLoop();
+  }
+
+  // Drop a falling chip from play without storm VFX (King Me absorb).
+  function discardFallingKingBall(ball){
+    if(!ball || ball.kingMerged || ball.exploded) return;
+    if(isPendingSiegeLandBall(ball)){
+      pendingSiegeLand = null;
+    }
+    if(ball.stackEntry != null && ball.targetCol != null){
+      const col = ball.targetCol;
+      const idx = stack[col].indexOf(ball.stackEntry);
+      if(idx >= 0){
+        stack[col].splice(idx, 1);
+        rebuildColumnFromStack(col);
+        recomputeBumpers();
+      }
+      ball.stackEntry = null;
+      ball.targetCol = null;
+      ball.row = null;
+      ball.landed = false;
+    }
+    ball.kingMerged = true;
+    ball.vx = 0;
+    ball.vy = 0;
+    ball.spin = 0;
+  }
+
+  function applyMergedCardToBall(ball, merged){
+    ball.card = merged;
+    ball.angle = merged.angle || ball.angle || 0;
+    if(ball.stackEntry && ball.stackEntry.type === 'ball'){
+      ball.stackEntry.card = merged;
+      ball.stackEntry.angle = ball.angle;
+    }
+  }
+
+  // Two in-flight kings collide → one crowned survivor keeps falling.
+  function tryMergeKingBalls(a, b){
+    if(!kingMeActive() || gameOver) return false;
+    if(!a || !b || a.exploded || b.exploded || a.kingMerged || b.kingMerged) return false;
+    if(isPendingSiegeLandBall(a) || isPendingSiegeLandBall(b)) return false;
+    if(!kingsCanMerge(a.card, b.card)) return false;
+
+    // Prefer the lower chip as survivor (more "landed"); else keep a.
+    const survivor = (a.y >= b.y) ? a : b;
+    const victim = survivor === a ? b : a;
+    const merged = buildMergedKingCard(survivor.card, victim.card, survivor.angle);
+    const nextStack = kingStackLevel(merged);
+    const x = (survivor.x + victim.x) * 0.5;
+    const y = (survivor.y + victim.y) * 0.5;
+    discardFallingKingBall(victim);
+    applyMergedCardToBall(survivor, merged);
+    // Blend motion so the fuse doesn't yank sideways.
+    survivor.vx = (survivor.vx + victim.vx) * 0.5;
+    survivor.vy = Math.min(survivor.vy, victim.vy);
+    survivor.x = x;
+    survivor.y = y;
+    celebrateKingMerge(x, y, nextStack, merged);
+    return true;
+  }
+
+  // Falling king touches a settled peer → absorb the seat into the faller.
+  function tryMergeKingBallWithSettled(ball, col, row){
+    if(!kingMeActive() || gameOver) return false;
+    if(!ball || ball.exploded || ball.kingMerged) return false;
+    if(isPendingSiegeLandBall(ball)) return false;
+    const stackIdx = ROWS - 1 - row;
+    if(stackIdx < 0 || stackIdx >= stack[col].length) return false;
+    const entry = stack[col][stackIdx];
+    if(!entry || entry.type !== 'piece') return false;
+    if(!kingsCanMerge(ball.card, entry.card)) return false;
+
+    const victim = removeSettledPieceAt(col, row);
+    if(!victim) return false;
+    const merged = buildMergedKingCard(ball.card, victim, ball.angle);
+    const nextStack = kingStackLevel(merged);
+    applyMergedCardToBall(ball, merged);
+    celebrateKingMerge(ball.x, ball.y, nextStack, merged);
+    return true;
+  }
+
   function removeSettledPieceAt(col, row){
     const stackIdx = ROWS - 1 - row;
     if(stackIdx < 0 || stackIdx >= stack[col].length){
@@ -8591,7 +8732,7 @@
     return options[0];
   }
 
-  // Merge one pair at (col,row). Returns true if a merge happened.
+  // Merge one settled pair at (col,row). Returns true if a merge happened.
   function tryKingMergeOnce(col, row){
     if(!kingMeActive() || gameOver) return false;
     const stackIdx = ROWS - 1 - row;
@@ -8611,58 +8752,14 @@
     if(newIdx < 0) return false;
     const newRow = ROWS - 1 - newIdx;
 
-    const nextStack = kingStackLevel(card) + 1;
-    // Suit: keep a real suit when a wild merges into a suited king.
-    let suit = card.suit;
-    let wild = !!isWild(card);
-    if(isWild(card) && !isWild(victim)){
-      suit = victim.suit;
-      wild = false;
-    } else if(isWild(card) && isWild(victim)){
-      wild = true;
-    }
-    const merged = cloneCard(card, {
-      suit,
-      wild: wild || undefined,
-      kingStack: nextStack,
-      crowned: true,
-      spikes: !!(card.spikes || victim.spikes),
-      tier: Math.max(cardTier(card), cardTier(victim)) || undefined,
-      angle: card.angle || entry.angle || 0,
-      crownSlamAt: performance.now()
-    });
-    if(!wild) delete merged.wild;
-    if(!merged.tier) delete merged.tier;
+    const merged = buildMergedKingCard(card, victim, card.angle || entry.angle || 0);
+    const nextStack = kingStackLevel(merged);
     entry.card = merged;
     entry.angle = merged.angle || 0;
     rebuildColumnFromStack(col);
 
     const pos = cellCenter(col, newRow);
-    const payout = kingMergePayout(nextStack);
-    const label = kingMergeLabel(nextStack);
-    if(payout > 0) awardChips(payout, pos);
-    pushPopup({
-      x: pos.x,
-      y: pos.y - 12,
-      text: label + (payout > 0 ? (' +' + payout) : ''),
-      color: '#F0D78C',
-      t0: performance.now(),
-      duration: 1000 + Math.min(400, nextStack * 80),
-      big: true,
-      fontSize: 26 + Math.min(10, nextStack * 2),
-      floatBoost: 44 + nextStack * 4,
-      slam: 1.7 + Math.min(0.5, nextStack * 0.08),
-      slamMs: 200,
-      glow: 18 + nextStack * 2,
-      tilt: -0.05
-    });
-    // Big Room: merges spark like a small crown blast.
-    if(bigRoomActive()){
-      spawnExplosion(pos.x, pos.y, merged);
-    }
-    markHintsDirty();
-    scheduleCountingUiRefresh();
-    startLoop();
+    celebrateKingMerge(pos.x, pos.y, nextStack, merged);
     return true;
   }
 
