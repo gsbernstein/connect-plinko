@@ -2629,6 +2629,10 @@
     // crowned mirrors kingStack>=1 (legacy + draw/helpers).
     if((card && card.crowned) || ks > 0) c.crowned = true;
     if(card && card.spikes) c.spikes = true;
+    // Ephemeral crown slam timestamp (not persisted).
+    if(card && typeof card.crownSlamAt === 'number' && card.crownSlamAt > 0){
+      c.crownSlamAt = card.crownSlamAt;
+    }
     if(extra) Object.assign(c, extra);
     if((c.kingStack | 0) > 0) c.crowned = true;
     return c;
@@ -3078,7 +3082,7 @@
       date: 'Jul 27, 2026',
       title: 'Crowned kings',
       items: [
-        'King Me kings wear a tiny golden crown on the letter K — another crown stacked on it for each merge (double, triple, …).',
+        'King Me kings wear a tiny golden crown on the letter K — another crown stacked on it for each merge (double, triple, …), slamming down onto the K.',
         'Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.',
         'Merge popups say KING ME! on the first crown, then DOUBLE KING!, TRIPLE KING!, and so on.'
       ]
@@ -4607,6 +4611,9 @@
   // King Me: same-suit kings that meet merge into taller stacks; payouts double each tier.
   const KING_ME_MERGE_BASE = 48;
   const KING_ME_MERGE_DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+  const KING_CROWN_SLAM_MS = 260;
+  const KING_CROWN_SLAM_SCALE = 2.1;
+  const KING_CROWN_SLAM_DROP = 0.85; // × rankSize — start above the K, slam down
 
   function dropSpawnMult(){
     return pinSplitSpawnMult() * stormBeachesSpawnMult();
@@ -8600,7 +8607,8 @@
       crowned: true,
       spikes: !!(card.spikes || victim.spikes),
       tier: Math.max(cardTier(card), cardTier(victim)) || undefined,
-      angle: card.angle || entry.angle || 0
+      angle: card.angle || entry.angle || 0,
+      crownSlamAt: performance.now()
     });
     if(!wild) delete merged.wild;
     if(!merged.tier) delete merged.tier;
@@ -10058,11 +10066,12 @@
     );
     // King Me: tiny golden crown(s) perched on the letter K (not the chip rim).
     const ks = kingStackLevel(card);
-    if(ks > 0) drawKingCrowns(target, rankX, rankY, rankSize, ks);
+    if(ks > 0) drawKingCrowns(target, rankX, rankY, rankSize, ks, card);
   }
 
   // Tiny 3-point crowns sitting on top of the K glyph. Count = merge tier.
-  function drawKingCrowns(target, rankX, rankY, rankSize, count){
+  // The newest crown slams down onto the K (easeOutBack) when crownSlamAt is set.
+  function drawKingCrowns(target, rankX, rankY, rankSize, count, card){
     const n = Math.min(Math.max(1, count | 0), 5);
     // Sized to the letter, not the chip radius — stays inside the hole with the K.
     const cw = rankSize * (n >= 3 ? 0.28 : 0.36);
@@ -10072,12 +10081,29 @@
     // Sit just above the K's top edge (baseline middle ± ~0.4× glyph height).
     const baseY = rankY - rankSize * 0.42;
     const midX = rankX;
+    const slamAt = card && card.crownSlamAt;
+    const slamAge = (typeof slamAt === 'number' && slamAt > 0)
+      ? (performance.now() - slamAt)
+      : Infinity;
+    const slamming = slamAge < KING_CROWN_SLAM_MS;
+    const slamT = slamming ? easeOutBack(slamAge / KING_CROWN_SLAM_MS) : 1;
+    const slamScale = KING_CROWN_SLAM_SCALE + (1 - KING_CROWN_SLAM_SCALE) * slamT;
+    const slamDrop = rankSize * KING_CROWN_SLAM_DROP * (1 - slamT);
     target.save();
     for(let i = 0; i < n; i++){
-      const cx = midX - totalW / 2 + i * gap;
+      const restX = midX - totalW / 2 + i * gap;
       // Fan extras slightly so a stack of crowns still reads on the letter.
-      const cy = baseY - i * ch * 0.22;
-      drawOneKingCrown(target, cx, cy, cw, ch);
+      const restY = baseY - i * ch * 0.22;
+      const isNew = i === n - 1;
+      if(isNew && slamming){
+        target.save();
+        target.translate(restX, restY - slamDrop);
+        target.scale(slamScale, slamScale);
+        drawOneKingCrown(target, 0, 0, cw, ch);
+        target.restore();
+      } else {
+        drawOneKingCrown(target, restX, restY, cw, ch);
+      }
     }
     target.restore();
   }
