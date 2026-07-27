@@ -9506,11 +9506,10 @@
       const fx = TEXT_JUICE[tier] || TEXT_JUICE.normal;
       const bangs = handPopupPunctuation(g.name, fx);
       const burnCount = g.burnCount || 0;
-      const multTag = cardMult > 1.001 ? (' ×' + cardMult.toFixed(2).replace(/\.00$/, '')) : '';
       const sign = Math.random() < 0.5 ? -1 : 1;
       pushPopup({
         x, y,
-        text: g.name + multTag + bangs + ' +' + formatNum(pts),
+        text: g.name + bangs + ' +' + formatNum(pts),
         color: burnCount > 0
           ? BIG_ROOM_BURN_COLOR
           : brightenColor(g.color || '#ffffff', fx.bright),
