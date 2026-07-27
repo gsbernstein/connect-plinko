@@ -3340,6 +3340,14 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 99,
+      date: 'Jul 27, 2026',
+      title: 'Shop order tidy-up',
+      items: [
+        'Shop list reordered so Lv1 costs mostly rise down the page — Multi Deal moves to its Lv8 unlock band, Sweep Stakes and Pin Tip swap places.',
+      ]
+    },
+    {
       id: 98,
       date: 'Jul 27, 2026',
       title: 'Claim cue',
@@ -4174,6 +4182,7 @@
   // Shop order = array order. unlockAt = run level required to first reveal.
   // Once revealed (via maxRunLevel), upgrades stay visible across Cash Out.
   // Flow: deal → score → passives → feel/aim → shoe → suit tools.
+  // Roughly ascending Lv1 cost down the list (same-unlock pairs cheapest first).
   const UPGRADE_DEFS = [
     {
       id: 'autoDealer',
@@ -4188,15 +4197,6 @@
       costLateAt: 6,
       costLateBase: 380,
       costLateScale: 2.12
-    },
-    {
-      id: 'multiDeal',
-      name: 'Multi Deal',
-      desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.',
-      baseCost: 1500,
-      costScale: 2.35,
-      maxLevel: 6,
-      unlockAt: 8
     },
     {
       id: 'bigBlind',
@@ -4226,15 +4226,6 @@
       unlockAt: 4
     },
     {
-      id: 'wildCard',
-      name: 'Wild Card',
-      desc: 'Chance to deal a wild card that counts as any suit for flushes. Higher levels deal them more often.',
-      baseCost: 175,
-      costScale: 2.0,
-      maxLevel: 12,
-      unlockAt: 5
-    },
-    {
       id: 'bumperPayout',
       name: 'Rail Tax',
       desc: 'Earn chips whenever a card hits the bumper arch for a full column.',
@@ -4244,13 +4235,13 @@
       unlockAt: 5
     },
     {
-      id: 'pinPayout',
-      name: 'Pin Tip',
-      desc: 'Earn chips whenever a card bounces off a peg.',
-      baseCost: 120,
-      costScale: 1.8,
-      maxLevel: 25,
-      unlockAt: 6
+      id: 'wildCard',
+      name: 'Wild Card',
+      desc: 'Chance to deal a wild card that counts as any suit for flushes. Higher levels deal them more often.',
+      baseCost: 175,
+      costScale: 2.0,
+      maxLevel: 12,
+      unlockAt: 5
     },
     {
       id: 'floorPayout',
@@ -4260,6 +4251,15 @@
       costScale: 1.8,
       maxLevel: 20,
       unlockAt: 7
+    },
+    {
+      id: 'pinPayout',
+      name: 'Pin Tip',
+      desc: 'Earn chips whenever a card bounces off a peg.',
+      baseCost: 120,
+      costScale: 1.8,
+      maxLevel: 25,
+      unlockAt: 6
     },
     {
       id: 'feltGrease',
@@ -4273,6 +4273,15 @@
       costLateAt: 12,
       costLateBase: 58000,
       costLateScale: 2.0
+    },
+    {
+      id: 'multiDeal',
+      name: 'Multi Deal',
+      desc: 'Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.',
+      baseCost: 1500,
+      costScale: 2.35,
+      maxLevel: 6,
+      unlockAt: 8
     },
     {
       id: 'shortFuse',
