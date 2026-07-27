@@ -4576,8 +4576,8 @@
     { id: 'shortFuse', short: 'Fuse', source: 'upgrade' },
     { id: 'suitBomb', short: 'Purge', source: 'upgrade', picker: true },
     { id: 'autoSuitBomb', short: 'Auto Purge', source: 'prestige' },
-    { id: 'questDesk', short: 'Quests', source: 'prestige' },
-    { id: 'pitBoss', short: 'Pit Boss', source: 'prestige' },
+    { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
+    { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
     { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
     { id: 'pinSplit', short: 'Mitosis', source: 'prestige' },
     { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
@@ -12418,6 +12418,9 @@
       if(def.picker){
         on = suitBombUiVisible();
         label = on ? 'Hide' : 'Show';
+      } else if(def.autoManual){
+        on = isAutoEnabled(id);
+        label = on ? 'Auto' : 'Manual';
       } else {
         on = isAutoEnabled(id);
         label = on ? 'On' : 'Off';
