@@ -3376,7 +3376,7 @@ loadGameData().then(function(){
   const SAVE_VERSION = 27;
   // Hosted poker/version.json is polled so long-lived tabs can prompt Refresh.
   // Its "v" must match CHANGELOG_LATEST_ID (set below after CHANGELOG).
-  const RELEASE_URL = new URL('version.json', location.href).href;
+  const RELEASE_URL = new URL('version.json', window.POKER_DATA_BASE || location.href).href;
   const RELEASE_POLL_MS = 5 * 60 * 1000;
   const RELEASE_DISMISS_KEY = 'plinkoPokerReleaseDismissed';
   // Newest-first — poker/changelog.json (loaded by load-game-data.js).
@@ -12681,8 +12681,8 @@ loadGameData().then(function(){
 }).catch(function(err){
   console.error('Failed to load game data', err);
   var msg = document.createElement('p');
-  msg.style.cssText = 'color:#f7f1e3;padding:2rem;font:1rem system-ui,sans-serif';
-  msg.textContent = 'Failed to load game data. Refresh the page.';
+  msg.style.cssText = 'color:#f7f1e3;padding:2rem;font:1rem system-ui,sans-serif;max-width:52ch;line-height:1.5';
+  msg.textContent = 'Failed to load game data: ' + (err && err.message ? err.message : err);
   document.body.appendChild(msg);
 });
 </script>
