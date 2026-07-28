@@ -7759,7 +7759,7 @@
     return values;
   }
 
-  // Linear: evenly spaced chip values on a snapped step grid (1×, 2×, 3× step …).
+  // Linear: fixed step grid — values are step, 2×step, 3×step… (no per-value snap).
   function chipRateLinearSequence(max){
     if(!(max > 1)) return [];
     const cap = max * 0.97;
@@ -7767,10 +7767,7 @@
     let step = chipRateSnapSingleDigit(rawStep);
     if(step < 1) step = 1;
     const values = [];
-    for(let v = step; v <= cap; v += step){
-      const snapped = chipRateSnapSingleDigit(v);
-      if(!values.length || values[values.length - 1] !== snapped) values.push(snapped);
-    }
+    for(let v = step; v <= cap; v += step) values.push(v);
     return values;
   }
 
