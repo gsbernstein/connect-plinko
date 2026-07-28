@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Plinko Poker</title>
+<title>Plinker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+Symbols+2:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -894,6 +894,15 @@
     color:var(--ink);
     line-height:1.05;
     animation:welcomeFadeUp .55s ease .12s both;
+  }
+  .welcome-tagline{
+    margin:-6px 0 0;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    font-weight:400;
+    letter-spacing:0.06em;
+    color:var(--ink-dim);
+    animation:welcomeFadeUp .55s ease .17s both;
   }
   .welcome-hint{
     margin:0;
@@ -2577,7 +2586,8 @@
           <div class="welcome-chip" aria-hidden="true">
             <img src="welcome-chip.png" width="384" height="384" alt="">
           </div>
-          <h2 class="welcome-brand">Plinko Poker</h2>
+          <h2 class="welcome-brand">Plinker</h2>
+          <p class="welcome-tagline">Plinko + Poker</p>
           <p class="welcome-hint">
             <span class="welcome-hint-tap">Tap anywhere on the board to drop</span>
             <span class="welcome-hint-click">Click anywhere on the board to drop</span>
@@ -2644,7 +2654,7 @@
           <div id="changelogList"></div>
         </div>
         <div class="settings-danger">
-          <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
+          <p class="settings-copy">Wipe this browser’s Plinker save — chips, upgrades, quests, achievements, and VIP progress.</p>
           <button type="button" class="reset" id="resetScores">Reset all progress</button>
         </div>
       </section>
@@ -3353,13 +3363,38 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
-      id: 101,
-      date: 'Jul 27, 2026',
+      id: 104,
+      date: 'Jul 28, 2026',
       title: 'Control Booth tidy-up',
       items: [
         'Remove unnecessary toggles from the dock.',
         'Chips Fly toggle added to the Control Booth column.',
         'Slide Rule Lv2+: Rate toggle in booth and VIP switches Linear / Log (meter stays on at Lv1).',
+      ]
+    },
+    {
+      id: 103,
+      date: 'Jul 28, 2026',
+      title: 'Quick Claim VIP perk',
+      items: [
+        'The ability to hold down on achievements to quickly claim multiple is now a perk, which should improve discoverability.',
+        'Tweaked the logic of some upgrade recommendations (★)',
+      ]
+    },
+    {
+      id: 102,
+      date: 'Jul 28, 2026',
+      title: 'Plinker',
+      items: [
+        'Poker is now Plinker — a portmanteau of Plinko + Poker. Welcome screen, tab title, and settings copy updated.',
+      ]
+    },
+    {
+      id: 101,
+      date: 'Jul 27, 2026',
+      title: 'Shorter number labels',
+      items: [
+        'Chip counts, costs, payouts, and mult abbreviations now cap at three digits (e.g. 1.23M, 999k).',
       ]
     },
     {
@@ -4250,7 +4285,7 @@
     {
       id: 'bumperPayout',
       name: 'Rail Tax',
-      desc: 'Earn chips whenever a card hits the bumper arch for a full column.',
+      desc: 'Earn chips whenever a card hits the bumper arch above a full column.',
       baseCost: 50,
       costScale: 1.7,
       maxLevel: 25,
@@ -4327,7 +4362,7 @@
     {
       id: 'suitBomb',
       name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle to hide the suit picker; tap the bar too.',
+      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle or tap the bar to hide the suit picker.',
       baseCost: 400,
       costScale: 1.85,
       maxLevel: 12,
@@ -4337,7 +4372,7 @@
     {
       id: 'suitCut',
       name: 'Suit Alliance',
-      desc: 'Ally suits for flushes and Suit Purge without removing them from the deck. Lv1: diamonds count as hearts. Lv2: clubs count as spades.',
+      desc: 'Combine suits for flushes and Suit Purge. Lv1: diamonds count as hearts. Lv2: clubs count as spades.',
       baseCost: 6000,
       costScale: 3.5,
       maxLevel: 2,
@@ -4346,7 +4381,7 @@
     {
       id: 'compCage',
       name: 'Cashier\'s Cage',
-      desc: 'Spend a lot of chips to bank Cash Out comps. Each buy adds +1 for this run — a steep late-game sink that feeds VIP, not more chip income.',
+      desc: 'Too many chips? Each buy adds +1 Cash Out comp.',
       baseCost: 500000,
       costScale: 2.2,
       maxLevel: 100,
@@ -4359,10 +4394,12 @@
 
   // Guided "next buy" star — first incomplete unlocked step wins (until = effective level target).
   const SHOP_RECOMMEND_PRIORITY = [
-    { id: 'autoDealer', until: 6 },
-    { id: 'wildCard', until: 1 },
-    { id: 'pinPayout', until: 1 },
-    { id: 'highCut', until: 1 },
+    { id: 'autoDealer', until: 4 },
+    { id: 'wildCard', until: 3 },
+    { id: 'pinPayout', until: 3 },
+    { id: 'feltGrease', until: 3 },
+    { id: 'multiDeal', until: 3 },
+    { id: 'highCut', until: 4 },
     { id: 'suitCut', until: 2 }
   ];
   const VIP_RECOMMEND_PRIORITY = [
@@ -4949,6 +4986,14 @@
       toggleable: true
     },
     {
+      id: 'quickClaim',
+      name: 'Quick Claim',
+      desc: 'Hold a claimable achievement to rip through ready rewards in series.',
+      baseCost: 5,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
       id: 'pitBoss',
       name: 'Pit Boss',
       desc: 'Automatically buy the cheapest affordable table upgrades each tick. Toggle On/Off anytime.',
@@ -4961,7 +5006,7 @@
       id: 'controlBooth',
       name: 'Control Booth',
       desc: 'Show every owned toggle in a column to the right of the board. Toggle On/Off anytime to hide the column.',
-      baseCost: 6,
+      baseCost: 4,
       costScale: 1,
       maxLevel: 1,
       toggleable: true
@@ -4986,7 +5031,7 @@
       id: 'dealMeIn',
       name: 'Deal Me In',
       desc: 'Cards that settle while a hand is flashing can still join that clear — upgrading it or adding another hand to the combo. Toggle On/Off anytime.',
-      baseCost: 55,
+      baseCost: 42,
       costScale: 1,
       maxLevel: 1,
       toggleable: true
@@ -5057,8 +5102,8 @@
       id: 'slideRule',
       name: 'Slide Rule',
       desc: 'Lv1: chips/s meter under Chips. Lv2: switch that meter between Linear and Log scale.',
-      baseCost: 4,
-      costScale: 2,
+      baseCost: 2,
+      costScale: 5,
       maxLevel: 2,
       toggleable: true
     }
@@ -6230,6 +6275,10 @@
     return n;
   }
 
+  function achievementQuickClaimActive(){
+    return prestigeLevel('quickClaim') > 0;
+  }
+
   function claimAchievement(id, opts){
     opts = opts || {};
     const def = ACHIEVEMENT_DEFS.find(c => c.id === id);
@@ -6318,8 +6367,10 @@
         holding: false,
         deferredUi: false,
         x: e.clientX,
-        y: e.clientY,
-        startTimer: setTimeout(()=>{
+        y: e.clientY
+      };
+      if(achievementQuickClaimActive()){
+        hold.startTimer = setTimeout(()=>{
           if(!hold || hold.moved) return;
           hold.holding = true;
           btn.classList.add('is-hold-claim');
@@ -6329,8 +6380,8 @@
               if(!runHoldClaimStep()) clearHold();
             }, ACHIEVEMENT_HOLD_REPEAT_MS);
           }
-        }, ACHIEVEMENT_HOLD_START_MS)
-      };
+        }, ACHIEVEMENT_HOLD_START_MS);
+      }
       try{ btn.setPointerCapture(e.pointerId); }catch(_){}
     });
 
@@ -6705,13 +6756,36 @@
 
   // Short-scale HUD suffixes through Q (quadrillion = 1e15). Quintillion+
   // also wants "Q", so past 1e18 we drop to scientific instead of inventing Qi/Sx…
-  function formatCompactSuffix(n){
-    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
-    if(n < 1e12) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
-    if(n < 1e15) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + 'T';
-    if(n < 1e18) return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+  const FORMAT_NUM_SUFFIXES = ['k', 'M', 'B', 'T', 'Q'];
+  const FORMAT_NUM_SCI_THRESHOLD = 1e18;
+
+  function formatScaledMantissa(scaled){
+    if(scaled >= 100) return String(Math.floor(scaled));
+    if(scaled >= 10) return scaled.toFixed(1).replace(/\.0$/, '');
+    return scaled.toFixed(2).replace(/\.?0+$/, '');
+  }
+
+  function formatAbbrevNum(n, minSuffixIdx){
     if(!Number.isFinite(n)) return String(n);
-    return n.toExponential(2).replace(/\.?0+e/, 'e').replace('e+', 'e');
+    const v = Math.floor(n);
+    if(v >= FORMAT_NUM_SCI_THRESHOLD){
+      return n.toExponential(2).replace(/\.?0+e/, 'e').replace('e+', 'e');
+    }
+    let scale = 1000;
+    let idx = 0;
+    while(idx < minSuffixIdx){
+      scale *= 1000;
+      idx++;
+    }
+    while(idx < FORMAT_NUM_SUFFIXES.length - 1 && v >= scale * 1000){
+      scale *= 1000;
+      idx++;
+    }
+    return formatScaledMantissa(v / scale) + FORMAT_NUM_SUFFIXES[idx];
+  }
+
+  function formatCompactSuffix(n){
+    return formatAbbrevNum(n, 1);
   }
 
   function formatMultFactor(v, noun){
@@ -6720,8 +6794,10 @@
   }
 
   function formatMultShort(v){
-    if(v >= 1e6) return '×' + formatCompactSuffix(v);
+    if(v >= 1000) return '×' + formatNum(v);
     if(v % 1 === 0) return '×' + v;
+    if(v >= 100) return '×' + Math.floor(v);
+    if(v >= 10) return '×' + v.toFixed(1).replace(/\.0$/, '');
     return '×' + v.toFixed(2).replace(/\.?0+$/, '');
   }
 
@@ -7820,10 +7896,9 @@
 
   function formatNum(n){
     if(!Number.isFinite(n)) return '—';
-    if(n < 1000) return String(Math.floor(n));
-    if(n < 10000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k';
-    if(n < 1e6) return Math.floor(n/1000) + 'k';
-    return formatCompactSuffix(n);
+    const v = Math.floor(n);
+    if(v < 1000) return String(v);
+    return formatAbbrevNum(n, 0);
   }
 
   function formatInterval(ms){
@@ -7940,6 +8015,8 @@
       case 'questDesk':
         if(!lvl) return 'Manual claims';
         return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
+      case 'quickClaim':
+        return lvl ? 'Hold to claim in series' : 'Tap one tier at a time';
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
         return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
