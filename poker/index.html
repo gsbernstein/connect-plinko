@@ -266,6 +266,7 @@
     width:1px;
     margin-left:-0.5px;
     background:rgba(255,255,255,0.22);
+    transition:left 0.4s ease-out;
   }
   .chip-rate-tick.is-labeled{
     width:2px;
@@ -7724,23 +7725,6 @@
     syncChipRateVisibility();
   }
 
-  function chipRateTickPositions(){
-    const n = CHIP_RATE_TICK_SLOTS;
-    const out = [];
-    for(let i = 1; i <= n; i++) out.push((i / (n + 1)) * 100);
-    return out;
-  }
-
-  function chipRateValueAtPct(pct, max, logScale){
-    const frac = Math.max(0, Math.min(1, pct / 100));
-    if(logScale){
-      const denom = Math.log1p(max);
-      if(!(denom > 0)) return 0;
-      return Math.expm1(frac * denom);
-    }
-    return max * frac;
-  }
-
   // Snap to a single-digit mantissa × 10^n (1–9 only — never 15, 1.5, etc.).
   function chipRateSnapSingleDigit(v){
     if(!Number.isFinite(v) || v <= 0) return 0;
@@ -7758,6 +7742,53 @@
     return digit * mag;
   }
 
+  // 1, 2, … 9, 10, 20, … 90, 100, … — consecutive single-digit mantissas only.
+  function chipRateMantissaSequence(cap){
+    if(!(cap >= 1)) return [];
+    const values = [];
+    const maxExp = Math.max(0, Math.floor(Math.log10(cap)));
+    for(let exp = 0; exp <= maxExp; exp++){
+      const mag = Math.pow(10, exp);
+      for(let d = 1; d <= 9; d++){
+        const v = d * mag;
+        if(v < 1) continue;
+        if(v > cap) return values;
+        values.push(v);
+      }
+    }
+    return values;
+  }
+
+  // Linear: evenly spaced chip values on a snapped step grid (1×, 2×, 3× step …).
+  function chipRateLinearSequence(max){
+    if(!(max > 1)) return [];
+    const cap = max * 0.97;
+    const rawStep = max / (CHIP_RATE_TICK_SLOTS + 2);
+    let step = chipRateSnapSingleDigit(rawStep);
+    if(step < 1) step = 1;
+    const values = [];
+    for(let v = step; v <= cap; v += step){
+      const snapped = chipRateSnapSingleDigit(v);
+      if(!values.length || values[values.length - 1] !== snapped) values.push(snapped);
+    }
+    return values;
+  }
+
+  function chipRateMilestones(max, logScale){
+    if(!(max > 1)) return [];
+    const cap = max * 0.97;
+    const seq = logScale ? chipRateMantissaSequence(cap) : chipRateLinearSequence(max);
+    const margin = 1.5;
+    const top = 98.5;
+    const visible = [];
+    for(const v of seq){
+      const pct = chipRateFillPct(v, max, logScale);
+      if(pct >= margin && pct <= top) visible.push(v);
+    }
+    // Contiguous tail only — new ticks enter on the right, old ones exit on the left.
+    return visible.slice(-CHIP_RATE_TICK_SLOTS);
+  }
+
   function chipRateTickLabel(v){
     if(!Number.isFinite(v) || v <= 0) return '';
     if(v < 1000) return String(Math.round(v));
@@ -7767,37 +7798,34 @@
   function updateChipRateTicks(max, logScale, ticksEl, sigRef){
     ticksEl = ticksEl || chipRateTicksEl;
     if(!ticksEl) return;
-    const positions = chipRateTickPositions();
     if(!(max > 0)){
       ticksEl.replaceChildren();
       if(!sigRef) lastChipRateTicksSig = '';
       else sigRef.v = '';
       return;
     }
-    const slotLabels = positions.map(pct => {
-      const raw = chipRateValueAtPct(pct, max, logScale);
-      return chipRateSnapSingleDigit(raw);
-    });
-    const labelSlot = positions.length - 1;
-    const sig = max + '|' + (logScale ? 'l' : 'n') + '|' + slotLabels.join(',');
+    const visible = chipRateMilestones(max, logScale);
+    const labelVal = visible.length ? visible[visible.length - 1] : 0;
+    const sig = max + '|' + (logScale ? 'l' : 'n') + '|' + visible.join(',');
     if(!sigRef) lastChipRateTicksSig = sig;
     else sigRef.v = sig;
     const keep = new Map();
     for(const child of ticksEl.children){
-      if(child.dataset && child.dataset.slot != null) keep.set(child.dataset.slot, child);
+      if(child.dataset && child.dataset.v) keep.set(child.dataset.v, child);
     }
-    for(let i = 0; i < positions.length; i++){
-      const key = String(i);
-      const pct = positions[i];
-      const labelVal = slotLabels[i];
+    const nextKeys = new Set();
+    for(const v of visible){
+      const key = String(v);
+      nextKeys.add(key);
+      const pct = chipRateFillPct(v, max, logScale);
       let tick = keep.get(key);
       if(!tick){
         tick = document.createElement('span');
         tick.className = 'chip-rate-tick';
-        tick.dataset.slot = key;
+        tick.dataset.v = key;
         ticksEl.appendChild(tick);
       }
-      const labeled = i === labelSlot && labelVal > 0;
+      const labeled = v === labelVal && labelVal > 0;
       tick.classList.toggle('is-labeled', labeled);
       tick.style.left = pct + '%';
       let label = tick.querySelector('.chip-rate-tick-label');
@@ -7813,7 +7841,7 @@
       }
     }
     for(const [key, tick] of keep){
-      if(+key >= positions.length) tick.remove();
+      if(!nextKeys.has(key)) tick.remove();
     }
   }
 
