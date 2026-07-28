@@ -1748,9 +1748,7 @@
     display:flex;
     flex-direction:column;
     gap:4px;
-    /* Fixed size so XP/level digit changes don't reflow the HUD/board. */
-    flex:0 0 158px;
-    width:158px;
+    min-width:0;
     background:var(--panel);
     border:1px solid #2a2545;
     border-radius:10px;
