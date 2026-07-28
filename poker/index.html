@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Plinko Poker</title>
+<title>Plinker</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@84,700&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+Symbols+2:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -884,6 +884,15 @@
     color:var(--ink);
     line-height:1.05;
     animation:welcomeFadeUp .55s ease .12s both;
+  }
+  .welcome-tagline{
+    margin:-6px 0 0;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    font-weight:400;
+    letter-spacing:0.06em;
+    color:var(--ink-dim);
+    animation:welcomeFadeUp .55s ease .17s both;
   }
   .welcome-hint{
     margin:0;
@@ -2567,7 +2576,8 @@
           <div class="welcome-chip" aria-hidden="true">
             <img src="welcome-chip.png" width="384" height="384" alt="">
           </div>
-          <h2 class="welcome-brand">Plinko Poker</h2>
+          <h2 class="welcome-brand">Plinker</h2>
+          <p class="welcome-tagline">Plinko + Poker</p>
           <p class="welcome-hint">
             <span class="welcome-hint-tap">Tap anywhere on the board to drop</span>
             <span class="welcome-hint-click">Click anywhere on the board to drop</span>
@@ -2634,7 +2644,7 @@
           <div id="changelogList"></div>
         </div>
         <div class="settings-danger">
-          <p class="settings-copy">Wipe this browser’s Plinko Poker save — chips, upgrades, quests, achievements, and VIP progress.</p>
+          <p class="settings-copy">Wipe this browser’s Plinker save — chips, upgrades, quests, achievements, and VIP progress.</p>
           <button type="button" class="reset" id="resetScores">Reset all progress</button>
         </div>
       </section>
@@ -3343,11 +3353,20 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
-      id: 102,
+      id: 103,
       date: 'Jul 28, 2026',
       title: 'Quick Claim VIP perk',
       items: [
         'The ability to hold down on achievements to quickly claim multiple is now a perk, which should improve discoverability.',
+        'Tweaked the logic of some upgrade recommendations (★)',
+      ]
+    },
+    {
+      id: 102,
+      date: 'Jul 28, 2026',
+      title: 'Plinker',
+      items: [
+        'Poker is now Plinker — a portmanteau of Plinko + Poker. Welcome screen, tab title, and settings copy updated.',
       ]
     },
     {
@@ -4246,7 +4265,7 @@
     {
       id: 'bumperPayout',
       name: 'Rail Tax',
-      desc: 'Earn chips whenever a card hits the bumper arch for a full column.',
+      desc: 'Earn chips whenever a card hits the bumper arch above a full column.',
       baseCost: 50,
       costScale: 1.7,
       maxLevel: 25,
@@ -4323,7 +4342,7 @@
     {
       id: 'suitBomb',
       name: 'Suit Purge',
-      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle to hide the suit picker; tap the bar too.',
+      desc: 'Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle or tap the bar to hide the suit picker.',
       baseCost: 400,
       costScale: 1.85,
       maxLevel: 12,
@@ -4333,7 +4352,7 @@
     {
       id: 'suitCut',
       name: 'Suit Alliance',
-      desc: 'Ally suits for flushes and Suit Purge without removing them from the deck. Lv1: diamonds count as hearts. Lv2: clubs count as spades.',
+      desc: 'Combine suits for flushes and Suit Purge. Lv1: diamonds count as hearts. Lv2: clubs count as spades.',
       baseCost: 6000,
       costScale: 3.5,
       maxLevel: 2,
@@ -4342,7 +4361,7 @@
     {
       id: 'compCage',
       name: 'Cashier\'s Cage',
-      desc: 'Spend a lot of chips to bank Cash Out comps. Each buy adds +1 for this run — a steep late-game sink that feeds VIP, not more chip income.',
+      desc: 'Too many chips? Each buy adds +1 Cash Out comp.',
       baseCost: 500000,
       costScale: 2.2,
       maxLevel: 100,
