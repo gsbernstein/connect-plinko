@@ -3353,6 +3353,15 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 105,
+      date: 'Jul 28, 2026',
+      title: 'King Me no longer blasts on Fireball',
+      items: [
+        'I Cast Fireball no longer makes King Me merges explode — only real explosions spread fire.',
+        'VIP copy updated to match.',
+      ]
+    },
+    {
       id: 104,
       date: 'Jul 28, 2026',
       title: 'VIP perks sorted by cost',
@@ -5066,7 +5075,7 @@
     {
       id: 'bigRoom',
       name: 'I Cast Fireball',
-      desc: 'Explosions light nearby cards on fire — including chips still falling through the pins. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. King Me merges spark a blast too. Toggle On/Off anytime.',
+      desc: 'Explosions light nearby cards on fire — including chips still falling through the pins. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. Toggle On/Off anytime.',
       baseCost: 80,
       costScale: 1,
       maxLevel: 1,
@@ -9885,9 +9894,6 @@
       glow: 18 + nextStack * 2,
       tilt: -0.05
     });
-    if(bigRoomActive()){
-      spawnExplosion(x, y, merged);
-    }
     scheduleCountingUiRefresh();
     startLoop();
   }
