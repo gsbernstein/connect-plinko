@@ -335,7 +335,7 @@
     <header>
       <div>
         <h1>VIP perk editor</h1>
-        <p class="sub">Loads <code>poker/prestige-defs.json</code> — the same file the game uses. Drag to reorder, edit costs, export JSON (or legacy JS wrapper).</p>
+        <p class="sub">Loads <code>prestige-defs.json</code> — the same file the game uses. Drag to reorder, edit costs, export JSON (or legacy JS wrapper).</p>
       </div>
       <div class="toolbar">
         <button type="button" id="sortCost">Sort by Lv1 cost</button>
@@ -385,7 +385,7 @@
 
   <script>
     const STORAGE_KEY = 'vipPerkEditorDraft_v2';
-    const DEFS_URL = new URL('../poker/prestige-defs.json', location.href).href;
+    const DEFS_URL = new URL('prestige-defs.json', location.href).href;
 
     let liveBaseline = [];
     let perks = [];
@@ -485,7 +485,7 @@
       return [
         '// Permanent VIP perks bought with comps from Cash Out.',
         '// VIP order = array order (curated; roughly cheap → expensive).',
-        '// Loaded by poker/index.html and tools/vip-perk-editor.html — single source of truth.',
+        '// Loaded by poker/index.html and poker/vip-perk-editor.html — single source of truth.',
         'window.PRESTIGE_DEFS = [',
         perks.map(toJs).join(',\n'),
         '];'
@@ -730,7 +730,7 @@
     });
 
     document.getElementById('reloadBtn').addEventListener('click', async () => {
-      if (!confirm('Reload from poker/prestige-defs.json? Unsaved draft changes will be discarded.')) return;
+      if (!confirm('Reload from prestige-defs.json? Unsaved draft changes will be discarded.')) return;
       localStorage.removeItem(STORAGE_KEY);
       await reloadFromLive({ discardDraft: true, resetWorkspace: true });
     });

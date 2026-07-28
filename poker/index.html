@@ -3511,7 +3511,7 @@ loadGameData().then(function(){
   // Back-compat alias used by a few load paths.
   const CONTRACT_DEFS = ACHIEVEMENT_DEFS;
 
-  // Permanent VIP perks — see poker/prestige-defs.json (shared with tools/vip-perk-editor.html).
+  // Permanent VIP perks — see prestige-defs.json (shared with poker/vip-perk-editor.html).
   const PRESTIGE_DEFS = window.PRESTIGE_DEFS;
 
   let upgrades = Object.fromEntries(UPGRADE_DEFS.map(u => [u.id, 0]));

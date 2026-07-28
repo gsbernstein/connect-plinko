@@ -31,9 +31,8 @@ Each page links to the other via a Classic / Poker toggle.
 │   ├── achievement-defs.json  # Permanent achievements (`window.ACHIEVEMENT_DEFS`)
 │   ├── changelog.json    # What's New entries (newest-first; `id` = release)
 │   ├── version.json    # Poker release id (`v`) polled for refresh prompts
+│   ├── vip-perk-editor.html  # dev UI — loads prestige-defs.json, exports edits back to that file
 │   └── welcome-chip.png
-├── tools/
-│   └── vip-perk-editor.html  # dev UI — loads prestige-defs.json, exports edits back to that file
 ├── .cursor/
 │   ├── environment.json  # Cloud Agent VM: install + static server terminal
 │   └── rules/            # always-on agent conventions
@@ -103,7 +102,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `UPGRADE_DEFS` | Table shop upgrades in `poker/upgrade-defs.json`; `load-game-data.js` → `window.UPGRADE_DEFS`; `index.html` assigns `const UPGRADE_DEFS = window.UPGRADE_DEFS`. Order = shop order. |
 | `SHOP_RECOMMEND_PRIORITY` / `VIP_RECOMMEND_PRIORITY` / `recommendedShopUpgradeId` / `recommendedVipPerkId` / `.upgrade-rec` / `.upgrade-cost-row` | Gold ★ after the price on the next guided buy: shop Auto Dealer→4 → Wild Card→3 → Pin Tip→3 → Felt Grease→3 → Multi Deal→3 → High Cut→4 → Suit Alliance→2; VIP Slide Rule→1 → Quest Desk→1 → Quest Ink→4. First incomplete unlocked step wins (`fillUpgradeButton` `recommended`; `.upgrade-rec.is-on` via `visibility`) |
 | `compCage` / `runCompCredit` | Cashier’s Cage (`unlockAt` 200): each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
-| `PRESTIGE_DEFS` | VIP perks in `poker/prestige-defs.json`; loaded via `load-game-data.js`. Array order = VIP tab order (curated). Skill-bonus perks (`quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`. Dev editor: `tools/vip-perk-editor.html`. |
+| `PRESTIGE_DEFS` | VIP perks in `poker/prestige-defs.json`; loaded via `load-game-data.js`. Array order = VIP tab order (curated). Skill-bonus perks (`quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`. Dev editor: `poker/vip-perk-editor.html`. |
 | `controlBooth` / `TOGGLE_DOCK_DEFS` / `updateToggleDockUI` / `#toggleDock` | Control Booth VIP: when owned+On, shows owned toggles in a column to the right of the board (`.board-row` + `.toggle-dock`); Suit Purge uses Shown/Hidden; Short Fuse uses Short/Normal (`fuseStates`); Booth Off hides the column (re-enable from VIP); dock excludes Control Booth itself; Slide Rule Rate at Lv2+ (`scaleStates` Linear/Log); always includes Chips Fly dock button (`chipAnimation` / `source: 'settings'`, full name Flying chips animation, `visibilityStates` Shown/Hidden, `.is-settings` blue) |
 | `slideRule` / `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` / `syncChipRateVisibility` | Slide Rule VIP: Lv1+ always shows chips/s meter (linear); Lv2+ toggle Linear/Log via VIP tile or Control Booth Rate (`isAutoEnabled('slideRule')` = log) |
 | `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5) |
@@ -298,7 +297,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Cashier’s Cage (chip→comp sink) | `compCage` in `UPGRADE_DEFS`; `purchaseUpgrade` adds `runCompCredit`; effect via `upgradeEffectText` |
 | Auto Dealer two-tier costs | `costLateAt` / `costLateBase` / `costLateScale` on `autoDealer` def; `upgradeCost` |
 | New VIP perk | `poker/prestige-defs.json` + `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Deal Me In via `dealMeInActive` / `tryJoinResolve` on late `finalizeDrop`; Pin Split via `pinSplitActive` / peg hit in `stepBall`; Slide Rule via `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` |
-| VIP perk editor | `tools/vip-perk-editor.html` loads `prestige-defs.json`; export paste replaces that file |
+| VIP perk editor | `poker/vip-perk-editor.html` loads `prestige-defs.json`; export paste replaces that file |
 | Quick Claim hold series | `quickClaim` in `PRESTIGE_DEFS`; `achievementQuickClaimActive` gates hold repeat in `attachAchievementHoldHandlers` (tap still claims one tier) |
 | Deal Me In join | `dealMeIn` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS` / `TOGGLE_DOCK_DEFS`; `tryJoinResolve` after landed `finalizeDrop` while `resolvePhase === 'flash'`; `resolveGroupsSignature` change gate; Suit Purge / Siege / Floor excluded |
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult` only (no manual cooldown), `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
