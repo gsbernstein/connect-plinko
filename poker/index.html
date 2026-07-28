@@ -3387,6 +3387,15 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 106,
+      date: 'Jul 28, 2026',
+      title: 'Slide Rule early VIP',
+      items: [
+        'Slide Rule is now the first VIP perk (1 comp for Lv1, 10 comps for Lv2 log scale).',
+        'The ★ recommends Slide Rule before Quest Desk.',
+      ]
+    },
+    {
       id: 105,
       date: 'Jul 28, 2026',
       title: 'HUD tile layout polish',
@@ -4437,6 +4446,7 @@
     { id: 'suitCut', until: 2 }
   ];
   const VIP_RECOMMEND_PRIORITY = [
+    { id: 'slideRule', until: 1 },
     { id: 'questDesk', until: 1 },
     { id: 'questInk', until: 4 }
   ];
@@ -4938,6 +4948,15 @@
   // Permanent VIP perks bought with comps from Cash Out.
   const PRESTIGE_DEFS = [
     {
+      id: 'slideRule',
+      name: 'Slide Rule',
+      desc: 'Lv1: show a chips/s meter under Chips. Lv2+: Rate toggle switches Linear / Log scale. Toggle On/Off anytime.',
+      baseCost: 1,
+      costScale: 10,
+      maxLevel: 2,
+      toggleable: true
+    },
+    {
       id: 'seedStack',
       name: 'Seed Stack',
       desc: 'Start with chips after Cash Out.',
@@ -5130,15 +5149,6 @@
       baseCost: 2,
       costScale: 1,
       maxLevel: 1,
-      toggleable: true
-    },
-    {
-      id: 'slideRule',
-      name: 'Slide Rule',
-      desc: 'Lv1: chips/s meter under Chips. Lv2: switch that meter between Linear and Log scale.',
-      baseCost: 2,
-      costScale: 5,
-      maxLevel: 2,
       toggleable: true
     }
   ];
