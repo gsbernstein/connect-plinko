@@ -1,0 +1,189 @@
+{
+  "QUEST_SLOT_UNLOCK_LEVELS": [
+    2,
+    20,
+    45,
+    75,
+    110
+  ],
+  "QUEST_RARITIES": [
+    "common",
+    "uncommon",
+    "rare",
+    "epic",
+    "legendary"
+  ],
+  "QUEST_RARITY_WEIGHTS_BY_INK": [
+    [
+      100,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      58,
+      42,
+      0,
+      0,
+      0
+    ],
+    [
+      36,
+      38,
+      26,
+      0,
+      0
+    ],
+    [
+      16,
+      28,
+      34,
+      22,
+      0
+    ],
+    [
+      6,
+      20,
+      40,
+      26,
+      8
+    ]
+  ],
+  "QUEST_TEMPLATES": [
+    {
+      "id": "hands",
+      "name": "Ante Up",
+      "desc": "Score {n} poker hands.",
+      "stat": "runHands",
+      "baseTarget": 6,
+      "reward": {
+        "chips": 55
+      }
+    },
+    {
+      "id": "drops",
+      "name": "Busy Dealer",
+      "desc": "Drop {n} cards.",
+      "stat": "runCardsDropped",
+      "baseTarget": 35,
+      "reward": {
+        "chips": 70
+      }
+    },
+    {
+      "id": "twoPair",
+      "name": "Pocket Pairs",
+      "desc": "Score {n} Two Pair hands.",
+      "stat": "runTwoPairs",
+      "baseTarget": 2,
+      "reward": {
+        "chips": 80
+      }
+    },
+    {
+      "id": "trips",
+      "name": "Set Mining",
+      "desc": "Score {n} Three of a Kind hands.",
+      "stat": "runThreeKinds",
+      "baseTarget": 2,
+      "reward": {
+        "chips": 110
+      }
+    },
+    {
+      "id": "chain",
+      "name": "On a Heater",
+      "desc": "Clear {n} chained hands (×2+).",
+      "stat": "runChainClears",
+      "baseTarget": 1,
+      "minRarity": "uncommon",
+      "reward": {
+        "chips": 140
+      }
+    },
+    {
+      "id": "multi",
+      "name": "Two-Way Pot",
+      "desc": "Clear {n} multi-hand resolve(s).",
+      "stat": "runMultiClears",
+      "baseTarget": 1,
+      "minRarity": "uncommon",
+      "reward": {
+        "chips": 160
+      }
+    },
+    {
+      "id": "flush",
+      "name": "Painted Pot",
+      "desc": "Score {n} Flush(es).",
+      "stat": "runFlushes",
+      "baseTarget": 1,
+      "minRarity": "rare",
+      "reward": {
+        "chips": 220,
+        "runComps": 1
+      }
+    },
+    {
+      "id": "straight",
+      "name": "Connector Run",
+      "desc": "Score {n} Straight(s).",
+      "stat": "runStraights",
+      "baseTarget": 1,
+      "minRarity": "rare",
+      "reward": {
+        "chips": 220
+      }
+    },
+    {
+      "id": "boat",
+      "name": "Full Steam",
+      "desc": "Score {n} Full House(s).",
+      "stat": "runFullHouses",
+      "baseTarget": 1,
+      "minRarity": "epic",
+      "reward": {
+        "chips": 320,
+        "comps": 1
+      }
+    },
+    {
+      "id": "quads",
+      "name": "Quad Hunt",
+      "desc": "Score {n} Four of a Kind(s).",
+      "stat": "runFourKinds",
+      "baseTarget": 1,
+      "minRarity": "epic",
+      "reward": {
+        "chips": 400,
+        "comps": 1
+      }
+    },
+    {
+      "id": "purge",
+      "name": "Clean House",
+      "desc": "Cast Suit Purge {n} time(s).",
+      "stat": "runSuitPurges",
+      "baseTarget": 1,
+      "minRarity": "rare",
+      "unlockAt": 11,
+      "reward": {
+        "chips": 300,
+        "runComps": 1
+      }
+    },
+    {
+      "id": "grind",
+      "name": "Session Grind",
+      "desc": "Score {n} poker hands.",
+      "stat": "runHands",
+      "baseTarget": 18,
+      "minRarity": "uncommon",
+      "reward": {
+        "chips": 200,
+        "runComps": 1
+      }
+    }
+  ]
+}

@@ -335,7 +335,7 @@
     <header>
       <div>
         <h1>VIP perk editor</h1>
-        <p class="sub">Loads <code>poker/prestige-defs.js</code> — the same file the game uses. Drag to reorder, edit costs, export a paste-ready <code>prestige-defs.js</code> or JSON.</p>
+        <p class="sub">Loads <code>poker/prestige-defs.json</code> — the same file the game uses. Drag to reorder, edit costs, export JSON (or legacy JS wrapper).</p>
       </div>
       <div class="toolbar">
         <button type="button" id="sortCost">Sort by Lv1 cost</button>
@@ -366,8 +366,8 @@
         <section class="card">
           <div class="card-head">Export</div>
           <div class="export-tabs">
-            <button type="button" class="active" data-tab="js">prestige-defs.js</button>
-            <button type="button" data-tab="json">JSON</button>
+            <button type="button" class="active" data-tab="json">prestige-defs.json</button>
+            <button type="button" data-tab="js">JS wrapper</button>
             <button type="button" data-tab="diff">Moved</button>
           </div>
           <textarea class="export" id="exportBox" readonly spellcheck="false"></textarea>
@@ -383,14 +383,13 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="../poker/prestige-defs.js"></script>
   <script>
     const STORAGE_KEY = 'vipPerkEditorDraft_v2';
-    const DEFS_URL = new URL('../poker/prestige-defs.js', location.href).href;
+    const DEFS_URL = new URL('../poker/prestige-defs.json', location.href).href;
 
     let liveBaseline = [];
     let perks = [];
-    let activeTab = 'js';
+    let activeTab = 'json';
     let dragId = null;
     let dropBeforeId = null;
 
@@ -406,20 +405,17 @@
     }
 
     function snapshotLive() {
-      if (!Array.isArray(window.PRESTIGE_DEFS) || !window.PRESTIGE_DEFS.length) {
-        throw new Error('PRESTIGE_DEFS missing — is prestige-defs.js loaded?');
+      if (!Array.isArray(liveBaseline) || !liveBaseline.length) {
+        throw new Error('PRESTIGE_DEFS missing — is prestige-defs.json loaded?');
       }
-      return clone(window.PRESTIGE_DEFS);
+      return clone(liveBaseline);
     }
 
     async function fetchLiveDefs() {
       const res = await fetch(DEFS_URL + '?t=' + Date.now());
       if (!res.ok) throw new Error('fetch failed: ' + res.status);
-      const text = await res.text();
-      const run = new Function(text + '\nreturn window.PRESTIGE_DEFS;');
-      const defs = run();
-      if (!Array.isArray(defs) || !defs.length) throw new Error('invalid prestige-defs.js');
-      window.PRESTIGE_DEFS = defs;
+      const defs = await res.json();
+      if (!Array.isArray(defs) || !defs.length) throw new Error('invalid prestige-defs.json');
       return clone(defs);
     }
 
@@ -428,8 +424,8 @@
       try {
         liveBaseline = await fetchLiveDefs();
       } catch (err) {
-        console.warn('fetch live failed, using script tag', err);
-        liveBaseline = snapshotLive();
+        console.warn('fetch live failed', err);
+        if (!liveBaseline.length) throw err;
       }
       if (opts.discardDraft || !loadDraft()) perks = clone(liveBaseline);
       else if (opts.resetWorkspace) perks = clone(liveBaseline);
@@ -519,7 +515,7 @@
       if (activeTab === 'js') exportBox.value = exportJs();
       else if (activeTab === 'json') exportBox.value = exportJson();
       else exportBox.value = exportDiff();
-      statusEl.textContent = `${perks.length} perks · baseline from prestige-defs.js · draft autosaved`;
+      statusEl.textContent = `${perks.length} perks · baseline from prestige-defs.json · draft autosaved`;
       document.getElementById('countLabel').textContent = `(${perks.length})`;
       drawFlow();
     }
@@ -734,7 +730,7 @@
     });
 
     document.getElementById('reloadBtn').addEventListener('click', async () => {
-      if (!confirm('Reload from poker/prestige-defs.js? Unsaved draft changes will be discarded.')) return;
+      if (!confirm('Reload from poker/prestige-defs.json? Unsaved draft changes will be discarded.')) return;
       localStorage.removeItem(STORAGE_KEY);
       await reloadFromLive({ discardDraft: true, resetWorkspace: true });
     });
@@ -803,18 +799,16 @@
 
     async function boot() {
       try {
-        liveBaseline = snapshotLive();
+        await reloadFromLive({ silent: true, discardDraft: false });
       } catch (err) {
-        statusEl.textContent = 'Failed to load prestige-defs.js';
+        statusEl.textContent = 'Failed to load prestige-defs.json';
         statusEl.className = 'status';
         throw err;
       }
       const draft = loadDraft();
-      perks = draft || clone(liveBaseline);
+      if (draft) perks = draft;
       render();
       wireListTail();
-      // Refresh baseline from network so "Live" column matches disk after hot edits.
-      reloadFromLive({ silent: true }).catch(() => {});
     }
 
     boot();
