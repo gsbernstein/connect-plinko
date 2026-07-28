@@ -317,6 +317,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 - **Base branch:** `master` (also the Pages deploy branch).
 - **Feature branches:** `cursor/<short-description>-<suffix>` (cloud agents use suffix `65f3`).
 - **Before you commit:** see `.cursor/rules/agent-workflow.mdc` — especially the merged-branch check.
+- **After merging master / before push:** grep for `<<<<<<<` / `>>>>>>>` in `index.html` and `poker/index.html`, then parse each file’s inline `<script>` with `node` (recipe in **After merging master** in `.cursor/rules/agent-workflow.mdc`). Do not push until both pass — leftover markers have broken Poker load more than once.
 - **Sync with master:** always `git fetch origin master && git merge origin/master` — do **not** rebase onto `master`.
 - **When the user asks to merge the current branch:** only merge if the PR is **ready for review**, and always squash-merge into `master` (see **Merge when asked** in `.cursor/rules/agent-workflow.mdc`).
 - **Changelog conflicts on merge:** see **Changelog merge conflicts (fast path)** above — almost always “keep master list, renumber your entry to max+1, sync `version.json`”.
