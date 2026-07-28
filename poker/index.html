@@ -3353,6 +3353,15 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 103,
+      date: 'Jul 28, 2026',
+      title: 'Quick Claim VIP perk',
+      items: [
+        'The ability to hold down on achievements to quickly claim multiple is now a perk, which should improve discoverability.',
+        'Tweaked the logic of some upgrade recommendations (★)',
+      ]
+    },
+    {
       id: 102,
       date: 'Jul 28, 2026',
       title: 'Plinker',
@@ -4365,10 +4374,12 @@
 
   // Guided "next buy" star — first incomplete unlocked step wins (until = effective level target).
   const SHOP_RECOMMEND_PRIORITY = [
-    { id: 'autoDealer', until: 6 },
-    { id: 'wildCard', until: 1 },
-    { id: 'pinPayout', until: 1 },
-    { id: 'highCut', until: 1 },
+    { id: 'autoDealer', until: 4 },
+    { id: 'wildCard', until: 3 },
+    { id: 'pinPayout', until: 3 },
+    { id: 'feltGrease', until: 3 },
+    { id: 'multiDeal', until: 3 },
+    { id: 'highCut', until: 4 },
     { id: 'suitCut', until: 2 }
   ];
   const VIP_RECOMMEND_PRIORITY = [
@@ -4955,6 +4966,14 @@
       toggleable: true
     },
     {
+      id: 'quickClaim',
+      name: 'Quick Claim',
+      desc: 'Hold a claimable achievement to rip through ready rewards in series.',
+      baseCost: 5,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
       id: 'pitBoss',
       name: 'Pit Boss',
       desc: 'Automatically buy the cheapest affordable table upgrades each tick. Toggle On/Off anytime.',
@@ -4967,7 +4986,7 @@
       id: 'controlBooth',
       name: 'Control Booth',
       desc: 'Show every owned toggle in a column to the right of the board. Toggle On/Off anytime to hide the column.',
-      baseCost: 6,
+      baseCost: 4,
       costScale: 1,
       maxLevel: 1,
       toggleable: true
@@ -4992,7 +5011,7 @@
       id: 'dealMeIn',
       name: 'Deal Me In',
       desc: 'Cards that settle while a hand is flashing can still join that clear — upgrading it or adding another hand to the combo. Toggle On/Off anytime.',
-      baseCost: 55,
+      baseCost: 42,
       costScale: 1,
       maxLevel: 1,
       toggleable: true
@@ -5062,9 +5081,9 @@
     {
       id: 'slideRule',
       name: 'Slide Rule',
-      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch that meter to a log scale so early trickle and late flood both read. Toggle On/Off anytime.',
-      baseCost: 4,
-      costScale: 2,
+      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch to log scale. Toggle On/Off anytime.',
+      baseCost: 2,
+      costScale: 5,
       maxLevel: 2,
       toggleable: true
     }
@@ -6232,6 +6251,10 @@
     return n;
   }
 
+  function achievementQuickClaimActive(){
+    return prestigeLevel('quickClaim') > 0;
+  }
+
   function claimAchievement(id, opts){
     opts = opts || {};
     const def = ACHIEVEMENT_DEFS.find(c => c.id === id);
@@ -6320,8 +6343,10 @@
         holding: false,
         deferredUi: false,
         x: e.clientX,
-        y: e.clientY,
-        startTimer: setTimeout(()=>{
+        y: e.clientY
+      };
+      if(achievementQuickClaimActive()){
+        hold.startTimer = setTimeout(()=>{
           if(!hold || hold.moved) return;
           hold.holding = true;
           btn.classList.add('is-hold-claim');
@@ -6331,8 +6356,8 @@
               if(!runHoldClaimStep()) clearHold();
             }, ACHIEVEMENT_HOLD_REPEAT_MS);
           }
-        }, ACHIEVEMENT_HOLD_START_MS)
-      };
+        }, ACHIEVEMENT_HOLD_START_MS);
+      }
       try{ btn.setPointerCapture(e.pointerId); }catch(_){}
     });
 
@@ -7966,6 +7991,8 @@
       case 'questDesk':
         if(!lvl) return 'Manual claims';
         return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
+      case 'quickClaim':
+        return lvl ? 'Hold to claim in series' : 'Tap one tier at a time';
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
         return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
