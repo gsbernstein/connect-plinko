@@ -369,7 +369,6 @@
           <div class="card-head">Export</div>
           <div class="export-tabs">
             <button type="button" class="active" data-tab="json">prestige-defs.json</button>
-            <button type="button" data-tab="js">JS wrapper</button>
             <button type="button" data-tab="diff">Moved</button>
           </div>
           <textarea class="export" id="exportBox" readonly spellcheck="false"></textarea>
@@ -471,36 +470,6 @@
       return bits.join(' · ');
     }
 
-    function escapeJs(str) {
-      return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    }
-
-    function toJs(perk) {
-      const lines = [
-        '    {',
-        `      id: '${perk.id}',`,
-        `      name: '${escapeJs(perk.name)}',`,
-        `      desc: '${escapeJs(perk.desc)}',`,
-        `      baseCost: ${perk.baseCost},`,
-        `      costScale: ${Number(perk.costScale)},`,
-        `      maxLevel: ${perk.maxLevel}`
-      ];
-      if (perk.toggleable) lines.push('      toggleable: true');
-      lines.push('    }');
-      return lines.join('\n');
-    }
-
-    function exportJs() {
-      return [
-        '// Permanent VIP perks bought with comps from Cash Out.',
-        '// VIP order = array order (curated; roughly cheap → expensive).',
-        '// Loaded by poker/index.html and poker/vip-perk-editor.html — single source of truth.',
-        'window.PRESTIGE_DEFS = [',
-        perks.map(toJs).join(',\n'),
-        '];'
-      ].join('\n');
-    }
-
     function exportJson() {
       return JSON.stringify(perks, null, 2);
     }
@@ -591,9 +560,8 @@
     }
 
     function refreshExport() {
-      if (activeTab === 'js') exportBox.value = exportJs();
-      else if (activeTab === 'json') exportBox.value = exportJson();
-      else exportBox.value = exportDiff();
+      if (activeTab === 'diff') exportBox.value = exportDiff();
+      else exportBox.value = exportJson();
       statusEl.textContent = `${perks.length} perks · baseline from prestige-defs.json · draft autosaved${devWriteEnabled ? ' · dev save on' : linkedFileHandle ? ' · linked file' : ''}`;
       document.getElementById('countLabel').textContent = `(${perks.length})`;
       drawFlow();
@@ -856,12 +824,11 @@
     });
 
     document.getElementById('downloadBtn').addEventListener('click', () => {
-      const ext = activeTab === 'json' ? 'json' : 'js';
-      const mime = activeTab === 'json' ? 'application/json' : 'text/javascript';
-      const blob = new Blob([exportBox.value], { type: mime });
+      const isJson = activeTab === 'json';
+      const blob = new Blob([exportBox.value], { type: isJson ? 'application/json' : 'text/plain' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = activeTab === 'json' ? 'prestige-defs.json' : 'prestige-defs.js';
+      a.download = isJson ? 'prestige-defs.json' : 'prestige-order-diff.txt';
       a.click();
       URL.revokeObjectURL(a.href);
       showToast('Downloaded');
