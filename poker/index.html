@@ -2788,7 +2788,9 @@
 
 <script src="load-game-data.js"></script>
 <script>
-loadGameData().then(function(){
+if (typeof loadGameData !== 'function') {
+  document.body.innerHTML = '<p style="color:#f7f1e3;padding:2rem;font:1rem system-ui,sans-serif">load-game-data.js failed to load. Serve the repo over HTTP and open /poker/.</p>';
+} else loadGameData().then(function(){
 (function(){
   const COLS = 7, ROWS = 6, CELL = 90;
   // Tall enough for 6 peg rows with clear air above the bumper —
@@ -3398,6 +3400,7 @@ loadGameData().then(function(){
   const UPGRADE_DEFS = window.UPGRADE_DEFS;
   const QUEST_SLOT_UNLOCK_LEVELS = window.QUEST_SLOT_UNLOCK_LEVELS;
   const QUEST_RARITIES = window.QUEST_RARITIES;
+  const QUEST_RARITY = window.QUEST_RARITY;
   const QUEST_RARITY_WEIGHTS_BY_INK = window.QUEST_RARITY_WEIGHTS_BY_INK;
   const QUEST_TEMPLATES = window.QUEST_TEMPLATES;
   const ACHIEVEMENT_DEFS = window.ACHIEVEMENT_DEFS;

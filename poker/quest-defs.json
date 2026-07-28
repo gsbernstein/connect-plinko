@@ -13,6 +13,38 @@
     "epic",
     "legendary"
   ],
+  "QUEST_RARITY": {
+    "common": {
+      "label": "Common",
+      "targetMult": 1,
+      "rewardMult": 1,
+      "color": "#E8ECF0"
+    },
+    "uncommon": {
+      "label": "Uncommon",
+      "targetMult": 1.5,
+      "rewardMult": 1.7,
+      "color": "#7EC8A3"
+    },
+    "rare": {
+      "label": "Rare",
+      "targetMult": 2.2,
+      "rewardMult": 2.6,
+      "color": "#6EA8FF"
+    },
+    "epic": {
+      "label": "Epic",
+      "targetMult": 3.2,
+      "rewardMult": 4,
+      "color": "#C084FC"
+    },
+    "legendary": {
+      "label": "Legendary",
+      "targetMult": 4.5,
+      "rewardMult": 6.5,
+      "color": "#E6C35C"
+    }
+  },
   "QUEST_RARITY_WEIGHTS_BY_INK": [
     [
       100,
