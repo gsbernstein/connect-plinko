@@ -335,9 +335,11 @@
     <header>
       <div>
         <h1>VIP perk editor</h1>
-        <p class="sub">Loads <code>prestige-defs.json</code> — the same file the game uses. Drag to reorder, edit costs, export JSON (or legacy JS wrapper).</p>
+        <p class="sub">Loads <code>prestige-defs.json</code> from this folder. Use <strong>Save</strong> to write disk when running <code>python3 scripts/dev-server.py</code> (or link a file in the browser).</p>
       </div>
       <div class="toolbar">
+        <button type="button" class="primary" id="saveBtn" title="Save to prestige-defs.json">Save</button>
+        <button type="button" id="linkFileBtn" title="Pick prestige-defs.json to save without dev server" hidden>Link file</button>
         <button type="button" id="sortCost">Sort by Lv1 cost</button>
         <button type="button" id="reloadBtn">Reload from live</button>
         <button type="button" id="importBtn">Import JSON</button>
@@ -386,12 +388,17 @@
   <script>
     const STORAGE_KEY = 'vipPerkEditorDraft_v2';
     const DEFS_URL = new URL('prestige-defs.json', location.href).href;
+    const SAVE_PATH = 'poker/prestige-defs.json';
+    const DEV_PING_URL = '/__dev__/ping';
+    const DEV_WRITE_URL = '/__dev__/write';
 
     let liveBaseline = [];
     let perks = [];
     let activeTab = 'json';
     let dragId = null;
     let dropBeforeId = null;
+    let devWriteEnabled = false;
+    let linkedFileHandle = null;
 
     const listEl = document.getElementById('list');
     const listTailEl = document.getElementById('listTail');
@@ -399,6 +406,8 @@
     const statusEl = document.getElementById('status');
     const toastEl = document.getElementById('toast');
     const flowEl = document.getElementById('flow');
+    const saveBtn = document.getElementById('saveBtn');
+    const linkFileBtn = document.getElementById('linkFileBtn');
 
     function clone(arr) {
       return arr.map(p => ({ ...p }));
@@ -496,6 +505,76 @@
       return JSON.stringify(perks, null, 2);
     }
 
+    async function probeDevWrite() {
+      try {
+        const res = await fetch(DEV_PING_URL, { cache: 'no-store' });
+        devWriteEnabled = res.ok;
+      } catch {
+        devWriteEnabled = false;
+      }
+      updateSaveModeUI();
+    }
+
+    function updateSaveModeUI() {
+      if (devWriteEnabled) {
+        saveBtn.disabled = false;
+        saveBtn.title = 'Save to ' + SAVE_PATH + ' on disk';
+        linkFileBtn.hidden = true;
+        return;
+      }
+      saveBtn.disabled = !linkedFileHandle;
+      saveBtn.title = linkedFileHandle
+        ? 'Save to linked prestige-defs.json'
+        : 'Run python3 scripts/dev-server.py or Link file to enable Save';
+      linkFileBtn.hidden = !!linkedFileHandle;
+    }
+
+    async function saveToDisk() {
+      const content = perks.map(p => ({ ...p }));
+      const json = JSON.stringify(content, null, 2);
+
+      if (devWriteEnabled) {
+        const res = await fetch(DEV_WRITE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: SAVE_PATH, content })
+        });
+        if (!res.ok) throw new Error((await res.text()) || 'save failed: ' + res.status);
+      } else if (linkedFileHandle) {
+        const writable = await linkedFileHandle.createWritable();
+        await writable.write(json + '\n');
+        await writable.close();
+      } else {
+        alert('Cannot write to disk from this page.\n\nLocal dev: run python3 scripts/dev-server.py and reload.\n\nOr click Link file and choose prestige-defs.json (Chrome/Edge).');
+        return;
+      }
+
+      liveBaseline = clone(perks);
+      localStorage.removeItem(STORAGE_KEY);
+      render();
+      statusEl.textContent = 'Saved to prestige-defs.json';
+      statusEl.className = 'status ok';
+      showToast('Saved to disk');
+    }
+
+    async function linkLocalFile() {
+      if (!window.showOpenFilePicker) {
+        alert('Link file needs Chrome or Edge (File System Access API). Use python3 scripts/dev-server.py instead.');
+        return;
+      }
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+          multiple: false
+        });
+        linkedFileHandle = handle;
+        updateSaveModeUI();
+        showToast('Linked ' + handle.name);
+      } catch (err) {
+        if (err && err.name !== 'AbortError') console.warn(err);
+      }
+    }
+
     function exportDiff() {
       const liveIndex = Object.fromEntries(liveBaseline.map((p, i) => [p.id, i]));
       const liveById = Object.fromEntries(liveBaseline.map(p => [p.id, p]));
@@ -515,7 +594,7 @@
       if (activeTab === 'js') exportBox.value = exportJs();
       else if (activeTab === 'json') exportBox.value = exportJson();
       else exportBox.value = exportDiff();
-      statusEl.textContent = `${perks.length} perks · baseline from prestige-defs.json · draft autosaved`;
+      statusEl.textContent = `${perks.length} perks · baseline from prestige-defs.json · draft autosaved${devWriteEnabled ? ' · dev save on' : linkedFileHandle ? ' · linked file' : ''}`;
       document.getElementById('countLabel').textContent = `(${perks.length})`;
       drawFlow();
     }
@@ -722,6 +801,24 @@
       showToast('Reordered');
     }
 
+    saveBtn.addEventListener('click', () => {
+      saveToDisk().catch(err => {
+        console.error(err);
+        statusEl.textContent = 'Save failed: ' + err.message;
+        statusEl.className = 'status';
+        showToast('Save failed');
+      });
+    });
+
+    linkFileBtn.addEventListener('click', () => linkLocalFile());
+
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (!saveBtn.disabled) saveBtn.click();
+      }
+    });
+
     document.getElementById('sortCost').addEventListener('click', () => {
       perks.sort((a, b) => a.baseCost - b.baseCost || a.name.localeCompare(b.name));
       render();
@@ -807,6 +904,7 @@
       }
       const draft = loadDraft();
       if (draft) perks = draft;
+      await probeDevWrite();
       render();
       wireListTail();
     }

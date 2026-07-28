@@ -46,8 +46,10 @@ There are no other source directories. Almost all work lands in one of the two `
 ## Local dev
 
 ```bash
-python3 -m http.server 8080
+python3 scripts/dev-server.py
 ```
+
+Use `python3 -m http.server 8080` for read-only smoke checks. The dev server adds a write API for `poker/vip-perk-editor.html` to save `prestige-defs.json` (and other poker `*.json` tables) to disk.
 
 - Classic: http://localhost:8080/
 - Poker: http://localhost:8080/poker/
@@ -61,7 +63,7 @@ Cloud Agents resolve env config from `.cursor/environment.json` first (then pers
 | Piece | Value |
 |-------|--------|
 | Update / `install` | `python3 --version` (idempotent; confirms the static server toolchain) |
-| Terminal | `static-server` → `python3 -m http.server 8080` (shared tmux) |
+| Terminal | `static-server` → `python3 scripts/dev-server.py` (shared tmux; write API for JSON editors) |
 | Ports | `8080` |
 
 **Validate UI/gameplay changes (no computer use by default)**
@@ -297,7 +299,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Cashier’s Cage (chip→comp sink) | `compCage` in `UPGRADE_DEFS`; `purchaseUpgrade` adds `runCompCredit`; effect via `upgradeEffectText` |
 | Auto Dealer two-tier costs | `costLateAt` / `costLateBase` / `costLateScale` on `autoDealer` def; `upgradeCost` |
 | New VIP perk | `poker/prestige-defs.json` + `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Deal Me In via `dealMeInActive` / `tryJoinResolve` on late `finalizeDrop`; Pin Split via `pinSplitActive` / peg hit in `stepBall`; Slide Rule via `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` |
-| VIP perk editor | `poker/vip-perk-editor.html` loads `prestige-defs.json`; export paste replaces that file |
+| VIP perk editor | `poker/vip-perk-editor.html` loads `prestige-defs.json`; **Save** writes disk via `scripts/dev-server.py` (or browser Link file) |
 | Quick Claim hold series | `quickClaim` in `PRESTIGE_DEFS`; `achievementQuickClaimActive` gates hold repeat in `attachAchievementHoldHandlers` (tap still claims one tier) |
 | Deal Me In join | `dealMeIn` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS` / `TOGGLE_DOCK_DEFS`; `tryJoinResolve` after landed `finalizeDrop` while `resolvePhase === 'flash'`; `resolveGroupsSignature` change gate; Suit Purge / Siege / Floor excluded |
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult` only (no manual cooldown), `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
