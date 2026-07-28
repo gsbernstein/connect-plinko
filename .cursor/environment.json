@@ -4,8 +4,8 @@
   "terminals": [
     {
       "name": "static-server",
-      "command": "python3 -m http.server 8080",
-      "description": "Serves Classic at http://localhost:8080/ and Poker at http://localhost:8080/poker/"
+      "command": "python3 serve.py",
+      "description": "Serves Classic at http://localhost:8080/ and Poker at http://localhost:8080/poker/ (dev-rev.json = live git HEAD)"
     }
   ],
   "ports": [
