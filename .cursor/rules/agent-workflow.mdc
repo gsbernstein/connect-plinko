@@ -41,6 +41,30 @@ Player-visible Poker PRs all prepend to `CHANGELOG` and bump `poker/version.json
 
 Full recipe + sanity-check script: **AGENTS.md → “Changelog merge conflicts (fast path)”**. Merge latest `master` into the branch before writing the changelog (or add the entry last) to avoid the collision.
 
+## After merging master (required before push)
+
+Half-resolved merges have repeatedly shipped `<<<<<<<` markers into `poker/index.html` and broken the live game. **Run this after any `git merge origin/master`, manual conflict edit, or before every push** that touches `index.html` or `poker/index.html`:
+
+1. **No conflict markers** (must print nothing):
+   ```bash
+   rg '<<<<<<<|=======|>>>>>>>' index.html poker/index.html
+   ```
+
+2. **Inline scripts parse** (must print `index.html ok` and `poker/index.html ok`):
+   ```bash
+   node -e "
+   const fs=require('fs');
+   for (const f of ['index.html','poker/index.html']) {
+     const html=fs.readFileSync(f,'utf8');
+     if (/<<<<<<<|=======|>>>>>>>/.test(html)) throw new Error(f+': conflict markers');
+     for (const [,s] of html.matchAll(/<script>([\\s\\S]*?)<\\/script>/g)) new Function(s);
+     console.log(f,'ok');
+   }
+   "
+   ```
+
+Do **not** push or open/update a PR until both checks pass. “Resolved changelog” or “unchanged from master” in a commit message does not count — grep and parse the files.
+
 ## Merge when asked
 
 When the user tells you to **merge the current branch**, only proceed if the PR is **ready for review** (not draft). Then always **squash-merge into `master`** — do not use a merge commit or rebase merge.
