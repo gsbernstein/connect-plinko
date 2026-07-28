@@ -221,7 +221,7 @@
   .chip-rate-row{
     display:flex;
     align-items:baseline;
-    justify-content:space-between;
+    justify-content:flex-start;
     gap:6px;
     width:100%;
     min-height:11px;
@@ -240,17 +240,11 @@
     opacity:0.9;
     text-align:left;
   }
-  .chip-rate-milestone{
-    flex:0 0 auto;
-    font-family:'IBM Plex Mono',monospace;
-    font-size:7px;
-    line-height:1;
-    color:var(--ink-dim);
-    opacity:0.9;
-    white-space:nowrap;
-  }
-  .chip-rate-milestone[hidden]{display:none !important;}
   #chipRateBar{overflow:visible;}
+  #chipRateBar .chip-rate-ticks{
+    top:-10px;
+    bottom:0;
+  }
   .chip-rate-ticks{
     position:absolute;
     inset:0;
@@ -271,6 +265,19 @@
     margin-left:-1px;
     background:rgba(240,215,140,0.6);
     box-shadow:0 0 3px rgba(240,215,140,0.35);
+  }
+  .chip-rate-tick-label{
+    position:absolute;
+    bottom:calc(100% + 2px);
+    left:50%;
+    transform:translateX(-50%);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:7px;
+    line-height:1;
+    color:var(--ink-dim);
+    opacity:0.9;
+    white-space:nowrap;
+    pointer-events:none;
   }
   .next-card{
     display:flex;
@@ -1945,7 +1952,6 @@
       min-width:0;
     }
     .chip-rate,
-    .chip-rate-milestone,
     .cashout-rate{
       font-size:9px;
     }
@@ -2585,7 +2591,10 @@
   }
   .chip-rate-debug-meter .chip-rate-ticks{
     position:absolute;
-    inset:0;
+    top:-10px;
+    bottom:0;
+    left:0;
+    right:0;
   }
   .chip-rate-debug-meta{
     display:flex;
@@ -2608,7 +2617,6 @@
         </div>
         <div class="chip-rate-row" id="chipRateRow" hidden>
           <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
-          <span class="chip-rate-milestone" id="chipRateMilestoneLabel" hidden></span>
         </div>
         <div class="upgrade-progress" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true" hidden>
           <div class="chip-rate-ticks" id="chipRateTicks" aria-hidden="true"></div>
@@ -3465,7 +3473,7 @@
       title: 'HUD tiles & chips/s meter layout',
       items: [
         'Top HUD tiles share equal width so chip counts no longer resize the row.',
-        'Chips/s sits left-aligned above the meter; the milestone label sits on the right.',
+        'Chips/s sits left-aligned above the meter; the milestone label sits above its tick.',
         'Smoother /s readout and sliding scale ticks; add ?chipRateDebug=1 to tune milestones.',
         'Slide Rule is a top VIP pick — 1 comp for Lv1 chips/s meter, 2 comps for Lv2 Linear/Log toggle.',
       ]
@@ -7232,7 +7240,6 @@
   const scoreBoxEl = document.getElementById('scoreBox');
   const chipRateValEl = document.getElementById('chipRateVal');
   const chipRateRowEl = document.getElementById('chipRateRow');
-  const chipRateMilestoneLabelEl = document.getElementById('chipRateMilestoneLabel');
   const chipRateFillEl = document.getElementById('chipRateFill');
   const chipRateTicksEl = document.getElementById('chipRateTicks');
   const chipRateBarEl = document.getElementById('chipRateBar');
@@ -7669,10 +7676,6 @@
     lastChipRateTicksSig = '';
     chipRateSmoothed = 0;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
-    if(chipRateMilestoneLabelEl){
-      chipRateMilestoneLabelEl.textContent = '';
-      chipRateMilestoneLabelEl.hidden = true;
-    }
     if(chipRateFillEl){
       chipRateFillEl.style.left = '0%';
       chipRateFillEl.style.width = '0%';
@@ -7723,18 +7726,13 @@
     return formatNum(v);
   }
 
-  function updateChipRateTicks(max, logScale, ticksEl, milestoneEl, sigRef){
+  function updateChipRateTicks(max, logScale, ticksEl, sigRef){
     ticksEl = ticksEl || chipRateTicksEl;
-    if(milestoneEl === undefined) milestoneEl = chipRateMilestoneLabelEl;
     if(!ticksEl) return;
     if(!(max > 0)){
       ticksEl.replaceChildren();
       if(!sigRef) lastChipRateTicksSig = '';
       else sigRef.v = '';
-      if(milestoneEl){
-        milestoneEl.textContent = '';
-        milestoneEl.hidden = true;
-      }
       return;
     }
     const milestones = chipRateMilestones(max, logScale);
@@ -7762,20 +7760,23 @@
         tick.dataset.v = key;
         ticksEl.appendChild(tick);
       }
-      tick.classList.toggle('is-labeled', v === labelVal);
+      const labeled = v === labelVal && labelVal > 0;
+      tick.classList.toggle('is-labeled', labeled);
       tick.style.left = pct + '%';
+      let label = tick.querySelector('.chip-rate-tick-label');
+      if(labeled){
+        if(!label){
+          label = document.createElement('span');
+          label.className = 'chip-rate-tick-label';
+          tick.appendChild(label);
+        }
+        label.textContent = chipRateTickLabel(labelVal);
+      } else if(label){
+        label.remove();
+      }
     }
     for(const [key, tick] of keep){
       if(!nextKeys.has(key)) tick.remove();
-    }
-    if(milestoneEl){
-      if(labelVal > 0){
-        milestoneEl.textContent = chipRateTickLabel(labelVal);
-        milestoneEl.hidden = false;
-      } else {
-        milestoneEl.textContent = '';
-        milestoneEl.hidden = true;
-      }
     }
   }
 
@@ -7797,10 +7798,6 @@
     if(scoreBoxEl) scoreBoxEl.classList.toggle('has-chip-rate', show);
     if(chipRateRowEl) chipRateRowEl.hidden = !show;
     if(chipRateBarEl) chipRateBarEl.hidden = !show;
-    if(!show && chipRateMilestoneLabelEl){
-      chipRateMilestoneLabelEl.textContent = '';
-      chipRateMilestoneLabelEl.hidden = true;
-    }
     return show;
   }
 
@@ -7868,13 +7865,13 @@
       '<input type="range" id="chipRateDebugRate" min="0" max="1000" step="1" value="350">' +
       '<div class="chip-rate-debug-preview">' +
         '<h4>Linear scale</h4>' +
-        '<div class="chip-rate-debug-meta"><span id="chipRateDebugLinearMeta"></span><span id="chipRateDebugLinearMilestone"></span></div>' +
+        '<div class="chip-rate-debug-meta"><span id="chipRateDebugLinearMeta"></span></div>' +
         '<div class="chip-rate-debug-meter" id="chipRateDebugLinearMeter">' +
           '<div class="chip-rate-ticks" id="chipRateDebugLinearTicks"></div>' +
           '<span class="upgrade-progress-bought" id="chipRateDebugLinearFill"></span>' +
         '</div>' +
         '<h4>Log scale</h4>' +
-        '<div class="chip-rate-debug-meta"><span id="chipRateDebugLogMeta"></span><span id="chipRateDebugLogMilestone"></span></div>' +
+        '<div class="chip-rate-debug-meta"><span id="chipRateDebugLogMeta"></span></div>' +
         '<div class="chip-rate-debug-meter" id="chipRateDebugLogMeter">' +
           '<div class="chip-rate-ticks" id="chipRateDebugLogTicks"></div>' +
           '<span class="upgrade-progress-bought" id="chipRateDebugLogFill"></span>' +
@@ -7922,7 +7919,6 @@
         sigKey: 'linear',
         fill: document.getElementById('chipRateDebugLinearFill'),
         ticks: document.getElementById('chipRateDebugLinearTicks'),
-        milestone: document.getElementById('chipRateDebugLinearMilestone'),
         meta: document.getElementById('chipRateDebugLinearMeta')
       },
       {
@@ -7930,7 +7926,6 @@
         sigKey: 'log',
         fill: document.getElementById('chipRateDebugLogFill'),
         ticks: document.getElementById('chipRateDebugLogTicks'),
-        milestone: document.getElementById('chipRateDebugLogMilestone'),
         meta: document.getElementById('chipRateDebugLogMeta')
       }
     ];
@@ -7940,11 +7935,8 @@
       p.fill.style.left = '0%';
       p.fill.style.width = pct + '%';
       const sigRef = { v: chipRateDebugTickSigs[p.sigKey] };
-      updateChipRateTicks(max, p.log, p.ticks, null, sigRef);
+      updateChipRateTicks(max, p.log, p.ticks, sigRef);
       chipRateDebugTickSigs[p.sigKey] = sigRef.v;
-      const milestones = chipRateMilestones(max, p.log);
-      const labelVal = milestones.length ? milestones[milestones.length - 1] : 0;
-      if(p.milestone) p.milestone.textContent = labelVal > 0 ? chipRateTickLabel(labelVal) : '—';
       if(p.meta) p.meta.textContent = formatChipRate(rate) + ' / peak ' + formatChipRate(max).replace('/s', '');
     }
   }
