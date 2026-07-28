@@ -4,8 +4,8 @@
   "terminals": [
     {
       "name": "static-server",
-      "command": "python3 -m http.server 8080",
-      "description": "Serves Classic at http://localhost:8080/ and Poker at http://localhost:8080/poker/"
+      "command": "python3 scripts/dev-server.py",
+      "description": "Dev server with JSON write API — Classic at http://localhost:8080/, Poker at http://localhost:8080/poker/, editor save at /poker/vip-perk-editor.html"
     }
   ],
   "ports": [
