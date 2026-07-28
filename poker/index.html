@@ -266,7 +266,6 @@
     width:1px;
     margin-left:-0.5px;
     background:rgba(255,255,255,0.22);
-    transition:left 0.4s ease-out;
   }
   .chip-rate-tick.is-labeled{
     width:2px;
@@ -7657,6 +7656,7 @@
   const CHIP_RATE_WINDOW_MS = 5000;
   const CHIP_RATE_UI_MS = 250;
   const CHIP_RATE_SMOOTH = 0.06;
+  const CHIP_RATE_TICK_SLOTS = 4;
   const CHIP_RATE_DEBUG = new URLSearchParams(location.search).has('chipRateDebug');
   let chipEarnSamples = [];
   let lastChipRatePaint = 0;
