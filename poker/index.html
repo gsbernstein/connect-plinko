@@ -202,7 +202,7 @@
     color:var(--felt-bright);
     overflow:hidden;
   }
-  .score.has-chip-rate{padding-bottom:4px;}
+  .score.has-chip-rate{padding-bottom:8px;}
   .chip-rate[hidden],
   #chipRateBar[hidden]{display:none !important;}
   .score-head{
@@ -213,16 +213,6 @@
     gap:8px;
     width:100%;
     min-width:0;
-  }
-  .chip-rate{
-    display:block;
-    font-family:'Space Grotesk',sans-serif;
-    font-size:10px;
-    line-height:1.15;
-    font-variant-numeric:tabular-nums;
-    color:var(--ink-dim);
-    opacity:0.9;
-    text-align:right;
   }
   .score.active{box-shadow:0 0 0 1px currentColor, 0 0 16px -2px currentColor;}
   .score .hud-val,
@@ -235,6 +225,67 @@
     flex:1 1 auto;
     min-width:0;
     text-align:right;
+  }
+  .chip-rate-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:flex-start;
+    gap:6px;
+    width:100%;
+    min-height:11px;
+    margin-top:3px;
+  }
+  .chip-rate-row[hidden]{display:none !important;}
+  .chip-rate{
+    display:block;
+    flex:1 1 auto;
+    min-width:0;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:10px;
+    line-height:1.15;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink-dim);
+    opacity:0.9;
+    text-align:left;
+  }
+  #chipRateBar{overflow:visible;}
+  #chipRateBar .chip-rate-ticks{
+    top:-10px;
+    bottom:0;
+  }
+  .chip-rate-ticks{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:1;
+  }
+  .chip-rate-tick{
+    position:absolute;
+    top:-2px;
+    height:7px;
+    width:1px;
+    margin-left:-0.5px;
+    background:rgba(255,255,255,0.22);
+    transition:left 0.4s ease-out;
+  }
+  .chip-rate-tick.is-labeled{
+    width:2px;
+    margin-left:-1px;
+    background:rgba(240,215,140,0.6);
+    box-shadow:0 0 3px rgba(240,215,140,0.35);
+  }
+  .chip-rate-tick-label{
+    position:absolute;
+    bottom:calc(100% + 2px);
+    left:50%;
+    transform:translateX(-50%);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:7px;
+    line-height:1;
+    color:var(--ink-dim);
+    opacity:0.9;
+    white-space:nowrap;
+    pointer-events:none;
   }
   .next-card{
     display:flex;
@@ -2519,6 +2570,72 @@
     .cashout-modal-card{padding:28px 18px 18px;}
     .cashout-modal-suits{letter-spacing:0.35em; margin-top:24px;}
   }
+  .chip-rate-debug{
+    position:fixed;
+    left:12px;
+    bottom:12px;
+    z-index:9999;
+    width:min(440px, calc(100vw - 24px));
+    max-height:min(70vh, 520px);
+    overflow:auto;
+    background:rgba(12,10,22,0.96);
+    border:1px solid #3a3458;
+    border-radius:10px;
+    padding:12px 14px;
+    font:11px 'IBM Plex Mono',monospace;
+    color:var(--ink-dim);
+    box-shadow:0 10px 36px rgba(0,0,0,0.55);
+  }
+  .chip-rate-debug h3{
+    margin:0 0 10px;
+    font:600 12px 'Space Grotesk',sans-serif;
+    color:var(--ink);
+  }
+  .chip-rate-debug label{
+    display:block;
+    margin:10px 0 4px;
+    font-size:10px;
+  }
+  .chip-rate-debug input[type=range]{width:100%; accent-color:var(--felt-bright);}
+  .chip-rate-debug-val{color:var(--felt-bright);}
+  .chip-rate-debug-preview{margin-top:12px;}
+  .chip-rate-debug-preview h4{
+    margin:0 0 6px;
+    font:600 10px 'Space Grotesk',sans-serif;
+    color:var(--ink);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .chip-rate-debug-meter{
+    position:relative;
+    height:3px;
+    margin:0 0 14px;
+    background:rgba(255,255,255,0.08);
+    border-radius:2px;
+    overflow:visible;
+  }
+  .chip-rate-debug-meter .upgrade-progress-bought{
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    width:0%;
+    background:linear-gradient(90deg, var(--felt), var(--felt-bright));
+  }
+  .chip-rate-debug-meter .chip-rate-ticks{
+    position:absolute;
+    top:-10px;
+    bottom:0;
+    left:0;
+    right:0;
+  }
+  .chip-rate-debug-meta{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    font-size:9px;
+    margin-bottom:4px;
+  }
 </style>
 </head>
 <body>
@@ -2531,8 +2648,11 @@
           <span class="hud-label">Chips</span>
           <b class="hud-val" id="scoreVal">0</b>
         </div>
-        <span class="chip-rate" id="chipRateVal" title="Chips earned per second" hidden>0/s</span>
+        <div class="chip-rate-row" id="chipRateRow" hidden>
+          <span class="chip-rate" id="chipRateVal" title="Chips earned per second">0/s</span>
+        </div>
         <div class="upgrade-progress" id="chipRateBar" title="Chips/s vs your peak" aria-hidden="true" hidden>
+          <div class="chip-rate-ticks" id="chipRateTicks" aria-hidden="true"></div>
           <span class="upgrade-progress-bought" id="chipRateFill"></span>
         </div>
       </div>
@@ -3386,6 +3506,16 @@
   // entry to max+1, sync version.json — see AGENTS.md "Changelog merge conflicts".
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
+    {
+      id: 107,
+      date: 'Jul 28, 2026',
+      title: 'Chips/s meter milestones',
+      items: [
+        'Chips/s sits left-aligned above the meter; milestone label sits above its tick.',
+        'Smoother /s readout; milestone ticks use a contiguous value ladder (linear even, log spaced).',
+        'Add ?chipRateDebug=1 to tune the meter with log sliders and linear/log previews.',
+      ]
+    },
     {
       id: 106,
       date: 'Jul 28, 2026',
@@ -7166,6 +7296,7 @@
   const chipFxLayer = document.getElementById('chipFxLayer');
   const scoreBoxEl = document.getElementById('scoreBox');
   const chipRateValEl = document.getElementById('chipRateVal');
+  const chipRateRowEl = document.getElementById('chipRateRow');
   const chipRateFillEl = document.getElementById('chipRateFill');
   const chipRateTicksEl = document.getElementById('chipRateTicks');
   const chipRateBarEl = document.getElementById('chipRateBar');
@@ -7542,6 +7673,9 @@
   // Rolling chips/s from gameplay awards (hands, pin tip, rail tax, floor clear).
   const CHIP_RATE_WINDOW_MS = 5000;
   const CHIP_RATE_UI_MS = 250;
+  const CHIP_RATE_SMOOTH = 0.06;
+  const CHIP_RATE_TICK_SLOTS = 4;
+  const CHIP_RATE_DEBUG = new URLSearchParams(location.search).has('chipRateDebug');
   let chipEarnSamples = [];
   let lastChipRatePaint = 0;
   let lastChipRateText = '';
@@ -7597,17 +7731,138 @@
     lastChipRateText = '';
     lastChipRatePct = -1;
     lastChipRateShown = null;
+    lastChipRateTicksSig = '';
+    chipRateSmoothed = 0;
     if(chipRateValEl) chipRateValEl.textContent = '0/s';
     if(chipRateFillEl){
       chipRateFillEl.style.left = '0%';
       chipRateFillEl.style.width = '0%';
     }
+    if(chipRateTicksEl) chipRateTicksEl.replaceChildren();
     syncChipRateVisibility();
   }
 
-  function chipRateFillPct(rate, max){
+  // Snap to a single-digit mantissa × 10^n (1–9 only — never 15, 1.5, etc.).
+  function chipRateSnapSingleDigit(v){
+    if(!Number.isFinite(v) || v <= 0) return 0;
+    if(v < 1) return 1;
+    let exp = Math.floor(Math.log10(v));
+    let mag = Math.pow(10, exp);
+    let digit = Math.round(v / mag);
+    if(digit > 9){
+      exp++;
+      mag *= 10;
+      digit = 1;
+    } else if(digit < 1){
+      digit = 1;
+    }
+    return digit * mag;
+  }
+
+  // 1, 2, … 9, 10, 20, … 90, 100, … — consecutive single-digit mantissas only.
+  function chipRateMantissaSequence(cap){
+    if(!(cap >= 1)) return [];
+    const values = [];
+    const maxExp = Math.max(0, Math.floor(Math.log10(cap)));
+    for(let exp = 0; exp <= maxExp; exp++){
+      const mag = Math.pow(10, exp);
+      for(let d = 1; d <= 9; d++){
+        const v = d * mag;
+        if(v < 1) continue;
+        if(v > cap) return values;
+        values.push(v);
+      }
+    }
+    return values;
+  }
+
+  // Linear: fixed step grid — values are step, 2×step, 3×step… (no per-value snap).
+  function chipRateLinearSequence(max){
+    if(!(max > 1)) return [];
+    const cap = max * 0.97;
+    const rawStep = max / (CHIP_RATE_TICK_SLOTS + 2);
+    let step = chipRateSnapSingleDigit(rawStep);
+    if(step < 1) step = 1;
+    const values = [];
+    for(let v = step; v <= cap; v += step) values.push(v);
+    return values;
+  }
+
+  function chipRateMilestones(max, logScale){
+    if(!(max > 1)) return [];
+    const cap = max * 0.97;
+    const seq = logScale ? chipRateMantissaSequence(cap) : chipRateLinearSequence(max);
+    const margin = 1.5;
+    const top = 98.5;
+    const visible = [];
+    for(const v of seq){
+      const pct = chipRateFillPct(v, max, logScale);
+      if(pct >= margin && pct <= top) visible.push(v);
+    }
+    // Contiguous tail only — new ticks enter on the right, old ones exit on the left.
+    return visible.slice(-CHIP_RATE_TICK_SLOTS);
+  }
+
+  function chipRateTickLabel(v){
+    if(!Number.isFinite(v) || v <= 0) return '';
+    if(v < 1000) return String(Math.round(v));
+    return formatNum(v);
+  }
+
+  function updateChipRateTicks(max, logScale, ticksEl, sigRef){
+    ticksEl = ticksEl || chipRateTicksEl;
+    if(!ticksEl) return;
+    if(!(max > 0)){
+      ticksEl.replaceChildren();
+      if(!sigRef) lastChipRateTicksSig = '';
+      else sigRef.v = '';
+      return;
+    }
+    const visible = chipRateMilestones(max, logScale);
+    const labelVal = visible.length ? visible[visible.length - 1] : 0;
+    const sig = max + '|' + (logScale ? 'l' : 'n') + '|' + visible.join(',');
+    if(!sigRef) lastChipRateTicksSig = sig;
+    else sigRef.v = sig;
+    const keep = new Map();
+    for(const child of ticksEl.children){
+      if(child.dataset && child.dataset.v) keep.set(child.dataset.v, child);
+    }
+    const nextKeys = new Set();
+    for(const v of visible){
+      const key = String(v);
+      nextKeys.add(key);
+      const pct = chipRateFillPct(v, max, logScale);
+      let tick = keep.get(key);
+      if(!tick){
+        tick = document.createElement('span');
+        tick.className = 'chip-rate-tick';
+        tick.dataset.v = key;
+        ticksEl.appendChild(tick);
+      }
+      const labeled = v === labelVal && labelVal > 0;
+      tick.classList.toggle('is-labeled', labeled);
+      tick.style.left = pct + '%';
+      let label = tick.querySelector('.chip-rate-tick-label');
+      if(labeled){
+        if(!label){
+          label = document.createElement('span');
+          label.className = 'chip-rate-tick-label';
+          tick.appendChild(label);
+        }
+        label.textContent = chipRateTickLabel(labelVal);
+      } else if(label){
+        label.remove();
+      }
+    }
+    for(const [key, tick] of keep){
+      if(!nextKeys.has(key)) tick.remove();
+    }
+  }
+
+  function chipRateFillPct(rate, max, logScaleOpt){
     if(!(max > 0)) return 0;
-    if(slideRuleLogScale()){
+    const logScale = logScaleOpt !== undefined ? logScaleOpt : slideRuleLogScale();
+    if(logScale){
       const denom = Math.log1p(max);
       if(!(denom > 0)) return 0;
       return Math.min(100, (Math.log1p(Math.max(0, rate)) / denom) * 100);
@@ -7620,40 +7875,149 @@
     if(show === lastChipRateShown) return show;
     lastChipRateShown = show;
     if(scoreBoxEl) scoreBoxEl.classList.toggle('has-chip-rate', show);
-    if(chipRateValEl) chipRateValEl.hidden = !show;
+    if(chipRateRowEl) chipRateRowEl.hidden = !show;
     if(chipRateBarEl) chipRateBarEl.hidden = !show;
     return show;
   }
 
   function updateChipRateUI(now, force){
     const show = syncChipRateVisibility();
-    if(!show) return;
+    if(!show && !CHIP_RATE_DEBUG) return;
     if(!chipRateValEl && !chipRateFillEl) return;
     now = now || performance.now();
-    if(!force && now - lastChipRatePaint < CHIP_RATE_UI_MS) return;
+    if(!force && !CHIP_RATE_DEBUG && now - lastChipRatePaint < CHIP_RATE_UI_MS) return;
     lastChipRatePaint = now;
-    const rate = currentChipRate(now);
-    const max = stats.maxChipRate || 0;
-    const logScale = slideRuleLogScale();
-    const pct = chipRateFillPct(rate, max);
+    const rawRate = CHIP_RATE_DEBUG ? chipRateDebugRate : currentChipRate(now);
+    if(CHIP_RATE_DEBUG){
+      chipRateSmoothed = rawRate;
+    } else {
+      chipRateSmoothed += (rawRate - chipRateSmoothed) * CHIP_RATE_SMOOTH;
+    }
+    const rate = chipRateSmoothed;
+    const max = CHIP_RATE_DEBUG ? chipRateDebugMax : (stats.maxChipRate || 0);
+    const logScale = CHIP_RATE_DEBUG ? true : slideRuleLogScale();
+    const pct = max > 0 ? chipRateFillPct(rate, max, logScale) : 0;
     if(chipRateBarEl){
       chipRateBarEl.title = logScale
         ? 'Chips/s vs your peak (log scale)'
         : 'Chips/s vs your peak';
     }
     if(chipRateFillEl){
-      const rounded = Math.round(pct);
-      if(rounded !== lastChipRatePct){
-        lastChipRatePct = rounded;
-        chipRateFillEl.style.left = '0%';
-        chipRateFillEl.style.width = pct + '%';
+      chipRateFillEl.style.left = '0%';
+      chipRateFillEl.style.width = pct + '%';
+      lastChipRatePct = Math.round(pct);
+    }
+    updateChipRateTicks(max, logScale);
+    if(chipRateValEl){
+      const text = formatChipRate(rate);
+      if(text !== lastChipRateText){
+        lastChipRateText = text;
+        chipRateValEl.textContent = text;
       }
     }
-    if(!chipRateValEl) return;
-    const text = formatChipRate(rate);
-    if(text === lastChipRateText) return;
-    lastChipRateText = text;
-    chipRateValEl.textContent = text;
+    if(CHIP_RATE_DEBUG) refreshChipRateDebugPreview();
+  }
+
+  function chipRateDebugLogToValue(t, min, max){
+    const lo = Math.log10(Math.max(min, 1));
+    const hi = Math.log10(Math.max(max, min + 1));
+    return Math.pow(10, lo + t * (hi - lo));
+  }
+
+  function chipRateDebugValueToLog(v, min, max){
+    const lo = Math.log10(Math.max(min, 1));
+    const hi = Math.log10(Math.max(max, min + 1));
+    return (Math.log10(Math.max(v, 1)) - lo) / (hi - lo || 1);
+  }
+
+  function mountChipRateDebugPanel(){
+    if(!CHIP_RATE_DEBUG || document.getElementById('chipRateDebug')) return;
+    const panel = document.createElement('div');
+    panel.id = 'chipRateDebug';
+    panel.className = 'chip-rate-debug';
+    panel.innerHTML =
+      '<h3>Chip rate meter debug</h3>' +
+      '<p>Add <code>?chipRateDebug=1</code> to the URL. Sliders use log spacing.</p>' +
+      '<label>Max (peak) <span class="chip-rate-debug-val" id="chipRateDebugMaxVal"></span></label>' +
+      '<input type="range" id="chipRateDebugMax" min="0" max="1000" step="1" value="700">' +
+      '<label>Current rate <span class="chip-rate-debug-val" id="chipRateDebugRateVal"></span></label>' +
+      '<input type="range" id="chipRateDebugRate" min="0" max="1000" step="1" value="350">' +
+      '<div class="chip-rate-debug-preview">' +
+        '<h4>Linear scale</h4>' +
+        '<div class="chip-rate-debug-meta"><span id="chipRateDebugLinearMeta"></span></div>' +
+        '<div class="chip-rate-debug-meter" id="chipRateDebugLinearMeter">' +
+          '<div class="chip-rate-ticks" id="chipRateDebugLinearTicks"></div>' +
+          '<span class="upgrade-progress-bought" id="chipRateDebugLinearFill"></span>' +
+        '</div>' +
+        '<h4>Log scale</h4>' +
+        '<div class="chip-rate-debug-meta"><span id="chipRateDebugLogMeta"></span></div>' +
+        '<div class="chip-rate-debug-meter" id="chipRateDebugLogMeter">' +
+          '<div class="chip-rate-ticks" id="chipRateDebugLogTicks"></div>' +
+          '<span class="upgrade-progress-bought" id="chipRateDebugLogFill"></span>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(panel);
+    const maxInput = panel.querySelector('#chipRateDebugMax');
+    const rateInput = panel.querySelector('#chipRateDebugRate');
+    const syncSliders = ()=>{
+      const min = 1;
+      const max = Math.max(chipRateDebugMax, 10);
+      maxInput.value = String(Math.round(chipRateDebugValueToLog(max, min, 1e12) * 1000));
+      rateInput.value = String(Math.round(chipRateDebugValueToLog(Math.min(chipRateDebugRate, max), min, max) * 1000));
+      panel.querySelector('#chipRateDebugMaxVal').textContent = formatChipRate(chipRateDebugMax).replace('/s', '');
+      panel.querySelector('#chipRateDebugRateVal').textContent = formatChipRate(chipRateDebugRate).replace('/s', '');
+    };
+    maxInput.addEventListener('input', ()=>{
+      chipRateDebugMax = Math.round(chipRateDebugLogToValue(+maxInput.value / 1000, 1, 1e12));
+      if(chipRateDebugRate > chipRateDebugMax) chipRateDebugRate = chipRateDebugMax;
+      syncSliders();
+      updateChipRateUI(performance.now(), true);
+    });
+    rateInput.addEventListener('input', ()=>{
+      const max = Math.max(chipRateDebugMax, 10);
+      chipRateDebugRate = Math.round(chipRateDebugLogToValue(+rateInput.value / 1000, 1, max));
+      syncSliders();
+      updateChipRateUI(performance.now(), true);
+    });
+    syncSliders();
+    if(scoreBoxEl) scoreBoxEl.classList.add('has-chip-rate');
+    if(chipRateRowEl) chipRateRowEl.hidden = false;
+    if(chipRateBarEl) chipRateBarEl.hidden = false;
+    refreshChipRateDebugPreview();
+  }
+
+  const chipRateDebugTickSigs = { linear: '', log: '' };
+
+  function refreshChipRateDebugPreview(){
+    if(!CHIP_RATE_DEBUG) return;
+    const rate = chipRateDebugRate;
+    const max = chipRateDebugMax;
+    const pairs = [
+      {
+        log: false,
+        sigKey: 'linear',
+        fill: document.getElementById('chipRateDebugLinearFill'),
+        ticks: document.getElementById('chipRateDebugLinearTicks'),
+        meta: document.getElementById('chipRateDebugLinearMeta')
+      },
+      {
+        log: true,
+        sigKey: 'log',
+        fill: document.getElementById('chipRateDebugLogFill'),
+        ticks: document.getElementById('chipRateDebugLogTicks'),
+        meta: document.getElementById('chipRateDebugLogMeta')
+      }
+    ];
+    for(const p of pairs){
+      if(!p.fill || !p.ticks) continue;
+      const pct = max > 0 ? chipRateFillPct(rate, max, p.log) : 0;
+      p.fill.style.left = '0%';
+      p.fill.style.width = pct + '%';
+      const sigRef = { v: chipRateDebugTickSigs[p.sigKey] };
+      updateChipRateTicks(max, p.log, p.ticks, sigRef);
+      chipRateDebugTickSigs[p.sigKey] = sigRef.v;
+      if(p.meta) p.meta.textContent = formatChipRate(rate) + ' / peak ' + formatChipRate(max).replace('/s', '');
+    }
   }
 
   function awardChips(amount, origin){
@@ -14315,6 +14679,7 @@
   setRailPanel(isDesktopLayout() ? defaultShopPanel() : 'table');
   // Resume Table Tilt only when no permission prompt is needed (e.g. Android).
   activateTableTilt(false);
+  mountChipRateDebugPanel();
   draw();
   requestAnimationFrame(idleSpin);
   startReleasePolling();
