@@ -99,7 +99,7 @@ def main():
     os.chdir(ROOT)
     server = ThreadingHTTPServer(('', PORT), DevHandler)
     print(f'dev-server: http://localhost:{PORT}/  (write API enabled)')
-    print(f'  poker editor: http://localhost:{PORT}/poker/vip-perk-editor.html')
+    print(f'  data editor: http://localhost:{PORT}/poker/data-editor.html')
     server.serve_forever()
 
 
