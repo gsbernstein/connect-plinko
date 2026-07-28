@@ -406,6 +406,16 @@
     background:rgba(255,255,255,0.035);
     color:var(--ink-dim);
   }
+  .toggle-dock-btn.is-settings{
+    border-color:rgba(110,168,255,0.52);
+    background:rgba(110,168,255,0.14);
+    color:#8BB8FF;
+  }
+  .toggle-dock-btn.is-settings.is-off{
+    border-color:#3a3558;
+    background:rgba(255,255,255,0.035);
+    color:var(--ink-dim);
+  }
   .toggle-dock-name{
     font-family:'Space Grotesk',sans-serif;
     font-size:10px;
@@ -2726,14 +2736,14 @@
         </div>
         <div class="settings-toggles">
           <label class="settings-toggle">
-            <span>Show FPS counter</span>
+            <span>FPS Counter</span>
             <input type="checkbox" id="settingShowFps">
-            <span class="settings-toggle-ui" aria-hidden="true">Off</span>
+            <span class="settings-toggle-ui" aria-hidden="true">Hidden</span>
           </label>
           <label class="settings-toggle">
-            <span>Chip animation</span>
+            <span>Flying chips animation</span>
             <input type="checkbox" id="settingChipAnimation" checked>
-            <span class="settings-toggle-ui" aria-hidden="true">On</span>
+            <span class="settings-toggle-ui" aria-hidden="true">Shown</span>
           </label>
         </div>
         <div class="settings-changelog" aria-label="Changelog">
@@ -3450,22 +3460,24 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
-      id: 105,
+      id: 106,
       date: 'Jul 28, 2026',
       title: 'HUD tiles & chips/s meter layout',
       items: [
         'Top HUD tiles share equal width so chip counts no longer resize the row.',
         'Chips/s sits left-aligned above the meter; the milestone label sits on the right.',
         'Smoother /s readout and sliding scale ticks; add ?chipRateDebug=1 to tune milestones.',
+        'Slide Rule is a top VIP pick — 1 comp for Lv1 chips/s meter, 2 comps for Lv2 Linear/Log toggle.',
       ]
     },
     {
       id: 104,
       date: 'Jul 28, 2026',
-      title: 'Chips/s scale ticks',
+      title: 'Control Booth tidy-up',
       items: [
-        'Slide Rule is a top VIP pick — 1 comp for Lv1 chips/s meter, 2 comps for Lv2 log scale.',
-        'Chips/s meter shows milestone tick marks (1k, 1M, …) with a tiny label so scale shifts read clearly.',
+        'Remove unnecessary toggles from the dock.',
+        'Chips Fly toggle added to the Control Booth column.',
+        'Slide Rule Lv2+: Rate toggle in booth and VIP switches Linear / Log (meter stays on at Lv1).',
       ]
     },
     {
@@ -5011,7 +5023,7 @@
     {
       id: 'slideRule',
       name: 'Slide Rule',
-      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch that meter to a log scale so early trickle and late flood both read. Toggle On/Off anytime.',
+      desc: 'Lv1: show a chips/s meter under Chips. Lv2+: Rate toggle switches Linear / Log scale. Toggle On/Off anytime.',
       baseCost: 1,
       costScale: 2,
       maxLevel: 2,
@@ -5224,14 +5236,14 @@
     { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
     { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
     { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
-    { id: 'slideRule', short: 'Rate', source: 'prestige' },
+    { id: 'slideRule', short: 'Rate', source: 'prestige', scaleStates: true, minLevel: 2 },
+    { id: 'chipAnimation', short: 'Chips Fly', source: 'settings', label: 'Flying chips animation', visibilityStates: true },
     { id: 'pinSplit', short: 'Mitosis', source: 'prestige' },
     { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
     { id: 'siegeWeapons', short: 'Siege', source: 'prestige' },
     { id: 'kingMe', short: 'King Me', source: 'prestige' },
     { id: 'bigRoom', short: 'Fire', source: 'prestige' },
-    { id: 'dealMeIn', short: 'Deal In', source: 'prestige' },
-    { id: 'controlBooth', short: 'Booth', source: 'prestige' }
+    { id: 'dealMeIn', short: 'Deal In', source: 'prestige' }
   ];
   let comps = 0;
   let prestigeCount = 0;
@@ -5314,6 +5326,7 @@
     gameSettings[key] = !!on;
     persistSettings();
     syncSettingsUI();
+    updateToggleDockUI();
     startLoop();
   }
 
@@ -5321,12 +5334,12 @@
     if(settingShowFpsEl){
       settingShowFpsEl.checked = !!gameSettings.showFps;
       const ui = settingShowFpsEl.nextElementSibling;
-      if(ui) ui.textContent = gameSettings.showFps ? 'On' : 'Off';
+      if(ui) ui.textContent = gameSettings.showFps ? 'Shown' : 'Hidden';
     }
     if(settingChipAnimationEl){
       settingChipAnimationEl.checked = gameSettings.chipAnimation !== false;
       const ui = settingChipAnimationEl.nextElementSibling;
-      if(ui) ui.textContent = gameSettings.chipAnimation !== false ? 'On' : 'Off';
+      if(ui) ui.textContent = gameSettings.chipAnimation !== false ? 'Shown' : 'Hidden';
     }
   }
 
@@ -5376,7 +5389,7 @@
   }
 
   function slideRuleMeterVisible(){
-    return prestigeLevel('slideRule') > 0 && isAutoEnabled('slideRule');
+    return prestigeLevel('slideRule') > 0;
   }
 
   function slideRuleLogScale(){
@@ -5384,11 +5397,14 @@
   }
 
   function toggleDockItemOwned(def){
+    if(def.source === 'settings') return true;
     if(def.source === 'upgrade') return upgradeLevel(def.id) > 0;
-    return prestigeLevel(def.id) > 0;
+    const minLv = def.minLevel || 1;
+    return prestigeLevel(def.id) >= minLv;
   }
 
   function toggleDockFullName(def){
+    if(def.source === 'settings') return def.label || def.short;
     if(def.source === 'upgrade'){
       const u = UPGRADE_DEFS.find(d => d.id === def.id);
       return u ? u.name : def.short;
@@ -8316,8 +8332,8 @@
         return 'Steer up to ±' + tableTiltMaxDeg() + '°';
       case 'slideRule':
         if(!lvl) return 'No chips/s meter';
-        if(!isAutoEnabled('slideRule')) return 'Paused · meter hidden';
-        return lvl >= 2 ? 'Log chips/s meter' : 'Linear chips/s meter';
+        if(lvl < 2) return 'Linear chips/s meter';
+        return isAutoEnabled('slideRule') ? 'Log chips/s meter' : 'Linear chips/s meter';
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
@@ -13165,6 +13181,11 @@
           toggle.textContent = visible ? 'Shown' : 'Hidden';
           toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
           toggle.classList.toggle('is-off', !visible);
+        } else if(def.id === 'slideRule'){
+          const log = isAutoEnabled('slideRule');
+          toggle.textContent = log ? 'Log' : 'Linear';
+          toggle.setAttribute('aria-pressed', log ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !log);
         } else {
           const on = isAutoEnabled(def.id);
           toggle.textContent = on ? 'On' : 'Off';
@@ -13313,7 +13334,7 @@
         if(canAfford) vipReady++;
         fillUpgradeButton(btn, def, {
           bought: lvl, bonus: 0, maxed, locked: needsSuitBomb, cost, canAfford,
-          canToggle: !!(def.toggleable && lvl > 0),
+          canToggle: !!(def.toggleable && lvl > 0 && (def.id !== 'slideRule' || lvl >= 2)),
           effect: prestigeEffectText(def),
           costLabel: needsSuitBomb ? 'Needs Suit Purge' : '',
           unit: 'comps',
@@ -13706,7 +13727,10 @@
       for(const def of owned){
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'toggle-dock-btn' + (def.source === 'prestige' ? ' is-prestige' : '');
+        let dockBtnClass = 'toggle-dock-btn';
+        if(def.source === 'prestige') dockBtnClass += ' is-prestige';
+        else if(def.source === 'settings') dockBtnClass += ' is-settings';
+        btn.className = dockBtnClass;
         btn.dataset.id = def.id;
         btn.innerHTML =
           '<span class="toggle-dock-name"></span>' +
@@ -13719,6 +13743,8 @@
             scheduleSave();
             updateSuitBombUI(performance.now(), true);
             updateShopUI();
+          } else if(def.source === 'settings'){
+            setGameSetting(def.id, gameSettings[def.id] === false);
           } else {
             setAutoEnabled(def.id, !isAutoEnabled(def.id));
           }
@@ -13742,6 +13768,15 @@
       } else if(def.fuseStates){
         on = isAutoEnabled(id);
         label = on ? 'Short' : 'Normal';
+      } else if(def.scaleStates){
+        on = isAutoEnabled(id);
+        label = on ? 'Log' : 'Linear';
+      } else if(def.visibilityStates){
+        on = gameSettings[id] !== false;
+        label = on ? 'Shown' : 'Hidden';
+      } else if(def.source === 'settings'){
+        on = gameSettings[id] !== false;
+        label = on ? 'On' : 'Off';
       } else {
         on = isAutoEnabled(id);
         label = on ? 'On' : 'Off';
