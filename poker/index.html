@@ -3353,6 +3353,14 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 104,
+      date: 'Jul 28, 2026',
+      title: 'VIP perks sorted by cost',
+      items: [
+        'The VIP tab now lists perks cheapest-first so early buys are easier to scan.',
+      ]
+    },
+    {
       id: 103,
       date: 'Jul 28, 2026',
       title: 'Quick Claim VIP perk',
@@ -4882,6 +4890,8 @@
   const CONTRACT_DEFS = ACHIEVEMENT_DEFS;
 
   // Permanent VIP perks bought with comps from Cash Out.
+  // VIP order = array order. Sorted by Lv1 comp cost (baseCost) ascending;
+  // same-tier rows alphabetically by name.
   const PRESTIGE_DEFS = [
     {
       id: 'seedStack',
@@ -4892,20 +4902,12 @@
       maxLevel: 20
     },
     {
-      id: 'rackDiscount',
-      name: 'Rack Discount',
-      desc: 'Table upgrades cost less chips.',
+      id: 'feltWax',
+      name: 'Felt Wax',
+      desc: '+1 Felt Grease level permanently. Raises Felt Grease’s buy cost like a normal level. Capped at Felt Grease max.',
       baseCost: 2,
-      costScale: 1.8,
+      costScale: 1.9,
       maxLevel: 10
-    },
-    {
-      id: 'compCard',
-      name: 'Comp Card',
-      desc: 'Earn more comps whenever you Cash Out.',
-      baseCost: 3,
-      costScale: 2.0,
-      maxLevel: 8
     },
     {
       id: 'blindSpread',
@@ -4916,25 +4918,9 @@
       maxLevel: 5
     },
     {
-      id: 'quickDeal',
-      name: 'Quick Deal',
-      desc: '+1 Auto Dealer level permanently. Raises Auto Dealer’s buy cost like a normal level. Capped at Auto Dealer max.',
-      baseCost: 2,
-      costScale: 1.9,
-      maxLevel: 10
-    },
-    {
       id: 'pinPrivilege',
       name: 'Pin Privilege',
       desc: '+1 Pin Tip level permanently. Raises Pin Tip’s buy cost like a normal level. Capped at Pin Tip max.',
-      baseCost: 2,
-      costScale: 1.9,
-      maxLevel: 10
-    },
-    {
-      id: 'feltWax',
-      name: 'Felt Wax',
-      desc: '+1 Felt Grease level permanently. Raises Felt Grease’s buy cost like a normal level. Capped at Felt Grease max.',
       baseCost: 2,
       costScale: 1.9,
       maxLevel: 10
@@ -4948,10 +4934,52 @@
       maxLevel: 4
     },
     {
-      id: 'autoSuitBomb',
-      name: 'Auto Purge',
-      desc: 'Automatically cast Suit Purge on the most crowded suit. Toggle On/Off anytime.',
-      baseCost: 8,
+      id: 'quickDeal',
+      name: 'Quick Deal',
+      desc: '+1 Auto Dealer level permanently. Raises Auto Dealer’s buy cost like a normal level. Capped at Auto Dealer max.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
+      id: 'rackDiscount',
+      name: 'Rack Discount',
+      desc: 'Table upgrades cost less chips.',
+      baseCost: 2,
+      costScale: 1.8,
+      maxLevel: 10
+    },
+    {
+      id: 'slideRule',
+      name: 'Slide Rule',
+      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch to log scale. Toggle On/Off anytime.',
+      baseCost: 2,
+      costScale: 5,
+      maxLevel: 2,
+      toggleable: true
+    },
+    {
+      id: 'tableTilt',
+      name: 'Table Tilt',
+      desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
+      baseCost: 2,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'compCard',
+      name: 'Comp Card',
+      desc: 'Earn more comps whenever you Cash Out.',
+      baseCost: 3,
+      costScale: 2.0,
+      maxLevel: 8
+    },
+    {
+      id: 'controlBooth',
+      name: 'Control Booth',
+      desc: 'Show every owned toggle in a column to the right of the board. Toggle On/Off anytime to hide the column.',
+      baseCost: 4,
       costScale: 1,
       maxLevel: 1,
       toggleable: true
@@ -4974,6 +5002,23 @@
       maxLevel: 1
     },
     {
+      id: 'cardCounting',
+      name: 'Card Counting',
+      desc: 'Lv1–8: +8% hand payout per duplicate in play per level (board + falling chips). Lv9: multiply your level payout mult by paired-card products (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
+      baseCost: 6,
+      costScale: 1.9,
+      maxLevel: 9
+    },
+    {
+      id: 'autoSuitBomb',
+      name: 'Auto Purge',
+      desc: 'Automatically cast Suit Purge on the most crowded suit. Toggle On/Off anytime.',
+      baseCost: 8,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
       id: 'pitBoss',
       name: 'Pit Boss',
       desc: 'Automatically buy the cheapest affordable table upgrades each tick. Toggle On/Off anytime.',
@@ -4981,31 +5026,6 @@
       costScale: 1,
       maxLevel: 1,
       toggleable: true
-    },
-    {
-      id: 'controlBooth',
-      name: 'Control Booth',
-      desc: 'Show every owned toggle in a column to the right of the board. Toggle On/Off anytime to hide the column.',
-      baseCost: 4,
-      costScale: 1,
-      maxLevel: 1,
-      toggleable: true
-    },
-    {
-      id: 'aceSleeve',
-      name: 'Ace Up Your Sleeve',
-      desc: 'Each line scores the best 5-card poker hand from its cards plus one invisible Ace. The house looks the other way.',
-      baseCost: 100,
-      costScale: 1,
-      maxLevel: 1
-    },
-    {
-      id: 'connect4',
-      name: 'Connect 4',
-      desc: 'Flushes only need 4 suited cards instead of 5. Just like the classic game.',
-      baseCost: 90,
-      costScale: 1,
-      maxLevel: 1
     },
     {
       id: 'dealMeIn',
@@ -5017,12 +5037,13 @@
       toggleable: true
     },
     {
-      id: 'cardCounting',
-      name: 'Card Counting',
-      desc: 'Lv1–8: +8% hand payout per duplicate in play per level (board + falling chips). Lv9: multiply your level payout mult by paired-card products (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
-      baseCost: 6,
-      costScale: 1.9,
-      maxLevel: 9
+      id: 'siegeWeapons',
+      name: 'Siege Weapons',
+      desc: 'Spiked cards smash bumpers for Rail Tax and clear columns. Lv 2: every column on that bumper. Lv 3: landing slam clears the column with combo payout. Toggle On/Off anytime.',
+      baseCost: 55,
+      costScale: 2.2,
+      maxLevel: 3,
+      toggleable: true
     },
     {
       id: 'pinSplit',
@@ -5043,24 +5064,6 @@
       toggleable: true
     },
     {
-      id: 'siegeWeapons',
-      name: 'Siege Weapons',
-      desc: 'Spiked cards smash bumpers for Rail Tax and clear columns. Lv 2: every column on that bumper. Lv 3: landing slam clears the column with combo payout. Toggle On/Off anytime.',
-      baseCost: 55,
-      costScale: 2.2,
-      maxLevel: 3,
-      toggleable: true
-    },
-    {
-      id: 'kingMe',
-      name: 'King Me',
-      desc: 'When two kings of the same suit meet — on the board or mid-fall through the pins — they merge into a crowned king. Matching crowns merge again (double, triple, …) with exponentially bigger payouts. Stacked kings count as multiple kings in poker hands. Toggle On/Off anytime.',
-      baseCost: 120,
-      costScale: 1,
-      maxLevel: 1,
-      toggleable: true
-    },
-    {
       id: 'bigRoom',
       name: 'I Cast Fireball',
       desc: 'Explosions light nearby cards on fire — including chips still falling through the pins. Burning cards drip chips until they ash out, and poker hands that include them pay a bonus. King Me merges spark a blast too. Toggle On/Off anytime.',
@@ -5070,21 +5073,28 @@
       toggleable: true
     },
     {
-      id: 'tableTilt',
-      name: 'Table Tilt',
-      desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
-      baseCost: 2,
+      id: 'connect4',
+      name: 'Connect 4',
+      desc: 'Flushes only need 4 suited cards instead of 5. Just like the classic game.',
+      baseCost: 90,
       costScale: 1,
-      maxLevel: 1,
-      toggleable: true
+      maxLevel: 1
     },
     {
-      id: 'slideRule',
-      name: 'Slide Rule',
-      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch to log scale. Toggle On/Off anytime.',
-      baseCost: 2,
-      costScale: 5,
-      maxLevel: 2,
+      id: 'aceSleeve',
+      name: 'Ace Up Your Sleeve',
+      desc: 'Each line scores the best 5-card poker hand from its cards plus one invisible Ace. The house looks the other way.',
+      baseCost: 100,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'kingMe',
+      name: 'King Me',
+      desc: 'When two kings of the same suit meet — on the board or mid-fall through the pins — they merge into a crowned king. Matching crowns merge again (double, triple, …) with exponentially bigger payouts. Stacked kings count as multiple kings in poker hands. Toggle On/Off anytime.',
+      baseCost: 120,
+      costScale: 1,
+      maxLevel: 1,
       toggleable: true
     }
   ];
