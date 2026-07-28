@@ -23,7 +23,13 @@ Each page links to the other via a Classic / Poker toggle.
 /
 ├── index.html          # Plinko Four (~1,740 lines) — HTML + CSS + JS in one file
 ├── poker/
-│   ├── index.html      # Plinko Poker (~8,880 lines) — same pattern
+│   ├── index.html      # Plinko Poker — HTML + CSS + JS; boots after load-game-data.js
+│   ├── load-game-data.js  # fetch() poker/*.json into window.* before game IIFE
+│   ├── prestige-defs.json   # VIP perks (`window.PRESTIGE_DEFS`)
+│   ├── upgrade-defs.json    # Table shop (`window.UPGRADE_DEFS`)
+│   ├── quest-defs.json      # Quest slots/rarities/templates
+│   ├── achievement-defs.json  # Permanent achievements (`window.ACHIEVEMENT_DEFS`)
+│   ├── changelog.json    # What's New entries (newest-first; `id` = release)
 │   ├── version.json    # Poker release id (`v`) polled for refresh prompts
 │   └── welcome-chip.png
 ├── .cursor/
@@ -34,7 +40,7 @@ Each page links to the other via a Classic / Poker toggle.
 └── AGENTS.md           # this file
 ```
 
-There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `poker/version.json` when shipping a Poker refresh-worthy deploy).
+There are no other source directories. Almost all work lands in one of the two `index.html` files, plus poker `*-defs.json` / `changelog.json` data files and `poker/version.json` when shipping a refresh-worthy deploy.
 
 ## Local dev
 
@@ -92,10 +98,10 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 
 | Symbol | Purpose |
 |--------|---------|
-| `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
+| `UPGRADE_DEFS` | Table shop upgrades in `poker/upgrade-defs.json`; `load-game-data.js` → `window.UPGRADE_DEFS`; `index.html` assigns `const UPGRADE_DEFS = window.UPGRADE_DEFS`. Order = shop order. |
 | `SHOP_RECOMMEND_PRIORITY` / `VIP_RECOMMEND_PRIORITY` / `recommendedShopUpgradeId` / `recommendedVipPerkId` / `.upgrade-rec` / `.upgrade-cost-row` | Gold ★ after the price on the next guided buy: shop Auto Dealer→4 → Wild Card→3 → Pin Tip→3 → Felt Grease→3 → Multi Deal→3 → High Cut→4 → Suit Alliance→2; VIP Slide Rule→1 → Quest Desk→1 → Quest Ink→4. First incomplete unlocked step wins (`fillUpgradeButton` `recommended`; `.upgrade-rec.is-on` via `visibility`) |
 | `compCage` / `runCompCredit` | Cashier’s Cage (`unlockAt` 200): each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
-| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out — array order = VIP tab order (curated; roughly cheap → expensive). Skill-bonus perks (`quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`. |
+| `PRESTIGE_DEFS` | VIP perks in `poker/prestige-defs.json`; loaded via `load-game-data.js`. Array order = VIP tab order (curated). Skill-bonus perks (`quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`. |
 | `controlBooth` / `TOGGLE_DOCK_DEFS` / `updateToggleDockUI` / `#toggleDock` | Control Booth VIP: when owned+On, shows owned toggles in a column to the right of the board (`.board-row` + `.toggle-dock`); Suit Purge uses Shown/Hidden; Short Fuse uses Short/Normal (`fuseStates`); Booth Off hides the column (re-enable from VIP); dock excludes Control Booth itself; Slide Rule Rate at Lv2+ (`scaleStates` Linear/Log); always includes Chips Fly dock button (`chipAnimation` / `source: 'settings'`, full name Flying chips animation, `visibilityStates` Shown/Hidden, `.is-settings` blue) |
 | `slideRule` / `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` / `syncChipRateVisibility` | Slide Rule VIP: Lv1+ always shows chips/s meter (linear); Lv2+ toggle Linear/Log via VIP tile or Control Booth Rate (`isAutoEnabled('slideRule')` = log) |
 | `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5) |
@@ -123,11 +129,11 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `multiDealChance` / `rollMultiDealExtras` / `MULTI_DEAL_CHANCE_PER_LEVEL` | Multi Deal (unlockAt 8): +25% extra-card chance per level on each auto tick (max Lv 6 = 150%); above 100% rolls multiple extras |
 | `upgradeEffectText` / `prestigeEffectText` / `shopMetaMultiplier` | Shop/VIP effect lines (stable; omit live Card Counting product via `*Display` helpers) |
 | `levelMultParts` / `levelMultDetailTitle` / `#runLevelMult` | Live Blind / payout / combo / Card Counting mults on the Level HUD tile; `scheduleCountingUiRefresh` updates this only (not shop/VIP rows) |
-| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (`a_max_combo` uses step 1); Big Pot / Combo Payday / Chip Flood use `targetGrowth: 10` after seed tiers |
+| `ACHIEVEMENT_DEFS` | `poker/achievement-defs.json` (`CONTRACT_DEFS` alias); `secret: true` hidden until `stat > 0`; infinite tiers. Quest data: `poker/quest-defs.json` (`QUEST_TEMPLATES`, `QUEST_SLOT_UNLOCK_LEVELS`, rarity weights). |
 | `achievementProgress` / `achievementProgShown` / `achievementProgTargetShown` | Floored progress numerator + last-painted tier target; skip identical prog HTML rewrites; pulse only when numerator rises |
 | `achievementTiersReachedByStat` | Highest infinite/seed tier whose `target` a peak stat already clears (used to remap Big Pot / Combo Payday claims when `targetGrowth` changes) |
 | `achievementName` | `a_max_combo` tier title: C-Combo, C-C-Combo… from active tier target |
-| `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
+| `QUEST_SLOT_UNLOCK_LEVELS` | Run levels that add quest slots (`poker/quest-defs.json`) |
 | `QUEST_RARITY_WEIGHTS_BY_INK` / `pickQuestRarity` | Quest Ink level (0–4) indexes per-rarity roll weights; max Ink favors Rare |
 | `HAND_STAT` / `HAND_STAT_ALSO` / `sixKinds` / `fullerHouses` / `quadsFull` | Hand → lifetime/run counters; King Me adds `SIX OF A KIND`→`sixKinds` (7+ folds in), `FULLER HOUSE` (3+3), `QUADS FULL` (4+2); ALSO chains bump lower cats (six→five→four→trips; quads full→four/boat/fuller; fuller→boat/trips) |
 | `a_six_kind` / `a_fuller_house` / `a_quads_full` | Secret infinite achievements: Clone Wars (`sixKinds`), Reboot (`fullerHouses`), Quads Full (`quadsFull`) |
@@ -236,9 +242,9 @@ Poker shares the same 7×6 grid and peg zone as classic. The `stack` array holds
 
 ### Settings changelog (What’s New)
 
-Settings shows a **What’s new** list (`CHANGELOG` near `SAVE_VERSION`) and a red-dot badge on the Settings rail tab (`#badgeSettings`, `.rail-tab-badge.is-new`) when `seenChangelogId < CHANGELOG_LATEST_ID`. Opening Settings calls `openSettingsChangelog()`: it sets `changelogHighlightFloor` from the save’s prior `seenChangelogId`, re-renders so entries with `id > floor` get `.changelog-entry.is-new` + a **New** tag, then `markChangelogSeen()` (sets `seenChangelogId` to `CHANGELOG_LATEST_ID` and saves). Hard reset keeps the changelog marked seen (reset is launched from Settings).
+Settings shows a **What’s new** list (`poker/changelog.json`, loaded into `CHANGELOG` via `load-game-data.js`) and a red-dot badge on the Settings rail tab (`#badgeSettings`, `.rail-tab-badge.is-new`) when `seenChangelogId < CHANGELOG_LATEST_ID`. Opening Settings calls `openSettingsChangelog()`: it sets `changelogHighlightFloor` from the save’s prior `seenChangelogId`, re-renders so entries with `id > floor` get `.changelog-entry.is-new` + a **New** tag, then `markChangelogSeen()` (sets `seenChangelogId` to `CHANGELOG_LATEST_ID` and saves). Hard reset keeps the changelog marked seen (reset is launched from Settings).
 
-**Agents: keep this updated.** When you ship a player-visible Poker change (new upgrade/perk, progression tweak, notable UX), prepend a new object to `CHANGELOG` with:
+**Agents: keep this updated.** When you ship a player-visible Poker change (new upgrade/perk, progression tweak, notable UX), prepend a new object to `poker/changelog.json` with:
 
 1. `id` — strictly greater than the current max (`CHANGELOG_LATEST_ID` is derived).
 2. `date` — calendar label with day (e.g. `'Jul 25, 2026'`), not month-only.
@@ -250,9 +256,9 @@ That new `id` lights the Settings badge and highlights only that entry (and any 
 
 ### Changelog merge conflicts (fast path)
 
-Most merge conflicts against `master` are only the top of `CHANGELOG` plus `poker/version.json`. Treat them as an id-assignment problem, not a content merge:
+Most merge conflicts against `master` are only the top of `poker/changelog.json` plus `poker/version.json`. Treat them as an id-assignment problem, not a content merge:
 
-1. **Prefer master’s list.** Take `origin/master`’s `CHANGELOG` array as the base (keep every existing entry and its `id` untouched).
+1. **Prefer master’s list.** Take `origin/master`’s `changelog.json` array as the base (keep every existing entry and its `id` untouched).
 2. **Keep your new entry’s copy.** From the conflict, salvage only *your* new object(s) — title/items/date — not the `id` you assigned while the branch was open.
 3. **Renumber yours to `max + 1`.** Read the highest `id` now on master (or `poker/version.json` `"v"` on master — same number). Set your entry’s `id` to that + 1. If you added multiple entries, assign consecutive ids above master’s max. Never renumber or rewrite master’s entries; never reuse an id that already shipped.
 4. **Prepend, newest-first.** Place your renumbered object(s) at the top of the array, then the untouched master list.
@@ -264,11 +270,10 @@ Most merge conflicts against `master` are only the top of `CHANGELOG` plus `poke
 **Sanity check after resolve:**
 
 ```bash
-# top CHANGELOG id must equal version.json v and be unique / monotonic
+# top changelog id must equal version.json v and be unique / monotonic
 python3 - <<'PY'
-import json,re
-html=open('poker/index.html').read()
-ids=[int(x) for x in re.findall(r"id:\s*(\d+)", html.split("const CHANGELOG")[1].split("const CHANGELOG_LATEST_ID")[0])]
+import json
+ids=[e["id"] for e in json.load(open('poker/changelog.json'))]
 v=json.load(open('poker/version.json'))["v"]
 assert ids==sorted(ids, reverse=True), ids
 assert len(ids)==len(set(ids)), ids
@@ -290,7 +295,7 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Multi Deal extras | `multiDealChance` / `rollMultiDealExtras` in `tryAutoDrop` via `autoDropOnce` |
 | Cashier’s Cage (chip→comp sink) | `compCage` in `UPGRADE_DEFS`; `purchaseUpgrade` adds `runCompCredit`; effect via `upgradeEffectText` |
 | Auto Dealer two-tier costs | `costLateAt` / `costLateBase` / `costLateScale` on `autoDealer` def; `upgradeCost` |
-| New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Deal Me In via `dealMeInActive` / `tryJoinResolve` on late `finalizeDrop`; Pin Split via `pinSplitActive` / peg hit in `stepBall`; Slide Rule via `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` |
+| New VIP perk | `poker/prestige-defs.json` + `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Deal Me In via `dealMeInActive` / `tryJoinResolve` on late `finalizeDrop`; Pin Split via `pinSplitActive` / peg hit in `stepBall`; Slide Rule via `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` |
 | Quick Claim hold series | `quickClaim` in `PRESTIGE_DEFS`; `achievementQuickClaimActive` gates hold repeat in `attachAchievementHoldHandlers` (tap still claims one tier) |
 | Deal Me In join | `dealMeIn` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS` / `TOGGLE_DOCK_DEFS`; `tryJoinResolve` after landed `finalizeDrop` while `resolvePhase === 'flash'`; `resolveGroupsSignature` change gate; Suit Purge / Siege / Floor excluded |
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult` only (no manual cooldown), `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
@@ -303,13 +308,14 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Control Booth toggle dock | `controlBooth` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS`; `TOGGLE_DOCK_DEFS` / `controlBoothActive` / `updateToggleDockUI`; HTML `#toggleDock` beside `.board-frame` in `.board-row` |
 | Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI` / `repaintSuitBombGlyphs`; shop Shown/Hidden and bar tap minimize picker only; Suit Alliance folds ally suits onto one `.pair-suit` button |
 | Suit Alliance (flush/purge allies) | `suitFamily` / `SUIT_ALIAS_STEPS` on `suitCut`; flush via `sliceSharesFlushSuit`; purge via `findSuitCells` / `castSuitBomb` family keys |
-| New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
+| New achievement | `poker/achievement-defs.json`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
-| New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
+| New quest template | `poker/quest-defs.json` (`QUEST_TEMPLATES`; slot unlocks / rarity tables in same file) |
+| New shop upgrade | `poker/upgrade-defs.json` |
 | Hand scoring / stats | hand detection block ~6160+, `HAND_STAT` wiring |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
-| Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
-| Prompt open Poker tabs to refresh after deploy | Same as changelog: new `CHANGELOG` `id` + set `poker/version.json` `v` to that id |
+| Settings changelog / What’s New badge | Prepend to `poker/changelog.json` (new monotonic `id`); see **Settings changelog** above |
+| Prompt open Poker tabs to refresh after deploy | Same as changelog: new `changelog.json` `id` + set `poker/version.json` `v` to that id |
 | Classic gameplay | `index.html` only |
 
 ## Git & PR workflow

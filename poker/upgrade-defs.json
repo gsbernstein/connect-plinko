@@ -1,0 +1,140 @@
+[
+  {
+    "id": "autoDealer",
+    "name": "Auto Dealer",
+    "desc": "Automatically deal cards.",
+    "baseCost": 22,
+    "costScale": 1.58,
+    "maxLevel": 12,
+    "unlockAt": 1,
+    "toggleable": true,
+    "costLateAt": 6,
+    "costLateBase": 380,
+    "costLateScale": 2.12
+  },
+  {
+    "id": "bigBlind",
+    "name": "Big Blind",
+    "desc": "+25% chips from every scored hand.",
+    "baseCost": 25,
+    "costScale": 1.65,
+    "maxLevel": 60,
+    "unlockAt": 1
+  },
+  {
+    "id": "floorPayout",
+    "name": "Sweep Stakes",
+    "desc": "Earn chips when a full board triggers a floor clear.",
+    "baseCost": 90,
+    "costScale": 1.8,
+    "maxLevel": 20,
+    "unlockAt": 2
+  },
+  {
+    "id": "bumperPayout",
+    "name": "Rail Tax",
+    "desc": "Earn chips whenever a card hits the bumper arch above a full column.",
+    "baseCost": 50,
+    "costScale": 1.7,
+    "maxLevel": 25,
+    "unlockAt": 3
+  },
+  {
+    "id": "premiumCut",
+    "name": "Premium Cut",
+    "desc": "Chance to deal Silver, Gold, or Diamond cards. Each premium card in a scored hand boosts that hand's payout.",
+    "baseCost": 150,
+    "costScale": 2,
+    "maxLevel": 25,
+    "unlockAt": 4
+  },
+  {
+    "id": "wildCard",
+    "name": "Wild Card",
+    "desc": "Chance to deal a wild card that counts as any suit for flushes. Higher levels deal them more often.",
+    "baseCost": 175,
+    "costScale": 2,
+    "maxLevel": 12,
+    "unlockAt": 5
+  },
+  {
+    "id": "pinPayout",
+    "name": "Pin Tip",
+    "desc": "Earn chips whenever a card bounces off a peg.",
+    "baseCost": 120,
+    "costScale": 1.8,
+    "maxLevel": 25,
+    "unlockAt": 6
+  },
+  {
+    "id": "feltGrease",
+    "name": "Felt Grease",
+    "desc": "Balls fall and settle faster. Late levels keep speeding up, with diminishing returns.",
+    "baseCost": 50,
+    "costScale": 1.8,
+    "maxLevel": 30,
+    "unlockAt": 7,
+    "costLateAt": 12,
+    "costLateBase": 58000,
+    "costLateScale": 2
+  },
+  {
+    "id": "shortFuse",
+    "name": "Short Fuse",
+    "desc": "Cards explode faster. Toggle Off to slow clears when stacking combos or Card Counting pairs.",
+    "baseCost": 80,
+    "costScale": 1.85,
+    "maxLevel": 12,
+    "unlockAt": 8,
+    "toggleable": true
+  },
+  {
+    "id": "multiDeal",
+    "name": "Multi Deal",
+    "desc": "Chance each auto deal spawns an extra card. Above 100% can spawn multiple. Caps at 150%.",
+    "baseCost": 1500,
+    "costScale": 2.35,
+    "maxLevel": 6,
+    "unlockAt": 9
+  },
+  {
+    "id": "highCut",
+    "name": "High Cut",
+    "desc": "Remove the lowest ranks from the deck.",
+    "baseCost": 100,
+    "costScale": 1.9,
+    "maxLevel": 8,
+    "unlockAt": 10
+  },
+  {
+    "id": "suitBomb",
+    "name": "Suit Purge",
+    "desc": "Blow up every card of one suit on the board for chip payout. Recharges over time; levels shorten the wait. Toggle or tap the bar to hide the suit picker.",
+    "baseCost": 400,
+    "costScale": 1.85,
+    "maxLevel": 12,
+    "unlockAt": 11,
+    "toggleable": true
+  },
+  {
+    "id": "suitCut",
+    "name": "Suit Alliance",
+    "desc": "Combine suits for flushes and Suit Purge. Lv1: diamonds count as hearts. Lv2: clubs count as spades.",
+    "baseCost": 6000,
+    "costScale": 3.5,
+    "maxLevel": 2,
+    "unlockAt": 15
+  },
+  {
+    "id": "compCage",
+    "name": "Cashier's Cage",
+    "desc": "Too many chips? Each buy adds +1 Cash Out comp.",
+    "baseCost": 500000,
+    "costScale": 2.2,
+    "maxLevel": 100,
+    "unlockAt": 200,
+    "costLateAt": 20,
+    "costLateBase": 3528000000000,
+    "costLateScale": 2.5
+  }
+]
