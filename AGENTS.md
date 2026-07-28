@@ -133,7 +133,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `achievementProgress` / `achievementProgShown` / `achievementProgTargetShown` | Floored progress numerator + last-painted tier target; skip identical prog HTML rewrites; pulse only when numerator rises |
 | `achievementTiersReachedByStat` | Highest infinite/seed tier whose `target` a peak stat already clears (used to remap Big Pot / Combo Payday claims when `targetGrowth` changes) |
 | `achievementName` | `a_max_combo` tier title: C-Combo, C-C-Combo… from active tier target |
-| `QUEST_SLOT_UNLOCKS` | Run levels that add quest slots |
+| `QUEST_SLOT_UNLOCK_LEVELS` | Run levels that add quest slots (`poker/quest-defs.js`) |
 | `QUEST_RARITY_WEIGHTS_BY_INK` / `pickQuestRarity` | Quest Ink level (0–4) indexes per-rarity roll weights; max Ink favors Rare |
 | `HAND_STAT` / `HAND_STAT_ALSO` / `sixKinds` / `fullerHouses` / `quadsFull` | Hand → lifetime/run counters; King Me adds `SIX OF A KIND`→`sixKinds` (7+ folds in), `FULLER HOUSE` (3+3), `QUADS FULL` (4+2); ALSO chains bump lower cats (six→five→four→trips; quads full→four/boat/fuller; fuller→boat/trips) |
 | `a_six_kind` / `a_fuller_house` / `a_quads_full` | Secret infinite achievements: Clone Wars (`sixKinds`), Reboot (`fullerHouses`), Quads Full (`quadsFull`) |
