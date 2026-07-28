@@ -1,0 +1,209 @@
+// Permanent VIP perks bought with comps from Cash Out.
+// VIP order = array order (curated; roughly cheap → expensive).
+// Loaded by poker/index.html and tools/vip-perk-editor.html — single source of truth.
+window.PRESTIGE_DEFS = [
+    {
+      id: 'slideRule',
+      name: 'Slide Rule',
+      desc: 'Lv1: show a chips/s meter under Chips. Lv2+: Rate toggle switches Linear / Log scale. Toggle On/Off anytime.',
+      baseCost: 1,
+      costScale: 10,
+      maxLevel: 2,
+      toggleable: true
+    },
+    {
+      id: 'seedStack',
+      name: 'Seed Stack',
+      desc: 'Start with chips after Cash Out.',
+      baseCost: 1,
+      costScale: 1.55,
+      maxLevel: 20
+    },
+    {
+      id: 'feltWax',
+      name: 'Felt Wax',
+      desc: '+1 Felt Grease level permanently.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
+      id: 'quickDeal',
+      name: 'Quick Deal',
+      desc: '+1 Auto Dealer level permanently.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
+      id: 'pinPrivilege',
+      name: 'Pin Privilege',
+      desc: '+1 Pin Tip level permanently.',
+      baseCost: 2,
+      costScale: 1.9,
+      maxLevel: 10
+    },
+    {
+      id: 'questInk',
+      name: 'Quest Ink',
+      desc: 'Unlock higher-rarity table quests. Lv1 Uncommon → Lv4 Legendary.',
+      baseCost: 2,
+      costScale: 2.15,
+      maxLevel: 4
+    },
+    {
+      id: 'rackDiscount',
+      name: 'Rack Discount',
+      desc: 'Table upgrades cost less chips.',
+      baseCost: 2,
+      costScale: 1.8,
+      maxLevel: 10
+    },
+    {
+      id: 'compCard',
+      name: 'Comp Card',
+      desc: 'Earn more comps whenever you Cash Out.',
+      baseCost: 2,
+      costScale: 2,
+      maxLevel: 8
+    },
+    {
+      id: 'blindSpread',
+      name: 'Open Blind',
+      desc: 'Each level extends Big Blind’s chip multiplier to another payout: pin tips → rail tax → sweep stakes → quests → level bonuses.',
+      baseCost: 3,
+      costScale: 1.87,
+      maxLevel: 5
+    },
+    {
+      id: 'controlBooth',
+      name: 'Control Booth',
+      desc: 'Column to the right of the board with quick access to every owned toggle. Toggle On/Off anytime to hide the column.',
+      baseCost: 4,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'questDesk',
+      name: 'Quest Desk',
+      desc: 'Automatically claim completed table quests. Toggle On/Off anytime.',
+      baseCost: 5,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'autoSuitBomb',
+      name: 'Auto Purge',
+      desc: 'Automatically cast Suit Purge on the most crowded suit. Toggle On/Off anytime.',
+      baseCost: 5,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'quickClaim',
+      name: 'Quick Claim',
+      desc: 'Hold down on a claimable achievement to rip through ready rewards.',
+      baseCost: 5,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'cardCounting',
+      name: 'Card Counting',
+      desc: 'Lv1–8: +8% hand payout per duplicate in play per level (board + falling chips). Lv9: multiply your level payout mult by paired-card products (e.g. 2×4♥ and 3×K♦ → ×6 on top of your level mult).',
+      baseCost: 6,
+      costScale: 1.9,
+      maxLevel: 9
+    },
+    {
+      id: 'pitBoss',
+      name: 'Pit Boss',
+      desc: 'Automatically buy the cheapest affordable table upgrades each tick. Toggle On/Off anytime.',
+      baseCost: 12,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'dealMeIn',
+      name: 'Deal Me In',
+      desc: 'Cards that settle while a hand is flashing can still join that clear — upgrading it or adding another hand to the combo. Toggle On/Off anytime.',
+      baseCost: 42,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'connect4',
+      name: 'Connect 4',
+      desc: 'Flushes only need 4 suited cards instead of 5.',
+      baseCost: 50,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'aceSleeve',
+      name: 'Ace Up Your Sleeve',
+      desc: 'Each hand gets an extra invisible Ace to use, without exceeding the 5 card hand limit. The house looks the other way.',
+      baseCost: 60,
+      costScale: 1,
+      maxLevel: 1
+    },
+    {
+      id: 'pinSplit',
+      name: 'Percussive Mitosis',
+      desc: 'Auto Dealer runs ~10× slower, but cards divide when they hit a pin. Toggle On/Off anytime.',
+      baseCost: 75,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'kingMe',
+      name: 'King Me',
+      desc: 'When two suited kings meet, they merge into a crowned king and give bonus chips. Stacked kings both count in poker hands, allowing new types of hands. Toggle On/Off anytime.',
+      baseCost: 80,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'bigRoom',
+      name: 'I Cast Fireball',
+      desc: 'Explosions light nearby cards on fire. Burning cards give chips until they ash out, and poker hands that include them pay a bonus. Toggle On/Off anytime.',
+      baseCost: 90,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'stormBeaches',
+      name: 'Storm the Beaches',
+      desc: 'Auto Dealer runs ~3× faster, but cards can randomly explode when they hit a pin. Survivors that reach the columns earn chips. Toggle On/Off anytime.',
+      baseCost: 100,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    },
+    {
+      id: 'siegeWeapons',
+      name: 'Siege Weapons',
+      desc: 'Spiked cards smash bumpers and clear columns. Lv 2: every column on that bumper. Lv 3: landing slam clears the column with combo payout. Toggle On/Off anytime.',
+      baseCost: 50,
+      costScale: 2.2,
+      maxLevel: 3,
+      toggleable: true
+    },
+    {
+      id: 'tableTilt',
+      name: 'Table Tilt',
+      desc: 'Tilt your device to turn gravity up to ±60° through the pegs, if supported by your device. Might ask for motion access, and may go fullscreen to stop the screen from rotating. Toggle On/Off anytime.',
+      baseCost: 2,
+      costScale: 1,
+      maxLevel: 1,
+      toggleable: true
+    }
+  ];

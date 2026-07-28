@@ -24,8 +24,11 @@ Each page links to the other via a Classic / Poker toggle.
 ├── index.html          # Plinko Four (~1,740 lines) — HTML + CSS + JS in one file
 ├── poker/
 │   ├── index.html      # Plinko Poker (~8,880 lines) — same pattern
+│   ├── prestige-defs.js  # VIP perk table (`window.PRESTIGE_DEFS`); loaded by index + editor
 │   ├── version.json    # Poker release id (`v`) polled for refresh prompts
 │   └── welcome-chip.png
+├── tools/
+│   └── vip-perk-editor.html  # dev UI — loads prestige-defs.js, exports edits back to that file
 ├── .cursor/
 │   ├── environment.json  # Cloud Agent VM: install + static server terminal
 │   └── rules/            # always-on agent conventions
@@ -34,7 +37,7 @@ Each page links to the other via a Classic / Poker toggle.
 └── AGENTS.md           # this file
 ```
 
-There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `poker/version.json` when shipping a Poker refresh-worthy deploy).
+There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `poker/prestige-defs.js` for VIP perks and `poker/version.json` when shipping a Poker refresh-worthy deploy).
 
 ## Local dev
 
@@ -95,7 +98,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
 | `SHOP_RECOMMEND_PRIORITY` / `VIP_RECOMMEND_PRIORITY` / `recommendedShopUpgradeId` / `recommendedVipPerkId` / `.upgrade-rec` / `.upgrade-cost-row` | Gold ★ after the price on the next guided buy: shop Auto Dealer→4 → Wild Card→3 → Pin Tip→3 → Felt Grease→3 → Multi Deal→3 → High Cut→4 → Suit Alliance→2; VIP Slide Rule→1 → Quest Desk→1 → Quest Ink→4. First incomplete unlocked step wins (`fillUpgradeButton` `recommended`; `.upgrade-rec.is-on` via `visibility`) |
 | `compCage` / `runCompCredit` | Cashier’s Cage (`unlockAt` 200): each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
-| `PRESTIGE_DEFS` | VIP perks bought with comps after Cash Out — array order = VIP tab order (curated; roughly cheap → expensive). Skill-bonus perks (`quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`. |
+| `PRESTIGE_DEFS` | VIP perks in `poker/prestige-defs.js` (`window.PRESTIGE_DEFS`); `index.html` assigns `const PRESTIGE_DEFS = window.PRESTIGE_DEFS`. Array order = VIP tab order (curated). Skill-bonus perks (`quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`. Dev editor: `tools/vip-perk-editor.html`. |
 | `controlBooth` / `TOGGLE_DOCK_DEFS` / `updateToggleDockUI` / `#toggleDock` | Control Booth VIP: when owned+On, shows owned toggles in a column to the right of the board (`.board-row` + `.toggle-dock`); Suit Purge uses Shown/Hidden; Short Fuse uses Short/Normal (`fuseStates`); Booth Off hides the column (re-enable from VIP); dock excludes Control Booth itself; Slide Rule Rate at Lv2+ (`scaleStates` Linear/Log); always includes Chips Fly dock button (`chipAnimation` / `source: 'settings'`, full name Flying chips animation, `visibilityStates` Shown/Hidden, `.is-settings` blue) |
 | `slideRule` / `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` / `syncChipRateVisibility` | Slide Rule VIP: Lv1+ always shows chips/s meter (linear); Lv2+ toggle Linear/Log via VIP tile or Control Booth Rate (`isAutoEnabled('slideRule')` = log) |
 | `flushMinLength` / `connect4` | Connect 4 VIP: `evaluateCards` treats flushes as valid at 4 suited cards when owned (straights stay 5) |
