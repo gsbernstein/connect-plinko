@@ -1,0 +1,902 @@
+[
+  {
+    "id": 107,
+    "date": "Jul 28, 2026",
+    "title": "VIP perk rebalance",
+    "items": [
+      "VIP tab reordered with retuned comp costs — Slide Rule Lv1 is 1 comp (Lv2 scales ×10); several late perks are cheaper.",
+      "Shorter perk blurbs; I Cast Fireball no longer makes King Me merges explode."
+    ]
+  },
+  {
+    "id": 106,
+    "date": "Jul 28, 2026",
+    "title": "Slide Rule early VIP",
+    "items": [
+      "Slide Rule is now the first VIP perk (1 comp for Lv1, 10 comps for Lv2 log scale).",
+      "The ★ recommends Slide Rule before Quest Desk."
+    ]
+  },
+  {
+    "id": 105,
+    "date": "Jul 28, 2026",
+    "title": "HUD tile layout polish",
+    "items": [
+      "Top HUD tiles share equal width so chip counts no longer resize the row.",
+      "Level, Comps, and Auto tiles use bottom progress bars; Comps shows Cash Out on a second justified row.",
+      "Level label and XP fraction are centered; Auto keeps Multi Deal +X% while paused."
+    ]
+  },
+  {
+    "id": 104,
+    "date": "Jul 28, 2026",
+    "title": "Control Booth tidy-up",
+    "items": [
+      "Remove unnecessary toggles from the dock.",
+      "Chips Fly toggle added to the Control Booth column.",
+      "Slide Rule Lv2+: Rate toggle in booth and VIP switches Linear / Log (meter stays on at Lv1)."
+    ]
+  },
+  {
+    "id": 103,
+    "date": "Jul 28, 2026",
+    "title": "Quick Claim VIP perk",
+    "items": [
+      "The ability to hold down on achievements to quickly claim multiple is now a perk, which should improve discoverability.",
+      "Tweaked the logic of some upgrade recommendations (★)"
+    ]
+  },
+  {
+    "id": 102,
+    "date": "Jul 28, 2026",
+    "title": "Plinker",
+    "items": [
+      "Poker is now Plinker — a portmanteau of Plinko + Poker. Welcome screen, tab title, and settings copy updated."
+    ]
+  },
+  {
+    "id": 101,
+    "date": "Jul 27, 2026",
+    "title": "Shorter number labels",
+    "items": [
+      "Chip counts, costs, payouts, and mult abbreviations now cap at three digits (e.g. 1.23M, 999k)."
+    ]
+  },
+  {
+    "id": 100,
+    "date": "Jul 27, 2026",
+    "title": "Tab scroll position restored",
+    "items": [
+      "Each rail tab (Upgrades, Quests, Achievements, VIP, Settings) keeps its own scroll position when you switch away and back."
+    ]
+  },
+  {
+    "id": 99,
+    "date": "Jul 27, 2026",
+    "title": "Achievements & shop unlocks",
+    "items": [
+      "Achievements shows a Claim button when ready rewards are offscreen — tap to jump back to the top.",
+      "Hold a claimable achievement to rip through ready rewards in series.",
+      "Locked shop upgrades and quest slots show a lock icon with unlock level.",
+      "Shop unlock levels retuned and listed in unlock order (Sweep Stakes Lv2 … Multi Deal Lv9)."
+    ]
+  },
+  {
+    "id": 98,
+    "date": "Jul 27, 2026",
+    "title": "Hot Streak retired",
+    "items": [
+      "Hot Streak and House Edge are gone — chain multipliers still ramp from consecutive clears alone.",
+      "Saves that owned either get chips and comps refunded for what they spent."
+    ]
+  },
+  {
+    "id": 97,
+    "date": "Jul 27, 2026",
+    "title": "HUD land bounce off",
+    "items": [
+      "Chip and comps tile land pulses are disabled while we track down mobile shop scroll hitching."
+    ]
+  },
+  {
+    "id": 96,
+    "date": "Jul 27, 2026",
+    "title": "Slide Rule",
+    "items": [
+      "New VIP perk: Slide Rule — Lv1 unlocks the chips/s meter under Chips; Lv2 switches it to a log scale. Toggleable."
+    ]
+  },
+  {
+    "id": 95,
+    "date": "Jul 27, 2026",
+    "title": "Fuse dock labels",
+    "items": [
+      "Control Booth Fuse now reads Short / Normal instead of On / Off (shop card still uses On / Off)."
+    ]
+  },
+  {
+    "id": 94,
+    "date": "Jul 27, 2026",
+    "title": "Deal Me In",
+    "items": [
+      "New VIP perk: Deal Me In — cards that settle while a hand is flashing can join that clear (upgrade it or add to the combo). Toggleable."
+    ]
+  },
+  {
+    "id": 93,
+    "date": "Jul 27, 2026",
+    "title": "Star sits by the price",
+    "items": [
+      "The recommended-buy ★ now appears after the upgrade or perk cost instead of before the name."
+    ]
+  },
+  {
+    "id": 92,
+    "date": "Jul 27, 2026",
+    "title": "Shop list order stays live",
+    "items": [
+      "Removed per-tab scroll memory and the freeze-while-browsing list order that was hitching flings.",
+      "The New-upgrade ↓/↑ cue and red New highlight on unviewed unlocks stay."
+    ]
+  },
+  {
+    "id": 91,
+    "date": "Jul 27, 2026",
+    "title": "Quest & achievement chips level you up",
+    "items": [
+      "Chip rewards from quests and achievements now count toward run level, same as chips earned at the table."
+    ]
+  },
+  {
+    "id": 90,
+    "date": "Jul 27, 2026",
+    "title": "New upgrade highlight",
+    "items": [
+      "Newly unlocked shop upgrades get the same red New highlight as What’s New entries until you scroll them into view."
+    ]
+  },
+  {
+    "id": 89,
+    "date": "Jul 27, 2026",
+    "title": "Snappier score pops",
+    "items": [
+      "Hand, combo, chain, and King Me score labels clear sooner so the board doesn’t stay buried in text.",
+      "Big pots still linger a little longer than small ones — just not for several seconds."
+    ]
+  },
+  {
+    "id": 88,
+    "date": "Jul 27, 2026",
+    "title": "Rail scroll stays smooth",
+    "items": [
+      "Browsing a shop tab no longer reshuffles its list under you — order refreshes when you leave and come back.",
+      "Recommended ★ no longer resizes upgrade cards as chips tick in."
+    ]
+  },
+  {
+    "id": 87,
+    "date": "Jul 27, 2026",
+    "title": "Score pops stack on top",
+    "items": [
+      "New score labels now slam in above older ones instead of hiding under lingering pops."
+    ]
+  },
+  {
+    "id": 86,
+    "date": "Jul 27, 2026",
+    "title": "Scroll keeps its momentum",
+    "items": [
+      "Shop lists no longer reshuffle under your finger mid-fling — upgrades, quests, and achievements wait until scrolling settles."
+    ]
+  },
+  {
+    "id": 85,
+    "date": "Jul 27, 2026",
+    "title": "Smoother tab scrolling",
+    "items": [
+      "Rail tabs no longer hitch or snap mid-scroll — each panel scrolls on its own instead of sharing one scroller."
+    ]
+  },
+  {
+    "id": 84,
+    "date": "Jul 27, 2026",
+    "title": "Suits toggle labels",
+    "items": [
+      "Suit Purge’s Suits toggle now reads Shown or Hidden to match the picker state."
+    ]
+  },
+  {
+    "id": 83,
+    "date": "Jul 27, 2026",
+    "title": "Shop tab load fix",
+    "items": [
+      "Fixed a script error from overlapping shop-tab updates that stopped Poker from loading."
+    ]
+  },
+  {
+    "id": 82,
+    "date": "Jul 27, 2026",
+    "title": "Recommended buy star",
+    "items": [
+      "A gold star marks the next recommended shop upgrade or VIP perk you can still buy.",
+      "Shop path: early Auto Dealer → Wild Card → Pin Tip → High Cut → Suit Alliance.",
+      "VIP path: Quest Desk, then Quest Ink."
+    ]
+  },
+  {
+    "id": 81,
+    "date": "Jul 27, 2026",
+    "title": "New upgrade scroll cue",
+    "items": [
+      "When a newly unlocked upgrade is offscreen in the shop, a ↓/↑ New button jumps you to it."
+    ]
+  },
+  {
+    "id": 80,
+    "date": "Jul 27, 2026",
+    "title": "Tabs remember scroll",
+    "items": [
+      "Each rail tab (Upgrades, Quests, Achieves, VIP, Settings) keeps its own scroll position when you switch away and back."
+    ]
+  },
+  {
+    "id": 79,
+    "date": "Jul 27, 2026",
+    "title": "Chips bar hugs edge",
+    "items": [
+      "The chips/s peak bar now sits flush on the Chips tile bottom edge with no gap."
+    ]
+  },
+  {
+    "id": 78,
+    "date": "Jul 27, 2026",
+    "title": "Chips/s peak bar",
+    "items": [
+      "The Chips tile now has a bar showing your live chips/s as a fraction of your peak."
+    ]
+  },
+  {
+    "id": 77,
+    "date": "Jul 27, 2026",
+    "title": "Suit Alliance keeps the colors",
+    "items": [
+      "Suit Alliance keeps all four suits on the table — diamonds ally with hearts at Lv1, clubs with spades at Lv2.",
+      "Flushes and Suit Purge treat each allied pair as one family; purge buttons show both glyphs.",
+      "Flush connector lines use the family color (heart red / spade purple) so mixed allies still read clearly.",
+      "Suit Purge pops immediately — no flash wait before cards explode."
+    ]
+  },
+  {
+    "id": 76,
+    "date": "Jul 27, 2026",
+    "title": "Bumper bounce fix",
+    "items": [
+      "Cards no longer kick hard left every time they hit a full-width bumper across a packed board.",
+      "Cards trapped under a bumper pop back onto the playable side instead of oscillating underneath.",
+      "Bumper hits shove nearby cards so a bounce can punch through a pile instead of getting smothered.",
+      "Open channels between two bumpers stay passable — cards are no longer yanked back up out of the gap."
+    ]
+  },
+  {
+    "id": 75,
+    "date": "Jul 27, 2026",
+    "title": "Comps Cash Out hint",
+    "items": [
+      "The Comps HUD tile now shows how many comps Cash Out will collect, and lights up when you’re ready."
+    ]
+  },
+  {
+    "id": 74,
+    "date": "Jul 27, 2026",
+    "title": "Drop aim stays on the felt",
+    "items": [
+      "The drop indicator and next-card preview only show while your cursor is over the board."
+    ]
+  },
+  {
+    "id": 73,
+    "date": "Jul 27, 2026",
+    "title": "Chips/s achievement",
+    "items": [
+      "New achievement: Chip Flood — hit peak chips/s on the Chips HUD (infinite tiers)."
+    ]
+  },
+  {
+    "id": 72,
+    "date": "Jul 27, 2026",
+    "title": "I Cast Fireball",
+    "items": [
+      "VIP fire perk renamed to I Cast Fireball — same blast ignite, clearer name.",
+      "New achievement: I Didn't Ask How Big The Room Was — light cards on fire."
+    ]
+  },
+  {
+    "id": 71,
+    "date": "Jul 27, 2026",
+    "title": "Control Booth",
+    "items": [
+      "New VIP perk: Control Booth — puts every owned On/Off toggle in a column beside the board.",
+      "Turn the Booth Off anytime to tuck the column away; VIP Lounge still has the full switch list."
+    ]
+  },
+  {
+    "id": 70,
+    "date": "Jul 27, 2026",
+    "title": "Cashier’s Cage later",
+    "items": [
+      "Cashier’s Cage now unlocks at run Lv 200 — a deep late-game chip sink, not a mid-run VIP shortcut."
+    ]
+  },
+  {
+    "id": 69,
+    "date": "Jul 27, 2026",
+    "title": "Near-miss guides retired",
+    "items": [
+      "Removed near-hand hint guides, the Settings toggle, and the Card Sense VIP perk (owners get 4 comps back)."
+    ]
+  },
+  {
+    "id": 68,
+    "date": "Jul 27, 2026",
+    "title": "Multi Deal mid-game",
+    "items": [
+      "Multi Deal now unlocks at run Lv 8 (was Lv 4) and costs more up front — a mid-table spike for extra auto deals, not an early rush."
+    ]
+  },
+  {
+    "id": 67,
+    "date": "Jul 27, 2026",
+    "title": "Hand resolve lines",
+    "items": [
+      "Scoring hands flash bright connector dashes in the gaps between seats before clearing — easier to read combos without covering the cards.",
+      "Flush lines keep suit color; straights and rank hands use their own connector colors so mixed lines don’t look suited."
+    ]
+  },
+  {
+    "id": 66,
+    "date": "Jul 27, 2026",
+    "title": "Crowned kings",
+    "items": [
+      "Kings merge wherever they meet.",
+      "King Me kings wear a larger golden crown on the letter K.",
+      "Stacked kings count toward of-a-kind: a double king plus four kings in a line is six of a kind, and higher stacks keep climbing.",
+      "Improvements to score pops rendering and priority."
+    ]
+  },
+  {
+    "id": 65,
+    "date": "Jul 27, 2026",
+    "title": "Auto Suit Purge unstuck",
+    "items": [
+      "Fix Auto Purge."
+    ]
+  },
+  {
+    "id": 64,
+    "date": "Jul 27, 2026",
+    "title": "Bigger chip readouts",
+    "items": [
+      "Past Q (quadrillion), chip and mult readouts switch to scientific notation."
+    ]
+  },
+  {
+    "id": 63,
+    "date": "Jul 27, 2026",
+    "title": "New uses for chips",
+    "items": [
+      "New upgrade: Cashier’s Cage — spend chips to bank Cash Out comps (up to Lv 100).",
+      "Felt Grease goes to Lv 30 (late levels still speed the table, with softer gains). Big Blind to Lv 60 · Premium Cut to Lv 25."
+    ]
+  },
+  {
+    "id": 62,
+    "date": "Jul 27, 2026",
+    "title": "Deeper Mitosis splits",
+    "items": [
+      "Percussive Mitosis can bifurcate one generation further — chips shrink one more time on the pins before they stop splitting."
+    ]
+  },
+  {
+    "id": 61,
+    "date": "Jul 27, 2026",
+    "title": "Mitosis leaves taps alone",
+    "items": [
+      "Tap-to-deal works at full speed even with Mitosis active."
+    ]
+  },
+  {
+    "id": 60,
+    "date": "Jul 27, 2026",
+    "title": "Steadier achievement cards",
+    "items": [
+      "Fix flickering and unreliable clicks."
+    ]
+  },
+  {
+    "id": 59,
+    "date": "Jul 27, 2026",
+    "title": "Siege column wipe fix",
+    "items": [
+      "Siege Weapons no longer leaves permanent empty seats after a column slam.",
+      "Column wipes re-check the live stack at explode time so chips that seated during the flash get cleared too."
+    ]
+  },
+  {
+    "id": 58,
+    "date": "Jul 27, 2026",
+    "title": "Fix jerky upgrade and perk cards",
+    "items": [
+      "Blind, payout, combo, and Card Counting multipliers now show on the Level HUD tile instead of shop and VIP effect lines."
+    ]
+  },
+  {
+    "id": 57,
+    "date": "Jul 27, 2026",
+    "title": "Count every card in play",
+    "items": [
+      "Card Counting now tallies duplicates across the whole table — settled board cards and chips still falling through the pins.",
+      "Multi Deal caps at 150% extra-card chance (Lv 6)."
+    ]
+  },
+  {
+    "id": 56,
+    "date": "Jul 27, 2026",
+    "title": "King Me merges",
+    "items": [
+      "King Me no longer hops from the bottom row — instead, two kings of the same suit that meet stack into a crowned king.",
+      "Matching stacks keep merging (double king, triple, …) with exponentially bigger chip payouts."
+    ]
+  },
+  {
+    "id": 55,
+    "date": "Jul 27, 2026",
+    "title": "House Edge matches Hot Streak",
+    "items": [
+      "House Edge now caps at Lv 10 — same as Hot Streak — so VIP no longer offers dozens of useless heater levels."
+    ]
+  },
+  {
+    "id": 54,
+    "date": "Jul 27, 2026",
+    "title": "Connect 4",
+    "items": [
+      "New VIP perk: Connect 4 — flushes only need 4 suited cards instead of 5.",
+      "Near-miss flush guides update automatically: three suited cards are one away once you own it."
+    ]
+  },
+  {
+    "id": 53,
+    "date": "Jul 27, 2026",
+    "title": "Fireball improvements",
+    "items": [
+      "Cards in the pins can also light on fire.",
+      "Remove flying fireball sparks — the blast itself lights nearby cards instantly."
+    ]
+  },
+  {
+    "id": 50,
+    "date": "Jul 27, 2026",
+    "title": "Pot milestones grow faster",
+    "items": [
+      "Big Pot and Combo Payday targets now jump ~10× per tier after the early milestones — fewer levels for the same huge payouts."
+    ]
+  },
+  {
+    "id": 48,
+    "date": "Jul 27, 2026",
+    "title": "Blast fires & burning hands",
+    "items": [
+      "I Didn't Ask How Big the Room Was now lights nearby cards in the blast — fireballs are the spark traveling to those neighbors.",
+      "Poker hands that include burning cards pay +50% per lit card. Score pops go orange when fire pays."
+    ]
+  },
+  {
+    "id": 47,
+    "date": "Jul 27, 2026",
+    "title": "Flaming crowned kings",
+    "items": [
+      "With I Didn't Ask How Big the Room Was on, crowned kings leap aflame and light nearby cards as they jump.",
+      "Burning cards keep dripping chips during King Me leaps — they only ash out once the crown lands."
+    ]
+  },
+  {
+    "id": 46,
+    "date": "Jul 27, 2026",
+    "title": "I Didn't Ask How Big the Room Was",
+    "items": [
+      "New VIP perk: explosions cast fireballs that light other cards on fire."
+    ]
+  },
+  {
+    "id": 45,
+    "date": "Jul 27, 2026",
+    "title": "Suit Purge fix",
+    "items": [
+      "Buying Auto Purge collapses the suit picker again without stopping purges.",
+      "Shop Hide/Show and the bar tap only hide the picker — auto purges keep working when Auto Purge is on.",
+      "Older saves that accidentally paused Suit Purge are migrated back to armed."
+    ]
+  },
+  {
+    "id": 44,
+    "date": "Jul 27, 2026",
+    "title": "King Me VIP perk",
+    "items": [
+      "New VIP perk: King Me — kings that reach the bottom row get crowned with a second king on top.",
+      "Crowned kings leap diagonally over cards for big chips, then explode after a few jumps. Toggle On/Off anytime."
+    ]
+  },
+  {
+    "id": 43,
+    "date": "Jul 27, 2026",
+    "title": "Pit Boss speed-up",
+    "items": [
+      "Pit Boss auto-buys up to five affordable upgrades per tick again — no extra VIP levels required."
+    ]
+  },
+  {
+    "id": 42,
+    "date": "Jul 27, 2026",
+    "title": "Upgrade balance pass",
+    "items": [
+      "Hot Streak caps at Lv 10. VIP skill perks (Quick Deal, Pin Privilege, Felt Wax, House Edge) raise their paired table upgrade chip costs like normal levels.",
+      "Auto Dealer stays cheap through Lv 6, then shifts to a pricier curve for top speed. Multi Deal is back: +25% extra-card chance per level on each auto tick; above 100% can deal multiple.",
+      "Short Fuse is toggleable — pause fast clears when stacking combos or Card Counting pairs.",
+      "Suit Purge shop toggle arms/disarms the blast (bar tap minimizes suit buttons). Purges pay per card; auto-target avoids breaking duplicate pairs.",
+      "Siege Weapons: bumper smash clears a column (Lv 1), every column on that bumper (Lv 2), or slams the landing column for a combo payout (Lv 3). Bumper hits pay Rail Tax.",
+      "Storm the Beaches pays chips for every card that survives the peg gauntlet and enters the columns."
+    ]
+  },
+  {
+    "id": 39,
+    "date": "Jul 27, 2026",
+    "title": "Deep Stack to Lv 200",
+    "items": [
+      "Deep Stack achievement tiers now span the full run climb through level 200."
+    ]
+  },
+  {
+    "id": 38,
+    "date": "Jul 27, 2026",
+    "title": "Big pots & trophy case",
+    "items": [
+      "New Big Pot achievement tracks your highest single-hand chip payout.",
+      "New Combo Payday achievement tracks your biggest COMBO resolve (all hands combined).",
+      "New Trophy Case achievement rewards claiming achievement tiers.",
+      "Double Down no longer duplicates the first COMBO milestone — C-Combo owns ×2."
+    ]
+  },
+  {
+    "id": 37,
+    "date": "Jul 26, 2026",
+    "title": "Card Counting tiers",
+    "items": [
+      "Card Counting is back to eight +8% duplicate levels, with a ninth tier that multiplies level payout by paired-card products.",
+      "Table Tilt moved to the bottom of the VIP lounge."
+    ]
+  },
+  {
+    "id": 36,
+    "date": "Jul 26, 2026",
+    "title": "Quest sparkle colors",
+    "items": [
+      "Quest claim sparkles and glows now match the quest rarity color.",
+      "Auto-claim tab bursts tint particles from the claimed quest tier."
+    ]
+  },
+  {
+    "id": 35,
+    "date": "Jul 26, 2026",
+    "title": "Quest Ink odds",
+    "items": [
+      "Quest Ink now shifts rolled quest odds toward higher rarities — max level makes Rare the most common roll.",
+      "Common quest cards use a white accent instead of the default green label."
+    ]
+  },
+  {
+    "id": 34,
+    "date": "Jul 26, 2026",
+    "title": "VIP and achievement polish",
+    "items": [
+      "Achievement and VIP perk names updated.",
+      "Siege Weapons can be toggled On/Off in the VIP lounge.",
+      "Card Counting now multiplies your level payout mult by the product of paired cards on the board."
+    ]
+  },
+  {
+    "id": 33,
+    "date": "Jul 26, 2026",
+    "title": "Storm the Beaches blast",
+    "items": [
+      "Pin-shell explosions blast nearby chips outward — bigger radius, stronger shove, fades with distance."
+    ]
+  },
+  {
+    "id": 32,
+    "date": "Jul 25, 2026",
+    "title": "Siege Weapons VIP perk",
+    "items": [
+      "New VIP perk: Siege Weapons — some cards grow spikes that smash bumpers and clear the top row.",
+      "Upgrade again so spiked cards can temporarily shatter pins on contact."
+    ]
+  },
+  {
+    "id": 31,
+    "date": "Jul 26, 2026",
+    "title": "Chips per second",
+    "items": [
+      "The Chips HUD now shows a live chips/s rate from recent table earnings."
+    ]
+  },
+  {
+    "id": 30,
+    "date": "Jul 26, 2026",
+    "title": "Highest combo achievements",
+    "items": [
+      "New infinite Multiway achievement for your biggest COMBO — climb ×2, ×3, ×4… one step at a time."
+    ]
+  },
+  {
+    "id": 29,
+    "date": "Jul 25, 2026",
+    "title": "Storm blasts knock chips",
+    "items": [
+      "Storm the Beaches explosions now shove nearby falling chips outward — seating cards can get yanked back into the pegs."
+    ]
+  },
+  {
+    "id": 28,
+    "date": "Jul 25, 2026",
+    "title": "Premium rim polish",
+    "items": [
+      "Silver, Gold, and Diamond cards keep a metallic rim — the center stays suit felt.",
+      "Suit glyphs sit lower on the chip; grid windows open a bit so premium rims stay visible."
+    ]
+  },
+  {
+    "id": 27,
+    "date": "Jul 25, 2026",
+    "title": "Storm the Beaches VIP perk",
+    "items": [
+      "New expensive VIP perk: Storm the Beaches — Auto Dealer runs ~3× faster, but cards can randomly explode on pins.",
+      "Toggle On/Off anytime."
+    ]
+  },
+  {
+    "id": 26,
+    "date": "Jul 25, 2026",
+    "title": "Pin Split VIP perk",
+    "items": [
+      "New expensive VIP perk: Pin Split — drops come ~10× slower, but cards bifurcate on every pin.",
+      "Split chips shrink each bounce, then snap back to full size when they enter a column. Toggle On/Off anytime."
+    ]
+  },
+  {
+    "id": 25,
+    "date": "Jul 25, 2026",
+    "title": "Heater survives refresh",
+    "items": [
+      "Your Hot Streak chain is saved with the run — refreshing or updating no longer resets the heater."
+    ]
+  },
+  {
+    "id": 24,
+    "date": "Jul 25, 2026",
+    "title": "Softer chain pops",
+    "items": [
+      "CHAIN banners ease in gentler now — rapid-fire combos still stack, without the hard slam."
+    ]
+  },
+  {
+    "id": 23,
+    "date": "Jul 25, 2026",
+    "title": "Chain pops rapid-fire on combos",
+    "items": [
+      "Multi-hand clears slam CHAIN ×N banners in quick succession — one pop per heater step, not a single jump."
+    ]
+  },
+  {
+    "id": 22,
+    "date": "Jul 25, 2026",
+    "title": "Bigger combos, hotter heaters",
+    "items": [
+      "COMBO banners scale up with the number of hands you clear at once.",
+      "Multi-hand clears advance your chain once per hand — a COMBO ×3 jumps the heater three steps."
+    ]
+  },
+  {
+    "id": 21,
+    "date": "Jul 25, 2026",
+    "title": "Instant vs Cash Out comps",
+    "items": [
+      "Rewards that pay comps right away now say “instant comps” (same VIP currency, just immediate).",
+      "Banked level and quest credit still says “Cash Out comps” — collected when you Cash Out."
+    ]
+  },
+  {
+    "id": 20,
+    "date": "Jul 25, 2026",
+    "title": "Chain banner stays honest",
+    "items": [
+      "Suit Purge no longer flashes a low CHAIN ×N mid-heater — your streak carryover is preserved for the next hand without the fake dip."
+    ]
+  },
+  {
+    "id": 19,
+    "date": "Jul 25, 2026",
+    "title": "More achievements",
+    "items": [
+      "New achievements: sleeve Ace hands, VIP perks purchased, and opening Settings.",
+      "Secret achievement for updating Poker to a new version — hidden until you unlock it."
+    ]
+  },
+  {
+    "id": 18,
+    "date": "Jul 25, 2026",
+    "title": "Celebration labels stay on the felt",
+    "items": [
+      "Hand score popups near the left or right edge stay readable — they can hang a little past the felt instead of getting chopped off by the board frame."
+    ]
+  },
+  {
+    "id": 17,
+    "date": "Jul 25, 2026",
+    "title": "Sleeve & counting",
+    "items": [
+      "New VIP perk Ace Up Your Sleeve (100 comps) — each line scores the best hand from its cards plus a hidden Ace.",
+      "New VIP perk Card Counting — bigger hand payouts for duplicate cards on the table."
+    ]
+  },
+  {
+    "id": 16,
+    "date": "Jul 25, 2026",
+    "title": "Update prompt",
+    "items": [
+      "If a new Poker build ships while your tab is still open, a banner offers Refresh so you pick up the latest."
+    ]
+  },
+  {
+    "id": 15,
+    "date": "Jul 25, 2026",
+    "title": "Next tile stay put",
+    "items": [
+      "The Next HUD tile keeps a steady width when the upcoming card changes, so the header no longer jitters on desktop."
+    ]
+  },
+  {
+    "id": 14,
+    "date": "Jul 25, 2026",
+    "title": "VIP tab badge",
+    "items": [
+      "Cash Out no longer adds to the VIP tab count — only affordable VIP perks do.",
+      "When Cash Out is ready and nothing else is, the VIP tab shows a plain badge (no number)."
+    ]
+  },
+  {
+    "id": 13,
+    "date": "Jul 25, 2026",
+    "title": "Suit Purge collapse",
+    "items": [
+      "Suit Purge collapses the first time you unlock Auto Purge.",
+      "Tap the Suit Purge bar outside the suit buttons to show or hide the picker."
+    ]
+  },
+  {
+    "id": 12,
+    "date": "Jul 25, 2026",
+    "title": "Shop math & Auto Dealer",
+    "items": [
+      "VIP skill bonuses now raise matching upgrade buy costs and surface Blind / payout / combo multipliers on shop rows.",
+      "Auto Dealer caps at Lv 12 with steeper costs.",
+      "The Auto HUD bar fills better at fast rates."
+    ]
+  },
+  {
+    "id": 11,
+    "date": "Jul 25, 2026",
+    "title": "WIP: Table Tilt",
+    "items": [
+      "New VIP perk Table Tilt steers peg falls from device motion (if supported).",
+      "Attempt portrait lock while tilt is active."
+    ]
+  },
+  {
+    "id": 10,
+    "date": "Jul 25, 2026",
+    "title": "Short Fuse & Suit Purge UI",
+    "items": [
+      "Short Fuse speeds hand-clear explosions separately from Felt Grease ball physics.",
+      "Suit Purge charge bar when minimized; suit color flashes when auto-casting."
+    ]
+  },
+  {
+    "id": 9,
+    "date": "Jul 25, 2026",
+    "title": "Deep run levels",
+    "items": [
+      "Run level climbs to 200.",
+      "Additional quest slots unlock later.",
+      "Late-game payout and combo multipliers; chip bonuses spread across the climb.",
+      "Level-up toast removed."
+    ]
+  },
+  {
+    "id": 8,
+    "date": "Jul 25, 2026",
+    "title": "VIP perk rework",
+    "items": [
+      "Felt Wax, Hot Streak, and Open Blind join the VIP lounge.",
+      "Card Sense and Auto Purge move from the table shop to VIP perks.",
+      "Gold perk segments lead upgrade progress bars; VIP bonus levels count toward skill caps."
+    ]
+  },
+  {
+    "id": 7,
+    "date": "Jul 25, 2026",
+    "title": "Achievements & HUD polish",
+    "items": [
+      "Achievements gain infinite tiered levels, sort by progress %, and pulse the numerator when it ticks up.",
+      "Fix: Higher hands count toward lower-category achievement stats; royal flush counts for straight flush goals.",
+      "Tabs buttons show a red dot on new unlocks; Auto HUD toggles Auto Dealer."
+    ]
+  },
+  {
+    "id": 6,
+    "date": "Jul 24, 2026",
+    "title": "Wild Card & Premium Cut",
+    "items": [
+      "Wild Card upgrade deals Uno-style any-suit chips.",
+      "Premium Cut adds tiered card hand multipliers with metallic premium glyphs.",
+      "Compact stacked HUD tiles on mobile to stop layout jumping."
+    ]
+  },
+  {
+    "id": 5,
+    "date": "Jul 24, 2026",
+    "title": "Suit Purge & celebrations",
+    "items": [
+      "Hide/Show toggle for the Suit Purge picker; lower cooldown at max level; purges pop in-flight cards.",
+      "Quest claim effects, reward particles, and auto-buy upgrade celebration.",
+      "Chips land on the tile edge with mobile tab particle bursts."
+    ]
+  },
+  {
+    "id": 4,
+    "date": "Jul 24, 2026",
+    "title": "Tiered achievements",
+    "items": [
+      "Achievements unlock multiple claimable tiers with save migration.",
+      "Pit Boss becomes a single-level VIP perk; Hold Deal removed from VIP."
+    ]
+  },
+  {
+    "id": 3,
+    "date": "Jul 24, 2026",
+    "title": "Juice & settings",
+    "items": [
+      "Chip pop-and-fly to the chip counter, with a setting to disable the animation.",
+      "Click the level pill to see unlocks so far and what’s next.",
+      "Felt-and-gold casino card textures; four-color suit glyphs."
+    ]
+  },
+  {
+    "id": 2,
+    "date": "Jul 24, 2026",
+    "title": "Welcome, VIP & quests",
+    "items": [
+      "Welcome tab for first-time Poker.",
+      "VIP Lounge unlocks with your first permanent comps.",
+      "Levels, prestige, and quests join the sidebar.",
+      "Auto floor clear when the board is full."
+    ]
+  },
+  {
+    "id": 1,
+    "date": "Jul 24, 2026",
+    "title": "Plinko Poker idle",
+    "items": [
+      "Plinko Poker launches.",
+      "Idle upgrades: spend chips on Auto Dealer, Big Blind, and table skills between hands."
+    ]
+  }
+]
