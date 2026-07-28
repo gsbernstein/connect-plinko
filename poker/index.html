@@ -3347,8 +3347,7 @@
       date: 'Jul 28, 2026',
       title: 'Quick Claim VIP perk',
       items: [
-        'New VIP perk Quick Claim: hold a claimable achievement to rip through ready rewards in series.',
-        'Without it, achievements stay one tap = one tier — still manual, never auto-claimed.',
+        'The ability to hold down on achievements to quickly claim multuple is now a perk, which should improve discoverability.',
       ]
     },
     {
@@ -4356,15 +4355,16 @@
 
   // Guided "next buy" star — first incomplete unlocked step wins (until = effective level target).
   const SHOP_RECOMMEND_PRIORITY = [
-    { id: 'autoDealer', until: 6 },
-    { id: 'wildCard', until: 1 },
-    { id: 'pinPayout', until: 1 },
-    { id: 'highCut', until: 1 },
+    { id: 'autoDealer', until: 4 },
+    { id: 'wildCard', until: 3 },
+    { id: 'pinPayout', until: 3 },
+    { id: 'feltGrease', until: 3 },
+    { id: 'multiDeal', until: 3 },
+    { id: 'highCut', until: 4 },
     { id: 'suitCut', until: 2 }
   ];
   const VIP_RECOMMEND_PRIORITY = [
     { id: 'questDesk', until: 1 },
-    { id: 'quickClaim', until: 1 },
     { id: 'questInk', until: 4 }
   ];
 
@@ -4967,7 +4967,7 @@
       id: 'controlBooth',
       name: 'Control Booth',
       desc: 'Show every owned toggle in a column to the right of the board. Toggle On/Off anytime to hide the column.',
-      baseCost: 6,
+      baseCost: 4,
       costScale: 1,
       maxLevel: 1,
       toggleable: true
@@ -4992,7 +4992,7 @@
       id: 'dealMeIn',
       name: 'Deal Me In',
       desc: 'Cards that settle while a hand is flashing can still join that clear — upgrading it or adding another hand to the combo. Toggle On/Off anytime.',
-      baseCost: 55,
+      baseCost: 42,
       costScale: 1,
       maxLevel: 1,
       toggleable: true
@@ -5062,9 +5062,9 @@
     {
       id: 'slideRule',
       name: 'Slide Rule',
-      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch that meter to a log scale so early trickle and late flood both read. Toggle On/Off anytime.',
-      baseCost: 4,
-      costScale: 2,
+      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch to log scale. Toggle On/Off anytime.',
+      baseCost: 2,
+      costScale: 5,
       maxLevel: 2,
       toggleable: true
     }
