@@ -142,7 +142,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
 | `noteChipEarn` / `updateChipRateUI` / `chipRateFillPct` / `#chipRateVal` / `#chipRateFill` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset) — meter hidden until Slide Rule Lv1; `#chipRateBar` reuses shop `.upgrade-progress` and sits flush on the bottom edge (no inset gap) — fill via `chipRateFillPct` (linear Lv1, log Lv2); `noteChipEarn` always records peak floored rate into `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
 | `updateCompsHud` / `#compsCashOutVal` / `.cashout-rate` | Comps HUD secondary line: `pendingComps()` as `+N`; `.is-ready` / `.is-cashout-ready` when Cash Out can collect |
-| `formatNum` / `formatCompactSuffix` | HUD + score-pop chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
+| `formatNum` / `formatCompactSuffix` / `formatScaledMantissa` / `formatAbbrevNum` | HUD + score-pop chip/mult abbreviations: max three-digit mantissa (999 → 1k → 1.23M … Q); ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
 
 ### Progression model (high level)
 

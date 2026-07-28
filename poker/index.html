@@ -3353,11 +3353,19 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
-      id: 101,
-      date: 'Jul 27, 2026',
+      id: 102,
+      date: 'Jul 28, 2026',
       title: 'Plinker',
       items: [
         'Poker is now Plinker — a portmanteau of Plinko + Poker. Welcome screen, tab title, and settings copy updated.',
+      ]
+    },
+    {
+      id: 101,
+      date: 'Jul 27, 2026',
+      title: 'Shorter number labels',
+      items: [
+        'Chip counts, costs, payouts, and mult abbreviations now cap at three digits (e.g. 1.23M, 999k).',
       ]
     },
     {
@@ -6699,13 +6707,36 @@
 
   // Short-scale HUD suffixes through Q (quadrillion = 1e15). Quintillion+
   // also wants "Q", so past 1e18 we drop to scientific instead of inventing Qi/Sx…
-  function formatCompactSuffix(n){
-    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
-    if(n < 1e12) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
-    if(n < 1e15) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + 'T';
-    if(n < 1e18) return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+  const FORMAT_NUM_SUFFIXES = ['k', 'M', 'B', 'T', 'Q'];
+  const FORMAT_NUM_SCI_THRESHOLD = 1e18;
+
+  function formatScaledMantissa(scaled){
+    if(scaled >= 100) return String(Math.floor(scaled));
+    if(scaled >= 10) return scaled.toFixed(1).replace(/\.0$/, '');
+    return scaled.toFixed(2).replace(/\.?0+$/, '');
+  }
+
+  function formatAbbrevNum(n, minSuffixIdx){
     if(!Number.isFinite(n)) return String(n);
-    return n.toExponential(2).replace(/\.?0+e/, 'e').replace('e+', 'e');
+    const v = Math.floor(n);
+    if(v >= FORMAT_NUM_SCI_THRESHOLD){
+      return n.toExponential(2).replace(/\.?0+e/, 'e').replace('e+', 'e');
+    }
+    let scale = 1000;
+    let idx = 0;
+    while(idx < minSuffixIdx){
+      scale *= 1000;
+      idx++;
+    }
+    while(idx < FORMAT_NUM_SUFFIXES.length - 1 && v >= scale * 1000){
+      scale *= 1000;
+      idx++;
+    }
+    return formatScaledMantissa(v / scale) + FORMAT_NUM_SUFFIXES[idx];
+  }
+
+  function formatCompactSuffix(n){
+    return formatAbbrevNum(n, 1);
   }
 
   function formatMultFactor(v, noun){
@@ -6714,8 +6745,10 @@
   }
 
   function formatMultShort(v){
-    if(v >= 1e6) return '×' + formatCompactSuffix(v);
+    if(v >= 1000) return '×' + formatNum(v);
     if(v % 1 === 0) return '×' + v;
+    if(v >= 100) return '×' + Math.floor(v);
+    if(v >= 10) return '×' + v.toFixed(1).replace(/\.0$/, '');
     return '×' + v.toFixed(2).replace(/\.?0+$/, '');
   }
 
@@ -7814,10 +7847,9 @@
 
   function formatNum(n){
     if(!Number.isFinite(n)) return '—';
-    if(n < 1000) return String(Math.floor(n));
-    if(n < 10000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k';
-    if(n < 1e6) return Math.floor(n/1000) + 'k';
-    return formatCompactSuffix(n);
+    const v = Math.floor(n);
+    if(v < 1000) return String(v);
+    return formatAbbrevNum(n, 0);
   }
 
   function formatInterval(ms){
