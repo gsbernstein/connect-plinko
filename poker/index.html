@@ -3359,6 +3359,7 @@
       items: [
         'Remove unnecessary toggles from the dock.',
         'Chips Fly toggle added to the Control Booth column.',
+        'Slide Rule Lv2+: Rate toggle in booth and VIP switches Linear / Log (meter stays on at Lv1).',
       ]
     },
     {
@@ -5055,7 +5056,7 @@
     {
       id: 'slideRule',
       name: 'Slide Rule',
-      desc: 'Lv1: show a chips/s meter under Chips. Lv2: switch that meter to a log scale so early trickle and late flood both read. Toggle On/Off anytime.',
+      desc: 'Lv1: chips/s meter under Chips. Lv2: switch that meter between Linear and Log scale.',
       baseCost: 4,
       costScale: 2,
       maxLevel: 2,
@@ -5081,6 +5082,7 @@
     { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
     { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
     { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
+    { id: 'slideRule', short: 'Rate', source: 'prestige', scaleStates: true, minLevel: 2 },
     { id: 'chipAnimation', short: 'Chips Fly', source: 'settings', label: 'Flying chips animation', visibilityStates: true },
     { id: 'pinSplit', short: 'Mitosis', source: 'prestige' },
     { id: 'stormBeaches', short: 'Storm', source: 'prestige' },
@@ -5233,7 +5235,7 @@
   }
 
   function slideRuleMeterVisible(){
-    return prestigeLevel('slideRule') > 0 && isAutoEnabled('slideRule');
+    return prestigeLevel('slideRule') > 0;
   }
 
   function slideRuleLogScale(){
@@ -5243,7 +5245,8 @@
   function toggleDockItemOwned(def){
     if(def.source === 'settings') return true;
     if(def.source === 'upgrade') return upgradeLevel(def.id) > 0;
-    return prestigeLevel(def.id) > 0;
+    const minLv = def.minLevel || 1;
+    return prestigeLevel(def.id) >= minLv;
   }
 
   function toggleDockFullName(def){
@@ -7912,8 +7915,8 @@
         return 'Steer up to ±' + tableTiltMaxDeg() + '°';
       case 'slideRule':
         if(!lvl) return 'No chips/s meter';
-        if(!isAutoEnabled('slideRule')) return 'Paused · meter hidden';
-        return lvl >= 2 ? 'Log chips/s meter' : 'Linear chips/s meter';
+        if(lvl < 2) return 'Linear chips/s meter';
+        return isAutoEnabled('slideRule') ? 'Log chips/s meter' : 'Linear chips/s meter';
       case 'quickDeal':
         return lvl
           ? ('+' + lvl + ' Auto Dealer · now Lv ' + upgradeLevel('autoDealer'))
@@ -12759,6 +12762,11 @@
           toggle.textContent = visible ? 'Shown' : 'Hidden';
           toggle.setAttribute('aria-pressed', visible ? 'true' : 'false');
           toggle.classList.toggle('is-off', !visible);
+        } else if(def.id === 'slideRule'){
+          const log = isAutoEnabled('slideRule');
+          toggle.textContent = log ? 'Log' : 'Linear';
+          toggle.setAttribute('aria-pressed', log ? 'true' : 'false');
+          toggle.classList.toggle('is-off', !log);
         } else {
           const on = isAutoEnabled(def.id);
           toggle.textContent = on ? 'On' : 'Off';
@@ -12907,7 +12915,7 @@
         if(canAfford) vipReady++;
         fillUpgradeButton(btn, def, {
           bought: lvl, bonus: 0, maxed, locked: needsSuitBomb, cost, canAfford,
-          canToggle: !!(def.toggleable && lvl > 0),
+          canToggle: !!(def.toggleable && lvl > 0 && (def.id !== 'slideRule' || lvl >= 2)),
           effect: prestigeEffectText(def),
           costLabel: needsSuitBomb ? 'Needs Suit Purge' : '',
           unit: 'comps',
@@ -13341,6 +13349,9 @@
       } else if(def.fuseStates){
         on = isAutoEnabled(id);
         label = on ? 'Short' : 'Normal';
+      } else if(def.scaleStates){
+        on = isAutoEnabled(id);
+        label = on ? 'Log' : 'Linear';
       } else if(def.visibilityStates){
         on = gameSettings[id] !== false;
         label = on ? 'Shown' : 'Hidden';
