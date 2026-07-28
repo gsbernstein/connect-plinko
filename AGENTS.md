@@ -24,7 +24,10 @@ Each page links to the other via a Classic / Poker toggle.
 ├── index.html          # Plinko Four (~1,740 lines) — HTML + CSS + JS in one file
 ├── poker/
 │   ├── index.html      # Plinko Poker (~8,880 lines) — same pattern
-│   ├── prestige-defs.js  # VIP perk table (`window.PRESTIGE_DEFS`); loaded by index + editor
+│   ├── prestige-defs.js   # VIP perks (`window.PRESTIGE_DEFS`)
+│   ├── upgrade-defs.js    # Table shop (`window.UPGRADE_DEFS`)
+│   ├── quest-defs.js      # Quest slots/rarities/templates
+│   ├── achievement-defs.js  # Permanent achievements (`window.ACHIEVEMENT_DEFS`)
 │   ├── version.json    # Poker release id (`v`) polled for refresh prompts
 │   └── welcome-chip.png
 ├── tools/
@@ -37,7 +40,7 @@ Each page links to the other via a Classic / Poker toggle.
 └── AGENTS.md           # this file
 ```
 
-There are no other source directories. Almost all work lands in one of the two `index.html` files (plus `poker/prestige-defs.js` for VIP perks and `poker/version.json` when shipping a Poker refresh-worthy deploy).
+There are no other source directories. Almost all work lands in one of the two `index.html` files, plus poker `*-defs.js` data files and `poker/version.json` when shipping a refresh-worthy deploy.
 
 ## Local dev
 
@@ -95,7 +98,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 
 | Symbol | Purpose |
 |--------|---------|
-| `UPGRADE_DEFS` | Table shop upgrades (Auto Dealer, Big Blind, Cashier’s Cage / `compCage`, …) — order = shop order |
+| `UPGRADE_DEFS` | Table shop upgrades in `poker/upgrade-defs.js` (`window.UPGRADE_DEFS`); `index.html` assigns `const UPGRADE_DEFS = window.UPGRADE_DEFS`. Order = shop order. |
 | `SHOP_RECOMMEND_PRIORITY` / `VIP_RECOMMEND_PRIORITY` / `recommendedShopUpgradeId` / `recommendedVipPerkId` / `.upgrade-rec` / `.upgrade-cost-row` | Gold ★ after the price on the next guided buy: shop Auto Dealer→4 → Wild Card→3 → Pin Tip→3 → Felt Grease→3 → Multi Deal→3 → High Cut→4 → Suit Alliance→2; VIP Slide Rule→1 → Quest Desk→1 → Quest Ink→4. First incomplete unlocked step wins (`fillUpgradeButton` `recommended`; `.upgrade-rec.is-on` via `visibility`) |
 | `compCage` / `runCompCredit` | Cashier’s Cage (`unlockAt` 200): each chip buy banks +1 Cash Out comp (`runCompCredit`); steep costs (500k×2.2, late curve after Lv 20); high maxLevel sink that does not raise chip income; Pit Boss will buy it when cheapest |
 | `PRESTIGE_DEFS` | VIP perks in `poker/prestige-defs.js` (`window.PRESTIGE_DEFS`); `index.html` assigns `const PRESTIGE_DEFS = window.PRESTIGE_DEFS`. Array order = VIP tab order (curated). Skill-bonus perks (`quickDeal` → Auto Dealer, `pinPrivilege` → Pin Tip, `feltWax` → Felt Grease) use `prestigeBonusLevels`. Dev editor: `tools/vip-perk-editor.html`. |
@@ -126,7 +129,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `multiDealChance` / `rollMultiDealExtras` / `MULTI_DEAL_CHANCE_PER_LEVEL` | Multi Deal (unlockAt 8): +25% extra-card chance per level on each auto tick (max Lv 6 = 150%); above 100% rolls multiple extras |
 | `upgradeEffectText` / `prestigeEffectText` / `shopMetaMultiplier` | Shop/VIP effect lines (stable; omit live Card Counting product via `*Display` helpers) |
 | `levelMultParts` / `levelMultDetailTitle` / `#runLevelMult` | Live Blind / payout / combo / Card Counting mults on the Level HUD tile; `scheduleCountingUiRefresh` updates this only (not shop/VIP rows) |
-| `ACHIEVEMENT_DEFS` | Permanent achievements (`CONTRACT_DEFS` is a legacy alias); `secret: true` stays hidden until `stat > 0`; infinite `scale.targetStep` = linear +N targets (`a_max_combo` uses step 1); Big Pot / Combo Payday / Chip Flood use `targetGrowth: 10` after seed tiers |
+| `ACHIEVEMENT_DEFS` | `poker/achievement-defs.js` (`CONTRACT_DEFS` alias); `secret: true` hidden until `stat > 0`; infinite tiers. Quest data: `poker/quest-defs.js` (`QUEST_TEMPLATES`, `QUEST_SLOT_UNLOCK_LEVELS`, rarity weights). |
 | `achievementProgress` / `achievementProgShown` / `achievementProgTargetShown` | Floored progress numerator + last-painted tier target; skip identical prog HTML rewrites; pulse only when numerator rises |
 | `achievementTiersReachedByStat` | Highest infinite/seed tier whose `target` a peak stat already clears (used to remap Big Pot / Combo Payday claims when `targetGrowth` changes) |
 | `achievementName` | `a_max_combo` tier title: C-Combo, C-C-Combo… from active tier target |
@@ -293,7 +296,8 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Multi Deal extras | `multiDealChance` / `rollMultiDealExtras` in `tryAutoDrop` via `autoDropOnce` |
 | Cashier’s Cage (chip→comp sink) | `compCage` in `UPGRADE_DEFS`; `purchaseUpgrade` adds `runCompCredit`; effect via `upgradeEffectText` |
 | Auto Dealer two-tier costs | `costLateAt` / `costLateBase` / `costLateScale` on `autoDealer` def; `upgradeCost` |
-| New VIP perk | `PRESTIGE_DEFS`, `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Deal Me In via `dealMeInActive` / `tryJoinResolve` on late `finalizeDrop`; Pin Split via `pinSplitActive` / peg hit in `stepBall`; Slide Rule via `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` |
+| New VIP perk | `poker/prestige-defs.js` + `prestigeEffectText`, buy UI; skill bonuses via `prestigeBonusLevels`; hand cheats via `evaluateHandSlice` / `handPayoutMultiplier` / `flushMinLength` (Connect 4); Deal Me In via `dealMeInActive` / `tryJoinResolve` on late `finalizeDrop`; Pin Split via `pinSplitActive` / peg hit in `stepBall`; Slide Rule via `slideRuleMeterVisible` / `slideRuleLogScale` / `chipRateFillPct` |
+| VIP perk editor | `tools/vip-perk-editor.html` loads `prestige-defs.js`; export paste replaces that file |
 | Quick Claim hold series | `quickClaim` in `PRESTIGE_DEFS`; `achievementQuickClaimActive` gates hold repeat in `attachAchievementHoldHandlers` (tap still claims one tier) |
 | Deal Me In join | `dealMeIn` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS` / `TOGGLE_DOCK_DEFS`; `tryJoinResolve` after landed `finalizeDrop` while `resolvePhase === 'flash'`; `resolveGroupsSignature` change gate; Suit Purge / Siege / Floor excluded |
 | Pin Split spawn / split | `autoDropIntervalMs` × `dropSpawnMult` only (no manual cooldown), `canSplitBall` / `spawnSplitTwin` on fresh peg hits, size reset in `enterGridColumn` / `drawBall` (Percussive Mitosis) |
@@ -306,9 +310,10 @@ No separate release counter — bumping a changelog `id` and setting `poker/vers
 | Control Booth toggle dock | `controlBooth` in `PRESTIGE_DEFS` + `AUTO_TOGGLE_IDS`; `TOGGLE_DOCK_DEFS` / `controlBoothActive` / `updateToggleDockUI`; HTML `#toggleDock` beside `.board-frame` in `.board-row` |
 | Suit Purge UI | `#suitBombBar`, `suitBombUiVisible` / `suitBombPickerMinimized`, `updateSuitBombUI` / `repaintSuitBombGlyphs`; shop Shown/Hidden and bar tap minimize picker only; Suit Alliance folds ally suits onto one `.pair-suit` button |
 | Suit Alliance (flush/purge allies) | `suitFamily` / `SUIT_ALIAS_STEPS` on `suitCut`; flush via `sliceSharesFlushSuit`; purge via `findSuitCells` / `castSuitBomb` family keys |
-| New achievement | `ACHIEVEMENT_DEFS`, `achievementProgress` / claim checks, `updateAchievementsUI` |
+| New achievement | `poker/achievement-defs.js`, `achievementProgress` / claim checks, `updateAchievementsUI` |
 | Achievement progress pulse / numerator | `achievementProgress`, `achievementProgShown`, `pulseAchievementNumerator`, CSS near `.quest-progress-row` |
-| New quest template | quest template array near `QUEST_SLOT_UNLOCKS` |
+| New quest template | `poker/quest-defs.js` (`QUEST_TEMPLATES`; slot unlocks / rarity tables in same file) |
+| New shop upgrade | `poker/upgrade-defs.js` |
 | Hand scoring / stats | hand detection block ~6160+, `HAND_STAT` wiring |
 | UI tab / modal | HTML above script + rail refresh functions ~7500+ |
 | Settings changelog / What’s New badge | Prepend to `CHANGELOG` (new monotonic `id`); see **Settings changelog** above |
