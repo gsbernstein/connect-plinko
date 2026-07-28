@@ -114,7 +114,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `purgeCardPayout` / `suitBombPickerMinimized` / `suitBombUiVisible` / `suitPurgePairPenalty` / `pickAutoSuitBombTarget` | Suit Purge: shop Shown/Hidden and bar tap minimize picker only (purges keep running); purge pays per card; auto-target ranks by pair-safe effective count but gates on raw cards in play (≥2) so Pin Split duplicate floods still cast; with Suit Alliance, targets/buttons are suit families (`purgeFamilies`) and dual-glyph buttons show both allies |
 | `suitCut` / `suitFamily` / `suitsInFamily` / `purgeFamilies` / `SUIT_ALIAS_STEPS` | Suit Alliance: does **not** remove suits from the shoe; Lv1 ♦→♥, Lv2 also ♣→♠ for flush matching (`sliceSharesFlushSuit` / `flushHintColor` family color) and Suit Purge (one button/family, clears both printed suits). Cards keep their own felt/glyph. |
 | `maybeAutoBuy` / `PIT_BOSS_BUY_BATCH` / `PIT_BOSS_BUY_INTERVAL_MS` | Pit Boss (toggleable): up to 5 cheapest affordable shop buys per tick; `140` ms throttle |
-| `trophyDesk` / `tryAutoClaimAchievements` / `maybeAutoClaimAchievements` / `anyClaimableAchievement` | Trophy Desk VIP: auto-claims completed achievement tiers (toggleable); tab burst + toasts when the panel is closed |
+| `quickClaim` / `achievementQuickClaimActive` / `attachAchievementHoldHandlers` / `ACHIEVEMENT_HOLD_*` | Quick Claim VIP: hold-to-claim series on achievement cards (manual only — no auto-claim) |
 | `dropSpawnMult` | Product of active spawn-rate perk multipliers for `autoDropIntervalMs` |
 | `evaluateHandSlice` | Hand eval with Ace Up Your Sleeve ghost Ace; sets `sleeveUsed` when the ghost Ace strictly improves the hand; use instead of `evaluateCards` for board scoring |
 | `forEachInPlayCard` / `cardCountingGroups` / `cardCountingFactor` / `cardCountingHandMultiplier` / `boardDuplicateExtras` / `effectiveMetaMultiplier` / `handPayoutMultiplier` | Card Counting: counts settled board + falling balls; Lv1–8 +8% per duplicate extra on hands; Lv9 product of paired rank+suit counts multiplies `runMetaMultiplier` |
@@ -143,7 +143,7 @@ Also one IIFE. HTML shell (tabs, modals, rail) is above the `<script>` tag; game
 | `noteSettingsOpened` | First Settings visit → `settingsOpened` achievement stat |
 | `noteChipEarn` / `updateChipRateUI` / `chipRateFillPct` / `#chipRateVal` / `#chipRateFill` / `maxChipRate` | Rolling chips/s under the Chips HUD (5s window from `awardChips`; clears on Cash Out / reset) — meter hidden until Slide Rule Lv1; `#chipRateBar` reuses shop `.upgrade-progress` and sits flush on the bottom edge (no inset gap) — fill via `chipRateFillPct` (linear Lv1, log Lv2); `noteChipEarn` always records peak floored rate into `stats.maxChipRate` for Chip Flood (`a_chip_rate`) |
 | `updateCompsHud` / `#compsCashOutVal` / `.cashout-rate` | Comps HUD secondary line: `pendingComps()` as `+N`; `.is-ready` / `.is-cashout-ready` when Cash Out can collect |
-| `formatNum` / `formatCompactSuffix` | HUD + score-pop chip/mult abbreviations: k → M B T Q; ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
+| `formatNum` / `formatCompactSuffix` / `formatScaledMantissa` / `formatAbbrevNum` | HUD + score-pop chip/mult abbreviations: max three-digit mantissa (999 → 1k → 1.23M … Q); ≥1e18 → scientific (`1.2e18`) — skips Qi/Sx so Q stays uniquely quadrillion |
 
 ### Progression model (high level)
 

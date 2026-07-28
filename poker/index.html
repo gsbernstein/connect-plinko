@@ -3343,12 +3343,20 @@
   // Sync branches with: git merge origin/master (do not rebase onto master).
   const CHANGELOG = [
     {
+      id: 102,
+      date: 'Jul 28, 2026',
+      title: 'Quick Claim VIP perk',
+      items: [
+        'New VIP perk Quick Claim: hold a claimable achievement to rip through ready rewards in series.',
+        'Without it, achievements stay one tap = one tier — still manual, never auto-claimed.',
+      ]
+    },
+    {
       id: 101,
       date: 'Jul 27, 2026',
-      title: 'Trophy Desk VIP perk',
+      title: 'Shorter number labels',
       items: [
-        'New VIP perk Trophy Desk auto-claims completed achievement tiers — like Quest Desk for achievements.',
-        'Toggle On/Off from VIP or the Control Booth dock.',
+        'Chip counts, costs, payouts, and mult abbreviations now cap at three digits (e.g. 1.23M, 999k).',
       ]
     },
     {
@@ -4356,7 +4364,7 @@
   ];
   const VIP_RECOMMEND_PRIORITY = [
     { id: 'questDesk', until: 1 },
-    { id: 'trophyDesk', until: 1 },
+    { id: 'quickClaim', until: 1 },
     { id: 'questInk', until: 4 }
   ];
 
@@ -4939,13 +4947,12 @@
       toggleable: true
     },
     {
-      id: 'trophyDesk',
-      name: 'Trophy Desk',
-      desc: 'Automatically claim completed achievement tiers. Toggle On/Off anytime.',
-      baseCost: 6,
+      id: 'quickClaim',
+      name: 'Quick Claim',
+      desc: 'Hold a claimable achievement to rip through ready rewards in series.',
+      baseCost: 5,
       costScale: 1,
-      maxLevel: 1,
-      toggleable: true
+      maxLevel: 1
     },
     {
       id: 'pitBoss',
@@ -5067,7 +5074,7 @@
   let prestigeUpgrades = Object.fromEntries(PRESTIGE_DEFS.map(u => [u.id, 0]));
   // Pause switches for auto systems — ownership stays; automation can be muted.
   const AUTO_TOGGLE_IDS = [
-    'autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'trophyDesk', 'pitBoss', 'controlBooth',
+    'autoDealer', 'autoSuitBomb', 'suitBomb', 'questDesk', 'pitBoss', 'controlBooth',
     'tableTilt', 'slideRule', 'pinSplit', 'stormBeaches', 'siegeWeapons', 'kingMe', 'bigRoom',
     'dealMeIn', 'shortFuse'
   ];
@@ -5079,7 +5086,6 @@
     { id: 'suitBomb', short: 'Suits', source: 'upgrade', picker: true },
     { id: 'autoSuitBomb', short: 'Purge', source: 'prestige', autoManual: true },
     { id: 'questDesk', short: 'Quest', source: 'prestige', autoManual: true },
-    { id: 'trophyDesk', short: 'Trophy', source: 'prestige', autoManual: true },
     { id: 'pitBoss', short: 'Upgrade', source: 'prestige', autoManual: true },
     { id: 'tableTilt', short: 'Tilt', source: 'prestige' },
     { id: 'slideRule', short: 'Rate', source: 'prestige' },
@@ -5214,7 +5220,6 @@
     updateToggleDockUI();
     if(on && id === 'pitBoss') maybeAutoBuy(performance.now());
     if(on && id === 'questDesk') maybeAutoClaimQuests(performance.now());
-    if(on && id === 'trophyDesk') maybeAutoClaimAchievements(performance.now());
     if(on && id === 'autoDealer') lastAutoDropAt = performance.now();
     if(on && (id === 'autoDealer' || id === 'autoSuitBomb') && !resolving && !looping){
       startLoop();
@@ -6087,59 +6092,6 @@
     btn._questRollInTimer = setTimeout(()=>btn.classList.remove('quest-rolling-in'), 440);
   }
 
-  function getAchievementsTabEl(){
-    return achievementsTabEl || document.querySelector('.rail-tab[data-panel="achievements"]');
-  }
-
-  function pulseAchievementTabAutoClaim(){
-    spawnRailTabBurst('achievements', {
-      count: 6,
-      popSpread: 20,
-      sparkColor: '#F0D78C'
-    });
-    const tab = getAchievementsTabEl();
-    if(!tab) return;
-    const badge = tab.querySelector('.rail-tab-badge');
-    if(badge){
-      badge.classList.remove('quest-tab-badge-pop');
-      void badge.offsetWidth;
-      badge.classList.add('quest-tab-badge-pop');
-      clearTimeout(tab._achieveBadgePopTimer);
-      tab._achieveBadgePopTimer = setTimeout(()=>badge.classList.remove('quest-tab-badge-pop'), 1120);
-    }
-  }
-
-  function pushAchievementClaimToast(entry, stackIndex){
-    const tab = getAchievementsTabEl();
-    if(!tab || tab.hidden || !chipFxLayer || !entry) return;
-    const rect = tab.getBoundingClientRect();
-    const stage = chipFxLayer.getBoundingClientRect();
-    const x = rect.left - stage.left + rect.width * 0.5;
-    const y = rect.top - stage.top + rect.height + 6 + (stackIndex || 0) * 26;
-    const el = document.createElement('div');
-    el.className = 'quest-claim-toast';
-    el.style.color = '#F0D78C';
-    const tierSuffix = (entry.def.infinite || achievementSeedTiers(entry.def).length > 1)
-      ? ' Lv ' + entry.level
-      : '';
-    el.textContent = 'ACHIEVE · ' + achievementName(entry.def, entry.tier) + tierSuffix;
-    el.style.left = x + 'px';
-    el.style.top = y + 'px';
-    chipFxLayer.appendChild(el);
-    const cleanup = ()=>{ if(el.parentNode) el.parentNode.removeChild(el); };
-    el.addEventListener('animationend', cleanup, { once: true });
-    setTimeout(cleanup, 1500);
-  }
-
-  function pushAchievementClaimPopup(claimed){
-    if(!claimed || !claimed.length) return;
-    for(let i = 0; i < claimed.length; i++){
-      const stackIndex = i;
-      if(i === 0) pushAchievementClaimToast(claimed[i], stackIndex);
-      else setTimeout(()=>pushAchievementClaimToast(claimed[i], stackIndex), i * 140);
-    }
-  }
-
   function pulseQuestTabAutoClaim(claimed){
     const sparkColors = questSparkColors(claimed);
     spawnRailTabBurst('quests', {
@@ -6280,53 +6232,8 @@
     return n;
   }
 
-  function anyClaimableAchievement(){
-    return ACHIEVEMENT_DEFS.some(def => achievementCanClaim(def));
-  }
-
-  function tryAutoClaimAchievements(){
-    if(prestigeLevel('trophyDesk') <= 0 || !isAutoEnabled('trophyDesk')) return 0;
-    const claimed = [];
-    const panelOpen = activeRailPanel === 'achievements';
-    const cap = 32;
-    for(let guard = 0; guard < cap; guard++){
-      let def = null;
-      for(const d of ACHIEVEMENT_DEFS){
-        if(achievementCanClaim(d)){
-          def = d;
-          break;
-        }
-      }
-      if(!def) break;
-      const level = achievementClaimedTier(def) + 1;
-      const tier = achievementTierAt(def, level);
-      if(!tier) break;
-      if(!claimAchievement(def.id, { quiet: true, deferUi: true, skipFly: true })) break;
-      claimed.push({ def, tier, level });
-    }
-    if(!claimed.length) return 0;
-
-    refreshQuestUiAndSave();
-    if(!panelOpen){
-      pulseAchievementTabAutoClaim();
-      const tab = getAchievementsTabEl();
-      for(const entry of claimed){
-        if(tab && entry.tier && entry.tier.reward) spawnRewardParticles(tab, entry.tier.reward);
-      }
-      pushAchievementClaimPopup(claimed);
-    }
-    return claimed.length;
-  }
-
-  let lastAutoAchieveClaimAt = 0;
-  function maybeAutoClaimAchievements(now){
-    if(prestigeLevel('trophyDesk') <= 0 || !isAutoEnabled('trophyDesk')) return 0;
-    now = now || performance.now();
-    if(now - lastAutoAchieveClaimAt < 180) return 0;
-    if(!anyClaimableAchievement()) return 0;
-    const n = tryAutoClaimAchievements();
-    if(n) lastAutoAchieveClaimAt = now;
-    return n;
+  function achievementQuickClaimActive(){
+    return prestigeLevel('quickClaim') > 0;
   }
 
   function claimAchievement(id, opts){
@@ -6417,8 +6324,10 @@
         holding: false,
         deferredUi: false,
         x: e.clientX,
-        y: e.clientY,
-        startTimer: setTimeout(()=>{
+        y: e.clientY
+      };
+      if(achievementQuickClaimActive()){
+        hold.startTimer = setTimeout(()=>{
           if(!hold || hold.moved) return;
           hold.holding = true;
           btn.classList.add('is-hold-claim');
@@ -6428,8 +6337,8 @@
               if(!runHoldClaimStep()) clearHold();
             }, ACHIEVEMENT_HOLD_REPEAT_MS);
           }
-        }, ACHIEVEMENT_HOLD_START_MS)
-      };
+        }, ACHIEVEMENT_HOLD_START_MS);
+      }
       try{ btn.setPointerCapture(e.pointerId); }catch(_){}
     });
 
@@ -6572,9 +6481,8 @@
   function scheduleContractsUI(){
     clearTimeout(questUiTimer);
     questUiTimer = setTimeout(()=>{
-      // Claim before painting so the Quests/Achievements tabs rarely show stale Claim buttons.
+      // Claim before painting so the Quests tab rarely shows a stale Claim button.
       maybeAutoClaimQuests();
-      maybeAutoClaimAchievements();
       updateContractsUI();
     }, 120);
   }
@@ -6805,13 +6713,36 @@
 
   // Short-scale HUD suffixes through Q (quadrillion = 1e15). Quintillion+
   // also wants "Q", so past 1e18 we drop to scientific instead of inventing Qi/Sx…
-  function formatCompactSuffix(n){
-    if(n < 1e9) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
-    if(n < 1e12) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
-    if(n < 1e15) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + 'T';
-    if(n < 1e18) return (n/1e15).toFixed(2).replace(/\.?0+$/,'') + 'Q';
+  const FORMAT_NUM_SUFFIXES = ['k', 'M', 'B', 'T', 'Q'];
+  const FORMAT_NUM_SCI_THRESHOLD = 1e18;
+
+  function formatScaledMantissa(scaled){
+    if(scaled >= 100) return String(Math.floor(scaled));
+    if(scaled >= 10) return scaled.toFixed(1).replace(/\.0$/, '');
+    return scaled.toFixed(2).replace(/\.?0+$/, '');
+  }
+
+  function formatAbbrevNum(n, minSuffixIdx){
     if(!Number.isFinite(n)) return String(n);
-    return n.toExponential(2).replace(/\.?0+e/, 'e').replace('e+', 'e');
+    const v = Math.floor(n);
+    if(v >= FORMAT_NUM_SCI_THRESHOLD){
+      return n.toExponential(2).replace(/\.?0+e/, 'e').replace('e+', 'e');
+    }
+    let scale = 1000;
+    let idx = 0;
+    while(idx < minSuffixIdx){
+      scale *= 1000;
+      idx++;
+    }
+    while(idx < FORMAT_NUM_SUFFIXES.length - 1 && v >= scale * 1000){
+      scale *= 1000;
+      idx++;
+    }
+    return formatScaledMantissa(v / scale) + FORMAT_NUM_SUFFIXES[idx];
+  }
+
+  function formatCompactSuffix(n){
+    return formatAbbrevNum(n, 1);
   }
 
   function formatMultFactor(v, noun){
@@ -6820,8 +6751,10 @@
   }
 
   function formatMultShort(v){
-    if(v >= 1e6) return '×' + formatCompactSuffix(v);
+    if(v >= 1000) return '×' + formatNum(v);
     if(v % 1 === 0) return '×' + v;
+    if(v >= 100) return '×' + Math.floor(v);
+    if(v >= 10) return '×' + v.toFixed(1).replace(/\.0$/, '');
     return '×' + v.toFixed(2).replace(/\.?0+$/, '');
   }
 
@@ -7920,10 +7853,9 @@
 
   function formatNum(n){
     if(!Number.isFinite(n)) return '—';
-    if(n < 1000) return String(Math.floor(n));
-    if(n < 10000) return (n/1000).toFixed(1).replace(/\.0$/,'') + 'k';
-    if(n < 1e6) return Math.floor(n/1000) + 'k';
-    return formatCompactSuffix(n);
+    const v = Math.floor(n);
+    if(v < 1000) return String(v);
+    return formatAbbrevNum(n, 0);
   }
 
   function formatInterval(ms){
@@ -8040,9 +7972,8 @@
       case 'questDesk':
         if(!lvl) return 'Manual claims';
         return isAutoEnabled('questDesk') ? 'Auto-claiming' : 'Paused';
-      case 'trophyDesk':
-        if(!lvl) return 'Manual claims';
-        return isAutoEnabled('trophyDesk') ? 'Auto-claiming' : 'Paused';
+      case 'quickClaim':
+        return lvl ? 'Hold to claim in series' : 'Tap one tier at a time';
       case 'pitBoss':
         if(!lvl) return 'Manual buys only';
         return isAutoEnabled('pitBoss') ? 'Auto-buying' : 'Paused';
@@ -8623,7 +8554,6 @@
     updateToggleDockUI();
     if(id === 'pitBoss') maybeAutoBuy(performance.now());
     if(id === 'questDesk') maybeAutoClaimQuests(performance.now());
-    if(id === 'trophyDesk') maybeAutoClaimAchievements(performance.now());
     if(id === 'autoSuitBomb') updateSuitBombUI(performance.now(), true);
     if(id === 'autoSuitBomb' && !resolving && !looping){
       startLoop();
@@ -9696,7 +9626,6 @@
     tryAutoSuitBomb(now);
     maybeAutoBuy(now);
     maybeAutoClaimQuests(now);
-    maybeAutoClaimAchievements(now);
     updateSuitBombUI(now);
 
     const speed = physicsSpeed();
@@ -14125,7 +14054,6 @@
       tryAutoSuitBomb(now);
       maybeAutoBuy(now);
       maybeAutoClaimQuests(now);
-    maybeAutoClaimAchievements(now);
       const needLoop = balls.length || particles.length
         || hasBurningCards() || resolving
         || autoDealerActive()
@@ -14133,9 +14061,6 @@
         || (prestigeLevel('questDesk') > 0
           && isAutoEnabled('questDesk')
           && activeQuests.some(q => activeQuestComplete(q)))
-        || (prestigeLevel('trophyDesk') > 0
-          && isAutoEnabled('trophyDesk')
-          && anyClaimableAchievement())
         || (suitBombUnlocked() && (
           (prestigeLevel('autoSuitBomb') > 0 && isAutoEnabled('autoSuitBomb'))
           || !suitBombReady(now)
