@@ -1485,10 +1485,11 @@
   .idle-pill-head{
     display:flex;
     justify-content:space-between;
-    align-items:flex-start;
+    align-items:center;
     gap:6px;
     width:100%;
     min-width:0;
+    flex:1 1 auto;
   }
   .idle-pill-head .hud-label::after{content:'\00a0';}
   .idle-val-stack{
@@ -1801,6 +1802,7 @@
     position:relative;
     display:flex;
     flex-direction:column;
+    align-items:center;
     gap:2px;
     min-width:0;
     background:var(--panel);
@@ -1825,6 +1827,7 @@
   .level-pill-head{
     display:flex;
     align-items:baseline;
+    justify-content:center;
     gap:8px;
     min-width:0;
     width:100%;
@@ -1832,6 +1835,7 @@
   .level-left{
     display:flex;
     align-items:baseline;
+    justify-content:center;
     gap:0;
     flex:0 1 auto;
     min-width:0;
@@ -1848,13 +1852,13 @@
   #runLevelVal{
     display:inline-block;
     min-width:2ch;
-    text-align:right;
+    text-align:center;
   }
   .hud-xp{
     display:block;
     width:100%;
     min-width:0;
-    text-align:right;
+    text-align:center;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
@@ -1893,7 +1897,7 @@
     font-variant-numeric:tabular-nums;
     color:#F0D78C;
     opacity:0.95;
-    text-align:right;
+    text-align:center;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
@@ -3508,6 +3512,7 @@
       title: 'HUD tiles & chips/s meter layout',
       items: [
         'Top HUD tiles share equal width so chip counts no longer resize the row.',
+        'Level, Comps, and Auto tiles use bottom progress bars; Comps shows Cash Out on a second justified row.',
         'Chips/s sits left-aligned above the meter; the milestone label sits above its tick.',
         'Smoother /s readout and sliding scale ticks; add ?chipRateDebug=1 to tune milestones.',
         'Slide Rule is a top VIP pick — 1 comp for Lv1 chips/s meter, 2 comps for Lv2 Linear/Log toggle.',
@@ -13132,6 +13137,18 @@
     autoStatusFillEl.style.width = (autoStatusFillShown * 100) + '%';
   }
 
+  function syncAutoDealExtra(){
+    const dealChance = multiDealChance();
+    if(!autoStatusExtraEl) return;
+    if(dealChance > 0){
+      autoStatusExtraEl.hidden = false;
+      autoStatusExtraEl.textContent = '+' + (dealChance * 100).toFixed(dealChance < 0.1 ? 1 : 0).replace(/\.0$/, '') + '%';
+    } else {
+      autoStatusExtraEl.hidden = true;
+      autoStatusExtraEl.textContent = '';
+    }
+  }
+
   function updateAutoStatus(now){
     if(!autoStatusEl) return;
     const owned = upgradeLevel('autoDealer') > 0;
@@ -13150,35 +13167,24 @@
       ? 'Auto Dealer — click to pause'
       : 'Auto Dealer — click to resume';
     autoStatusEl.setAttribute('aria-label', autoStatusEl.title);
+    syncAutoDealExtra();
     if(!enabled){
       if(autoStatusValEl) autoStatusValEl.textContent = 'paused';
-      if(autoStatusExtraEl) autoStatusExtraEl.hidden = true;
       autoStatusFillShown = 0;
       setAutoStatusFill(0);
       return;
     }
     if(!on){
       if(autoStatusValEl) autoStatusValEl.textContent = 'off';
-      if(autoStatusExtraEl) autoStatusExtraEl.hidden = true;
       autoStatusFillShown = 0;
       setAutoStatusFill(0);
       return;
     }
     const blocked = balls.length >= MAX_AUTO_DROP_BALLS;
-    const dealChance = multiDealChance();
     if(autoStatusValEl){
       autoStatusValEl.textContent = blocked
         ? 'waiting…'
         : formatInterval(autoDropIntervalMs());
-    }
-    if(autoStatusExtraEl){
-      if(!blocked && dealChance > 0){
-        autoStatusExtraEl.hidden = false;
-        autoStatusExtraEl.textContent = '+' + (dealChance * 100).toFixed(dealChance < 0.1 ? 1 : 0).replace(/\.0$/, '') + '%';
-      } else {
-        autoStatusExtraEl.hidden = true;
-        autoStatusExtraEl.textContent = '';
-      }
     }
     const t = blocked
       ? 1
