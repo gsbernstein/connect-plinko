@@ -1,0 +1,36 @@
+name: Deploy test preview
+
+on:
+  push:
+    branches: ["test"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: preview-test
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout test branch
+        uses: actions/checkout@v4
+
+      - name: Prepare preview site
+        run: |
+          mkdir -p _preview
+          cp index.html .nojekyll _preview/
+          cp -r poker _preview/
+
+      - name: Deploy to preview/test on master
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: _preview
+          branch: master
+          target-folder: preview/test
+          clean: false
+          single-commit: true
+          commit-message: "Deploy test preview to preview/test"

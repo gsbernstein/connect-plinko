@@ -53,3 +53,22 @@ If the site is not live yet, enable Pages once:
 1. Repo **Settings → Pages**
 2. **Source**: Deploy from a branch
 3. **Branch**: `master` / `/` (root)
+
+### Test preview
+
+Push to the `test` branch to publish a staging copy under a subfolder (production stays on `master`):
+
+| Game | Preview URL |
+|------|-------------|
+| **Plinko Four** | https://gsbernstein.github.io/connect-plinko/preview/test/ |
+| **Plinko Poker** | https://gsbernstein.github.io/connect-plinko/preview/test/poker/ |
+
+The workflow copies the site into `preview/test/` on `master` without touching the root files. You can also run it manually from **Actions → Deploy test preview**.
+
+To use it:
+
+1. Create or push a `test` branch with your changes.
+2. Wait for the workflow to finish (usually under a minute).
+3. Open the preview URLs above.
+
+If `master` has branch protection, allow GitHub Actions to push commits (or use a bypass for the bot).
