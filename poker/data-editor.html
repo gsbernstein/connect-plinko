@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Poker data editor</title>
+  <style>
+    :root {
+      --felt: #0f3d2e;
+      --felt-deep: #08261c;
+      --panel: rgba(0, 0, 0, 0.28);
+      --border: rgba(240, 215, 140, 0.18);
+      --gold: #f0d78c;
+      --ivory: #f7f1e3;
+      --muted: rgba(247, 241, 227, 0.62);
+      --up: #7dd3a8;
+      --down: #f0a07a;
+      --accent: #5eb8ff;
+      --danger: #ff8f7a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--ivory);
+      background:
+        radial-gradient(ellipse 120% 80% at 50% -10%, #1a5c45 0%, transparent 55%),
+        linear-gradient(180deg, var(--felt-deep), var(--felt));
+    }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 24px 18px 40px; }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    h1 { margin: 0; font-size: 1.45rem; color: var(--gold); }
+    .sub {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      max-width: 62ch;
+      line-height: 1.45;
+    }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .file-select {
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--gold);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font: inherit;
+      font-size: 0.86rem;
+      font-weight: 700;
+      max-width: 220px;
+    }
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--ivory);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font: inherit;
+      font-size: 0.86rem;
+      cursor: pointer;
+    }
+    button:hover, .btn:hover { border-color: rgba(240, 215, 140, 0.45); }
+    button.primary {
+      background: rgba(240, 215, 140, 0.14);
+      border-color: rgba(240, 215, 140, 0.45);
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 1080px) { .layout { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+      overflow: hidden;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--gold);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+    .list { padding: 10px; min-height: 200px; }
+    .row {
+      display: grid;
+      grid-template-columns: 28px minmax(140px, 1.3fr) repeat(3, 84px) minmax(88px, 1fr) 52px;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 10px 8px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(240, 215, 140, 0.12);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.18);
+      transition: border-color 0.12s, transform 0.12s, opacity 0.12s;
+    }
+    .row.mode-achievement {
+      grid-template-columns: 28px minmax(140px, 1.2fr) 100px 72px 52px;
+    }
+    .row.dragging { opacity: 0.45; transform: scale(0.985); }
+    .row.drag-over {
+      border-color: rgba(94, 184, 255, 0.65);
+      box-shadow: 0 0 0 1px rgba(94, 184, 255, 0.25) inset;
+    }
+    @media (max-width: 900px) {
+      .row, .row.mode-achievement {
+        grid-template-columns: 28px 1fr 1fr;
+        grid-template-areas:
+          "handle title title"
+          "handle f1 f2"
+          "handle f3 actions";
+      }
+      .row .handle { grid-area: handle; }
+      .row .title-wrap { grid-area: title; }
+      .row .field-base { grid-area: f1; }
+      .row .field-scale { grid-area: f2; }
+      .row .field-max, .row .field-stat { grid-area: f1; }
+      .row .field-unlock { grid-area: f2; }
+      .row .preview, .row .toggle-wrap { grid-area: f3; }
+      .row .expand { grid-area: actions; }
+    }
+    .handle {
+      display: grid;
+      place-items: center;
+      color: rgba(247, 241, 227, 0.45);
+      cursor: grab;
+      user-select: none;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .handle:active { cursor: grabbing; }
+    .title-wrap { min-width: 0; }
+    .rank { font-size: 0.72rem; color: var(--muted); margin-bottom: 2px; font-weight: 700; }
+    .name, .num, .desc, textarea.export, textarea.json-editor {
+      font: inherit;
+      border-radius: 8px;
+    }
+    .name {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--ivory);
+      font-size: 0.92rem;
+      font-weight: 700;
+      padding: 2px 4px;
+      border-radius: 6px;
+    }
+    .name:focus, .num:focus, .desc:focus, textarea.export:focus, textarea.json-editor:focus {
+      outline: none;
+      border-color: rgba(94, 184, 255, 0.55);
+      background: rgba(0, 0, 0, 0.22);
+    }
+    .id { font-size: 0.72rem; color: rgba(247, 241, 227, 0.42); margin-top: 2px; padding-left: 4px; }
+    label {
+      display: block;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .num {
+      width: 100%;
+      border: 1px solid rgba(240, 215, 140, 0.12);
+      background: rgba(0, 0, 0, 0.18);
+      color: var(--gold);
+      padding: 6px 8px;
+      font-size: 0.86rem;
+    }
+    .preview { font-size: 0.72rem; line-height: 1.35; color: var(--muted); }
+    .preview b { color: var(--ivory); }
+    .toggle-wrap { display: flex; align-items: center; justify-content: center; }
+    .toggle-wrap input { accent-color: var(--gold); }
+    .desc-wrap, .extra-wrap { grid-column: 1 / -1; margin-top: 2px; }
+    .desc, .extra-json {
+      width: 100%;
+      min-height: 52px;
+      resize: vertical;
+      border: 1px solid rgba(240, 215, 140, 0.1);
+      background: rgba(0, 0, 0, 0.14);
+      color: rgba(247, 241, 227, 0.82);
+      padding: 8px 10px;
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+    .extra-json {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.75rem;
+      min-height: 120px;
+    }
+    .row.open .desc-wrap, .row.open .extra-wrap { display: block; }
+    .row .desc-wrap, .row .extra-wrap { display: none; }
+    .expand {
+      border: none;
+      background: rgba(0, 0, 0, 0.18);
+      color: var(--muted);
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      border-radius: 8px;
+      justify-self: end;
+    }
+    .row.open .expand { color: var(--gold); }
+    .side { display: grid; gap: 16px; }
+    .flow-wrap { padding: 8px 10px 12px; }
+    svg.flow { width: 100%; height: auto; display: block; }
+    .export-tabs { display: flex; gap: 6px; padding: 10px 10px 0; flex-wrap: wrap; }
+    .export-tabs button.active {
+      background: rgba(240, 215, 140, 0.14);
+      border-color: rgba(240, 215, 140, 0.45);
+      color: var(--gold);
+    }
+    textarea.export, textarea.json-editor {
+      width: 100%;
+      min-height: 280px;
+      border: none;
+      border-top: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.22);
+      color: #d9f0ff;
+      padding: 12px 14px;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      resize: vertical;
+    }
+    textarea.json-editor { min-height: 70vh; border-top: none; }
+    .export-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 12px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .status { padding: 0 12px 12px; font-size: 0.78rem; color: var(--muted); min-height: 1.2em; }
+    .status.ok { color: var(--up); }
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      background: rgba(8, 38, 28, 0.95);
+      border: 1px solid var(--border);
+      color: var(--gold);
+      padding: 10px 14px;
+      border-radius: 10px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: 0.18s;
+      pointer-events: none;
+      z-index: 20;
+    }
+    .toast.show { opacity: 1; transform: none; }
+    .import-file { display: none; }
+    .list-tail {
+      height: 28px;
+      margin: 0 8px 4px;
+      border: 1px dashed rgba(240, 215, 140, 0.14);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: rgba(247, 241, 227, 0.35);
+      font-size: 0.75rem;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .list-tail.drag-over {
+      border-color: rgba(94, 184, 255, 0.65);
+      background: rgba(94, 184, 255, 0.08);
+      color: rgba(247, 241, 227, 0.72);
+    }
+    .layout.json-mode {
+      grid-template-columns: 1fr;
+    }
+    .layout.json-mode #jsonPanel {
+      grid-column: 1 / -1;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Poker data editor</h1>
+        <p class="sub">Edit poker JSON tables in this folder. Use <strong>Save</strong> with <code>python3 scripts/dev-server.py</code> (or <strong>Link file</strong> in the browser). Changelog is excluded.</p>
+      </div>
+      <div class="toolbar">
+        <select class="file-select" id="fileSelect" aria-label="Data file"></select>
+        <button type="button" class="primary" id="saveBtn">Save</button>
+        <button type="button" id="linkFileBtn" title="Pick the JSON file to save without dev server" hidden>Link file</button>
+        <button type="button" id="sortCost" class="mode-upgrade">Sort by Lv1 cost</button>
+        <button type="button" id="reloadBtn">Reload</button>
+        <button type="button" id="importBtn">Import JSON</button>
+        <input class="import-file" id="importFile" type="file" accept="application/json,.json">
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="card" id="listPanel">
+        <div class="card-head">
+          <span><span id="listTitle">Items</span> <span id="countLabel"></span></span>
+          <span id="listHint" style="font-weight:500;color:var(--muted)">drag ☰ · click ▾ for more</span>
+        </div>
+        <div class="list" id="list"></div>
+        <div class="list-tail" id="listTail">Drop here to move to end</div>
+      </section>
+
+      <section class="card hidden" id="jsonPanel">
+        <div class="card-head"><span id="jsonPanelTitle">JSON</span></div>
+        <textarea class="json-editor" id="jsonEditor" spellcheck="false"></textarea>
+      </section>
+
+      <div class="side" id="sidePanel">
+        <section class="card" id="flowCard">
+          <div class="card-head">Order preview</div>
+          <div class="flow-wrap">
+            <svg class="flow" id="flow" viewBox="0 0 520 320" aria-hidden="true"></svg>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">Export</div>
+          <div class="export-tabs">
+            <button type="button" class="active" data-tab="json" id="exportJsonTab">JSON</button>
+            <button type="button" data-tab="diff" id="exportDiffTab">Moved</button>
+          </div>
+          <textarea class="export" id="exportBox" readonly spellcheck="false"></textarea>
+          <div class="export-actions">
+            <button type="button" class="primary" id="copyBtn">Copy</button>
+            <button type="button" id="downloadBtn">Download</button>
+          </div>
+          <div class="status" id="status"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'dataEditorDraft_v3';
+    const FILE_QUERY = 'file';
+    const DEV_PING_URL = '/__dev__/ping';
+    const DEV_WRITE_URL = '/__dev__/write';
+
+    const FILES = [
+      { id: 'prestige', file: 'prestige-defs.json', path: 'poker/prestige-defs.json', label: 'VIP perks', mode: 'upgrade', sortable: true },
+      { id: 'upgrade', file: 'upgrade-defs.json', path: 'poker/upgrade-defs.json', label: 'Shop upgrades', mode: 'upgrade', sortable: true },
+      { id: 'achievement', file: 'achievement-defs.json', path: 'poker/achievement-defs.json', label: 'Achievements', mode: 'achievement', sortable: true },
+      { id: 'quest', file: 'quest-defs.json', path: 'poker/quest-defs.json', label: 'Quest config', mode: 'json', sortable: false }
+    ];
+
+    let currentFile = FILES[0];
+    let liveBaseline = null;
+    let items = [];
+    let rootData = null;
+    let activeTab = 'json';
+    let dragId = null;
+    let devWriteEnabled = false;
+    let linkedFileHandle = null;
+    const linkedHandles = {};
+
+    const fileSelect = document.getElementById('fileSelect');
+    const listPanel = document.getElementById('listPanel');
+    const jsonPanel = document.getElementById('jsonPanel');
+    const sidePanel = document.getElementById('sidePanel');
+    const flowCard = document.getElementById('flowCard');
+    const listEl = document.getElementById('list');
+    const listTailEl = document.getElementById('listTail');
+    const jsonEditor = document.getElementById('jsonEditor');
+    const exportBox = document.getElementById('exportBox');
+    const statusEl = document.getElementById('status');
+    const toastEl = document.getElementById('toast');
+    const flowEl = document.getElementById('flow');
+    const saveBtn = document.getElementById('saveBtn');
+    const linkFileBtn = document.getElementById('linkFileBtn');
+    const sortCostBtn = document.getElementById('sortCost');
+    const exportDiffTab = document.getElementById('exportDiffTab');
+
+    function deepClone(v) {
+      return JSON.parse(JSON.stringify(v));
+    }
+
+    function draftStore() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveDraftForCurrent() {
+      const store = draftStore();
+      if (currentFile.mode === 'json') {
+        try {
+          store[currentFile.id] = JSON.parse(jsonEditor.value);
+        } catch {
+          store[currentFile.id] = jsonEditor.value;
+        }
+      } else {
+        store[currentFile.id] = deepClone(items);
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    }
+
+    function loadDraftForCurrent() {
+      const draft = draftStore()[currentFile.id];
+      if (draft == null) return false;
+      if (currentFile.mode === 'json') {
+        if (typeof draft === 'string') {
+          jsonEditor.value = draft;
+        } else {
+          jsonEditor.value = JSON.stringify(draft, null, 2);
+          rootData = deepClone(draft);
+        }
+        return true;
+      }
+      if (!Array.isArray(draft) || !draft.length) return false;
+      items = deepClone(draft);
+      return true;
+    }
+
+    function clearDraftForCurrent() {
+      const store = draftStore();
+      delete store[currentFile.id];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    }
+
+    function defsUrl(file) {
+      return new URL(file, location.href).href;
+    }
+
+    async function fetchLive() {
+      const res = await fetch(defsUrl(currentFile.file) + '?t=' + Date.now());
+      if (!res.ok) throw new Error('fetch failed: ' + res.status);
+      return res.json();
+    }
+
+    function applyLiveData(data) {
+      liveBaseline = deepClone(data);
+      if (currentFile.mode === 'json') {
+        rootData = deepClone(data);
+        jsonEditor.value = JSON.stringify(rootData, null, 2);
+        items = [];
+      } else {
+        if (!Array.isArray(data) || !data.length) throw new Error('expected a non-empty array');
+        items = deepClone(data);
+        rootData = null;
+      }
+    }
+
+    async function reloadFromLive(opts) {
+      opts = opts || {};
+      try {
+        applyLiveData(await fetchLive());
+      } catch (err) {
+        console.warn('fetch live failed', err);
+        if (liveBaseline == null) throw err;
+      }
+      if (opts.discardDraft || !loadDraftForCurrent()) {
+        if (currentFile.mode === 'json') {
+          rootData = deepClone(liveBaseline);
+          jsonEditor.value = JSON.stringify(rootData, null, 2);
+        } else {
+          items = deepClone(liveBaseline);
+        }
+      }
+      render();
+      if (!opts.silent) showToast(opts.resetWorkspace ? 'Reloaded from disk' : 'Baseline refreshed');
+    }
+
+    function levelCost(p, lvl) {
+      if (lvl >= p.maxLevel) return null;
+      return Math.floor(p.baseCost * Math.pow(p.costScale, lvl));
+    }
+
+    function previewCosts(p) {
+      const bits = [];
+      for (let i = 0; i < Math.min(3, p.maxLevel); i++) {
+        bits.push(`Lv${i + 1} <b>${levelCost(p, i)}</b>c`);
+      }
+      if (p.maxLevel > 3) bits.push('…');
+      return bits.join(' · ');
+    }
+
+    function exportContent() {
+      if (currentFile.mode === 'json') {
+        return JSON.parse(jsonEditor.value);
+      }
+      return items.map(p => deepClone(p));
+    }
+
+    function exportJsonText() {
+      try {
+        return JSON.stringify(exportContent(), null, 2);
+      } catch {
+        return currentFile.mode === 'json' ? jsonEditor.value : JSON.stringify(items, null, 2);
+      }
+    }
+
+    async function probeDevWrite() {
+      try {
+        const res = await fetch(DEV_PING_URL, { cache: 'no-store' });
+        devWriteEnabled = res.ok;
+      } catch {
+        devWriteEnabled = false;
+      }
+      updateSaveModeUI();
+    }
+
+    function updateSaveModeUI() {
+      linkedFileHandle = linkedHandles[currentFile.id] || null;
+      if (devWriteEnabled) {
+        saveBtn.disabled = false;
+        saveBtn.title = 'Save to ' + currentFile.path + ' on disk';
+        linkFileBtn.hidden = true;
+        return;
+      }
+      saveBtn.disabled = !linkedFileHandle;
+      saveBtn.title = linkedFileHandle
+        ? 'Save to linked ' + currentFile.file
+        : 'Run python3 scripts/dev-server.py or Link file to enable Save';
+      linkFileBtn.hidden = !!linkedFileHandle;
+    }
+
+    async function saveToDisk() {
+      let content;
+      try {
+        content = exportContent();
+      } catch (err) {
+        throw new Error('invalid JSON — fix syntax before saving');
+      }
+      const json = JSON.stringify(content, null, 2) + '\n';
+
+      if (devWriteEnabled) {
+        const res = await fetch(DEV_WRITE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: currentFile.path, content })
+        });
+        if (!res.ok) throw new Error((await res.text()) || 'save failed: ' + res.status);
+      } else if (linkedFileHandle) {
+        const writable = await linkedFileHandle.createWritable();
+        await writable.write(json);
+        await writable.close();
+      } else {
+        alert('Cannot write to disk.\n\nLocal dev: run python3 scripts/dev-server.py and reload.\n\nOr click Link file and choose ' + currentFile.file + ' (Chrome/Edge).');
+        return;
+      }
+
+      liveBaseline = deepClone(content);
+      if (currentFile.mode === 'json') rootData = deepClone(content);
+      clearDraftForCurrent();
+      render();
+      statusEl.textContent = 'Saved to ' + currentFile.file;
+      statusEl.className = 'status ok';
+      showToast('Saved to disk');
+    }
+
+    async function linkLocalFile() {
+      if (!window.showOpenFilePicker) {
+        alert('Link file needs Chrome or Edge. Use python3 scripts/dev-server.py instead.');
+        return;
+      }
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+          multiple: false
+        });
+        linkedHandles[currentFile.id] = handle;
+        linkedFileHandle = handle;
+        updateSaveModeUI();
+        showToast('Linked ' + handle.name);
+      } catch (err) {
+        if (err && err.name !== 'AbortError') console.warn(err);
+      }
+    }
+
+    function exportDiff() {
+      if (!currentFile.sortable || currentFile.mode === 'json') return '';
+      const live = Array.isArray(liveBaseline) ? liveBaseline : [];
+      const liveIndex = Object.fromEntries(live.map((p, i) => [p.id, i]));
+      const liveById = Object.fromEntries(live.map(p => [p.id, p]));
+      return items.map((p, i) => {
+        const from = liveIndex[p.id];
+        const liveItem = liveById[p.id];
+        const delta = from == null ? '?' : i - from;
+        const arrow = delta === '?' ? ' ?' : delta === 0 ? '·' : delta < 0 ? `↑${-delta}` : `↓${delta}`;
+        if (currentFile.mode === 'upgrade') {
+          const costChanged = !liveItem || p.baseCost !== liveItem.baseCost || p.costScale !== liveItem.costScale || p.maxLevel !== liveItem.maxLevel;
+          const costNote = costChanged ? '  (edited)' : '';
+          return `${String(i + 1).padStart(2)}. ${p.name.padEnd(22)} ${String(p.baseCost).padStart(3)}c  ${String(arrow).padStart(4)}${costNote}`;
+        }
+        return `${String(i + 1).padStart(2)}. ${p.name.padEnd(28)} ${String(arrow).padStart(4)}`;
+      }).join('\n');
+    }
+
+    function refreshExport() {
+      if (activeTab === 'diff') exportBox.value = exportDiff();
+      else exportBox.value = exportJsonText();
+      const count = currentFile.mode === 'json' ? 'object' : `${items.length} items`;
+      statusEl.textContent = `${currentFile.file} · ${count} · draft autosaved${devWriteEnabled ? ' · dev save on' : linkedFileHandle ? ' · linked file' : ''}`;
+      document.getElementById('countLabel').textContent = currentFile.mode === 'json' ? '' : `(${items.length})`;
+      document.getElementById('exportJsonTab').textContent = currentFile.file;
+      drawFlow();
+    }
+
+    function drawFlow() {
+      if (!currentFile.sortable || currentFile.mode === 'json') {
+        flowCard.classList.add('hidden');
+        return;
+      }
+      flowCard.classList.remove('hidden');
+      const live = Array.isArray(liveBaseline) ? liveBaseline : [];
+      const n = Math.max(items.length, live.length);
+      const h = Math.max(320, 28 + n * 12);
+      flowEl.setAttribute('viewBox', `0 0 520 ${h}`);
+      const liveIndex = Object.fromEntries(live.map((p, i) => [p.id, i]));
+      const leftX = 28;
+      const rightX = 492;
+      const top = 18;
+      const rowH = 12;
+      const midX = (leftX + rightX) / 2;
+      const y = i => top + i * rowH + rowH / 2;
+
+      const paths = items.map((p, to) => {
+        const from = liveIndex[p.id];
+        if (from == null) return '';
+        const delta = to - from;
+        const color = delta < 0 ? 'var(--up)' : delta > 0 ? 'var(--down)' : 'var(--same, #8aa8c4)';
+        return `<path d="M ${leftX + 4} ${y(from)} C ${leftX + 90} ${y(from)}, ${rightX - 90} ${y(to)}, ${rightX - 4} ${y(to)}" fill="none" stroke="${color}" stroke-width="1.4" opacity="0.45"/>`;
+      }).join('');
+
+      const label = (p, i, x, anchor, fill) => {
+        const short = (p.name || p.id).length > 16 ? (p.name || p.id).slice(0, 15) + '…' : (p.name || p.id);
+        return `<text x="${x}" y="${y(i) + 3}" fill="${fill}" font-size="8" text-anchor="${anchor}">${escapeHtml(short)}</text>`;
+      };
+
+      flowEl.innerHTML = `
+        <text x="${leftX}" y="10" fill="#f0d78c" font-size="9" text-anchor="start">Live</text>
+        <text x="${rightX}" y="10" fill="#f0d78c" font-size="9" text-anchor="end">Current</text>
+        <g>${paths}</g>
+        <g>${live.map((p, i) => label(p, i, leftX - 4, 'end', 'rgba(247,241,227,0.55)')).join('')}</g>
+        <g>${items.map((p, i) => label(p, i, rightX + 4, 'start', 'rgba(247,241,227,0.82)')).join('')}</g>
+      `;
+    }
+
+    function updateModeUI() {
+      const isJson = currentFile.mode === 'json';
+      document.querySelector('.layout').classList.toggle('json-mode', isJson);
+      listPanel.classList.toggle('hidden', isJson);
+      jsonPanel.classList.toggle('hidden', !isJson);
+      sidePanel.classList.toggle('hidden', isJson);
+      listTailEl.classList.toggle('hidden', !currentFile.sortable);
+      sortCostBtn.classList.toggle('hidden', currentFile.mode !== 'upgrade');
+      exportDiffTab.classList.toggle('hidden', !currentFile.sortable);
+      if (isJson && activeTab === 'diff') {
+        activeTab = 'json';
+        document.querySelectorAll('.export-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'json'));
+      }
+      document.getElementById('listTitle').textContent = currentFile.label;
+      document.getElementById('jsonPanelTitle').textContent = currentFile.file;
+      document.title = 'Poker data editor — ' + currentFile.label;
+      updateSaveModeUI();
+    }
+
+    function wireListTail() {
+      listTailEl.ondragover = e => {
+        e.preventDefault();
+        if (!dragId) return;
+        listTailEl.classList.add('drag-over');
+      };
+      listTailEl.ondragleave = () => listTailEl.classList.remove('drag-over');
+      listTailEl.ondrop = e => {
+        e.preventDefault();
+        listTailEl.classList.remove('drag-over');
+        const fromId = e.dataTransfer.getData('text/plain') || dragId;
+        if (fromId) moveItem(fromId, null);
+      };
+    }
+
+    function renderUpgradeRow(row, item, index) {
+      const extraKeys = ['unlockAt', 'costLateAt', 'costLateBase', 'costLateScale'];
+      const extras = extraKeys.filter(k => item[k] != null);
+      const extraLines = extras.map(k => `${k}: ${item[k]}`).join('\n');
+      row.innerHTML = `
+        <div class="handle" title="Drag to reorder">☰</div>
+        <div class="title-wrap">
+          <div class="rank">#${index + 1}</div>
+          <input class="name" value="${escapeAttr(item.name)}" aria-label="Name">
+          <div class="id">${item.id}</div>
+        </div>
+        <div class="field-base">
+          <label>Base cost</label>
+          <input class="num" type="number" min="0" step="1" value="${item.baseCost}" aria-label="Base cost">
+        </div>
+        <div class="field-scale">
+          <label>Cost scale</label>
+          <input class="num" type="number" min="0" step="0.01" value="${item.costScale}" aria-label="Cost scale">
+        </div>
+        <div class="field-max">
+          <label>Max level</label>
+          <input class="num" type="number" min="1" step="1" value="${item.maxLevel}" aria-label="Max level">
+        </div>
+        <div class="preview">${previewCosts(item)}</div>
+        <div class="toggle-wrap" title="Toggleable">
+          <label><input type="checkbox" ${item.toggleable ? 'checked' : ''}> ⇄</label>
+        </div>
+        <button type="button" class="expand" title="Description and extra fields">▾</button>
+        <div class="desc-wrap">
+          <label>Description</label>
+          <textarea class="desc" aria-label="Description">${escapeHtml(item.desc || '')}</textarea>
+        </div>
+        <div class="extra-wrap">
+          <label>Extra fields (unlockAt, costLate…)</label>
+          <textarea class="extra-json" aria-label="Extra fields JSON">${escapeHtml(JSON.stringify(Object.fromEntries(extras.map(k => [k, item[k]])), null, 2))}</textarea>
+        </div>
+      `;
+      row.querySelector('.name').oninput = e => { item.name = e.target.value; persist(); };
+      row.querySelector('.field-base .num').oninput = e => {
+        item.baseCost = clampNum(e.target.value, 0, 1e12, item.baseCost);
+        row.querySelector('.preview').innerHTML = previewCosts(item);
+        persist();
+      };
+      row.querySelector('.field-scale .num').oninput = e => {
+        item.costScale = clampNum(e.target.value, 0, 100, item.costScale, true);
+        row.querySelector('.preview').innerHTML = previewCosts(item);
+        persist();
+      };
+      row.querySelector('.field-max .num').oninput = e => {
+        item.maxLevel = clampNum(e.target.value, 1, 9999, item.maxLevel);
+        row.querySelector('.preview').innerHTML = previewCosts(item);
+        persist();
+      };
+      row.querySelector('.toggle-wrap input').onchange = e => {
+        if (e.target.checked) item.toggleable = true;
+        else delete item.toggleable;
+        persist();
+      };
+      row.querySelector('.desc').oninput = e => { item.desc = e.target.value; persist(); };
+      row.querySelector('.extra-json').onchange = e => {
+        try {
+          const parsed = JSON.parse(e.target.value || '{}');
+          ['unlockAt', 'costLateAt', 'costLateBase', 'costLateScale'].forEach(k => delete item[k]);
+          Object.assign(item, parsed);
+          persist();
+          render();
+        } catch {
+          showToast('Invalid extra JSON');
+        }
+      };
+      row.querySelector('.expand').onclick = () => row.classList.toggle('open');
+    }
+
+    function renderAchievementRow(row, item, index) {
+      row.classList.add('mode-achievement');
+      row.innerHTML = `
+        <div class="handle" title="Drag to reorder">☰</div>
+        <div class="title-wrap">
+          <div class="rank">#${index + 1}</div>
+          <input class="name" value="${escapeAttr(item.name)}" aria-label="Name">
+          <div class="id">${item.id}</div>
+        </div>
+        <div class="field-stat">
+          <label>Stat</label>
+          <input class="num text" type="text" value="${escapeAttr(item.stat || '')}" aria-label="Stat">
+        </div>
+        <div class="field-unlock">
+          <label>Unlock Lv</label>
+          <input class="num" type="number" min="0" step="1" value="${item.unlockAt ?? 1}" aria-label="Unlock level">
+        </div>
+        <div class="toggle-wrap" title="Secret achievement">
+          <label><input type="checkbox" ${item.secret ? 'checked' : ''}> secret</label>
+        </div>
+        <button type="button" class="expand" title="Description and full JSON">▾</button>
+        <div class="desc-wrap">
+          <label>Description</label>
+          <textarea class="desc" aria-label="Description">${escapeHtml(item.desc || '')}</textarea>
+        </div>
+        <div class="extra-wrap">
+          <label>Full entry JSON (tiers, scale, rewards…)</label>
+          <textarea class="extra-json" aria-label="Full JSON">${escapeHtml(JSON.stringify(item, null, 2))}</textarea>
+        </div>
+      `;
+      row.querySelector('.name').oninput = e => { item.name = e.target.value; persist(); };
+      row.querySelector('.field-stat .num').oninput = e => { item.stat = e.target.value; persist(); };
+      row.querySelector('.field-unlock .num').oninput = e => {
+        item.unlockAt = clampNum(e.target.value, 0, 9999, item.unlockAt ?? 1);
+        persist();
+      };
+      row.querySelector('.toggle-wrap input').onchange = e => {
+        if (e.target.checked) item.secret = true;
+        else delete item.secret;
+        persist();
+      };
+      row.querySelector('.desc').oninput = e => { item.desc = e.target.value; persist(); };
+      row.querySelector('.extra-json').onchange = e => {
+        try {
+          const parsed = JSON.parse(e.target.value);
+          if (!parsed.id) throw new Error('missing id');
+          items[index] = parsed;
+          persist();
+          render();
+        } catch {
+          showToast('Invalid entry JSON');
+        }
+      };
+      row.querySelector('.expand').onclick = () => row.classList.toggle('open');
+    }
+
+    function render() {
+      updateModeUI();
+      if (currentFile.mode === 'json') {
+        refreshExport();
+        return;
+      }
+      listEl.innerHTML = '';
+      items.forEach((item, index) => {
+        const row = document.createElement('article');
+        row.className = 'row';
+        row.dataset.id = item.id;
+        if (currentFile.sortable) row.draggable = true;
+        if (currentFile.mode === 'upgrade') renderUpgradeRow(row, item, index);
+        else renderAchievementRow(row, item, index);
+        if (currentFile.sortable) wireDrag(row, item.id);
+        listEl.appendChild(row);
+      });
+      refreshExport();
+    }
+
+    function escapeAttr(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function clampNum(raw, min, max, fallback, float) {
+      const n = float ? parseFloat(raw) : parseInt(raw, 10);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.min(max, Math.max(min, n));
+    }
+
+    function persist() {
+      saveDraftForCurrent();
+      refreshExport();
+    }
+
+    function wireDrag(row, id) {
+      row.addEventListener('dragstart', e => {
+        dragId = id;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', id);
+      });
+      row.addEventListener('dragend', () => {
+        dragId = null;
+        row.classList.remove('dragging');
+        document.querySelectorAll('.row.drag-over').forEach(el => el.classList.remove('drag-over'));
+      });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (!dragId || dragId === id) return;
+        row.classList.add('drag-over');
+      });
+      row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+      row.addEventListener('drop', e => {
+        e.preventDefault();
+        row.classList.remove('drag-over');
+        const fromId = e.dataTransfer.getData('text/plain') || dragId;
+        if (!fromId || fromId === id) return;
+        const rect = row.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        moveItem(fromId, before ? id : nextId(id));
+      });
+    }
+
+    function nextId(id) {
+      const i = items.findIndex(p => p.id === id);
+      return i >= 0 && i < items.length - 1 ? items[i + 1].id : null;
+    }
+
+    function moveItem(fromId, beforeId) {
+      const from = items.findIndex(p => p.id === fromId);
+      if (from < 0) return;
+      const [item] = items.splice(from, 1);
+      let to = beforeId == null ? items.length : items.findIndex(p => p.id === beforeId);
+      if (to < 0) to = items.length;
+      items.splice(to, 0, item);
+      render();
+      saveDraftForCurrent();
+      showToast('Reordered');
+    }
+
+    async function switchFile(fileId) {
+      saveDraftForCurrent();
+      const next = FILES.find(f => f.id === fileId);
+      if (!next || next.id === currentFile.id) return;
+      currentFile = next;
+      liveBaseline = null;
+      const url = new URL(location.href);
+      url.searchParams.set(FILE_QUERY, fileId);
+      history.replaceState(null, '', url);
+      try {
+        await reloadFromLive({ silent: true, discardDraft: false });
+      } catch (err) {
+        statusEl.textContent = 'Failed to load ' + currentFile.file;
+        throw err;
+      }
+      showToast('Opened ' + currentFile.file);
+    }
+
+    function initFileSelect() {
+      fileSelect.innerHTML = FILES.map(f => `<option value="${f.id}">${f.label} (${f.file})</option>`).join('');
+      const fromQuery = new URLSearchParams(location.search).get(FILE_QUERY);
+      const pick = FILES.find(f => f.id === fromQuery) || FILES[0];
+      currentFile = pick;
+      fileSelect.value = pick.id;
+      fileSelect.onchange = () => switchFile(fileSelect.value);
+    }
+
+    saveBtn.addEventListener('click', () => {
+      saveToDisk().catch(err => {
+        console.error(err);
+        statusEl.textContent = 'Save failed: ' + err.message;
+        statusEl.className = 'status';
+        showToast('Save failed');
+      });
+    });
+
+    linkFileBtn.addEventListener('click', () => linkLocalFile());
+
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (!saveBtn.disabled) saveBtn.click();
+      }
+    });
+
+    sortCostBtn.addEventListener('click', () => {
+      items.sort((a, b) => a.baseCost - b.baseCost || a.name.localeCompare(b.name));
+      render();
+      saveDraftForCurrent();
+      showToast('Sorted by Lv1 cost');
+    });
+
+    document.getElementById('reloadBtn').addEventListener('click', async () => {
+      if (!confirm('Reload ' + currentFile.file + ' from disk? Unsaved draft changes will be discarded.')) return;
+      clearDraftForCurrent();
+      await reloadFromLive({ discardDraft: true, resetWorkspace: true });
+    });
+
+    document.querySelectorAll('.export-tabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.export-tabs button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeTab = btn.dataset.tab;
+        refreshExport();
+      });
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(exportBox.value);
+        statusEl.textContent = 'Copied to clipboard';
+        statusEl.className = 'status ok';
+        showToast('Copied');
+      } catch {
+        exportBox.select();
+        document.execCommand('copy');
+        statusEl.textContent = 'Copied (fallback)';
+        statusEl.className = 'status ok';
+      }
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const isJson = activeTab === 'json';
+      const blob = new Blob([exportBox.value], { type: isJson ? 'application/json' : 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = isJson ? currentFile.file : currentFile.file.replace('.json', '-diff.txt');
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Downloaded');
+    });
+
+    document.getElementById('importBtn').addEventListener('click', () => {
+      document.getElementById('importFile').click();
+    });
+
+    document.getElementById('importFile').addEventListener('change', async e => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+      try {
+        const parsed = JSON.parse(await file.text());
+        if (currentFile.mode === 'json') {
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('bad shape');
+          rootData = parsed;
+          jsonEditor.value = JSON.stringify(parsed, null, 2);
+        } else {
+          if (!Array.isArray(parsed) || !parsed.every(p => p.id && p.name)) throw new Error('bad shape');
+          items = parsed.map(p => deepClone(p));
+        }
+        render();
+        saveDraftForCurrent();
+        showToast('Imported JSON');
+      } catch {
+        alert('Import failed — shape does not match the selected file.');
+      }
+    });
+
+    jsonEditor.addEventListener('input', () => {
+      saveDraftForCurrent();
+      refreshExport();
+    });
+
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toastEl.classList.remove('show'), 1400);
+    }
+
+    async function boot() {
+      initFileSelect();
+      wireListTail();
+      try {
+        await reloadFromLive({ silent: true, discardDraft: false });
+      } catch (err) {
+        statusEl.textContent = 'Failed to load ' + currentFile.file;
+        statusEl.className = 'status';
+        throw err;
+      }
+      if (!loadDraftForCurrent()) {
+        if (currentFile.mode === 'json') {
+          jsonEditor.value = JSON.stringify(liveBaseline, null, 2);
+        }
+      }
+      await probeDevWrite();
+      render();
+    }
+
+    boot();
+  </script>
+</body>
+</html>
